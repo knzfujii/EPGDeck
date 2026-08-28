@@ -1,0 +1,15 @@
+{
+    "watch": ["dist"],
+    "ext": "js,json",
+    "ignore": [
+        "dist/client/**",
+        "client/**",
+        "data/**",
+        "logs/**",
+        "recorded/**",
+        "thumbnail/**",
+        "config/**"
+    ],
+    "delay": 1000,
+    "exec": "node dist/index.js"
+}

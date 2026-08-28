@@ -57,23 +57,33 @@ $ cp config/serviceLogConfig.sample.yml config/serviceLogConfig.yml
 
 ## 4. 開発時のビルド & 実行
 
-### サーバー側のビルドと起動
-```bash
-# サーバーの型チェック & ビルド
-$ npm run build-server
-
-# サーバーの起動
-$ npm start
-```
-起動後、ブラウザで `http://localhost:8889/`（設定したポート）にアクセスします。
-
-### クライアント側のホットリロード開発（フロントエンド）
-UI の変更を即座にブラウザに反映させるには、クライアントの watch モードを利用します：
+### ① ワンコマンド開発モード（おすすめ）
+以下のコマンドを実行するだけで、**サーバー（自動コンパイル + nodemon による自動再起動）** と **クライアント（自動差分ビルド）** が並行して同時に起動します。
 
 ```bash
-$ cd client
-$ npm run watch
+$ npm run dev
 ```
+
+- **サーバー側**: `src/` 配下の TypeScript を編集して保存すると、自動でコンパイルされサーバーが再起動します。
+- **クライアント側**: `client/src/` 配下の Vue / TS を編集して保存すると、自動で差分ビルドされ `client/dist` が更新されます（ブラウザをリロードすると反映）。
+
+---
+
+### ② 個別に起動する場合
+
+- **サーバー側のみ監視 & 自動再起動**:
+  ```bash
+  $ npm run dev:server
+  ```
+- **クライアント側のみ監視 & 自動差分ビルド**:
+  ```bash
+  $ npm run dev:client
+  ```
+- **本番用通常ビルド & 起動**:
+  ```bash
+  $ npm run build
+  $ npm start
+  ```
 
 ---
 

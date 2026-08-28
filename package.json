@@ -12,7 +12,12 @@
         "lint": "eslint --fix --ext .ts src/",
         "format": "prettier --check --write 'src/**/*.ts'",
         "compile": "tsc",
-        "watch": "tsc --watch",
+        "dev": "npm-run-all -p dev:server dev:client",
+        "dev:server": "npm-run-all -p watch:server start:dev",
+        "dev:client": "cd client && npm run watch",
+        "watch:server": "tsc --watch --preserveWatchOutput",
+        "start:dev": "nodemon",
+        "watch": "npm run dev",
         "orm-gen": "typeorm migration:generate src/db/migrations/${npm_config_db}/${npm_config_name} -d ./ormconfig.js",
         "orm-run": "typeorm migration:run -d ./ormconfig.js",
         "backup": "node dist/DBTools.js -m backup -o",
@@ -77,6 +82,8 @@
         "@typescript-eslint/parser": "7.8.0",
         "eslint": "8.57.0",
         "eslint-config-prettier": "8.10.0",
+        "nodemon": "3.1.14",
+        "npm-run-all": "4.1.5",
         "prettier": "3.2.5",
         "typescript": "5.4.5"
     }

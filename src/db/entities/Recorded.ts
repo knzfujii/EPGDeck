@@ -1,210 +1,44 @@
-import {
-    BaseEntity,
-    Column,
-    Entity,
-    JoinColumn,
-    JoinTable,
-    ManyToMany,
-    OneToMany,
-    OneToOne,
-    PrimaryGeneratedColumn,
-} from 'typeorm';
+import * as apid from '../../../api';
 import DropLogFile from './DropLogFile';
 import RecordedTag from './RecordedTag';
 import Thumbnail from './Thumbnail';
 import VideoFile from './VideoFile';
 
-@Entity()
-export default class Recorded extends BaseEntity {
-    @PrimaryGeneratedColumn({
-        type: 'integer',
-    })
-    public id!: number;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public reserveId!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public ruleId?: number | null;
-
-    @Column({
-        type: 'bigint',
-        nullable: true,
-    })
-    public programId!: number | null;
-
-    @Column({
-        type: 'bigint',
-    })
-    public channelId!: number;
-
-    @Column({
-        default: false,
-    })
-    public isProtected!: boolean;
-
-    @Column({
-        type: 'bigint',
-    })
-    public startAt!: number;
-
-    @Column({
-        type: 'bigint',
-    })
-    public endAt!: number;
-
-    @Column({
-        type: 'integer',
-    })
+export default class Recorded {
+    public id!: apid.RecordedId;
+    public reserveId: apid.ReserveId | null = null;
+    public ruleId: apid.RuleId | null = null;
+    public programId: apid.ProgramId | null = null;
+    public channelId!: apid.ChannelId;
+    public isProtected: boolean = false;
+    public startAt!: apid.UnixtimeMS;
+    public endAt!: apid.UnixtimeMS;
     public duration!: number;
-
-    @Column({
-        type: 'text',
-    })
-    public name!: string; // 番組名 (表示用)
-
-    @Column({
-        type: 'text',
-    })
-    public halfWidthName!: string; // 番組名 (検索用)
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public description?: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public halfWidthDescription?: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public extended?: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public halfWidthExtended?: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public rawExtended!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public rawHalfWidthExtended!: string | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre1?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre1?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre2?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre2?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre3?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre3?: number | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public videoType?: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public videoResolution?: string | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public videoStreamContent?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public videoComponentType?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public audioSamplingRate?: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public audioComponentType?: number | null;
-
-    @Column()
+    public name!: string;
+    public halfWidthName!: string;
+    public description: string | null = null;
+    public halfWidthDescription: string | null = null;
+    public extended: string | null = null;
+    public halfWidthExtended: string | null = null;
+    public rawExtended: string | null = null;
+    public rawHalfWidthExtended: string | null = null;
+    public genre1: number | null = null;
+    public subGenre1: number | null = null;
+    public genre2: number | null = null;
+    public subGenre2: number | null = null;
+    public genre3: number | null = null;
+    public subGenre3: number | null = null;
+    public videoType: string | null = null;
+    public videoResolution: string | null = null;
+    public videoStreamContent: number | null = null;
+    public videoComponentType: number | null = null;
+    public audioSamplingRate: number | null = null;
+    public audioComponentType: number | null = null;
     public isRecording!: boolean;
+    public dropLogFileId: apid.DropLogFileId | null = null;
 
-    @OneToMany(() => VideoFile, videoFile => videoFile.recorded)
     public videoFiles?: VideoFile[];
-
-    @OneToMany(() => Thumbnail, thumbnail => thumbnail.recorded)
     public thumbnails?: Thumbnail[];
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public dropLogFileId!: number | null;
-
-    @OneToOne(() => DropLogFile, dropLogFile => dropLogFile.id)
-    @JoinColumn({
-        name: 'dropLogFileId',
-        referencedColumnName: 'id',
-    })
     public dropLogFile?: DropLogFile | null;
-
-    @ManyToMany(() => RecordedTag)
-    @JoinTable()
-    public tags!: RecordedTag[];
+    public tags?: RecordedTag[];
 }

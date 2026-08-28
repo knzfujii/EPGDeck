@@ -9,7 +9,7 @@ import RecordedTag from './db/entities/RecordedTag';
 import Reserve from './db/entities/Reserve';
 import Thumbnail from './db/entities/Thumbnail';
 import VideoFile from './db/entities/VideoFile';
-import IDBOperator from './model/db/IDBOperator';
+import IDrizzleOperator from './model/db/IDrizzleOperator';
 import IDropLogFileDB from './model/db/IDropLogFileDB';
 import IRecordedDB from './model/db/IRecordedDB';
 import IRecordedHistoryDB from './model/db/IRecordedHistoryDB';
@@ -44,7 +44,7 @@ class DBTools {
 
     private log: ILogger;
     private connectionChecker: IConnectionCheckModel;
-    private dbOperator: IDBOperator;
+    private drizzleOperator: IDrizzleOperator;
     private dropLogFileDB: IDropLogFileDB;
     private recordedDB: IRecordedDB;
     private recordedHistoryDB: IRecordedHistoryDB;
@@ -86,7 +86,7 @@ class DBTools {
         logger.initialize();
         this.log = logger.getLogger();
         this.connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');
-        this.dbOperator = container.get<IDBOperator>('IDBOperator');
+        this.drizzleOperator = container.get<IDrizzleOperator>('IDrizzleOperator');
         this.dropLogFileDB = container.get<IDropLogFileDB>('IDropLogFileDB');
         this.recordedDB = container.get<IRecordedDB>('IRecordedDB');
         this.recordedHistoryDB = container.get<IRecordedHistoryDB>('IRecordedHistoryDB');
@@ -113,7 +113,7 @@ class DBTools {
         }
 
         // DB 切断
-        await this.dbOperator.closeConnection();
+        await this.drizzleOperator.closeConnection();
         this.log.system.info('--- finish ---');
 
         process.exit(0);

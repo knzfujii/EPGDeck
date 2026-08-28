@@ -1,22 +1,8 @@
-import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import * as apid from '../../../api';
 
-@Entity()
-export default class RecordedTag extends BaseEntity {
-    @PrimaryGeneratedColumn({
-        type: 'integer',
-    })
-    public id!: number;
-
-    @Column({
-        type: 'text',
-    })
-    public name!: string; // タグ名
-
-    @Column({
-        type: 'text',
-    })
-    public halfWidthName!: string; // 検索用の name を半角化したもの
-
-    @Column()
-    public color!: string; // 色
+export default class RecordedTag {
+    public id!: apid.RecordedTagId;
+    public name!: string;
+    public halfWidthName!: string;
+    public color!: string;
 }

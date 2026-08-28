@@ -1,194 +1,39 @@
-import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
+import * as apid from '../../../api';
 
-@Entity()
-export default class Program extends BaseEntity {
-    @PrimaryColumn({
-        type: 'bigint',
-        unique: true,
-    })
-    public id!: number;
-
-    @Column({
-        type: 'bigint',
-    })
+export default class Program {
+    public id!: apid.ProgramId;
     public updateTime!: number;
-
-    @Column({
-        type: 'bigint',
-    })
-    public channelId!: number;
-
-    @Column({
-        type: 'bigint',
-    })
-    public eventId!: number;
-
-    @Column({
-        type: 'integer',
-    })
-    public serviceId!: number;
-
-    @Column({
-        type: 'integer',
-    })
-    public networkId!: number;
-
-    @Column({
-        type: 'bigint',
-    })
-    public startAt!: number;
-
-    @Column({
-        type: 'bigint',
-    })
-    public endAt!: number;
-
-    @Column({
-        type: 'integer',
-        select: false,
-    })
+    public channelId!: apid.ChannelId;
+    public eventId!: apid.EventId;
+    public serviceId!: apid.ServiceId;
+    public networkId!: apid.NetworkId;
+    public startAt!: apid.UnixtimeMS;
+    public endAt!: apid.UnixtimeMS;
     public startHour!: number;
-
-    @Column({
-        type: 'integer',
-        select: false,
-    })
     public week!: number;
-
-    @Column({
-        type: 'integer',
-    })
     public duration!: number;
-
-    @Column()
     public isFree!: boolean;
-
-    @Column({
-        type: 'text',
-    })
-    public name!: string; // 番組名 (表示用)
-
-    @Column({
-        type: 'text',
-    })
-    public halfWidthName!: string; // 番組名 (検索用)
-
-    @Column({
-        type: 'text',
-    })
-    public shortName!: string; // 番組名 (重複チェック用)
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public description!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public halfWidthDescription!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public extended!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public halfWidthExtended!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public rawExtended!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public rawHalfWidthExtended!: string | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre1!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre1!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre2!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre2!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public genre3!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public subGenre3!: number | null;
-
-    @Column()
-    public channelType!: string; // GR BS CS SKY
-
-    @Column()
+    public name!: string;
+    public halfWidthName!: string;
+    public shortName!: string;
+    public description: string | null = null;
+    public halfWidthDescription: string | null = null;
+    public extended: string | null = null;
+    public halfWidthExtended: string | null = null;
+    public rawExtended: string | null = null;
+    public rawHalfWidthExtended: string | null = null;
+    public genre1: number | null = null;
+    public subGenre1: number | null = null;
+    public genre2: number | null = null;
+    public subGenre2: number | null = null;
+    public genre3: number | null = null;
+    public subGenre3: number | null = null;
+    public channelType!: apid.ChannelType;
     public channel!: string;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public videoType!: string | null;
-
-    @Column({
-        type: 'text',
-        nullable: true,
-    })
-    public videoResolution!: string | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public videoStreamContent!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public videoComponentType!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public audioSamplingRate!: number | null;
-
-    @Column({
-        type: 'integer',
-        nullable: true,
-    })
-    public audioComponentType!: number | null;
+    public videoType: string | null = null;
+    public videoResolution: string | null = null;
+    public videoStreamContent: number | null = null;
+    public videoComponentType: number | null = null;
+    public audioSamplingRate: number | null = null;
+    public audioComponentType: number | null = null;
 }

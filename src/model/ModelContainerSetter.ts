@@ -39,11 +39,9 @@ import VideoUtil from './api/video/VideoUtil';
 import Configuration from './Configuration';
 import ConnectionCheckModel from './ConnectionCheckModel';
 import ChannelDB from './db/ChannelDB';
-import DBOperator from './db/DBOperator';
 import DrizzleOperator from './db/DrizzleOperator';
 import DropLogFileDB from './db/DropLogFileDB';
 import IChannelDB from './db/IChannelDB';
-import IDBOperator from './db/IDBOperator';
 import IDrizzleOperator from './db/IDrizzleOperator';
 import IDropLogFileDB from './db/IDropLogFileDB';
 import IProgramDB from './db/IProgramDB';
@@ -181,7 +179,6 @@ export const set = (container: Container): void => {
 
     container.bind<IIPCServer>('IIPCServer').to(IPCServer).inSingletonScope();
 
-    container.bind<IDBOperator>('IDBOperator').to(DBOperator).inSingletonScope();
     container.bind<IDrizzleOperator>('IDrizzleOperator').to(DrizzleOperator).inSingletonScope();
 
     container.bind<IChannelDB>('IChannelDB').to(ChannelDB).inSingletonScope();

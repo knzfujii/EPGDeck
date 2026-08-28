@@ -18,4 +18,5 @@ dist
 .cache
 data/upload/*
 data/key/*
+*.sql
 !.gitkeep

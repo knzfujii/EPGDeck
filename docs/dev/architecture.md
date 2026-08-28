@@ -44,11 +44,11 @@ API のルーティングとバリデーションは、OpenAPI 仕様（`api.yml
 - ルートハンドラー: `src/model/service/api/**/*.ts`
 - 各エンドポイントは OpenAPI の operationId や tags と対応付けられています。
 
-### ORM: TypeORM
-データベースアクセスには TypeORM を使用し、接続ドライバーには最新の `mysql2` および `sqlite3` を採用しています。
-- Entity 定義: `src/db/entities/**/*.ts`
-- マイグレーション: `src/db/migrations/`
-- SQLite3 および MySQL/MariaDB に対応しています。
+### ORM: Drizzle ORM
+データベースアクセスには **Drizzle ORM**（および `@libsql/client` / `mysql2`）を採用し、軽量・高速かつ型安全なクエリ実行を行っています。
+- Schema 定義: `src/db/schema/**/*.ts` (SQLite / MySQL)
+- DTO 定義: `src/db/entities/**/*.ts`
+- **EPGStation (v2.10.0) 互換性**: データベーステーブル・カラム構造は EPGStation v2.10.0 と 100% 同一であり、既存の `database.db` / MySQL からの直接移行および新規初期化に完全対応しています。
 
 ---
 

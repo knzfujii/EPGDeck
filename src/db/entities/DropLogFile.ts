@@ -1,29 +1,9 @@
-import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import * as apid from '../../../api';
 
-@Entity()
-export default class DropLogFile extends BaseEntity {
-    @PrimaryGeneratedColumn({
-        type: 'integer',
-    })
-    public id!: number;
-
-    @Column({
-        type: 'bigint',
-    })
+export default class DropLogFile {
+    public id!: apid.DropLogFileId;
     public errorCnt!: number;
-
-    @Column({
-        type: 'bigint',
-    })
     public dropCnt!: number;
-
-    @Column({
-        type: 'bigint',
-    })
     public scramblingCnt!: number;
-
-    @Column({
-        type: 'text',
-    })
     public filePath!: string;
 }

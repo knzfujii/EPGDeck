@@ -36,6 +36,9 @@ jobs:
       - name: TypeScript Compile Check
         run: npx tsc --noEmit
 
+      - name: Run Tests
+        run: npm test
+
   client:
     name: Client (Lint & Build)
     runs-on: ubuntu-latest

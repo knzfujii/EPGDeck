@@ -45,7 +45,7 @@ API のルーティングとバリデーションは、OpenAPI 仕様（`api.yml
 - 各エンドポイントは OpenAPI の operationId や tags と対応付けられています。
 
 ### ORM: TypeORM
-データベースアクセスには TypeORM（0.3系）を使用しています。
+データベースアクセスには TypeORM を使用し、接続ドライバーには最新の `mysql2` および `sqlite3` を採用しています。
 - Entity 定義: `src/db/entities/**/*.ts`
 - マイグレーション: `src/db/migrations/`
 - SQLite3 および MySQL/MariaDB に対応しています。
@@ -54,10 +54,21 @@ API のルーティングとバリデーションは、OpenAPI 仕様（`api.yml
 
 ## 4. フロントエンド設計
 
+- **ビルドツール**: **Vite** (`@vitejs/plugin-vue2`)
+  - Webpack 4 / Vue CLI を完全撤廃し、Node.js 18 〜 Node.js 26 (LTS) でのネイティブ高速ビルドに対応。
 - **フレームワーク**: Vue.js (v2.7 + TypeScript Class Component)
 - **UI コンポーネント**: Vuetify (Material Design)
-- **状態管理**: Vuex ではなく、Inversify による DI を活用した State モデルクラス群（`client/src/model/state/`）でリアクティブに管理
+- **状態管理**: Inversify による DI を活用した State モデルクラス群（`client/src/model/state/`）でリアクティブに管理
 - **メディア再生**:
   - `aribb24.js`: 地デジ・BS の字幕 / 文字スーパーのブラウザ描画
   - `mpegts.js`: MPEG-2 TS の低遅延 HTTP ライブストリーミング
   - `hls.js`: HLS による録画再生・トランスコード配信
+
+---
+
+## 5. テスト・CI 基盤
+
+- **テストフレームワーク**: **Vitest**
+  - Node.js 環境での高速な単体テスト（設定パース、API ユーティリティ、バージョン整合性など）を実行可能。
+- **継続的インテグレーション (CI)**: GitHub Actions
+  - PR / Push 時に `npm test` および型チェック・Lint・全ビルドを自動実行して品質を担保。

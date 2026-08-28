@@ -4,8 +4,8 @@
     </div>
 </template>
 
-<script>
-import AppContent from '@/views/AppContent';
+<script lang="ts">
+import AppContent from '@/views/AppContent.vue';
 
 export default {
     name: 'app',

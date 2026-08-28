@@ -4,8 +4,9 @@ import '@mdi/font/css/materialdesignicons.css';
 import 'material-design-icons-iconfont/dist/material-design-icons.css';
 // tslint:disable-next-line: no-import-side-effect
 import 'typeface-roboto/index.css';
+import 'vuetify/dist/vuetify.min.css';
 import Vue from 'vue';
-import Vuetify from 'vuetify/lib';
+import Vuetify from 'vuetify';
 
 Vue.use(Vuetify);
 

@@ -9,8 +9,8 @@ const config = yaml.load(fs.readFileSync(configFilePath, 'utf-8'));
 
 // dist 下のディレクトリ設定
 const distDBBasePath = path.join('dist', 'db');
-const entitie = path.join(distDBBasePath, 'entities', '**', '*.js');
-const subscriber = path.join(distDBBasePath, 'subscribers', '**', '*.js');
+const entities = path.join(distDBBasePath, 'entities', '**', '*.js');
+const subscribers = path.join(distDBBasePath, 'subscribers', '**', '*.js');
 
 const migrations = [path.join(distDBBasePath, 'migrations', config.dbtype, '**', '*.js')];
 
@@ -23,8 +23,8 @@ switch (config.dbtype) {
             database: path.join(__dirname, 'data', 'database.db'),
             synchronize: false,
             logging: false,
-            entities: [entitie],
-            subscribers: [subscriber],
+            entities: [entities],
+            subscribers: [subscribers],
             migrationsRun: false,
             migrations: migrations,
         });
@@ -42,8 +42,8 @@ switch (config.dbtype) {
             bigNumberStrings: false,
             synchronize: false,
             logging: false,
-            entities: [entitie],
-            subscribers: [subscriber],
+            entities: [entities],
+            subscribers: [subscribers],
             migrationsRun: false,
             migrations: migrations,
         });

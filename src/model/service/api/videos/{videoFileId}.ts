@@ -15,7 +15,7 @@ export const get: Operation = async (req, res) => {
                 message: 'video file is not found',
             });
         } else {
-            api.responseFile(req, res, fileInfo.path, fileInfo.mime, req.query.isDownload as any as boolean);
+            await api.responseFile(req, res, fileInfo.path, fileInfo.mime, req.query.isDownload as any as boolean);
         }
     } catch (err: any) {
         api.responseServerError(res, err.message);

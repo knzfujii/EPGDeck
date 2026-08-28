@@ -15,7 +15,7 @@ export const get: Operation = async (req, res) => {
                 message: 'thumbnail is not Found',
             });
         } else {
-            api.responseFile(req, res, filePath, 'image/jpeg', false);
+            await api.responseFile(req, res, filePath, 'image/jpeg', false);
         }
     } catch (err: any) {
         api.responseServerError(res, err.message);

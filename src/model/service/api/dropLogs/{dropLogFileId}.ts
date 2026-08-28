@@ -18,7 +18,7 @@ export const get: Operation = async (req, res) => {
                 message: 'drop log file is not Found',
             });
         } else {
-            api.responseFile(req, res, filePath, 'text/plain', false);
+            await api.responseFile(req, res, filePath, 'text/plain', false);
         }
     } catch (err: any) {
         if (err.message === DropLogApiErrors.FILE_IS_TOO_LARGE) {

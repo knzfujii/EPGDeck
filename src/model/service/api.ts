@@ -61,16 +61,16 @@ export const responsePlayList = (req: express.Request, res: express.Response, li
     res.end();
 };
 
-export const responseFile = (
+export const responseFile = async (
     req: express.Request,
     res: express.Response,
     filePath: string,
     mime: string,
     download = false,
-): void => {
-    const stat = fs.statSync(filePath);
+): Promise<void> => {
+    const stat = await fs.promises.stat(filePath);
     if (stat.isDirectory()) {
-        throw new Error('file path is derectory');
+        throw new Error('file path is directory');
     }
 
     const responseHeaders: any = {};
@@ -155,6 +155,15 @@ const sendResponse = (
     if (readable === null) {
         res.end();
     } else {
+        readable.on('error', () => {
+            readable.destroy();
+            if (!res.headersSent) {
+                res.status(500).end();
+            } else {
+                res.end();
+            }
+        });
+
         readable.on('open', () => {
             readable.pipe(res);
         });
@@ -165,7 +174,7 @@ const sendResponse = (
 
         // 接続切断時もファイルを開放する
         req.on('close', () => {
-            readable.close();
+            readable.destroy();
         });
     }
 };

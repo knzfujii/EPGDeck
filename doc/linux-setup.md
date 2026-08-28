@@ -4,7 +4,15 @@
 
 ## セットアップ
 
-1. **Node.js, Mirakurun, FFmpeg/FFprobe, Python (2.7, v3.5, v3.6, or v3.7), GCC** がインストール済みであることを確認する
+1. **Node.js, Mirakurun, FFmpeg/FFprobe, Python (v3.x), GCC** がインストール済みであることを確認する
+
+    本リポジトリには `.mise.toml` が含まれているため、[mise](https://mise.jdx.dev/) をお使いの場合は以下で推奨バージョンの Node.js を自動セットアップできます。
+
+    ```bash
+    $ mise install
+    ```
+
+    手動で確認する場合:
 
     ```bash
     $ node --version

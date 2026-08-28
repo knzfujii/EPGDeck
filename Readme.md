@@ -41,7 +41,7 @@ PC からの閲覧でもモダンな UI で操作可能です
 ## 動作環境
 
 -   Linux / macOS / ~~Windows~~
--   [Node.js](http://nodejs.org/) : ^18.16.1
+-   [Node.js](http://nodejs.org/) : ^18.16.1 (リポジトリ内に `.mise.toml` を同梱しており、[mise](https://mise.jdx.dev/) に対応しています)
 -   [Mirakurun](https://github.com/Chinachu/Mirakurun) : ^3.8.0 or [mirakc](https://github.com/mirakc/mirakc) : ^3.1.10
 -   いずれかのデータベース
     -   [SQLite3](https://www.sqlite.org/)（設定不要だが検索機能に制限あり）[標準]

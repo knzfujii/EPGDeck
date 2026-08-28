@@ -55,3 +55,10 @@
   - 変更を加えた際は、サーバー（`mise exec -- npm run build-server`）およびクライアント（`mise exec -- npm run build-client`）のビルド、型チェック、単体テスト（`mise exec -- npm test`）、Lintが正常に通ることを確認すること。
 - **ドキュメント・設定サンプルの同期**:
   - 設定項目やAPIの変更・追加を行った場合は、関連するドキュメント（`docs/` 配下や `config/*.sample.yml`、`api.yml` 等）も漏れなく追従更新すること。
+
+---
+
+## 7. ログ常時監視の徹底 (Active Log Monitoring)
+- **ログファイルを常に監視しながら開発を進める**:
+  - サーバー起動中や動作検証、デバッグ時は、バックグラウンドのログファイル（`logs/Operator/*.log`, `logs/Service/*.log`, `logs/EPGUpdater/*.log`）を能動的に監視・確認すること。
+  - エラーの発生や予期せぬ動作を早期に検知し、推測ではなく実際のログ内容（スタックトレースや詳細出力）に基づいて迅速かつ的確に対処すること。

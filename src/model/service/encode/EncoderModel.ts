@@ -227,6 +227,10 @@ class EncoderModel implements IEncoderModel {
             },
         });
 
+        const timeoutRate = typeof encodeCmd.rate === 'undefined' ? EncoderModel.DEFAULT_TIMEOUT_RATE : encodeCmd.rate;
+        const rawTimeout = (recorded.duration > 0 ? recorded.duration : 3600000) * timeoutRate;
+        const safeTimeout = Math.min(Math.max(rawTimeout, 60000), 2147483647);
+
         // タイムアウト設定
         this.timerId = setTimeout(
             async () => {
@@ -237,17 +241,20 @@ class EncoderModel implements IEncoderModel {
                 this.log.encode.error(`encode process is time out: ${this.encodeOption.encodeId} ${outputFilePath}`);
                 await this.cancel();
             },
-            recorded.duration *
-                (typeof encodeCmd.rate === 'undefined' ? EncoderModel.DEFAULT_TIMEOUT_RATE : encodeCmd.rate),
+            safeTimeout,
         );
 
         /**
          * プロセスの設定
          */
-        // debug 用
+        // debug 用 & エラー時ログ用バッファ
+        const stderrBuffer: string[] = [];
         if (this.childProcess.stderr !== null) {
             this.childProcess.stderr.on('data', data => {
-                this.log.encode.debug(String(data));
+                const str = String(data);
+                this.log.encode.debug(str);
+                stderrBuffer.push(str);
+                if (stderrBuffer.length > 50) stderrBuffer.shift();
             });
         }
 
@@ -274,12 +281,12 @@ class EncoderModel implements IEncoderModel {
 
         // プロセス終了処理
         this.childProcess.on('exit', async (code, signal) => {
-            this.childEndProcessing(code, signal, outputFilePath);
+            this.childEndProcessing(code, signal, outputFilePath, stderrBuffer);
         });
 
         // プロセスの即時終了対応
         if (ProcessUtil.isExited(this.childProcess) === true) {
-            this.childEndProcessing(this.childProcess.exitCode, this.childProcess.signalCode, outputFilePath);
+            this.childEndProcessing(this.childProcess.exitCode, this.childProcess.signalCode, outputFilePath, stderrBuffer);
             this.childProcess.removeAllListeners();
         }
     }
@@ -345,6 +352,7 @@ class EncoderModel implements IEncoderModel {
         code: number | null,
         signal: NodeJS.Signals | null,
         outputFilePath: string | null,
+        stderrBuffer?: string[],
     ): Promise<void> {
         // exit code
         this.log.encode.info(`exit code: ${code}, signal: ${signal}`);
@@ -372,6 +380,9 @@ class EncoderModel implements IEncoderModel {
         } else if (code !== 0) {
             // エンコードが正常終了しなかった
             this.log.encode.error(`encode failed: ${this.encodeOption.encodeId} ${outputFilePath}`);
+            if (stderrBuffer && stderrBuffer.length > 0) {
+                this.log.encode.error(`encode error output:\n${stderrBuffer.join('')}`);
+            }
         } else {
             // エンコード正常終了
             this.log.encode.info(`Successfully encod: ${this.encodeOption.encodeId} ${outputFilePath}`);

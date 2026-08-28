@@ -232,17 +232,14 @@ class EncoderModel implements IEncoderModel {
         const safeTimeout = Math.min(Math.max(rawTimeout, 60000), 2147483647);
 
         // タイムアウト設定
-        this.timerId = setTimeout(
-            async () => {
-                if (this.encodeOption === null) {
-                    return;
-                }
+        this.timerId = setTimeout(async () => {
+            if (this.encodeOption === null) {
+                return;
+            }
 
-                this.log.encode.error(`encode process is time out: ${this.encodeOption.encodeId} ${outputFilePath}`);
-                await this.cancel();
-            },
-            safeTimeout,
-        );
+            this.log.encode.error(`encode process is time out: ${this.encodeOption.encodeId} ${outputFilePath}`);
+            await this.cancel();
+        }, safeTimeout);
 
         /**
          * プロセスの設定
@@ -286,7 +283,12 @@ class EncoderModel implements IEncoderModel {
 
         // プロセスの即時終了対応
         if (ProcessUtil.isExited(this.childProcess) === true) {
-            this.childEndProcessing(this.childProcess.exitCode, this.childProcess.signalCode, outputFilePath, stderrBuffer);
+            this.childEndProcessing(
+                this.childProcess.exitCode,
+                this.childProcess.signalCode,
+                outputFilePath,
+                stderrBuffer,
+            );
             this.childProcess.removeAllListeners();
         }
     }

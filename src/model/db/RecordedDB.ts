@@ -16,7 +16,10 @@ export default class RecordedDB implements IRecordedDB {
     private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+    constructor(
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
+        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+    ) {
         this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
@@ -104,16 +107,10 @@ export default class RecordedDB implements IRecordedDB {
         await this.promieRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ isRecording: false })
-                    .where(eq(schema.recorded.id, recordedId));
+                await db.update(schema.recorded).set({ isRecording: false }).where(eq(schema.recorded.id, recordedId));
             } else {
                 const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ isRecording: false })
-                    .where(eq(schema.recorded.id, recordedId));
+                await db.update(schema.recorded).set({ isRecording: false }).where(eq(schema.recorded.id, recordedId));
             }
         });
     }
@@ -270,7 +267,8 @@ export default class RecordedDB implements IRecordedDB {
                 const entity = this.toEntity(r);
                 if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
                 if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
-                if (isNeedsDropLog) entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+                if (isNeedsDropLog)
+                    entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
                 if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
                 return entity;
             });
@@ -335,7 +333,9 @@ export default class RecordedDB implements IRecordedDB {
 
                 let query = db.select().from(schema.recorded);
                 if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt)) as any;
+                query = query.orderBy(
+                    option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt),
+                ) as any;
                 if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
                 if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
@@ -393,7 +393,9 @@ export default class RecordedDB implements IRecordedDB {
 
                 let query = db.select().from(schema.recorded);
                 if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt)) as any;
+                query = query.orderBy(
+                    option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt),
+                ) as any;
                 if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
                 if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
@@ -438,7 +440,8 @@ export default class RecordedDB implements IRecordedDB {
                 const entity = this.toEntity(r);
                 if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
                 if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
-                if (isNeedsDropLog) entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+                if (isNeedsDropLog)
+                    entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
                 if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
                 return entity;
             });
@@ -565,14 +568,21 @@ export default class RecordedDB implements IRecordedDB {
             }
 
             if (rows.length === 0) return [];
-            return await this.findIds(rows.map(r => r.id), undefined, false);
+            return await this.findIds(
+                rows.map(r => r.id),
+                undefined,
+                false,
+            );
         });
     }
 
     private async fetchVideoFiles(client: any, recordedIds: number[]): Promise<Map<number, VideoFile[]>> {
         const map = new Map<number, VideoFile[]>();
         const { schema } = client;
-        const rows = await client.db.select().from(schema.videoFiles).where(inArray(schema.videoFiles.recordedId, recordedIds));
+        const rows = await client.db
+            .select()
+            .from(schema.videoFiles)
+            .where(inArray(schema.videoFiles.recordedId, recordedIds));
 
         for (const row of rows) {
             const vf = new VideoFile();
@@ -586,7 +596,10 @@ export default class RecordedDB implements IRecordedDB {
     private async fetchThumbnails(client: any, recordedIds: number[]): Promise<Map<number, Thumbnail[]>> {
         const map = new Map<number, Thumbnail[]>();
         const { schema } = client;
-        const rows = await client.db.select().from(schema.thumbnails).where(inArray(schema.thumbnails.recordedId, recordedIds));
+        const rows = await client.db
+            .select()
+            .from(schema.thumbnails)
+            .where(inArray(schema.thumbnails.recordedId, recordedIds));
 
         for (const row of rows) {
             const t = new Thumbnail();
@@ -602,7 +615,10 @@ export default class RecordedDB implements IRecordedDB {
         if (dropLogIds.length === 0) return map;
 
         const { schema } = client;
-        const rows = await client.db.select().from(schema.dropLogFiles).where(inArray(schema.dropLogFiles.id, dropLogIds));
+        const rows = await client.db
+            .select()
+            .from(schema.dropLogFiles)
+            .where(inArray(schema.dropLogFiles.id, dropLogIds));
 
         for (const row of rows) {
             const dl = new DropLogFile();

@@ -11,7 +11,10 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+    constructor(
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
+        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+    ) {
         this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }

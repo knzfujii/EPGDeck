@@ -194,7 +194,10 @@ export default class ProgramDB implements IProgramDB {
                     eq(schema.programs.serviceId, serviceId),
                     eq(schema.programs.eventId, eventId),
                 );
-                rows = await db.select().from(schema.programs).where(and(...conditions));
+                rows = await db
+                    .select()
+                    .from(schema.programs)
+                    .where(and(...conditions));
             } else {
                 const { db, schema } = client;
                 conditions.push(
@@ -202,7 +205,10 @@ export default class ProgramDB implements IProgramDB {
                     eq(schema.programs.serviceId, serviceId),
                     eq(schema.programs.eventId, eventId),
                 );
-                rows = await db.select().from(schema.programs).where(and(...conditions));
+                rows = await db
+                    .select()
+                    .from(schema.programs)
+                    .where(and(...conditions));
             }
 
             if (rows.length === 0) return null;
@@ -228,7 +234,8 @@ export default class ProgramDB implements IProgramDB {
                     if (kw.length > 0) {
                         const kwOr: any[] = [];
                         if (searchOption.name) kwOr.push(like(client.schema.programs.halfWidthName, `%${kw}%`));
-                        if (searchOption.description) kwOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
+                        if (searchOption.description)
+                            kwOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
                         if (searchOption.extended) kwOr.push(like(client.schema.programs.halfWidthExtended, `%${kw}%`));
                         if (kwOr.length === 0) {
                             kwOr.push(
@@ -248,9 +255,12 @@ export default class ProgramDB implements IProgramDB {
                 for (const kw of ignoreKeywords) {
                     if (kw.length > 0) {
                         const ignoreOr: any[] = [];
-                        if (searchOption.ignoreName) ignoreOr.push(like(client.schema.programs.halfWidthName, `%${kw}%`));
-                        if (searchOption.ignoreDescription) ignoreOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
-                        if (searchOption.ignoreExtended) ignoreOr.push(like(client.schema.programs.halfWidthExtended, `%${kw}%`));
+                        if (searchOption.ignoreName)
+                            ignoreOr.push(like(client.schema.programs.halfWidthName, `%${kw}%`));
+                        if (searchOption.ignoreDescription)
+                            ignoreOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
+                        if (searchOption.ignoreExtended)
+                            ignoreOr.push(like(client.schema.programs.halfWidthExtended, `%${kw}%`));
                         if (ignoreOr.length === 0) {
                             ignoreOr.push(
                                 like(client.schema.programs.halfWidthName, `%${kw}%`),
@@ -288,9 +298,24 @@ export default class ProgramDB implements IProgramDB {
                         gOr.push(eq(client.schema.programs.genre2, g.genre));
                         gOr.push(eq(client.schema.programs.genre3, g.genre));
                     } else {
-                        gOr.push(and(eq(client.schema.programs.genre1, g.genre), eq(client.schema.programs.subGenre1, g.subGenre)));
-                        gOr.push(and(eq(client.schema.programs.genre2, g.genre), eq(client.schema.programs.subGenre2, g.subGenre)));
-                        gOr.push(and(eq(client.schema.programs.genre3, g.genre), eq(client.schema.programs.subGenre3, g.subGenre)));
+                        gOr.push(
+                            and(
+                                eq(client.schema.programs.genre1, g.genre),
+                                eq(client.schema.programs.subGenre1, g.subGenre),
+                            ),
+                        );
+                        gOr.push(
+                            and(
+                                eq(client.schema.programs.genre2, g.genre),
+                                eq(client.schema.programs.subGenre2, g.subGenre),
+                            ),
+                        );
+                        gOr.push(
+                            and(
+                                eq(client.schema.programs.genre3, g.genre),
+                                eq(client.schema.programs.subGenre3, g.subGenre),
+                            ),
+                        );
                     }
                     genreConditions.push(or(...gOr));
                 }
@@ -321,7 +346,10 @@ export default class ProgramDB implements IProgramDB {
                 const periodConditions: any[] = [];
                 for (const p of searchOption.searchPeriods) {
                     periodConditions.push(
-                        and(gte(client.schema.programs.startAt, p.startAt), lte(client.schema.programs.startAt, p.endAt)),
+                        and(
+                            gte(client.schema.programs.startAt, p.startAt),
+                            lte(client.schema.programs.startAt, p.endAt),
+                        ),
                     );
                 }
                 conditions.push(or(...periodConditions));

@@ -11,7 +11,10 @@ export default class RuleDB implements IRuleDB {
     private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+    constructor(
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
+        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+    ) {
         this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
@@ -420,8 +423,7 @@ export default class RuleDB implements IRuleDB {
         if (typeof rule.saveOption !== 'undefined') {
             converted.parentDirectoryName =
                 typeof rule.saveOption.parentDirectoryName === 'undefined' ? null : rule.saveOption.parentDirectoryName;
-            converted.directory =
-                typeof rule.saveOption.directory === 'undefined' ? null : rule.saveOption.directory;
+            converted.directory = typeof rule.saveOption.directory === 'undefined' ? null : rule.saveOption.directory;
             converted.recordedFormat =
                 typeof rule.saveOption.recordedFormat === 'undefined' ? null : rule.saveOption.recordedFormat;
         }
@@ -492,7 +494,8 @@ export default class RuleDB implements IRuleDB {
         if (row.durationMax !== null) converted.searchOption.durationMax = row.durationMax;
         if (row.searchPeriods !== null) converted.searchOption.searchPeriods = JSON.parse(row.searchPeriods);
 
-        if (row.periodToAvoidDuplicate !== null) converted.reserveOption.periodToAvoidDuplicate = row.periodToAvoidDuplicate;
+        if (row.periodToAvoidDuplicate !== null)
+            converted.reserveOption.periodToAvoidDuplicate = row.periodToAvoidDuplicate;
         if (row.tags !== null) converted.reserveOption.tags = JSON.parse(row.tags);
 
         const saveOption: apid.ReserveSaveOption = {};

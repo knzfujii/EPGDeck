@@ -146,7 +146,11 @@ export default class ChannelDB implements IChannelDB {
                     .select()
                     .from(schema.channels)
                     .where(inArray(schema.channels.channelType, types))
-                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                    .orderBy(
+                        asc(schema.channels.channelTypeId),
+                        asc(schema.channels.remoteControlKeyId),
+                        asc(schema.channels.serviceId),
+                    );
                 results = rows.map(r => this.toEntity(r));
             } else {
                 const { db, schema } = client;
@@ -154,7 +158,11 @@ export default class ChannelDB implements IChannelDB {
                     .select()
                     .from(schema.channels)
                     .where(inArray(schema.channels.channelType, types))
-                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                    .orderBy(
+                        asc(schema.channels.channelTypeId),
+                        asc(schema.channels.remoteControlKeyId),
+                        asc(schema.channels.serviceId),
+                    );
                 results = rows.map(r => this.toEntity(r));
             }
 
@@ -175,14 +183,22 @@ export default class ChannelDB implements IChannelDB {
                 const rows = await db
                     .select()
                     .from(schema.channels)
-                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                    .orderBy(
+                        asc(schema.channels.channelTypeId),
+                        asc(schema.channels.remoteControlKeyId),
+                        asc(schema.channels.serviceId),
+                    );
                 results = rows.map(r => this.toEntity(r));
             } else {
                 const { db, schema } = client;
                 const rows = await db
                     .select()
                     .from(schema.channels)
-                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                    .orderBy(
+                        asc(schema.channels.channelTypeId),
+                        asc(schema.channels.remoteControlKeyId),
+                        asc(schema.channels.serviceId),
+                    );
                 results = rows.map(r => this.toEntity(r));
             }
 

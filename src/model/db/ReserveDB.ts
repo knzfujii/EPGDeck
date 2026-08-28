@@ -19,7 +19,10 @@ export default class ReserveDB implements IReserveDB {
     private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+    constructor(
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
+        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+    ) {
         this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
@@ -352,7 +355,9 @@ export default class ReserveDB implements IReserveDB {
                 const { db, schema } = client;
                 const timeConditions: any[] = [];
                 for (const time of option.times) {
-                    timeConditions.push(and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)));
+                    timeConditions.push(
+                        and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)),
+                    );
                 }
 
                 const conditions: any[] = [or(...timeConditions)];
@@ -361,20 +366,28 @@ export default class ReserveDB implements IReserveDB {
                 if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
                 if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
                 if (typeof option.excludeRuleId !== 'undefined') {
-                    conditions.push(or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)));
+                    conditions.push(
+                        or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)),
+                    );
                 }
                 if (typeof option.excludeReserveId !== 'undefined') {
                     conditions.push(ne(schema.reserves.id, option.excludeReserveId));
                 }
 
                 const whereClause = and(...conditions);
-                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                const rows = await db
+                    .select()
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.startAt));
                 return rows.map(r => this.toEntity(r));
             } else {
                 const { db, schema } = client;
                 const timeConditions: any[] = [];
                 for (const time of option.times) {
-                    timeConditions.push(and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)));
+                    timeConditions.push(
+                        and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)),
+                    );
                 }
 
                 const conditions: any[] = [or(...timeConditions)];
@@ -383,14 +396,20 @@ export default class ReserveDB implements IReserveDB {
                 if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
                 if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
                 if (typeof option.excludeRuleId !== 'undefined') {
-                    conditions.push(or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)));
+                    conditions.push(
+                        or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)),
+                    );
                 }
                 if (typeof option.excludeReserveId !== 'undefined') {
                     conditions.push(ne(schema.reserves.id, option.excludeReserveId));
                 }
 
                 const whereClause = and(...conditions);
-                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                const rows = await db
+                    .select()
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.startAt));
                 return rows.map(r => this.toEntity(r));
             }
         });
@@ -412,7 +431,11 @@ export default class ReserveDB implements IReserveDB {
                 if (option.hasEventRelay === false) conditions.push(eq(schema.reserves.isEventRelay, false));
 
                 const whereClause = and(...conditions);
-                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                const rows = await db
+                    .select()
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.startAt));
                 return rows.map(r => this.toEntity(r));
             } else {
                 const { db, schema } = client;
@@ -423,7 +446,11 @@ export default class ReserveDB implements IReserveDB {
                 if (option.hasEventRelay === false) conditions.push(eq(schema.reserves.isEventRelay, false));
 
                 const whereClause = and(...conditions);
-                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                const rows = await db
+                    .select()
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.startAt));
                 return rows.map(r => this.toEntity(r));
             }
         });

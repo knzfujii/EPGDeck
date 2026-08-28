@@ -11,7 +11,10 @@ export default class DropLogFileDB implements IDropLogFileDB {
     private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+    constructor(
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
+        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+    ) {
         this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
@@ -133,12 +136,18 @@ export default class DropLogFileDB implements IDropLogFileDB {
         return await this.promieRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
-                const rows = await db.select().from(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+                const rows = await db
+                    .select()
+                    .from(schema.dropLogFiles)
+                    .where(eq(schema.dropLogFiles.id, dropLogFileId));
                 if (rows.length === 0) return null;
                 return this.toEntity(rows[0]);
             } else {
                 const { db, schema } = client;
-                const rows = await db.select().from(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+                const rows = await db
+                    .select()
+                    .from(schema.dropLogFiles)
+                    .where(eq(schema.dropLogFiles.id, dropLogFileId));
                 if (rows.length === 0) return null;
                 return this.toEntity(rows[0]);
             }

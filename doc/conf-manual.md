@@ -3,8 +3,8 @@
 ## コンフィグ逆引きレシピ
 
 -   [基本設定](#基本設定)
-    -   [EPGStation の待ち受けポートを変えたい](#port)
-    -   [EPGStation の Socket.IO 待ち受けポートを変えたい](#socketioport)
+    -   [EPGDeck の待ち受けポートを変えたい](#port)
+    -   [EPGDeck の Socket.IO 待ち受けポートを変えたい](#socketioport)
     -   [クライアントが接続に使用する Socket.IO ポートを変えたい](#clientsocketioport)
     -   [Mirakurun の設定](#mirakurunpath)
     -   [データベースの種類を変えたい](#dbtype)
@@ -69,7 +69,7 @@
 
 ### port
 
-#### EPGStation が http で Web アクセスを待ち受けるポート番号
+#### EPGDeck が http で Web アクセスを待ち受けるポート番号
 
 | 種類   | デフォルト値 | 必須                               |
 | ------ | ------------ | ---------------------------------- |
@@ -81,7 +81,7 @@ port: 8888
 
 ### socketioPort
 
-#### EPGStation が http で Socket.IO アクセスを待ち受けるポート番号
+#### EPGDeck が http で Socket.IO アクセスを待ち受けるポート番号
 
 port と同じポート番号を設定しても良い
 
@@ -95,7 +95,7 @@ socketioPort: 8889
 
 ### clientSocketioPort
 
-### EPGStation の Web クライアントが接続する Socket.IO のポート番号
+### EPGDeck の Web クライアントが接続する Socket.IO のポート番号
 
 リバースプロキシを使用している場合は必須となる
 
@@ -109,7 +109,7 @@ clientSocketioPort: 8889
 
 ### https
 
-#### EPGStation が https で Web アクセスを待ち受ける設定
+#### EPGDeck が https で Web アクセスを待ち受ける設定
 
 clientSocketioPort とは併用できないので注意
 
@@ -196,7 +196,7 @@ sqlite:
 
 ### ffmpeg
 
-#### EPGStation が利用する FFmpeg のパス
+#### EPGDeck が利用する FFmpeg のパス
 
 | 種類   | デフォルト値          | 必須 |
 | ------ | --------------------- | ---- |
@@ -328,7 +328,7 @@ isSuppressReservesUpdateAllLog: true
 | -------- | ------------ | ---- |
 | number[] | -            | no   |
 
--   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGStationAddress:port>/api/channels` で確認できる
+-   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGDeckAddress:port>/api/channels` で確認できる
     id を入力
 
 ```yaml
@@ -350,7 +350,7 @@ channelOrder:
 | -------- | ------------ | ---- |
 | number[] | -            | no   |
 
--   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGStationAddress:port>/api/channels` で確認できる
+-   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGDeckAddress:port>/api/channels` で確認できる
     serviceId を入力
 
 **channelOrder が存在する場合はそちらが優先されるため注意**
@@ -374,7 +374,7 @@ sidOrder:
 | -------- | ------------ | ---- |
 | number[] | -            | no   |
 
--   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGStationAddress:port>/api/channels` で確認できる
+-   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGDeckAddress:port>/api/channels` で確認できる
     id を入力
 
 ```yaml
@@ -391,7 +391,7 @@ excludeChannels:
 | -------- | ------------ | ---- |
 | number[] | -            | no   |
 
--   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGStationAddress:port>/api/channels` で確認できる
+-   `http://<MirakurunAddress:port>/api/services` もしくは `http://<EPGDeckAddress:port>/api/channels` で確認できる
     serviceId を入力
 
 ```yaml
@@ -402,7 +402,7 @@ excludeSids:
 
 ### gid
 
-#### EPGStation が利用するグループ ID or グループ名
+#### EPGDeck が利用するグループ ID or グループ名
 
 | 種類             | デフォルト値 | 必須 |
 | ---------------- | ------------ | ---- |
@@ -414,7 +414,7 @@ gid: hoge
 
 ### uid
 
-#### EPGStation が利用するユーザー ID or ユーザー名
+#### EPGDeck が利用するユーザー ID or ユーザー名
 
 | 種類             | デフォルト値 | 必須 |
 | ---------------- | ------------ | ---- |
@@ -442,7 +442,7 @@ isEnabledDropCheck: true
 
 | 種類   | デフォルト値                                                          | 必須 |
 | ------ | --------------------------------------------------------------------- | ---- |
-| string | /hoge/EPGStation/drop (EPGStation 直下の drop ディレクトリのフルパス) | no   |
+| string | /hoge/EPGDeck/drop (EPGDeck 直下の drop ディレクトリのフルパス) | no   |
 
 -   フルパスで指定する
 
@@ -505,7 +505,7 @@ apiServers:
 ```yaml
 recorded:
     - name: recorded
-      path: /hoge/huge/EPGStation/recorded # EPGStation 直下にある recorded のフルパス
+      path: /hoge/huge/EPGDeck/recorded # EPGDeck 直下にある recorded のフルパス
 ```
 
 -   子プロパティは以下の通り
@@ -616,7 +616,7 @@ storageLimitCheckIntervalTime: 120
 
 | 種類   | デフォルト値                                                                    | 必須 |
 | ------ | ------------------------------------------------------------------------------- | ---- |
-| string | /hoge/EPGStation/thumbnail (EPGStation 直下の thumbnail ディレクトリのフルパス) | no   |
+| string | /hoge/EPGDeck/thumbnail (EPGDeck 直下の thumbnail ディレクトリのフルパス) | no   |
 
 ```yaml
 thumbnail: '/hoge/thumbs'
@@ -634,7 +634,7 @@ thumbnail: '/hoge/thumbs'
 
 | 変数名               | 説明                                    |
 | -------------------- | --------------------------------------- |
-| %FFMPEG%             | EPGStation が利用している ffmpeg のパス |
+| %FFMPEG%             | EPGDeck が利用している ffmpeg のパス |
 | %INPUT%              | 入力ファイルパス                        |
 | %OUTPUT%             | 出力ファイルパス                        |
 | %THUMBNAIL_POSITION% | サムネイル再生位置 (秒)                 |
@@ -676,7 +676,7 @@ thumbnailPosition: 30
 
 | 種類   | デフォルト値                                                                        | 必須 |
 | ------ | ----------------------------------------------------------------------------------- | ---- |
-| string | /hoge/EPGStation/data/upload (EPGStation 直下の data/upload ディレクトリのフルパス) | no   |
+| string | /hoge/EPGDeck/data/upload (EPGDeck 直下の data/upload ディレクトリのフルパス) | no   |
 
 ```yaml
 uploadTempDir: '/hoge/tmp/upload'
@@ -857,7 +857,7 @@ concurrentEncodeNum: 1
 | %NODE%   | node のファイルパス     |
 | %INPUT%  | 入力ファイルパス        |
 | %OUTPUT% | 出力ファイルパス        |
-| %ROOT%   | EPGStation の root パス |
+| %ROOT%   | EPGDeck の root パス |
 
 -   実行時に渡される環境変数は以下の通り
 
@@ -945,7 +945,7 @@ streamingPriority: 1
 | 変数名   | 説明                           |
 | -------- | ------------------------------ |
 | PROTOCOL | プロトコル                     |
-| ADDRESS  | EPGStation の MPEG-TS 配信 URL |
+| ADDRESS  | EPGDeck の MPEG-TS 配信 URL |
 | FILENAME | 出力されるファイル名           |
 
 ```yaml
@@ -966,7 +966,7 @@ urlscheme:
 
 | 種類   | デフォルト値                                                                                 | 必須 |
 | ------ | -------------------------------------------------------------------------------------------- | ---- |
-| string | hoge/EPGStation/data/streamfiles (EPGStation 直下の data/streamfiles ディレクトリのフルパス) | no   |
+| string | hoge/EPGDeck/data/streamfiles (EPGDeck 直下の data/streamfiles ディレクトリのフルパス) | no   |
 
 ```yaml
 'streamFilePath': '/tmp/hlsfile'
@@ -1024,7 +1024,7 @@ urlscheme:
 
 | 変数名          | 説明                                    |
 | --------------- | --------------------------------------- |
-| %FFMPEG%        | EPGStation が利用している ffmpeg のパス |
+| %FFMPEG%        | EPGDeck が利用している ffmpeg のパス |
 | %streamFileDir% | `streamFilePath` で指定したパス名       |
 | %streamNum%     | 一時ファイルのストリーム番号            |
 | %SS%            | 読み取り位置(秒)                        |

@@ -21,7 +21,6 @@ urlscheme:
 [Qiita: AppleScript でカスタム URL スキーム](http://qiita.com/CorecaraBiz/items/9a1fc60aada31858d582) を参考にしていま
 す。詳しい解説はそちらを見てください
 
-Safari での挙動についてはこちらの [issue](https://github.com/l3tnun/EPGStation/issues/324#issuecomment-633255822) を参照
 してください
 
 ### 1. アプレットの作成
@@ -66,4 +65,4 @@ end open location
 
 ### 3. 実行
 
-macOS の Chrome or Firefox で EPGStation へアクセスして実際に動作するか確かめてください
+macOS の Chrome or Firefox で EPGDeck へアクセスして実際に動作するか確かめてください

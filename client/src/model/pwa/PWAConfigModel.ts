@@ -33,7 +33,7 @@ export default class PWAConfigModel implements IPWAConfigModel {
         // ios 用設定追加
         this.addMeta(head, {
             name: 'apple-mobile-web-app-title',
-            content: 'EPGStation',
+            content: 'EPGDeck',
         });
         this.addMeta(head, {
             name: 'apple-mobile-web-app-capable',

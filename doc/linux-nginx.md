@@ -1,12 +1,12 @@
 # nginx を利用したリバースプロキシの動作設定
 
-nginx を利用したリバースプロキシにて EPGstation を動かす場合の設定について解説します。
+nginx を利用したリバースプロキシにて EPGDeck を動かす場合の設定について解説します。
 
 ## config.yml
 
 ### port
 
-#### EPGStation が Web アクセスを待ち受けるポート番号
+#### EPGDeck が Web アクセスを待ち受けるポート番号
 
 | 種類   | デフォルト値 | 必須 |
 | ------ | ------------ | ---- |
@@ -18,7 +18,7 @@ port: 8888
 
 ### socketioPort
 
-#### EPGStation が Socket.IO アクセスを待ち受けるポート番号
+#### EPGDeck が Socket.IO アクセスを待ち受けるポート番号
 
 port と同じポート番号を設定しても良い
 
@@ -32,7 +32,7 @@ socketioPort: 8888
 
 ### clientSocketioPort
 
-#### EPGStation の Web クライアントが接続する Socket.IO のポート番号
+#### EPGDeck の Web クライアントが接続する Socket.IO のポート番号
 
 リバースプロキシを使用している場合は必須となる。
 リバースプロキシの待受ポートと同じポート番号を設定する事。

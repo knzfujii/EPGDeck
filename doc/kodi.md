@@ -1,6 +1,6 @@
 # Kodi との連携について
 
-EPGStation では [Kodi](https://kodi.tv/) と連携するためのオプションを幾つか用意しています
+EPGDeck では [Kodi](https://kodi.tv/) と連携するためのオプションを幾つか用意しています
 
 ## WebUI から Kodi へ配信
 

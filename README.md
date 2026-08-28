@@ -1,6 +1,6 @@
-# EPGStation
+# EPGDeck
 
-[Mirakurun](https://github.com/Chinachu/Mirakurun) を使用した録画管理ソフトです  
+[Mirakurun](https://github.com/Chinachu/Mirakurun) を使用した録画管理ソフトです（[EPGStation](https://github.com/l3tnun/EPGStation) からフォークして開発されています）  
 iOS・Android での閲覧に最適化されたモバイルフレンドリーな Web インターフェイスが特徴です  
 PC からの閲覧でもモダンな UI で操作可能です
 
@@ -27,16 +27,7 @@ PC からの閲覧でもモダンな UI で操作可能です
 [aribb24.js]: https://github.com/monyone/aribb24.js
 [mpegts.js]: https://github.com/xqq/mpegts.js
 
-## スクリーンショット
-
-| ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/dashboard.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/live.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/program.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/recording.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/recorded.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/reserves.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/rule.png) | ![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/search.png) |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-
 ---
-
-## デモ
-
-![](https://raw.githubusercontent.com/wiki/l3tnun/EPGStation/images/v2/demo.gif)
 
 ## 動作環境
 
@@ -47,7 +38,6 @@ PC からの閲覧でもモダンな UI で操作可能です
     -   [SQLite3](https://www.sqlite.org/)（設定不要だが検索機能に制限あり）[標準]
         -   [SQLite3 使用時の正規表現での検索の有効化について](doc/sqlite3-regexp.md)
     -   [MySQL](https://www.mysql.com/jp/) ([MariaDB](https://mariadb.org/))【推奨(要設定)】※文字コードは utf8mb4
-        -   [Mirakurun 3.9.0-beta.24 以降の設定について](doc/mysql-mirakurun-3.9.0-beta.24.md)
 -   [FFmpeg](http://ffmpeg.org/)
 
 sqlite3 パッケージのインストール時にバイナリが存在しなかった場合は次の環境も必要
@@ -55,13 +45,6 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 -   for Linux / macOS
     -   [Python v3.x](https://www.python.org/) node-gyp にて必要
     -   [GCC](https://gcc.gnu.org/) node-gyp にて必要
-
-### 構築済み推奨環境
-
--   [docker-mirakurun-epgstation](https://github.com/l3tnun/docker-mirakurun-epgstation)
-
--   [nvenc + docker 環境での構築例](https://github.com/kazuki0824/EPGStation-nvenc-docker)
-    [(created by kazuki0824)](https://github.com/kazuki0824)
 
 ---
 
@@ -75,19 +58,13 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 ## アップデート方法
 
--   以下のコマンドを実行後に EPGStation を再起動する
+-   以下のコマンドを実行後に EPGDeck を再起動する
 
     ```
     $ git pull
     $ npm run all-install
     $ npm run build
     ```
-
----
-
-## v1 からの移行について
-
-[doc/v1migrate.md](doc/v1migrate.md) を参照
 
 ---
 
@@ -114,7 +91,7 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
     -   `system.log`
         -   Mirakurun へのアクセスログ、番組情報の更新等のログ
 
-#### EPGStation/logs/Operator
+#### logs/Operator
 
 -   録画管理機能からのログが記録されています
     -   `access.log`
@@ -124,7 +101,7 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
     -   `system.log`
         -   Mirakurun へのアクセスログ、コマンドの実行、録画等のログ
 
-#### EPGStation/logs/Service
+#### logs/Service
 
 -   Web インターフェイスからのログ記録されています
     -   `access.log`
@@ -140,11 +117,11 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 ## クライアント向け設定
 
--   EPGStation を利用する端末向けの設定を行うと快適に利用可能です
+-   EPGDeck を利用する端末向けの設定を行うと快適に利用可能です
 
 ### URL Scheme
 
--   EPGStation 上の動画再生を OS 上のアプリケーションで行うことが出来ます
+-   EPGDeck 上の動画再生を OS 上のアプリケーションで行うことが出来ます
 
     -   [config.yml 内の設定 (iOS, Android, macOS, Windows)](doc/conf-manual.md#urlscheme)
     -   [macOS 用の URL Scheme 設定方法](doc/mac-url-scheme.md)

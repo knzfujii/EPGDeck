@@ -11,9 +11,9 @@ dbtype: sqlite
 # mysql:
 #     host: 192.168.xx.xx
 #     port: 3306
-#     user: epgstation
-#     password: epgstation
-#     database: epgstation
+#     user: epgdeck
+#     password: epgdeck
+#     database: epgdeck
 #     charset: utf8mb4
 
 # 囲み文字を置換するか

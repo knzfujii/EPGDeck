@@ -68,4 +68,4 @@ Windows Registry Editor Version 5.00
 
 ### 3. 実行
 
-Windows で EPGStation へアクセスして実際に動作するか確かめてください
+Windows で EPGDeck へアクセスして実際に動作するか確かめてください

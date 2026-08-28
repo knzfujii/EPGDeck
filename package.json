@@ -1,6 +1,6 @@
 {
-    "name": "epgstation",
-    "version": "2.10.0",
+    "name": "epgdeck",
+    "version": "0.1.0-alpha.1",
     "description": "DTV Software in Japan.",
     "main": "dist/index.js",
     "scripts": {
@@ -17,19 +17,18 @@
         "orm-run": "typeorm migration:run -d ./ormconfig.js",
         "backup": "node dist/DBTools.js -m backup -o",
         "restore": "node dist/DBTools.js -m restore -o",
-        "v1migrate": "node dist/V1MigrationTool.js -i",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/l3tnun/EPGStation-V2.git"
+        "url": "git+https://github.com/knzfujii/EPGDeck.git"
     },
     "author": "l3tnun",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/l3tnun/EPGStation-V2/issues"
+        "url": "https://github.com/knzfujii/EPGDeck/issues"
     },
-    "homepage": "https://github.com/l3tnun/EPGStation-V2#readme",
+    "homepage": "https://github.com/knzfujii/EPGDeck#readme",
     "dependencies": {
         "arib-subtitle-timedmetadater": "4.0.10",
         "aribts": "2.1.12",

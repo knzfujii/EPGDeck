@@ -4,7 +4,7 @@
 、[Run-Time Loadable Extensions - SQLite](https://sqlite.org/loadext.html) にあるように実行時に自作の SQL 関数を読み込む
 ことができます
 
-この機能を使用して EPGStation で SQLite3 使用時でも正規表現を使えるようにする手順を紹介します
+この機能を使用して EPGDeck で SQLite3 使用時でも正規表現を使えるようにする手順を紹介します
 
 ## shared library の作成
 
@@ -46,7 +46,7 @@ cl regexp.c -link -dll -out:regexp.dll
 
 生成された regexp.so (Linux), regexp.dylib (macOS), regexp.dll (Windows) を適当な場所へ配置する
 
-## EPGStation の修正
+## EPGDeck の修正
 
 config.yml に以下の項目を追加します。
 
@@ -71,4 +71,4 @@ C:/hoge/regexp.dll
 
 となるので注意しましょう
 
-EPGStation を再起動したら完了です
+EPGDeck を再起動したら完了です

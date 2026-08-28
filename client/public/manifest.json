@@ -1,6 +1,6 @@
 {
-    "name": "EPGStation",
-    "short_name": "EPGStation",
+    "name": "EPGDeck",
+    "short_name": "EPGDeck",
     "icons": [
         {
             "src": "./icon/icon-192.png",

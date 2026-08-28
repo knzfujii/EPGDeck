@@ -25,11 +25,11 @@
     FFmpeg/FFprobe についてデフォルトでは `/usr/local/bin/` にインストールされていると想定しています  
     違う場所にインストールされている場合は `config.yml` を修正してください
 
-2. EPGStation のインストール
+2. EPGDeck のインストール
 
     ```bash
-    $ git clone https://github.com/l3tnun/EPGStation.git
-    $ cd EPGStation
+    $ git clone https://github.com/knzfujii/EPGDeck.git
+    $ cd EPGDeck
     $ npm run all-install
     $ npm run build
     ```
@@ -55,7 +55,7 @@
 
     Mirakurun が別ホストで動作している場合は `mirakurunPath: 'http://<MirakurunURL>:<Port>'`
 
-## EPGStation の起動 / 終了
+## EPGDeck の起動 / 終了
 
 -   手動で起動する場合
 
@@ -71,7 +71,7 @@
     ```
     $ sudo npm install pm2 -g
     $ sudo pm2 startup <OS名>
-    $ pm2 start dist/index.js --name "epgstation"
+    $ pm2 start dist/index.js --name "epgdeck"
     $ pm2 save
     ```
 
@@ -81,22 +81,23 @@
     $ npm stop
     ```
 
--   自動起動した EPGStation を終了する場合
+-   自動起動した EPGDeck を終了する場合
 
     ```
-    $ pm2 stop epgstation
+    $ pm2 stop epgdeck
     ```
 
--   自動起動登録した EPGStation を削除する場合
+-   自動起動登録した EPGDeck を削除する場合
 
     ```
-    $ pm2 delete epgstation
+    $ pm2 delete epgdeck
     ```
 
-## MySQL 使用時の注意
+## MySQL (MariaDB) 使用時の注意
 
-EPGStation 使用中は MySQL のバイナリログが大量に生成されてディスクを圧迫するので、MySQL の設定を変えることを推奨します
+-   **文字コード**: 絵文字や特殊文字を正常に扱うため、データベースの文字コードには必ず **`utf8mb4`** を設定してください（`config.yml` 内の `mysql.charset: utf8mb4`）。
+-   **バイナリログ**: EPGDeck 使用中は MySQL のバイナリログが大量に生成されてディスクを圧迫するので、MySQL の設定を変えることを推奨します。
 
-```
+```ini
 expire_logs_days = 1
 ```

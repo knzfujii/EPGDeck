@@ -41,6 +41,6 @@ export default class VersionState implements IVersionState {
      * @return string
      */
     public getVersionString(): string {
-        return this.info == null ? 'EPGStation' : `EPGStation v${this.info.version}`;
+        return this.info == null ? 'EPGDeck' : `EPGDeck v${this.info.version}`;
     }
 }

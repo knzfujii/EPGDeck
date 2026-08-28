@@ -1,6 +1,6 @@
 # ログ出力設定のマニュアル
 
-本マニュアルでは、EPGStation のログ出力設定ファイルである
+本マニュアルでは、EPGDeck のログ出力設定ファイルである
 
 -   `config/epgUpdaterLogConfig.yml`
 -   `config/operatorLogConfig.yml`
@@ -8,9 +8,9 @@
 
 の設定について解説します
 
-## EPGStation のログ出力
+## EPGDeck のログ出力
 
-EPGStation ではログ出力に [log4js](https://npmjs.com/package/log4js) を利用しています  
+EPGDeck ではログ出力に [log4js](https://npmjs.com/package/log4js) を利用しています  
 設定ファイルについても、 log4js の設定に準拠した形式となっています
 
 log4js のログレベルは以下の 6 段階となっています
@@ -28,7 +28,7 @@ log4js のログレベルは以下の 6 段階となっています
 
 ## 出力レベルを変更する
 
-EPGStation では、デフォルトでは `info` レベルが設定されています  
+EPGDeck では、デフォルトでは `info` レベルが設定されています  
 `ffmpeg` のコマンド出力結果などをログに出力したい場合は `debug` 以下の受信設定が必要です
 
 `config/operatorLogConfig.yml` あるいは `config/serviceLogConfig.yml` 内の以下を変更します

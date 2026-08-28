@@ -1,0 +1,63 @@
+name: CI (Lint & Build Check)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  server:
+    name: Server (Lint & Compile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint Check
+        run: npx eslint --ext .ts src/
+
+      - name: Prettier Format Check
+        run: npx prettier --check 'src/**/*.ts'
+
+      - name: TypeScript Compile Check
+        run: npx tsc --noEmit
+
+  client:
+    name: Client (Lint & Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint Check
+        run: npm run lint -- --no-fix
+
+      - name: Build Check
+        run: npm run build

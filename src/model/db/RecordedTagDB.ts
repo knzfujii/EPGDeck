@@ -1,274 +1,292 @@
+import { and, eq, like, notInArray, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
-import Recorded from '../../db/entities/Recorded';
 import RecordedTag from '../../db/entities/RecordedTag';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
-import DBUtil from './DBUtil';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedTagDB from './IRecordedTagDB';
 
 @injectable()
 export default class RecordedTagDB implements IRecordedTagDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: RecordedTag[]
-     * @return Promise<void>
      */
     public async restore(items: RecordedTag[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(RecordedTag, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(RecordedTag, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.recordedTags);
+                    for (const item of items) {
+                        await tx.insert(schema.recordedTags).values({
+                            id: item.id,
+                            name: item.name,
+                            halfWidthName: item.halfWidthName,
+                            color: item.color,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.recordedTags);
+                    for (const item of items) {
+                        await tx.insert(schema.recordedTags).values({
+                            id: item.id,
+                            name: item.name,
+                            halfWidthName: item.halfWidthName,
+                            color: item.color,
+                        });
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
      * tag 情報を 1 件挿入
-     * @param tag: RecordedTag
-     * @return Promise<apid.RecordedTagId> inserted id
      */
     public async insertOnce(tag: RecordedTag): Promise<apid.RecordedTagId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(RecordedTag).values(tag);
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
-        });
+        const client = this.drizzleOp.getDB();
 
-        return insertedResult.identifiers[0].id;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.recordedTags).values({
+                    name: tag.name,
+                    halfWidthName: tag.halfWidthName,
+                    color: tag.color,
+                });
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.recordedTags).values({
+                    name: tag.name,
+                    halfWidthName: tag.halfWidthName,
+                    color: tag.color,
+                });
+                return result.insertId;
+            }
+        });
     }
 
     /**
      * tag 更新
-     * @param tagId: apid.RecordedTagId
-     * @param name: string
-     * @param color: string
-     * @return Promise<void>
      */
     public async updateOnce(tagId: apid.RecordedTagId, name: string, color: string): Promise<void> {
-        const tag = await this.findId(tagId);
-        if (tag === null) {
-            throw new Error('TagIsNull');
-        }
+        const client = this.drizzleOp.getDB();
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(RecordedTag)
-            .set({
-                name: name,
-                color: color,
+        await this.promieRetry.run(async () => {
+            const values = {
+                name,
+                color,
                 halfWidthName: StrUtil.toHalf(name),
-            })
-            .where({ id: tagId });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+            };
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.recordedTags).set(values).where(eq(schema.recordedTags.id, tagId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.recordedTags).set(values).where(eq(schema.recordedTags.id, tagId));
+            }
         });
     }
 
     /**
      * recorded と tag の関連付け設定
-     * @param tagId: apid.RecordedTagId
-     * @param recordedId: apid.RecordedId
-     * @return Promise<void>
      */
     public async setRelation(tagId: apid.RecordedTagId, recordedId: apid.RecordedId): Promise<void> {
-        const recorded = await this.findRecorded(recordedId);
+        const client = this.drizzleOp.getDB();
 
-        // find tag
-        const tag = await this.findId(tagId);
-        if (tag === null) {
-            throw new Error('RecordedTagIsUndefined');
-        }
-
-        recorded.tags.push(tag);
-        await this.promieRetry.run(() => {
-            return recorded.save();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .insert(schema.recordedTagsRecordedTag)
+                    .values({
+                        recordedId,
+                        recordedTagId: tagId,
+                    })
+                    .onConflictDoNothing();
+            } else {
+                const { db, schema } = client;
+                await db
+                    .insert(schema.recordedTagsRecordedTag)
+                    .values({
+                        recordedId,
+                        recordedTagId: tagId,
+                    })
+                    .onDuplicateKeyUpdate({ set: { recordedId } });
+            }
         });
-    }
-
-    private async findRecorded(recordedId: apid.RecordedId): Promise<Recorded> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = await connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .where({ id: recordedId })
-            .leftJoinAndSelect('recorded.tags', 'recorded_tag');
-        const recorded = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
-        });
-
-        if (typeof recorded === 'undefined' || recorded == null) {
-            throw new Error('RecordedIsUndefined');
-        }
-
-        return recorded;
     }
 
     /**
      * recorded と tag の関連付けを削除
-     * @param tagid: RecordedTagId
-     * @param recordedId: RecordedId
-     * @Promise<void>
      */
     public async deleteRelation(tagId: apid.RecordedTagId, recordedId: apid.RecordedId): Promise<void> {
-        const recorded = await this.findRecorded(recordedId);
+        const client = this.drizzleOp.getDB();
 
-        recorded.tags = recorded.tags.filter(tag => {
-            return tag.id !== tagId;
-        });
-
-        await this.promieRetry.run(() => {
-            return recorded.save();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .delete(schema.recordedTagsRecordedTag)
+                    .where(
+                        and(
+                            eq(schema.recordedTagsRecordedTag.recordedId, recordedId),
+                            eq(schema.recordedTagsRecordedTag.recordedTagId, tagId),
+                        ),
+                    );
+            } else {
+                const { db, schema } = client;
+                await db
+                    .delete(schema.recordedTagsRecordedTag)
+                    .where(
+                        and(
+                            eq(schema.recordedTagsRecordedTag.recordedId, recordedId),
+                            eq(schema.recordedTagsRecordedTag.recordedTagId, tagId),
+                        ),
+                    );
+            }
         });
     }
 
     /**
      * 指定された recordedId の すべての関連付けを削除する
-     * @param recordedId: RecordedId
-     * @return Promise<void>
      */
     public async deleteAllRelation(recordedId: apid.RecordedId): Promise<void> {
-        const recorded = await this.findRecorded(recordedId);
+        const client = this.drizzleOp.getDB();
 
-        recorded.tags = [];
-
-        await this.promieRetry.run(() => {
-            return recorded.save();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .delete(schema.recordedTagsRecordedTag)
+                    .where(eq(schema.recordedTagsRecordedTag.recordedId, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db
+                    .delete(schema.recordedTagsRecordedTag)
+                    .where(eq(schema.recordedTagsRecordedTag.recordedId, recordedId));
+            }
         });
     }
 
     /**
      * tagId を指定して削除
-     * @param tagId: RecordedTagId
-     * @return Promise<void>
      */
     public async deleteOnce(tagId: apid.RecordedTagId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(RecordedTag).where({
-            id: tagId,
-        });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
+            }
         });
     }
 
     /**
      * tagId を指定して tag を取得する
-     * @param tagId: apid.RecordedTagId
-     * @return Promise<RecordedTag | null>
      */
     public async findId(tagId: apid.RecordedTagId): Promise<RecordedTag | null> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .getRepository(RecordedTag)
-            .createQueryBuilder('recorded_tag')
-            .where({ id: tagId });
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
-        });
+        const client = this.drizzleOp.getDB();
 
-        return typeof result === 'undefined' ? null : result;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
+        });
     }
 
     /**
-     * 全県取得
-     * @param option: GetRecordedTagOption
-     * @return Promise<[RecordedTag[], number]>
+     * 全件取得
      */
     public async findAll(option: apid.GetRecordedTagOption): Promise<[RecordedTag[], number]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        let queryBuilder = connection.getRepository(RecordedTag).createQueryBuilder('recorded');
-        const querys: { query: string; values: any }[] = [];
+        return await this.promieRetry.run(async () => {
+            const conditions: any[] = [];
 
-        // excludeTagId
-        if (typeof option.excludeTagId !== 'undefined') {
-            querys.push({
-                query: 'id not in (:...id)',
-                values: {
-                    id: option.excludeTagId,
-                },
-            });
-        }
-
-        // name
-        if (typeof option.name !== 'undefined') {
-            const names = StrUtil.toHalf(option.name).split(/ /);
-            const like = this.op.getLikeStr(false);
-
-            const nameAnd: string[] = [];
-            const values: any = {};
-            names.forEach((str, i) => {
-                str = `%${str}%`;
-
-                // value
-                const valueName = `name${i}`;
-                values[valueName] = str;
-
-                // name
-                nameAnd.push(`halfWidthName ${like} :${valueName}`);
-            });
-
-            const or: string[] = [];
-            if (nameAnd.length > 0) {
-                or.push(`(${DBUtil.createAndQuery(nameAnd)})`);
+            if (typeof option.excludeTagId !== 'undefined' && option.excludeTagId.length > 0) {
+                conditions.push(notInArray(client.schema.recordedTags.id, option.excludeTagId));
             }
 
-            querys.push({
-                query: DBUtil.createOrQuery(or),
-                values: values,
-            });
-        }
+            if (typeof option.name !== 'undefined') {
+                const names = StrUtil.toHalf(option.name).split(/ /);
+                for (const name of names) {
+                    if (name.length > 0) {
+                        conditions.push(like(client.schema.recordedTags.halfWidthName, `%${name}%`));
+                    }
+                }
+            }
 
-        // where セット
-        for (const q of querys) {
-            queryBuilder = queryBuilder.andWhere(q.query, q.values);
-        }
+            const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-        // offset
-        if (typeof option.offset !== 'undefined') {
-            queryBuilder = queryBuilder.skip(option.offset);
-        }
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                let query = db.select().from(schema.recordedTags);
+                if (whereClause) query = query.where(whereClause) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
-        // limit
-        if (typeof option.limit !== 'undefined') {
-            queryBuilder = queryBuilder.take(option.limit);
-        }
+                const rows = await query;
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getManyAndCount();
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recordedTags);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const totalCount = countResult[0]?.count || 0;
+
+                return [rows.map(r => this.toEntity(r)), totalCount];
+            } else {
+                const { db, schema } = client;
+                let query = db.select().from(schema.recordedTags);
+                if (whereClause) query = query.where(whereClause) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recordedTags);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const totalCount = countResult[0]?.count || 0;
+
+                return [rows.map(r => this.toEntity(r)), totalCount];
+            }
         });
+    }
+
+    private toEntity(row: any): RecordedTag {
+        const entity = new RecordedTag();
+        entity.id = row.id;
+        entity.name = row.name;
+        entity.halfWidthName = row.halfWidthName;
+        entity.color = row.color;
+        return entity;
     }
 }

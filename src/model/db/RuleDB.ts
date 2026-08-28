@@ -1,211 +1,358 @@
+import { and, asc, eq, like, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
-import Rule from '../../db/entities/Rule';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
-import DBUtil from './DBUtil';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IRuleDB, { RuleWithCnt } from './IRuleDB';
 
 @injectable()
 export default class RuleDB implements IRuleDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: RuleWithCnt[]
-     * @return Promise<void>
      */
     public async restore(items: RuleWithCnt[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(Rule, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(Rule, this.convertRuleToDBRule(item));
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.rules);
+                    for (const item of items) {
+                        await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.rules);
+                    for (const item of items) {
+                        await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
      * ルールを1件挿入
-     * @param rule apid.Rule | apid.AddRuleOption
-     * @return inserted id
      */
     public async insertOnce(rule: apid.Rule | apid.AddRuleOption): Promise<apid.RuleId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(Rule).values(this.convertRuleToDBRule(rule));
+        const client = this.drizzleOp.getDB();
 
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        return await this.promieRetry.run(async () => {
+            const row = this.convertRuleToDBRow(rule);
+            delete row.id;
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.rules).values(row);
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.rules).values(row);
+                return result.insertId;
+            }
         });
-
-        return insertedResult.identifiers[0].id;
     }
 
     /**
-     * ルールをi件更新
-     * @param rule: apidRule
+     * ルールを1件更新
      */
     public async updateOnce(newRule: apid.Rule): Promise<void> {
-        // updateCnt 更新のために古いルールを取り出す
-        const oldRule = <RuleWithCnt>await this.findId(newRule.id, true);
+        const oldRule = (await this.findId(newRule.id, true)) as RuleWithCnt | null;
         if (oldRule === null) {
             throw new Error('RuleIsNull');
         }
 
-        // updateCnt 更新
-        const convertedRule = this.convertRuleToDBRule(newRule);
-        convertedRule.updateCnt = oldRule.updateCnt + 1;
+        const convertedRow = this.convertRuleToDBRow(newRule);
+        convertedRow.updateCnt = oldRule.updateCnt + 1;
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Rule)
-            .set(convertedRule)
-            .where('id = :id', { id: newRule.id });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
+            }
         });
     }
 
     /**
      * 指定したルールを1件有効化
-     * @param ruleId: apid.RuleId
      */
     public async enableOnce(ruleId: apid.RuleId): Promise<void> {
-        const rule = <RuleWithCnt>await this.findId(ruleId, true);
+        const rule = (await this.findId(ruleId, true)) as RuleWithCnt | null;
         if (rule === null) {
             throw new Error('RuleIsNull');
         }
 
-        // すでに有効か
         if (rule.reserveOption.enable === true) {
             return;
         }
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Rule)
-            .set({
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            const values = {
                 enable: true,
                 updateCnt: rule.updateCnt + 1,
-            })
-            .where('id = :id', { id: ruleId });
+            };
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
+            }
         });
     }
 
     /**
      * 指定したルールを1件無効化
-     * @param ruleId: apid.RuleId
      */
     public async disableOnce(ruleId: apid.RuleId): Promise<void> {
-        const rule = <RuleWithCnt>await this.findId(ruleId, true);
+        const rule = (await this.findId(ruleId, true)) as RuleWithCnt | null;
         if (rule === null) {
             throw new Error('RuleIsNull');
         }
 
-        // すでに無効か
         if (rule.reserveOption.enable === false) {
             return;
         }
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Rule)
-            .set({
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            const values = {
                 enable: false,
                 updateCnt: rule.updateCnt + 1,
-            })
-            .where('id = :id', { id: ruleId });
+            };
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
+            }
         });
     }
 
     /**
      * 指定したルールを1件削除
-     * @param ruleId: apid.RuleId
      */
     public async deleteOnce(ruleId: apid.RuleId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(Rule).where('id = :id', { id: ruleId });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.rules).where(eq(schema.rules.id, ruleId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.rules).where(eq(schema.rules.id, ruleId));
+            }
         });
     }
 
     /**
      * id を指定して取得
-     * @param ruleId rule id
-     * @param updateCnt を削除するか
-     * @return Promise<apidRule | RuleWithCnt | null>
      */
     public async findId(ruleId: apid.RuleId, isNeedCnt: boolean = false): Promise<apid.Rule | RuleWithCnt | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(Rule);
+        return await this.promieRetry.run(async () => {
+            let row: any = null;
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.rules).where(eq(schema.rules.id, ruleId));
+                if (rows.length > 0) row = rows[0];
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.rules).where(eq(schema.rules.id, ruleId));
+                if (rows.length > 0) row = rows[0];
+            }
 
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.findOne({
-                where: { id: ruleId },
-            });
-        });
+            if (!row) return null;
 
-        if (typeof result === 'undefined' || result == null) {
-            return null;
-        } else if (isNeedCnt === true) {
-            return this.convertDBRuleToRule(result);
-        } else {
-            const rule = this.convertDBRuleToRule(result);
-            delete (rule as any).updateCnt;
-
+            const rule = this.convertDBRowToRule(row);
+            if (!isNeedCnt) {
+                delete (rule as any).updateCnt;
+            }
             return rule;
-        }
+        });
     }
 
     /**
-     * RuleWithCnt から Rule へ変換する
-     * @param rule: RuleWithCnt
-     * @return Rule
+     * 全件取得
      */
-    private convertRuleToDBRule(rule: RuleWithCnt | apid.Rule | apid.AddRuleOption): Rule {
-        const convertedRule: Rule = <any>{
-            updateCnt: typeof rule === 'undefined' ? 0 : (<RuleWithCnt>rule).updateCnt,
+    public async findAll(option: apid.GetRuleOption, isNeedCnt: boolean = false): Promise<[apid.Rule[], number]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option.keyword !== 'undefined') {
+                    const names = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const name of names) {
+                        if (name.length > 0) {
+                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
+                        }
+                    }
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.rules);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.rules.id)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.rules);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const total = countResult[0]?.count || 0;
+
+                return [
+                    rows.map(r => {
+                        const rule = this.convertDBRowToRule(r);
+                        if (!isNeedCnt) delete (rule as any).updateCnt;
+                        return rule;
+                    }),
+                    total,
+                ];
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option.keyword !== 'undefined') {
+                    const names = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const name of names) {
+                        if (name.length > 0) {
+                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
+                        }
+                    }
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.rules);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.rules.id)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.rules);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const total = countResult[0]?.count || 0;
+
+                return [
+                    rows.map(r => {
+                        const rule = this.convertDBRowToRule(r);
+                        if (!isNeedCnt) delete (rule as any).updateCnt;
+                        return rule;
+                    }),
+                    total,
+                ];
+            }
+        });
+    }
+
+    /**
+     * キーワード検索
+     */
+    public async findKeyword(option: apid.GetRuleOption): Promise<apid.RuleKeywordItem[]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option.keyword !== 'undefined') {
+                    const names = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const name of names) {
+                        if (name.length > 0) {
+                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
+                        }
+                    }
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.rules.id)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+                return rows.map(r => ({
+                    id: r.id,
+                    keyword: r.keyword === null ? '' : r.keyword,
+                }));
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option.keyword !== 'undefined') {
+                    const names = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const name of names) {
+                        if (name.length > 0) {
+                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
+                        }
+                    }
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.rules.id)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+                return rows.map(r => ({
+                    id: r.id,
+                    keyword: r.keyword === null ? '' : r.keyword,
+                }));
+            }
+        });
+    }
+
+    /**
+     * rule id を全て取得する
+     */
+    public async getIds(): Promise<apid.RuleId[]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select({ id: schema.rules.id }).from(schema.rules).orderBy(asc(schema.rules.id));
+                return rows.map(r => r.id);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select({ id: schema.rules.id }).from(schema.rules).orderBy(asc(schema.rules.id));
+                return rows.map(r => r.id);
+            }
+        });
+    }
+
+    private convertRuleToDBRow(rule: RuleWithCnt | apid.Rule | apid.AddRuleOption): any {
+        const converted: any = {
+            updateCnt: typeof (rule as any).updateCnt === 'number' ? (rule as any).updateCnt : 0,
             isTimeSpecification: rule.isTimeSpecification,
             keyword: typeof rule.searchOption.keyword === 'undefined' ? null : rule.searchOption.keyword,
             halfWidthKeyword:
@@ -266,323 +413,109 @@ export default class RuleDB implements IRuleDB {
             isDeleteOriginalAfterEncode: false,
         };
 
-        if (typeof (<apid.Rule>rule).id !== 'undefined') {
-            convertedRule.id = (<apid.Rule>rule).id;
+        if (typeof (rule as apid.Rule).id !== 'undefined') {
+            converted.id = (rule as apid.Rule).id;
         }
 
         if (typeof rule.saveOption !== 'undefined') {
-            convertedRule.parentDirectoryName =
+            converted.parentDirectoryName =
                 typeof rule.saveOption.parentDirectoryName === 'undefined' ? null : rule.saveOption.parentDirectoryName;
-            convertedRule.directory =
+            converted.directory =
                 typeof rule.saveOption.directory === 'undefined' ? null : rule.saveOption.directory;
-            convertedRule.recordedFormat =
+            converted.recordedFormat =
                 typeof rule.saveOption.recordedFormat === 'undefined' ? null : rule.saveOption.recordedFormat;
         }
 
         if (typeof rule.encodeOption !== 'undefined') {
-            convertedRule.mode1 = typeof rule.encodeOption.mode1 === 'undefined' ? null : rule.encodeOption.mode1;
-            convertedRule.parentDirectoryName1 =
+            converted.mode1 = typeof rule.encodeOption.mode1 === 'undefined' ? null : rule.encodeOption.mode1;
+            converted.parentDirectoryName1 =
                 typeof rule.encodeOption.encodeParentDirectoryName1 === 'undefined'
                     ? null
                     : rule.encodeOption.encodeParentDirectoryName1;
-            convertedRule.directory1 =
+            converted.directory1 =
                 typeof rule.encodeOption.directory1 === 'undefined' ? null : rule.encodeOption.directory1;
-            convertedRule.mode2 = typeof rule.encodeOption.mode2 === 'undefined' ? null : rule.encodeOption.mode2;
-            convertedRule.parentDirectoryName2 =
+            converted.mode2 = typeof rule.encodeOption.mode2 === 'undefined' ? null : rule.encodeOption.mode2;
+            converted.parentDirectoryName2 =
                 typeof rule.encodeOption.encodeParentDirectoryName2 === 'undefined'
                     ? null
                     : rule.encodeOption.encodeParentDirectoryName2;
-            convertedRule.directory2 =
+            converted.directory2 =
                 typeof rule.encodeOption.directory2 === 'undefined' ? null : rule.encodeOption.directory2;
-            convertedRule.mode3 = typeof rule.encodeOption.mode3 === 'undefined' ? null : rule.encodeOption.mode3;
-            convertedRule.parentDirectoryName3 =
+            converted.mode3 = typeof rule.encodeOption.mode3 === 'undefined' ? null : rule.encodeOption.mode3;
+            converted.parentDirectoryName3 =
                 typeof rule.encodeOption.encodeParentDirectoryName3 === 'undefined'
                     ? null
                     : rule.encodeOption.encodeParentDirectoryName3;
-            convertedRule.directory3 =
+            converted.directory3 =
                 typeof rule.encodeOption.directory3 === 'undefined' ? null : rule.encodeOption.directory3;
-            convertedRule.isDeleteOriginalAfterEncode = rule.encodeOption.isDeleteOriginalAfterEncode;
+            converted.isDeleteOriginalAfterEncode = !!rule.encodeOption.isDeleteOriginalAfterEncode;
         }
 
-        return convertedRule;
+        return converted;
     }
 
-    /**
-     * Rule から RuleWithCnt へ変換する
-     * @param rule: Rule
-     * @return RuleWithCnt
-     */
-    private convertDBRuleToRule(rule: Rule): RuleWithCnt {
-        const convertedRule: RuleWithCnt = {
-            id: rule.id,
-            updateCnt: rule.updateCnt,
-            isTimeSpecification: rule.isTimeSpecification,
+    private convertDBRowToRule(row: any): RuleWithCnt {
+        const converted: RuleWithCnt = {
+            id: row.id,
+            updateCnt: row.updateCnt,
+            isTimeSpecification: !!row.isTimeSpecification,
             searchOption: {
-                keyCS: rule.keyCS,
-                keyRegExp: rule.keyRegExp,
-                name: rule.name,
-                description: rule.description,
-                extended: rule.extended,
-                ignoreKeyCS: rule.ignoreKeyCS,
-                ignoreKeyRegExp: rule.ignoreKeyRegExp,
-                ignoreName: rule.ignoreName,
-                ignoreDescription: rule.ignoreDescription,
-                ignoreExtended: rule.ignoreExtended,
-                GR: rule.GR,
-                BS: rule.BS,
-                CS: rule.CS,
-                SKY: rule.SKY,
-                isFree: rule.isFree,
+                keyCS: !!row.keyCS,
+                keyRegExp: !!row.keyRegExp,
+                name: !!row.name,
+                description: !!row.description,
+                extended: !!row.extended,
+                ignoreKeyCS: !!row.ignoreKeyCS,
+                ignoreKeyRegExp: !!row.ignoreKeyRegExp,
+                ignoreName: !!row.ignoreName,
+                ignoreDescription: !!row.ignoreDescription,
+                ignoreExtended: !!row.ignoreExtended,
+                GR: !!row.GR,
+                BS: !!row.BS,
+                CS: !!row.CS,
+                SKY: !!row.SKY,
+                isFree: !!row.isFree,
             },
             reserveOption: {
-                enable: rule.enable,
-                allowEndLack: rule.allowEndLack,
-                avoidDuplicate: rule.avoidDuplicate,
+                enable: !!row.enable,
+                allowEndLack: !!row.allowEndLack,
+                avoidDuplicate: !!row.avoidDuplicate,
             },
         };
 
-        /**
-         * 検索オプションセット
-         */
-        if (rule.keyword !== null) {
-            convertedRule.searchOption.keyword = rule.keyword;
-        }
-        if (rule.ignoreKeyword !== null) {
-            convertedRule.searchOption.ignoreKeyword = rule.ignoreKeyword;
-        }
-        if (rule.channelIds !== null) {
-            convertedRule.searchOption.channelIds = JSON.parse(rule.channelIds);
-        }
-        if (rule.genres !== null) {
-            convertedRule.searchOption.genres = JSON.parse(rule.genres);
-        }
-        if (rule.times !== null) {
-            convertedRule.searchOption.times = JSON.parse(rule.times);
-        }
-        if (rule.durationMin !== null) {
-            convertedRule.searchOption.durationMin = rule.durationMin;
-        }
-        if (rule.durationMax !== null) {
-            convertedRule.searchOption.durationMax = rule.durationMax;
-        }
-        if (rule.searchPeriods !== null) {
-            convertedRule.searchOption.searchPeriods = JSON.parse(rule.searchPeriods);
-        }
+        if (row.keyword !== null) converted.searchOption.keyword = row.keyword;
+        if (row.ignoreKeyword !== null) converted.searchOption.ignoreKeyword = row.ignoreKeyword;
+        if (row.channelIds !== null) converted.searchOption.channelIds = JSON.parse(row.channelIds);
+        if (row.genres !== null) converted.searchOption.genres = JSON.parse(row.genres);
+        if (row.times !== null) converted.searchOption.times = JSON.parse(row.times);
+        if (row.durationMin !== null) converted.searchOption.durationMin = row.durationMin;
+        if (row.durationMax !== null) converted.searchOption.durationMax = row.durationMax;
+        if (row.searchPeriods !== null) converted.searchOption.searchPeriods = JSON.parse(row.searchPeriods);
 
-        /**
-         * 予約オプションセット
-         */
-        if (rule.periodToAvoidDuplicate !== null) {
-            convertedRule.reserveOption.periodToAvoidDuplicate = rule.periodToAvoidDuplicate;
-        }
-        if (rule.tags !== null) {
-            convertedRule.reserveOption.tags = JSON.parse(rule.tags);
-        }
+        if (row.periodToAvoidDuplicate !== null) converted.reserveOption.periodToAvoidDuplicate = row.periodToAvoidDuplicate;
+        if (row.tags !== null) converted.reserveOption.tags = JSON.parse(row.tags);
 
-        /**
-         * 保存オプション
-         */
         const saveOption: apid.ReserveSaveOption = {};
-        if (rule.parentDirectoryName !== null) {
-            saveOption.parentDirectoryName = rule.parentDirectoryName;
-        }
+        if (row.parentDirectoryName !== null) saveOption.parentDirectoryName = row.parentDirectoryName;
+        if (row.directory !== null) saveOption.directory = row.directory;
+        if (row.recordedFormat !== null) saveOption.recordedFormat = row.recordedFormat;
+        if (Object.keys(saveOption).length > 0) converted.saveOption = saveOption;
 
-        if (rule.directory !== null) {
-            saveOption.directory = rule.directory;
-        }
-        if (rule.recordedFormat !== null) {
-            saveOption.recordedFormat = rule.recordedFormat;
-        }
-        if (Object.keys(saveOption).length > 0) {
-            convertedRule.saveOption = saveOption;
-        }
-
-        /**
-         * エンコードオプション
-         */
-        const encodeOption: apid.ReserveEncodedOption = <any>{};
-        if (rule.mode1 !== null) {
-            encodeOption.mode1 = rule.mode1;
-        }
-        if (rule.parentDirectoryName1 !== null) {
-            encodeOption.encodeParentDirectoryName1 = rule.parentDirectoryName1;
-        }
-        if (rule.directory1 !== null) {
-            encodeOption.directory1 = rule.directory1;
-        }
-        if (rule.mode2 !== null) {
-            encodeOption.mode2 = rule.mode2;
-        }
-        if (rule.parentDirectoryName2 !== null) {
-            encodeOption.encodeParentDirectoryName2 = rule.parentDirectoryName2;
-        }
-        if (rule.directory2 !== null) {
-            encodeOption.directory2 = rule.directory2;
-        }
-        if (rule.mode3 !== null) {
-            encodeOption.mode3 = rule.mode3;
-        }
-        if (rule.parentDirectoryName3 !== null) {
-            encodeOption.encodeParentDirectoryName3 = rule.parentDirectoryName3;
-        }
-        if (rule.directory3 !== null) {
-            encodeOption.directory3 = rule.directory3;
-        }
+        const encodeOption: apid.ReserveEncodedOption = {} as any;
+        if (row.mode1 !== null) encodeOption.mode1 = row.mode1;
+        if (row.parentDirectoryName1 !== null) encodeOption.encodeParentDirectoryName1 = row.parentDirectoryName1;
+        if (row.directory1 !== null) encodeOption.directory1 = row.directory1;
+        if (row.mode2 !== null) encodeOption.mode2 = row.mode2;
+        if (row.parentDirectoryName2 !== null) encodeOption.encodeParentDirectoryName2 = row.parentDirectoryName2;
+        if (row.directory2 !== null) encodeOption.directory2 = row.directory2;
+        if (row.mode3 !== null) encodeOption.mode3 = row.mode3;
+        if (row.parentDirectoryName3 !== null) encodeOption.encodeParentDirectoryName3 = row.parentDirectoryName3;
+        if (row.directory3 !== null) encodeOption.directory3 = row.directory3;
         if (Object.keys(encodeOption).length > 0) {
-            encodeOption.isDeleteOriginalAfterEncode = rule.isDeleteOriginalAfterEncode;
-            convertedRule.encodeOption = encodeOption;
+            encodeOption.isDeleteOriginalAfterEncode = !!row.isDeleteOriginalAfterEncode;
+            converted.encodeOption = encodeOption;
         }
 
-        return convertedRule;
-    }
-
-    /**
-     * 全件取得
-     * @param option: apid.GetRuleOption
-     * @return Promise<[apid.Rule[], number]>
-     */
-    public async findAll(option: apid.GetRuleOption, isNeedCnt: boolean = false): Promise<[apid.Rule[], number]> {
-        const connection = await this.op.getConnection();
-
-        let queryBuilder = connection.getRepository(Rule).createQueryBuilder('rule');
-
-        // keyword
-        if (typeof option.keyword !== 'undefined') {
-            const names = StrUtil.toHalf(option.keyword).split(/ /);
-            const like = this.op.getLikeStr(false);
-
-            const keywordAnd: string[] = [];
-            const values: any = {};
-            names.forEach((str, i) => {
-                str = `%${str}%`;
-
-                // value
-                const valueName = `keyword${i}`;
-                values[valueName] = str;
-
-                // keyword
-                keywordAnd.push(`halfWidthKeyword ${like} :${valueName}`);
-            });
-
-            const or: string[] = [];
-            if (keywordAnd.length > 0) {
-                or.push(`(${DBUtil.createAndQuery(keywordAnd)})`);
-            }
-
-            queryBuilder = queryBuilder.andWhere(DBUtil.createOrQuery(or), values);
-        }
-
-        // offset
-        if (typeof option.offset !== 'undefined') {
-            queryBuilder = queryBuilder.skip(option.offset);
-        }
-
-        // limit
-        if (typeof option.limit !== 'undefined') {
-            queryBuilder = queryBuilder.take(option.limit);
-        }
-
-        // order by
-        queryBuilder = queryBuilder.orderBy('rule.id', 'ASC');
-
-        const [rules, total] = await this.promieRetry.run(() => {
-            return queryBuilder.getManyAndCount();
-        });
-
-        return [
-            rules.map(rule => {
-                const result = this.convertDBRuleToRule(rule);
-                if (isNeedCnt === false) {
-                    delete (result as any).updateCnt;
-                }
-
-                return result;
-            }),
-            total,
-        ];
-    }
-
-    /**
-     * キーワード検索
-     * @param option: apid.GetRuleOption
-     * @return Promise<apid.RuleKeywordItem[]>
-     */
-    public async findKeyword(option: apid.GetRuleOption): Promise<apid.RuleKeywordItem[]> {
-        const connection = await this.op.getConnection();
-
-        let queryBuilder = connection
-            .createQueryBuilder()
-            .select('rule.id, rule.keyword')
-            .from(Rule, 'rule')
-            .orderBy('rule.id', 'ASC');
-
-        // keyword
-        if (typeof option.keyword !== 'undefined') {
-            const names = StrUtil.toHalf(option.keyword).split(/ /);
-            const like = this.op.getLikeStr(false);
-
-            const keywordAnd: string[] = [];
-            const values: any = {};
-            names.forEach((str, i) => {
-                str = `%${str}%`;
-
-                // value
-                const valueName = `keyword${i}`;
-                values[valueName] = str;
-
-                // keyword
-                keywordAnd.push(`halfWidthKeyword ${like} :${valueName}`);
-            });
-
-            const or: string[] = [];
-            if (keywordAnd.length > 0) {
-                or.push(`(${DBUtil.createAndQuery(keywordAnd)})`);
-            }
-
-            queryBuilder = queryBuilder.andWhere(DBUtil.createOrQuery(or), values);
-        }
-
-        // offset
-        if (typeof option.offset !== 'undefined') {
-            queryBuilder = queryBuilder.skip(option.offset);
-        }
-
-        // limit
-        if (typeof option.limit !== 'undefined') {
-            queryBuilder = queryBuilder.take(option.limit);
-        }
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getRawMany();
-        });
-
-        return result.map(r => {
-            return {
-                id: r.id,
-                keyword: r.keyword === null ? '' : r.keyword,
-            };
-        });
-    }
-
-    /**
-     * rule id を全て取得する
-     * @return Promise<apid.RuleId[]>
-     */
-    public async getIds(): Promise<apid.RuleId[]> {
-        const connection = await this.op.getConnection();
-
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .select('rule.id')
-            .from(Rule, 'rule')
-            .orderBy('rule.id', 'ASC');
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
-        });
-
-        return result.map(r => {
-            return r.id;
-        });
+        return converted;
     }
 }

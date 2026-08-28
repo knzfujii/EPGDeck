@@ -1,144 +1,176 @@
+import { eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import DropLogFile from '../../db/entities/DropLogFile';
-import Recorded from '../../db/entities/Recorded';
-import Thumbnail from '../../db/entities/Thumbnail';
-import VideoFile from '../../db/entities/VideoFile';
 import IPromiseRetry from '../IPromiseRetry';
-import IDBOperator from './IDBOperator';
 import IDropLogFileDB, { UpdateCntOption } from './IDropLogFileDB';
+import IDrizzleOperator from './IDrizzleOperator';
 
 @injectable()
 export default class DropLogFileDB implements IDropLogFileDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: DropLogFile[]
-     * @return Promise<void>
      */
     public async restore(items: DropLogFile[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(Thumbnail, {});
-            await queryRunner.manager.delete(VideoFile, {});
-            await queryRunner.manager.delete(Recorded, {});
-            await queryRunner.manager.delete(DropLogFile, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(DropLogFile, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.dropLogFiles);
+                    for (const item of items) {
+                        await tx.insert(schema.dropLogFiles).values({
+                            id: item.id,
+                            errorCnt: item.errorCnt,
+                            dropCnt: item.dropCnt,
+                            scramblingCnt: item.scramblingCnt,
+                            filePath: item.filePath,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.dropLogFiles);
+                    for (const item of items) {
+                        await tx.insert(schema.dropLogFiles).values({
+                            id: item.id,
+                            errorCnt: item.errorCnt,
+                            dropCnt: item.dropCnt,
+                            scramblingCnt: item.scramblingCnt,
+                            filePath: item.filePath,
+                        });
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
-     * ドロップログ情報を 1 件挿入
-     * @param dropLogFile: DropLogFile
-     * @return Promise<apid.DropLogFileId> inserted id
+     * drop log file 情報を 1 件挿入
      */
     public async insertOnce(dropLogFile: DropLogFile): Promise<apid.DropLogFileId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(DropLogFile).values(dropLogFile);
+        const client = this.drizzleOp.getDB();
 
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.dropLogFiles).values({
+                    errorCnt: dropLogFile.errorCnt,
+                    dropCnt: dropLogFile.dropCnt,
+                    scramblingCnt: dropLogFile.scramblingCnt,
+                    filePath: dropLogFile.filePath,
+                });
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.dropLogFiles).values({
+                    errorCnt: dropLogFile.errorCnt,
+                    dropCnt: dropLogFile.dropCnt,
+                    scramblingCnt: dropLogFile.scramblingCnt,
+                    filePath: dropLogFile.filePath,
+                });
+                return result.insertId;
+            }
         });
-
-        return insertedResult.identifiers[0].id;
     }
 
     /**
-     * ドロップカウント数更新
-     * @param updateOption: UpdateCntOption
-     * @return Promise<void>
+     * カウントを更新
      */
     public async updateCnt(updateOption: UpdateCntOption): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(DropLogFile)
-            .set({
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            const values = {
                 errorCnt: updateOption.errorCnt,
                 dropCnt: updateOption.dropCnt,
                 scramblingCnt: updateOption.scramblingCnt,
-            })
-            .where({ id: updateOption.id });
+            };
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.dropLogFiles).set(values).where(eq(schema.dropLogFiles.id, updateOption.id));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.dropLogFiles).set(values).where(eq(schema.dropLogFiles.id, updateOption.id));
+            }
         });
     }
 
     /**
-     * 指定したドロップログ情報を 1 件削除
-     * @param dropLogFileId: apid.DropLogFileId
-     * @return Promise<void>
+     * drop log file 情報を 1 件削除
      */
     public async deleteOnce(dropLogFileId: apid.DropLogFileId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(DropLogFile).where({
-            id: dropLogFileId,
-        });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+            }
         });
     }
 
     /**
-     * id を指定して取得する
-     * @param dropLogFileId: apid.DropLogFileId
-     * @return Promise<DropLogFile | null>
+     * dropLogFileId を指定してドロップログファイル情報を取得
      */
     public async findId(dropLogFileId: apid.DropLogFileId): Promise<DropLogFile | null> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.getRepository(DropLogFile).createQueryBuilder().where({
-            id: dropLogFileId,
-        });
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
-        });
+        const client = this.drizzleOp.getDB();
 
-        return typeof result === 'undefined' ? null : result;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
+        });
     }
 
     /**
-     * 全てのドロップログファイル情報を取得
-     * @return Promise<DropLogFile[]>
+     * 全件取得
      */
     public async findAll(): Promise<DropLogFile[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(DropLogFile).createQueryBuilder();
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.dropLogFiles);
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.dropLogFiles);
+                return rows.map(r => this.toEntity(r));
+            }
         });
+    }
+
+    private toEntity(row: any): DropLogFile {
+        const entity = new DropLogFile();
+        entity.id = row.id;
+        entity.errorCnt = row.errorCnt;
+        entity.dropCnt = row.dropCnt;
+        entity.scramblingCnt = row.scramblingCnt;
+        entity.filePath = row.filePath;
+        return entity;
     }
 }

@@ -1,528 +1,663 @@
+import { and, asc, desc, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import { In, IsNull, Not } from 'typeorm';
 import * as apid from '../../../api';
+import DropLogFile from '../../db/entities/DropLogFile';
 import Recorded from '../../db/entities/Recorded';
+import RecordedTag from '../../db/entities/RecordedTag';
 import Thumbnail from '../../db/entities/Thumbnail';
 import VideoFile from '../../db/entities/VideoFile';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
-import DBUtil from './DBUtil';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB';
 
 @injectable()
 export default class RecordedDB implements IRecordedDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: Recorded[]
-     * @return Promise<void>
      */
     public async restore(items: Recorded[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.thumbnails);
+                    await tx.delete(schema.videoFiles);
+                    await tx.delete(schema.recorded);
 
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(Thumbnail, {});
-            await queryRunner.manager.delete(VideoFile, {});
-            await queryRunner.manager.delete(Recorded, {});
+                    for (const item of items) {
+                        await tx.insert(schema.recorded).values(this.toRow(item));
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.thumbnails);
+                    await tx.delete(schema.videoFiles);
+                    await tx.delete(schema.recorded);
 
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(Recorded, item);
+                    for (const item of items) {
+                        await tx.insert(schema.recorded).values(this.toRow(item));
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
      * 録画番組情報を 1 件挿入
-     * @param recorded: Recorded
-     * @return inserted id
      */
     public async insertOnce(recorded: Recorded): Promise<apid.RecordedId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(Recorded).values(recorded);
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
-        });
+        const client = this.drizzleOp.getDB();
 
-        return insertedResult.identifiers[0].id;
+        return await this.promieRetry.run(async () => {
+            const row = this.toRow(recorded);
+            delete row.id;
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.recorded).values(row);
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.recorded).values(row);
+                return result.insertId;
+            }
+        });
     }
 
     /**
      * 録画番組情報の更新
-     * @param recorded: Recorded
-     * @return Promise<void>
      */
     public async updateOnce(recorded: Recorded): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().update(Recorded).set(recorded).where({ id: recorded.id });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            const row = this.toRow(recorded);
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
+            }
         });
     }
 
     /**
      * 指定した録画情報の isRecording を false に
-     * @param recordedId: apid.RecordedId
-     * @return Promise<void>
      */
     public async removeRecording(recordedId: apid.RecordedId): Promise<void> {
-        const recorded = await this.findId(recordedId);
-        if (recorded === null) {
-            throw new Error('RecordedIsNull');
-        }
+        const client = this.drizzleOp.getDB();
 
-        // すでに有効か
-        if (recorded.isRecording === false) {
-            return;
-        }
-
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Recorded)
-            .set({
-                isRecording: false,
-            })
-            .where({ id: recordedId });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ isRecording: false })
+                    .where(eq(schema.recorded.id, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ isRecording: false })
+                    .where(eq(schema.recorded.id, recordedId));
+            }
         });
     }
 
     /**
      * 指定した drop log file id を削除する
-     * @param dropLogFileId: apid,DropLogFileId
-     * @return Promise<void>
      */
     public async removeDropLogFileId(dropLogFileId: apid.DropLogFileId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Recorded)
-            .set({
-                dropLogFileId: null,
-            })
-            .where({ dropLogFileId: dropLogFileId });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ dropLogFileId: null })
+                    .where(eq(schema.recorded.dropLogFileId, dropLogFileId));
+            } else {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ dropLogFileId: null })
+                    .where(eq(schema.recorded.dropLogFileId, dropLogFileId));
+            }
         });
     }
 
     /**
      * 指定した ruleId を削除する
-     * @param ruleId: apid.RuleId
-     * @return Promise<void>
      */
     public async removeRuleId(ruleId: apid.RuleId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Recorded)
-            .set({
-                ruleId: null,
-            })
-            .where({ ruleId: ruleId });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
+            }
         });
     }
 
     /**
      * 保護状態を変更する
-     * @param recordedId: apid.RecordedId
-     * @param isProtect: boolean
-     * @return Promise<void>
      */
     public async changeProtect(recordedId: apid.RecordedId, isProtect: boolean): Promise<void> {
-        const recorded = await this.findId(recordedId);
-        if (recorded === null) {
-            throw new Error('RecordedIsNull');
-        }
+        const client = this.drizzleOp.getDB();
 
-        // すでに同じ状態であれば何もしない
-        if (recorded.isProtected === isProtect) {
-            return;
-        }
-
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Recorded)
-            .set({
-                isProtected: isProtect,
-            })
-            .where({ id: recordedId });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ isProtected: isProtect })
+                    .where(eq(schema.recorded.id, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db
+                    .update(schema.recorded)
+                    .set({ isProtected: isProtect })
+                    .where(eq(schema.recorded.id, recordedId));
+            }
         });
     }
 
     /**
      * 指定した録画番組情報を 1 件削除
-     * @param recordedId: apid.RecordedId
-     * @return Promise<void>
      */
     public async deleteOnce(recordedId: apid.RecordedId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(Recorded).where({
-            id: recordedId,
-        });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
+            }
         });
     }
 
     /**
      * id を指定して録画番組情報取得
-     * @param recordedId: apid.RecordedId
-     * @return Recorded
      */
     public async findId(recordedId: apid.RecordedId): Promise<Recorded | null> {
-        const connection = await this.op.getConnection();
-
-        const queryBuilder = connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .where({ id: recordedId })
-            .leftJoinAndSelect('recorded.videoFiles', 'videoFiles')
-            .leftJoinAndSelect('recorded.thumbnails', 'thumbnails')
-            .leftJoinAndSelect('recorded.dropLogFile', 'dropLogFile')
-            .leftJoinAndSelect('recorded.tags', 'tags');
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
-        });
-
-        return result.length === 0 ? null : result[0];
+        const results = await this.findIds([recordedId], undefined, false);
+        return results.length === 0 ? null : results[0];
     }
 
     /**
      * id を複数指定して番組情報を取得する
-     * @param recordedIds: apid.RecordedId[]
-     * @return Promise<Recorded[]>
      */
     public async findIds(
         recordedIds: apid.RecordedId[],
         columnOption?: RecordedColumnOption,
         isReverse?: boolean,
     ): Promise<Recorded[]> {
-        if (recordedIds.length === 0) {
-            return [];
-        }
+        if (recordedIds.length === 0) return [];
 
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        let queryBuilder = connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .where({ id: In(recordedIds) });
+        return await this.promieRetry.run(async () => {
+            const isNeedVideoFiles = typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true;
+            const isNeedThumbnails = typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true;
+            const isNeedsDropLog = typeof columnOption !== 'undefined' && columnOption.isNeedsDropLog === true;
+            const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
 
-        if (typeof columnOption === 'undefined') {
-            queryBuilder = queryBuilder
-                .leftJoinAndSelect('recorded.videoFiles', 'videoFiles')
-                .leftJoinAndSelect('recorded.thumbnails', 'thumbnails');
-        } else {
-            // videoFile
-            if (columnOption.isNeedVideoFiles === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.videoFiles', 'videoFiles');
+            let records: any[] = [];
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                records = await db
+                    .select()
+                    .from(schema.recorded)
+                    .where(inArray(schema.recorded.id, recordedIds))
+                    .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
+            } else {
+                const { db, schema } = client;
+                records = await db
+                    .select()
+                    .from(schema.recorded)
+                    .where(inArray(schema.recorded.id, recordedIds))
+                    .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
             }
-            // thumbnail
-            if (columnOption.isNeedThumbnails === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.thumbnails', 'thumbnails');
-            }
-            // dropLogFile
-            if (columnOption.isNeedsDropLog === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.dropLogFile', 'dropLogFile');
+
+            if (records.length === 0) return [];
+
+            const idList = records.map(r => r.id);
+
+            let videoFileMap = new Map<number, VideoFile[]>();
+            if (isNeedVideoFiles) {
+                videoFileMap = await this.fetchVideoFiles(client, idList);
             }
 
-            // tags
-            if (columnOption.isNeedTags === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.tags', 'tags');
+            let thumbnailMap = new Map<number, Thumbnail[]>();
+            if (isNeedThumbnails) {
+                thumbnailMap = await this.fetchThumbnails(client, idList);
             }
-        }
 
-        queryBuilder = queryBuilder.orderBy('recorded.startAt', isReverse ? 'ASC' : 'DESC');
+            let dropLogMap = new Map<number, DropLogFile>();
+            if (isNeedsDropLog) {
+                dropLogMap = await this.fetchDropLogs(client, records.map(r => r.dropLogFileId).filter(Boolean));
+            }
 
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+            let tagsMap = new Map<number, RecordedTag[]>();
+            if (isNeedTags) {
+                tagsMap = await this.fetchTags(client, idList);
+            }
+
+            return records.map(r => {
+                const entity = this.toEntity(r);
+                if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
+                if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
+                if (isNeedsDropLog) entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+                if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
+                return entity;
+            });
         });
-
-        return result;
     }
 
     /**
      * 全件取得
-     * @param option: FindAllOption
-     * @param columnOption: RecordedColumnOption
-     * @return Promise<[Recorded[], number]>
      */
     public async findAll(option: FindAllOption, columnOption: RecordedColumnOption): Promise<[Recorded[], number]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        let queryBuilder = connection.getRepository(Recorded).createQueryBuilder('recorded');
+        return await this.promieRetry.run(async () => {
+            let records: any[] = [];
+            let totalCount = 0;
 
-        const querys: { query: string; values: any }[] = [];
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [];
 
-        // is recording
-        if (typeof option.isRecording !== 'undefined') {
-            querys.push({
-                query: 'recorded.isRecording = :isRecording',
-                values: {
-                    isRecording: option.isRecording,
-                },
-            });
-        }
+                if (typeof option.isRecording !== 'undefined') {
+                    conditions.push(eq(schema.recorded.isRecording, option.isRecording));
+                }
 
-        // rule id
-        if (typeof option.ruleId !== 'undefined') {
-            if (option.ruleId === 0) {
-                querys.push({
-                    query: 'recorded.ruleId is null',
-                    values: {},
-                });
+                if (typeof option.ruleId !== 'undefined') {
+                    if (option.ruleId === 0) {
+                        conditions.push(isNull(schema.recorded.ruleId));
+                    } else {
+                        conditions.push(eq(schema.recorded.ruleId, option.ruleId));
+                    }
+                }
+
+                if (typeof option.channelId !== 'undefined') {
+                    conditions.push(eq(schema.recorded.channelId, option.channelId));
+                }
+
+                if (typeof option.genre !== 'undefined') {
+                    conditions.push(
+                        or(
+                            eq(schema.recorded.genre1, option.genre),
+                            eq(schema.recorded.genre2, option.genre),
+                            eq(schema.recorded.genre3, option.genre),
+                        ),
+                    );
+                }
+
+                if (typeof option.keyword !== 'undefined') {
+                    const keywords = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const kw of keywords) {
+                        if (kw.length > 0) {
+                            conditions.push(
+                                or(
+                                    like(schema.recorded.halfWidthName, `%${kw}%`),
+                                    like(schema.recorded.halfWidthDescription, `%${kw}%`),
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+                let query = db.select().from(schema.recorded);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                records = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recorded);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                totalCount = countResult[0]?.count || 0;
             } else {
-                querys.push({
-                    query: 'recorded.ruleId = :ruleId',
-                    values: {
-                        ruleId: option.ruleId,
-                    },
-                });
-            }
-        }
+                const { db, schema } = client;
+                const conditions: any[] = [];
 
-        // channel id
-        if (typeof option.channelId !== 'undefined') {
-            querys.push({
-                query: 'recorded.channelId = :channelId',
-                values: {
-                    channelId: option.channelId,
-                },
-            });
-        }
+                if (typeof option.isRecording !== 'undefined') {
+                    conditions.push(eq(schema.recorded.isRecording, option.isRecording));
+                }
 
-        // genre
-        if (typeof option.genre !== 'undefined') {
-            querys.push({
-                query: '(genre1 = :genre or genre2 = :genre or genre3 = :genre)',
-                values: {
-                    genre: option.genre,
-                },
-            });
-        }
+                if (typeof option.ruleId !== 'undefined') {
+                    if (option.ruleId === 0) {
+                        conditions.push(isNull(schema.recorded.ruleId));
+                    } else {
+                        conditions.push(eq(schema.recorded.ruleId, option.ruleId));
+                    }
+                }
 
-        // keyword
-        if (typeof option.keyword !== 'undefined') {
-            const keywords = StrUtil.toHalf(option.keyword).split(/ /);
-            const like = this.op.getLikeStr(false);
-            const valueBaseName = 'keyword';
+                if (typeof option.channelId !== 'undefined') {
+                    conditions.push(eq(schema.recorded.channelId, option.channelId));
+                }
 
-            const nameAnd: string[] = [];
-            const descriptionAnd: string[] = [];
-            const values: any = {};
-            keywords.forEach((str, i) => {
-                str = `%${str}%`;
+                if (typeof option.genre !== 'undefined') {
+                    conditions.push(
+                        or(
+                            eq(schema.recorded.genre1, option.genre),
+                            eq(schema.recorded.genre2, option.genre),
+                            eq(schema.recorded.genre3, option.genre),
+                        ),
+                    );
+                }
 
-                // value
-                const valueName = `${valueBaseName}Name${i}`;
-                values[valueName] = str;
+                if (typeof option.keyword !== 'undefined') {
+                    const keywords = StrUtil.toHalf(option.keyword).split(/ /);
+                    for (const kw of keywords) {
+                        if (kw.length > 0) {
+                            conditions.push(
+                                or(
+                                    like(schema.recorded.halfWidthName, `%${kw}%`),
+                                    like(schema.recorded.halfWidthDescription, `%${kw}%`),
+                                ),
+                            );
+                        }
+                    }
+                }
 
-                // name
-                nameAnd.push(`halfWidthName ${like} :${valueName}`);
-                // description
-                descriptionAnd.push(`halfWidthDescription ${like} :${valueName}`);
-            });
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-            const or: string[] = [];
-            if (nameAnd.length > 0) {
-                or.push(`(${DBUtil.createAndQuery(nameAnd)})`);
-            }
-            if (descriptionAnd.length > 0) {
-                or.push(`(${DBUtil.createAndQuery(descriptionAnd)})`);
-            }
+                let query = db.select().from(schema.recorded);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
-            querys.push({
-                query: DBUtil.createOrQuery(or),
-                values: values,
-            });
-        }
+                records = await query;
 
-        // オリジナルファイルだけを抽出する
-        if (columnOption.isNeedVideoFiles === true && !!option.hasOriginalFile === true) {
-            querys.push({
-                query: 'videoFiles.type <> :type',
-                values: {
-                    type: 'encoded',
-                },
-            });
-        }
-
-        // where セット
-        for (const q of querys) {
-            queryBuilder = queryBuilder.andWhere(q.query, q.values);
-        }
-
-        // offset
-        if (typeof option.offset !== 'undefined') {
-            queryBuilder.skip(option.offset);
-        }
-
-        // limit
-        if (typeof option.limit !== 'undefined') {
-            queryBuilder.take(option.limit);
-        }
-
-        // order by
-        queryBuilder = queryBuilder.orderBy('recorded.startAt', option.isReverse ? 'ASC' : 'DESC');
-
-        // videoFiles
-        if (columnOption.isNeedVideoFiles === true) {
-            queryBuilder = queryBuilder.leftJoinAndSelect('recorded.videoFiles', 'videoFiles');
-        }
-
-        if (!!option.hasOriginalFile === false) {
-            // thumbnails
-            if (columnOption.isNeedThumbnails === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.thumbnails', 'thumbnails');
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recorded);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                totalCount = countResult[0]?.count || 0;
             }
 
-            // dropLogFile
-            if (columnOption.isNeedsDropLog === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.dropLogFile', 'dropLogFile');
+            if (records.length === 0) return [[], totalCount];
+
+            const idList = records.map(r => r.id);
+
+            const isNeedVideoFiles = columnOption.isNeedVideoFiles === true;
+            const isNeedThumbnails = columnOption.isNeedThumbnails === true;
+            const isNeedsDropLog = columnOption.isNeedsDropLog === true;
+            const isNeedTags = columnOption.isNeedTags === true;
+
+            let videoFileMap = new Map<number, VideoFile[]>();
+            if (isNeedVideoFiles) {
+                videoFileMap = await this.fetchVideoFiles(client, idList);
             }
 
-            // tags
-            if (columnOption.isNeedTags === true) {
-                queryBuilder = queryBuilder.leftJoinAndSelect('recorded.tags', 'tags');
+            let thumbnailMap = new Map<number, Thumbnail[]>();
+            if (isNeedThumbnails) {
+                thumbnailMap = await this.fetchThumbnails(client, idList);
             }
 
-            return await this.promieRetry.run(() => {
-                return queryBuilder.getManyAndCount();
-            });
-        } else {
-            // option.hasOriginalFile が有効な場合は エンコード済みビデオを取得できないので id を指定して再取得する
-            const [records, total] = await this.promieRetry.run(() => {
-                return queryBuilder.getManyAndCount();
+            let dropLogMap = new Map<number, DropLogFile>();
+            if (isNeedsDropLog) {
+                dropLogMap = await this.fetchDropLogs(client, records.map(r => r.dropLogFileId).filter(Boolean));
+            }
+
+            let tagsMap = new Map<number, RecordedTag[]>();
+            if (isNeedTags) {
+                tagsMap = await this.fetchTags(client, idList);
+            }
+
+            let results = records.map(r => {
+                const entity = this.toEntity(r);
+                if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
+                if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
+                if (isNeedsDropLog) entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+                if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
+                return entity;
             });
 
-            const recordedIds = records.map(r => {
-                return r.id;
-            });
+            if (isNeedVideoFiles && option.hasOriginalFile === true) {
+                results = results.filter(r => r.videoFiles && r.videoFiles.some(vf => vf.type !== 'encoded'));
+            }
 
-            const result = await this.promieRetry.run(() => {
-                return this.findIds(recordedIds, columnOption, option.isReverse);
-            });
-
-            return [result, total];
-        }
+            return [results, totalCount];
+        });
     }
 
     /**
      * channelIdのリストを返す
-     * @return Promise<apid.RecordedChannelListItem[]>
      */
     public async findChannelList(): Promise<apid.RecordedChannelListItem[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = await connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .select('count(*) as cnt, channelId')
-            .groupBy('channelId');
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getRawMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db
+                    .select({
+                        cnt: sql<number>`count(*)`,
+                        channelId: schema.recorded.channelId,
+                    })
+                    .from(schema.recorded)
+                    .groupBy(schema.recorded.channelId);
+                return rows.map(r => ({ cnt: Number(r.cnt), channelId: r.channelId }));
+            } else {
+                const { db, schema } = client;
+                const rows = await db
+                    .select({
+                        cnt: sql<number>`count(*)`,
+                        channelId: schema.recorded.channelId,
+                    })
+                    .from(schema.recorded)
+                    .groupBy(schema.recorded.channelId);
+                return rows.map(r => ({ cnt: Number(r.cnt), channelId: r.channelId }));
+            }
         });
     }
 
     /**
      * genreのリストを返す
-     * @return Promise<apid.RecordedGenreListItem[]>
      */
     public async findGenreList(): Promise<apid.RecordedGenreListItem[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = await connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .select('count(*) as cnt, genre1 as genre')
-            .where({ genre1: Not(IsNull()) })
-            .groupBy('genre');
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getRawMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db
+                    .select({
+                        cnt: sql<number>`count(*)`,
+                        genre: schema.recorded.genre1,
+                    })
+                    .from(schema.recorded)
+                    .where(isNotNull(schema.recorded.genre1))
+                    .groupBy(schema.recorded.genre1);
+                return rows.map(r => ({ cnt: Number(r.cnt), genre: r.genre! }));
+            } else {
+                const { db, schema } = client;
+                const rows = await db
+                    .select({
+                        cnt: sql<number>`count(*)`,
+                        genre: schema.recorded.genre1,
+                    })
+                    .from(schema.recorded)
+                    .where(isNotNull(schema.recorded.genre1))
+                    .groupBy(schema.recorded.genre1);
+                return rows.map(r => ({ cnt: Number(r.cnt), genre: r.genre! }));
+            }
         });
     }
 
     /**
      * 一番古い番組を返す
-     * @return Promise<Recorded | null>
      */
     public async findOld(): Promise<Recorded | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .where({
-                isProtected: false,
-            })
-            .orderBy('recorded.startAt', 'ASC')
-            .orderBy('recorded.id', 'ASC')
-            .leftJoinAndSelect('recorded.videoFiles', 'videoFiles')
-            .leftJoinAndSelect('recorded.thumbnails', 'thumbnails')
-            .leftJoinAndSelect('recorded.dropLogFile', 'dropLogFile')
-            .leftJoinAndSelect('recorded.tags', 'tags');
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
+        return await this.promieRetry.run(async () => {
+            let rows: any[] = [];
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                rows = await db
+                    .select()
+                    .from(schema.recorded)
+                    .where(eq(schema.recorded.isProtected, false))
+                    .orderBy(asc(schema.recorded.startAt), asc(schema.recorded.id))
+                    .limit(1);
+            } else {
+                const { db, schema } = client;
+                rows = await db
+                    .select()
+                    .from(schema.recorded)
+                    .where(eq(schema.recorded.isProtected, false))
+                    .orderBy(asc(schema.recorded.startAt), asc(schema.recorded.id))
+                    .limit(1);
+            }
+
+            if (rows.length === 0) return null;
+
+            const results = await this.findIds([rows[0].id], undefined, false);
+            return results.length === 0 ? null : results[0];
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
      * 指定した reserveId の録画を返す
-     * @param reserveId: apid.ReserveId
-     * @return Promise<Recorded[]>
      */
     public async findReserveId(reserveId: apid.ReserveId): Promise<Recorded[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection
-            .getRepository(Recorded)
-            .createQueryBuilder('recorded')
-            .where({ reserveId: reserveId })
-            .leftJoinAndSelect('recorded.videoFiles', 'videoFiles')
-            .leftJoinAndSelect('recorded.thumbnails', 'thumbnails')
-            .leftJoinAndSelect('recorded.dropLogFile', 'dropLogFile')
-            .leftJoinAndSelect('recorded.tags', 'tags');
+        return await this.promieRetry.run(async () => {
+            let rows: any[] = [];
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                rows = await db.select().from(schema.recorded).where(eq(schema.recorded.reserveId, reserveId));
+            } else {
+                const { db, schema } = client;
+                rows = await db.select().from(schema.recorded).where(eq(schema.recorded.reserveId, reserveId));
+            }
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+            if (rows.length === 0) return [];
+            return await this.findIds(rows.map(r => r.id), undefined, false);
         });
+    }
+
+    private async fetchVideoFiles(client: any, recordedIds: number[]): Promise<Map<number, VideoFile[]>> {
+        const map = new Map<number, VideoFile[]>();
+        const { schema } = client;
+        const rows = await client.db.select().from(schema.videoFiles).where(inArray(schema.videoFiles.recordedId, recordedIds));
+
+        for (const row of rows) {
+            const vf = new VideoFile();
+            Object.assign(vf, row);
+            if (!map.has(row.recordedId)) map.set(row.recordedId, []);
+            map.get(row.recordedId)!.push(vf);
+        }
+        return map;
+    }
+
+    private async fetchThumbnails(client: any, recordedIds: number[]): Promise<Map<number, Thumbnail[]>> {
+        const map = new Map<number, Thumbnail[]>();
+        const { schema } = client;
+        const rows = await client.db.select().from(schema.thumbnails).where(inArray(schema.thumbnails.recordedId, recordedIds));
+
+        for (const row of rows) {
+            const t = new Thumbnail();
+            Object.assign(t, row);
+            if (!map.has(row.recordedId)) map.set(row.recordedId, []);
+            map.get(row.recordedId)!.push(t);
+        }
+        return map;
+    }
+
+    private async fetchDropLogs(client: any, dropLogIds: number[]): Promise<Map<number, DropLogFile>> {
+        const map = new Map<number, DropLogFile>();
+        if (dropLogIds.length === 0) return map;
+
+        const { schema } = client;
+        const rows = await client.db.select().from(schema.dropLogFiles).where(inArray(schema.dropLogFiles.id, dropLogIds));
+
+        for (const row of rows) {
+            const dl = new DropLogFile();
+            Object.assign(dl, row);
+            map.set(row.id, dl);
+        }
+        return map;
+    }
+
+    private async fetchTags(client: any, recordedIds: number[]): Promise<Map<number, RecordedTag[]>> {
+        const map = new Map<number, RecordedTag[]>();
+        const { schema } = client;
+
+        const rows = await client.db
+            .select({
+                recordedId: schema.recordedTagsRecordedTag.recordedId,
+                tagId: schema.recordedTags.id,
+                name: schema.recordedTags.name,
+                halfWidthName: schema.recordedTags.halfWidthName,
+                color: schema.recordedTags.color,
+            })
+            .from(schema.recordedTagsRecordedTag)
+            .innerJoin(schema.recordedTags, eq(schema.recordedTagsRecordedTag.recordedTagId, schema.recordedTags.id))
+            .where(inArray(schema.recordedTagsRecordedTag.recordedId, recordedIds));
+
+        for (const row of rows) {
+            const tag = new RecordedTag();
+            tag.id = row.tagId;
+            tag.name = row.name;
+            tag.halfWidthName = row.halfWidthName;
+            tag.color = row.color;
+            if (!map.has(row.recordedId)) map.set(row.recordedId, []);
+            map.get(row.recordedId)!.push(tag);
+        }
+        return map;
+    }
+
+    private toRow(entity: Partial<Recorded>): any {
+        const row: any = { ...entity };
+        delete row.videoFiles;
+        delete row.thumbnails;
+        delete row.dropLogFile;
+        delete row.tags;
+        return row;
+    }
+
+    private toEntity(row: any): Recorded {
+        const entity = new Recorded();
+        Object.assign(entity, row);
+        entity.isProtected = !!row.isProtected;
+        entity.isRecording = !!row.isRecording;
+        entity.videoFiles = [];
+        entity.thumbnails = [];
+        entity.dropLogFile = null;
+        entity.tags = [];
+        return entity;
     }
 }

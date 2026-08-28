@@ -1,49 +1,39 @@
+import { asc, eq, inArray } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import { FindOptionsWhere } from 'typeorm';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import * as apid from '../../../api';
 import * as mapid from '../../../node_modules/mirakurun/api';
 import Channel from '../../db/entities/Channel';
 import StrUtil from '../../util/StrUtil';
 import IConfiguration from '../IConfiguration';
-import ILogger from '../ILogger';
-import ILoggerModel from '../ILoggerModel';
 import IPromiseRetry from '../IPromiseRetry';
 import IChannelDB, { ChannelUpdateValues } from './IChannelDB';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 
 @injectable()
 export default class ChannelDB implements IChannelDB {
-    private log: ILogger;
     private configuration: IConfiguration;
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
         @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IDBOperator') op: IDBOperator,
+        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
         @inject('IPromiseRetry') promieRetry: IPromiseRetry,
     ) {
-        this.log = logger.getLogger();
         this.configuration = configuration;
-        this.op = op;
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * Mirakurun から取得した channel 情報を DB へ全件挿入する
-     * @param channels: Service[]
-     * @param needesDeleted: 更新前に全データ削除が必要か
-     * @return Promise<void>
      */
     public async insert(channels: mapid.Service[], needesDeleted: boolean = true): Promise<void> {
-        const values: QueryDeepPartialEntity<Channel>[] = [];
+        const values: any[] = [];
 
-        // 挿入データ作成
         for (const channel of channels) {
             if (typeof channel.channel === 'undefined') {
-                return;
+                continue;
             }
 
             const name = StrUtil.toDBStr(channel.name);
@@ -63,47 +53,38 @@ export default class ChannelDB implements IChannelDB {
             });
         }
 
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            if (needesDeleted === true) {
-                // 削除
-                await queryRunner.manager.delete(Channel, {});
-            }
-
-            // 挿入処理
-            for (const value of values) {
-                await queryRunner.manager.insert(Channel, value).catch(async err => {
-                    await queryRunner.manager.update(Channel, value.id, value).catch(serr => {
-                        this.log.system.error('channel update error');
-                        this.log.system.error(err);
-                        this.log.system.error(serr);
-                    });
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    if (needesDeleted) {
+                        await tx.delete(schema.channels);
+                    }
+                    for (const value of values) {
+                        await tx.insert(schema.channels).values(value).onConflictDoUpdate({
+                            target: schema.channels.id,
+                            set: value,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    if (needesDeleted) {
+                        await tx.delete(schema.channels);
+                    }
+                    for (const value of values) {
+                        await tx.insert(schema.channels).values(value).onDuplicateKeyUpdate({
+                            set: value,
+                        });
+                    }
                 });
             }
-
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = true;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('insert error');
-        }
+        });
     }
 
-    /**
-     * ChannelTypeId を取得する
-     * @paramChannelTypeId
-     */
     private getChannelTypeId(type: mapid.ChannelType): number {
         switch (type) {
             case 'GR':
@@ -121,8 +102,6 @@ export default class ChannelDB implements IChannelDB {
 
     /**
      * event stream 用更新
-     * @param values ChannelUpdateValues
-     * @return Promise<void>
      */
     public async update(values: ChannelUpdateValues): Promise<void> {
         const channels: mapid.Service[] = [];
@@ -134,75 +113,83 @@ export default class ChannelDB implements IChannelDB {
 
     /**
      * channel id を指定して検索
-     * @param channelId: channel id
-     * @return Promise<Channel | null>
      */
     public async findId(channelId: apid.ChannelId): Promise<Channel | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const repository = connection.getRepository(Channel);
-        const result = await this.promieRetry.run(() => {
-            return repository.findOne({
-                where: [{ id: channelId }],
-            });
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.channels).where(eq(schema.channels.id, channelId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.channels).where(eq(schema.channels.id, channelId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
      * channelType を指定して検索
-     * @param types: apid.ChannelType[]
-     * @param needSort: boolean ソートが必要か default: false
-     * @return Promise<Channel[]>
      */
     public async findChannleTypes(types: apid.ChannelType[], needSort: boolean = false): Promise<Channel[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryOption: FindOptionsWhere<Channel>[] = [];
-        for (const type of types) {
-            queryOption.push({
-                channelType: type,
-            });
-        }
+        return await this.promieRetry.run(async () => {
+            let results: Channel[] = [];
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db
+                    .select()
+                    .from(schema.channels)
+                    .where(inArray(schema.channels.channelType, types))
+                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                results = rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db
+                    .select()
+                    .from(schema.channels)
+                    .where(inArray(schema.channels.channelType, types))
+                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                results = rows.map(r => this.toEntity(r));
+            }
 
-        const repository = connection
-            .getRepository(Channel)
-            .createQueryBuilder('channel')
-            .where(queryOption)
-            .orderBy('channel.channelTypeId, channel.remoteControlKeyId, channel.serviceId', 'ASC');
-
-        const result = await this.promieRetry.run(() => {
-            return repository.getMany();
+            return needSort ? this.sortChannels(results) : results;
         });
-
-        return needSort === true ? this.sortChannels(result) : result;
     }
 
     /**
      * 全件取得
-     * @param needSort: boolean ソートが必要か default: false
-     * @return Promise<Channel[]>
      */
     public async findAll(needSort: boolean = false): Promise<Channel[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection
-            .getRepository(Channel)
-            .createQueryBuilder('channel')
-            .orderBy('channel.channelTypeId, channel.remoteControlKeyId, channel.serviceId', 'ASC');
+        return await this.promieRetry.run(async () => {
+            let results: Channel[] = [];
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db
+                    .select()
+                    .from(schema.channels)
+                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                results = rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db
+                    .select()
+                    .from(schema.channels)
+                    .orderBy(asc(schema.channels.channelTypeId), asc(schema.channels.remoteControlKeyId), asc(schema.channels.serviceId));
+                results = rows.map(r => this.toEntity(r));
+            }
 
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+            return needSort ? this.sortChannels(results) : results;
         });
-
-        return needSort === true ? this.sortChannels(result) : result;
     }
 
-    /**
-     * Channel[] を config.yml に従ってソートして返す
-     * @return Channel[]
-     */
     private sortChannels(channels: Channel[]): Channel[] {
         const config = this.configuration.getConfig();
 
@@ -234,5 +221,21 @@ export default class ChannelDB implements IChannelDB {
         });
 
         return channels;
+    }
+
+    private toEntity(row: any): Channel {
+        const entity = new Channel();
+        entity.id = row.id;
+        entity.serviceId = row.serviceId;
+        entity.networkId = row.networkId;
+        entity.name = row.name;
+        entity.halfWidthName = row.halfWidthName;
+        entity.remoteControlKeyId = row.remoteControlKeyId;
+        entity.hasLogoData = !!row.hasLogoData;
+        entity.channelTypeId = row.channelTypeId;
+        entity.channelType = row.channelType;
+        entity.channel = row.channel;
+        entity.type = row.type;
+        return entity;
     }
 }

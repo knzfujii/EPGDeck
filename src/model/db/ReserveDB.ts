@@ -1,10 +1,10 @@
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import { FindOptionsWhere, FindManyOptions, In, IsNull, LessThan, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import * as apid from '../../../api';
 import Reserve from '../../db/entities/Reserve';
 import { IReserveUpdateValues } from '../event/IReserveEvent';
 import IPromiseRetry from '../IPromiseRetry';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IReserveDB, {
     IFindRuleOption,
     IFindTimeRangesOption,
@@ -16,274 +16,313 @@ import IReserveDB, {
 
 @injectable()
 export default class ReserveDB implements IReserveDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: Reserve[]
-     * @return Promise<void>
      */
     public async restore(items: Reserve[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(Reserve, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(Reserve, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.reserves);
+                    for (const item of items) {
+                        await tx.insert(schema.reserves).values(this.toRow(item));
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.reserves);
+                    for (const item of items) {
+                        await tx.insert(schema.reserves).values(this.toRow(item));
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
      * 1つだけ挿入
-     * @param reserve: Reserve
-     * @return inserted id
      */
     public async insertOnce(reserve: Reserve): Promise<apid.ReserveId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(Reserve).values(reserve);
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
-        });
+        const client = this.drizzleOp.getDB();
 
-        return insertedResult.identifiers[0].id;
+        return await this.promieRetry.run(async () => {
+            const row = this.toRow(reserve);
+            delete row.id;
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.reserves).values(row);
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.reserves).values(row);
+                return result.insertId;
+            }
+        });
     }
 
     /**
      * 1件更新
-     * @param reserve: Reserve
      */
     public async updateOnce(reserve: Reserve): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(Reserve)
-            .set(reserve)
-            .where('id = :id', { id: reserve.id });
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        const client = this.drizzleOp.getDB();
+
+        await this.promieRetry.run(async () => {
+            const row = this.toRow(reserve);
+
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.reserves).set(row).where(eq(schema.reserves.id, reserve.id));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.reserves).set(row).where(eq(schema.reserves.id, reserve.id));
+            }
         });
     }
 
     /**
      * delete, insert, update をまとめて行う
-     * @param values: IReserveUpdateValues
      */
     public async updateMany(values: IReserveUpdateValues): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // delete
-            if (typeof values.delete !== 'undefined' && values.delete.length > 0) {
-                const deleteIds = values.delete.map(d => {
-                    return d.id;
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    if (values.delete && values.delete.length > 0) {
+                        const deleteIds = values.delete.map(d => d.id);
+                        await tx.delete(schema.reserves).where(inArray(schema.reserves.id, deleteIds));
+                    }
+                    if (values.insert && values.insert.length > 0) {
+                        for (const newReserve of values.insert) {
+                            const row = this.toRow(newReserve);
+                            delete row.id;
+                            const result = await tx.insert(schema.reserves).values(row);
+                            newReserve.id = Number(result.lastInsertRowid);
+                        }
+                    }
+                    if (values.update && values.update.length > 0) {
+                        for (const u of values.update) {
+                            const row = this.toRow(u);
+                            await tx.update(schema.reserves).set(row).where(eq(schema.reserves.id, u.id));
+                        }
+                    }
                 });
-                await queryRunner.manager.delete(Reserve, deleteIds);
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    if (values.delete && values.delete.length > 0) {
+                        const deleteIds = values.delete.map(d => d.id);
+                        await tx.delete(schema.reserves).where(inArray(schema.reserves.id, deleteIds));
+                    }
+                    if (values.insert && values.insert.length > 0) {
+                        for (const newReserve of values.insert) {
+                            const row = this.toRow(newReserve);
+                            delete row.id;
+                            const [result] = await tx.insert(schema.reserves).values(row);
+                            newReserve.id = result.insertId;
+                        }
+                    }
+                    if (values.update && values.update.length > 0) {
+                        for (const u of values.update) {
+                            const row = this.toRow(u);
+                            await tx.update(schema.reserves).set(row).where(eq(schema.reserves.id, u.id));
+                        }
+                    }
+                });
             }
-
-            // insert
-            if (typeof values.insert !== 'undefined' && values.insert.length > 0) {
-                for (const newReserve of values.insert) {
-                    const result = await queryRunner.manager.insert(Reserve, newReserve);
-
-                    // set inserted id
-                    newReserve.id = result.identifiers[0].id;
-                }
-            }
-
-            // update
-            if (typeof values.update !== 'undefined' && values.update.length > 0) {
-                for (const u of values.update) {
-                    await queryRunner.manager.update(Reserve, u.id, u);
-                }
-            }
-
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = true;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError === true) {
-            throw new Error('ReserveUpdateManyError');
-        }
+        });
     }
 
     /**
      * 指定した id の予約情報を取得する
-     * @param reserveId: apid.ReserveId
-     * @return Promise<Reserve | null>
      */
     public async findId(reserveId: apid.ReserveId): Promise<Reserve | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = await connection.getRepository(Reserve);
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.findOne({
-                where: { id: reserveId },
-            });
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.id, reserveId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.id, reserveId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
      * 全件取得
-     * @param option: GetReserveOption
-     * @return Promise<Reserve[]>
      */
     public async findAll(option: apid.GetReserveOption): Promise<[Reserve[], number]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = await connection.getRepository(Reserve);
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (option.type === 'normal') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'conflict') {
+                    conditions.push(eq(schema.reserves.isConflict, true));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'skip') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, true));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'overlap') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, true));
+                }
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.findAndCount(this.createFindOption(option));
+                if (typeof option.ruleId !== 'undefined') {
+                    conditions.push(eq(schema.reserves.ruleId, option.ruleId));
+                }
+
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.reserves);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.reserves.startAt)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.reserves);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const totalCount = countResult[0]?.count || 0;
+
+                return [rows.map(r => this.toEntity(r)), totalCount];
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (option.type === 'normal') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'conflict') {
+                    conditions.push(eq(schema.reserves.isConflict, true));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'skip') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, true));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (option.type === 'overlap') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, true));
+                }
+
+                if (typeof option.ruleId !== 'undefined') {
+                    conditions.push(eq(schema.reserves.ruleId, option.ruleId));
+                }
+
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.reserves);
+                if (whereClause) query = query.where(whereClause) as any;
+                query = query.orderBy(asc(schema.reserves.startAt)) as any;
+                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+                const rows = await query;
+
+                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.reserves);
+                if (whereClause) countQuery = countQuery.where(whereClause) as any;
+                const countResult = await countQuery;
+                const totalCount = countResult[0]?.count || 0;
+
+                return [rows.map(r => this.toEntity(r)), totalCount];
+            }
         });
-    }
-
-    private createFindOption(option: apid.GetReserveOption): FindManyOptions<Reserve> {
-        const findConditions: FindOptionsWhere<Reserve> = {};
-        this.setReserveTypeOption(option.type, findConditions);
-
-        if (typeof option.ruleId !== 'undefined') {
-            findConditions.ruleId = option.ruleId;
-        }
-
-        const findOption: FindManyOptions<Reserve> = {
-            where: findConditions,
-        };
-
-        if (typeof option.offset !== 'undefined') {
-            findOption.skip = option.offset;
-        }
-
-        if (typeof option.limit !== 'undefined') {
-            findOption.take = option.limit;
-        }
-
-        findOption.order = {
-            startAt: 'ASC',
-        };
-
-        return findOption;
-    }
-
-    private setReserveTypeOption(
-        type: apid.GetReserveType | undefined,
-        findConditions: FindOptionsWhere<Reserve>,
-    ): void {
-        if (type === 'normal') {
-            findConditions.isConflict = false;
-            findConditions.isSkip = false;
-            findConditions.isOverlap = false;
-        } else if (type === 'conflict') {
-            findConditions.isConflict = true;
-            findConditions.isSkip = false;
-            findConditions.isOverlap = false;
-        } else if (type === 'skip') {
-            findConditions.isConflict = false;
-            findConditions.isSkip = true;
-            findConditions.isOverlap = false;
-        } else if (type === 'overlap') {
-            findConditions.isConflict = false;
-            findConditions.isSkip = false;
-            findConditions.isOverlap = true;
-        }
     }
 
     /**
      * オプションで指定した時刻間の予約情報を取得する
-     * @param option: GetReserveListsOption
-     * @return Promise<Reserve[]>
      */
     public async findLists(option?: apid.GetReserveListsOption): Promise<Reserve[]> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.getRepository(Reserve);
+        const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(() => {
-            return typeof option === 'undefined'
-                ? queryBuilder.find()
-                : queryBuilder.find(this.createFindListOption(option));
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option !== 'undefined') {
+                    conditions.push(lte(schema.reserves.startAt, option.endAt));
+                    conditions.push(gte(schema.reserves.endAt, option.startAt));
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.reserves);
+                if (whereClause) query = query.where(whereClause) as any;
+                const rows = await query;
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [];
+                if (typeof option !== 'undefined') {
+                    conditions.push(lte(schema.reserves.startAt, option.endAt));
+                    conditions.push(gte(schema.reserves.endAt, option.startAt));
+                }
+                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+                let query = db.select().from(schema.reserves);
+                if (whereClause) query = query.where(whereClause) as any;
+                const rows = await query;
+                return rows.map(r => this.toEntity(r));
+            }
         });
-    }
-
-    private createFindListOption(option: apid.GetReserveListsOption): FindManyOptions<Reserve> {
-        const findConditions: FindOptionsWhere<Reserve> = {
-            startAt: LessThanOrEqual((<apid.GetReserveListsOption>option).endAt),
-            endAt: MoreThanOrEqual((<apid.GetReserveListsOption>option).startAt),
-        };
-
-        return { where: findConditions };
     }
 
     /**
      * program id を指定して検索
-     * @param programId program id
-     * @return Promise<Reserve[]>
      */
     public async findProgramId(programId: apid.ProgramId): Promise<Reserve[]> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.getRepository(Reserve);
+        const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.find({
-                where: { programId: programId },
-            });
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.programId, programId));
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.programId, programId));
+                return rows.map(r => this.toEntity(r));
+            }
         });
     }
 
     /**
      * 指定した時間帯の予約情報を取得する
-     * @param option: IFindTimeRangesOption
-     * @return Promise<Reserve[]>
      */
     public async findTimeRanges(option: IFindTimeRangesOption): Promise<Reserve[]> {
-        // times が空か
         if (option.times.length === 0) {
             return [];
         }
 
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        let queryBuilder = await connection.getRepository(Reserve).createQueryBuilder('reserve');
-
-        // option.times の重複を削除
         const newTimes: IReserveTimeOption[] = [];
         const timeIndex: { [key: string]: boolean } = {};
         for (const time of option.times) {
@@ -295,12 +334,9 @@ export default class ReserveDB implements IReserveDB {
         }
         option.times = newTimes;
 
-        // option.times の連続した時間を一つにまとめる
         option.times = option.times.reduce(
             (acc, cur, index) => {
-                if (index === 0) {
-                    return acc;
-                }
+                if (index === 0) return acc;
                 if (acc[acc.length - 1].endAt === cur.startAt) {
                     acc[acc.length - 1].endAt = cur.endAt;
                 } else {
@@ -311,210 +347,301 @@ export default class ReserveDB implements IReserveDB {
             option.times.slice(0, 1),
         );
 
-        // times
-        let timesQuery = '';
-        const timesValues: any = {};
-        option.times.forEach((time, i) => {
-            const startAtName = `startAt${i}`;
-            const endAtName = `endAt${i}`;
-            const baseQuery = `(reserve.endAt >= :${startAtName} and reserve.startAt < :${endAtName})`;
-            timesQuery += i === option.times.length - 1 ? baseQuery : `${baseQuery} or `;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const timeConditions: any[] = [];
+                for (const time of option.times) {
+                    timeConditions.push(and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)));
+                }
 
-            timesValues[startAtName] = time.startAt;
-            timesValues[endAtName] = time.endAt;
-        });
-        queryBuilder = queryBuilder.where(`(${timesQuery})`, timesValues);
+                const conditions: any[] = [or(...timeConditions)];
 
-        // isSkip
-        if (option.hasSkip === false) {
-            queryBuilder = queryBuilder.andWhere('reserve.isSkip = :isSkip', {
-                isSkip: false,
-            });
-        }
+                if (option.hasSkip === false) conditions.push(eq(schema.reserves.isSkip, false));
+                if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
+                if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
+                if (typeof option.excludeRuleId !== 'undefined') {
+                    conditions.push(or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)));
+                }
+                if (typeof option.excludeReserveId !== 'undefined') {
+                    conditions.push(ne(schema.reserves.id, option.excludeReserveId));
+                }
 
-        // isConflict
-        if (option.hasConflict === false) {
-            queryBuilder = queryBuilder.andWhere('reserve.isConflict = :isConflict', {
-                isConflict: false,
-            });
-        }
+                const whereClause = and(...conditions);
+                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const timeConditions: any[] = [];
+                for (const time of option.times) {
+                    timeConditions.push(and(gte(schema.reserves.endAt, time.startAt), lt(schema.reserves.startAt, time.endAt)));
+                }
 
-        // isOverlap
-        if (option.hasOverlap === false) {
-            queryBuilder = queryBuilder.andWhere('reserve.isOverlap = :isOverlap', {
-                isOverlap: false,
-            });
-        }
+                const conditions: any[] = [or(...timeConditions)];
 
-        // 指定された ruleId の除外
-        if (typeof option.excludeRuleId !== 'undefined') {
-            queryBuilder = queryBuilder.andWhere('(reserve.ruleId <> :ruleId or reserve.ruleId is null)', {
-                ruleId: option.excludeRuleId,
-            });
-        }
+                if (option.hasSkip === false) conditions.push(eq(schema.reserves.isSkip, false));
+                if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
+                if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
+                if (typeof option.excludeRuleId !== 'undefined') {
+                    conditions.push(or(ne(schema.reserves.ruleId, option.excludeRuleId), isNull(schema.reserves.ruleId)));
+                }
+                if (typeof option.excludeReserveId !== 'undefined') {
+                    conditions.push(ne(schema.reserves.id, option.excludeReserveId));
+                }
 
-        // 指定された予約 id の除外
-        if (typeof option.excludeReserveId !== 'undefined') {
-            queryBuilder = queryBuilder.andWhere('reserve.id <> :reserveId', {
-                reserveId: option.excludeReserveId,
-            });
-        }
-
-        queryBuilder = queryBuilder.orderBy('reserve.startAt', 'ASC');
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+                const whereClause = and(...conditions);
+                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                return rows.map(r => this.toEntity(r));
+            }
         });
     }
 
     /**
      * 指定した ruleId の予約情報を取り出す
-     * @param option IFindRuleOption
      */
     public async findRuleId(option: IFindRuleOption): Promise<Reserve[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const whereOption: FindOptionsWhere<Reserve> = { ruleId: option.ruleId };
-        if (option.hasSkip === false) {
-            whereOption.isSkip = false;
-        }
-        if (option.hasConflict === false) {
-            whereOption.isConflict = false;
-        }
-        if (option.hasOverlap === false) {
-            whereOption.isOverlap = false;
-        }
-        if (option.hasEventRelay === false) {
-            whereOption.isEventRelay = false;
-        }
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [eq(schema.reserves.ruleId, option.ruleId)];
+                if (option.hasSkip === false) conditions.push(eq(schema.reserves.isSkip, false));
+                if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
+                if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
+                if (option.hasEventRelay === false) conditions.push(eq(schema.reserves.isEventRelay, false));
 
-        const queryBuilder = connection.getRepository(Reserve);
+                const whereClause = and(...conditions);
+                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [eq(schema.reserves.ruleId, option.ruleId)];
+                if (option.hasSkip === false) conditions.push(eq(schema.reserves.isSkip, false));
+                if (option.hasConflict === false) conditions.push(eq(schema.reserves.isConflict, false));
+                if (option.hasOverlap === false) conditions.push(eq(schema.reserves.isOverlap, false));
+                if (option.hasEventRelay === false) conditions.push(eq(schema.reserves.isEventRelay, false));
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.find({
-                where: whereOption,
-                order: {
-                    startAt: 'ASC',
-                },
-            });
+                const whereClause = and(...conditions);
+                const rows = await db.select().from(schema.reserves).where(whereClause).orderBy(asc(schema.reserves.startAt));
+                return rows.map(r => this.toEntity(r));
+            }
         });
     }
 
     /**
      * baseTime で指定した時間より古い予約を取得する
-     * @param baseTime: apid.UnixtimeMS
-     * @return Promise<Reserve[]>
      */
     public async findOldTime(baseTime: apid.UnixtimeMS): Promise<Reserve[]> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.getRepository(Reserve);
+        const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(() => {
-            return queryBuilder.find({
-                where: {
-                    endAt: LessThan(baseTime),
-                },
-            });
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(lt(schema.reserves.endAt, baseTime));
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.reserves).where(lt(schema.reserves.endAt, baseTime));
+                return rows.map(r => this.toEntity(r));
+            }
         });
     }
 
     /**
      * 時刻指定予約を検索する
-     * @param option: IFindTimeSpecificationOption
-     * @return Promise<Reserve | null>
      */
     public async findTimeSpecification(option: IFindTimeSpecificationOption): Promise<Reserve | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(Reserve);
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.findOne({
-                where: {
-                    channelId: option.channelId,
-                    startAt: option.startAt,
-                    endAt: option.endAt,
-                    ruleId: IsNull(),
-                },
-            });
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const whereClause = and(
+                    eq(schema.reserves.channelId, option.channelId),
+                    eq(schema.reserves.startAt, option.startAt),
+                    eq(schema.reserves.endAt, option.endAt),
+                    isNull(schema.reserves.ruleId),
+                );
+                const rows = await db.select().from(schema.reserves).where(whereClause);
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const whereClause = and(
+                    eq(schema.reserves.channelId, option.channelId),
+                    eq(schema.reserves.startAt, option.startAt),
+                    eq(schema.reserves.endAt, option.endAt),
+                    isNull(schema.reserves.ruleId),
+                );
+                const rows = await db.select().from(schema.reserves).where(whereClause);
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
      * 手動予約の reserve id を取得する
-     * @param option: IGetManualIdsOption
      */
     public async getManualIds(option: IGetManualIdsOption): Promise<apid.ReserveId[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        let queryBuilder = connection
-            .createQueryBuilder()
-            .select('reserve.id')
-            .from(Reserve, 'reserve')
-            .where('reserve.ruleId is :ruleId', { ruleId: null });
-
-        if (option.hasTimeReserve === false) {
-            queryBuilder = queryBuilder.andWhere('reserve.programId is not null');
-        }
-
-        queryBuilder = queryBuilder.orderBy('reserve.id', 'ASC');
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
-        });
-
-        return result.map(r => {
-            return r.id;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [isNull(schema.reserves.ruleId)];
+                if (option.hasTimeReserve === false) {
+                    conditions.push(isNotNull(schema.reserves.programId));
+                }
+                const whereClause = and(...conditions);
+                const rows = await db
+                    .select({ id: schema.reserves.id })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.id));
+                return rows.map(r => r.id);
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [isNull(schema.reserves.ruleId)];
+                if (option.hasTimeReserve === false) {
+                    conditions.push(isNotNull(schema.reserves.programId));
+                }
+                const whereClause = and(...conditions);
+                const rows = await db
+                    .select({ id: schema.reserves.id })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.id));
+                return rows.map(r => r.id);
+            }
         });
     }
 
     /**
      * ルール予約によってイベントリレーで予約された reserve id を取得する
-     * @returns Promise<apid.ReserveId[]>
      */
     public async getRuleEventRelayIds(): Promise<apid.ReserveId[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .select('reserve.id')
-            .from(Reserve, 'reserve')
-            .andWhere('reserve.ruleId is not null')
-            .andWhere('reserve.isEventRelay is :isEventRelay', { isEventRelay: this.op.convertBoolean(true) })
-            .orderBy('reserve.id', 'ASC');
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
-        });
-
-        return result.map(r => {
-            return r.id;
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const whereClause = and(isNotNull(schema.reserves.ruleId), eq(schema.reserves.isEventRelay, true));
+                const rows = await db
+                    .select({ id: schema.reserves.id })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.id));
+                return rows.map(r => r.id);
+            } else {
+                const { db, schema } = client;
+                const whereClause = and(isNotNull(schema.reserves.ruleId), eq(schema.reserves.isEventRelay, true));
+                const rows = await db
+                    .select({ id: schema.reserves.id })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .orderBy(asc(schema.reserves.id));
+                return rows.map(r => r.id);
+            }
         });
     }
 
     /**
      * ruleId を指定して予約数をカウントする
-     * @param ruleIds: apid.RuleId[]
-     * @param type: apid.GetReserveType
-     * @return Promise<RuleIdCountResult[]>
      */
     public async countRuleIds(ruleIds: apid.RuleId[], type: apid.GetReserveType): Promise<RuleIdCountResult[]> {
-        const connection = await this.op.getConnection();
+        if (ruleIds.length === 0) return [];
 
-        const whereOption: FindOptionsWhere<Reserve> = {
-            ruleId: In(ruleIds),
-        };
-        this.setReserveTypeOption(type, whereOption);
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection
-            .getRepository(Reserve)
-            .createQueryBuilder('reserve')
-            .select(['ruleId, count(ruleId) as ruleIdCnt'])
-            .where(whereOption)
-            .groupBy('ruleId');
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getRawMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const conditions: any[] = [inArray(schema.reserves.ruleId, ruleIds)];
+                if (type === 'normal') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'conflict') {
+                    conditions.push(eq(schema.reserves.isConflict, true));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'skip') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, true));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'overlap') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, true));
+                }
+                const whereClause = and(...conditions);
+                const rows = await db
+                    .select({
+                        ruleId: schema.reserves.ruleId,
+                        ruleIdCnt: sql<number>`count(${schema.reserves.ruleId})`,
+                    })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .groupBy(schema.reserves.ruleId);
+                return rows.map(r => ({
+                    ruleId: r.ruleId!,
+                    ruleIdCnt: Number(r.ruleIdCnt),
+                }));
+            } else {
+                const { db, schema } = client;
+                const conditions: any[] = [inArray(schema.reserves.ruleId, ruleIds)];
+                if (type === 'normal') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'conflict') {
+                    conditions.push(eq(schema.reserves.isConflict, true));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'skip') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, true));
+                    conditions.push(eq(schema.reserves.isOverlap, false));
+                } else if (type === 'overlap') {
+                    conditions.push(eq(schema.reserves.isConflict, false));
+                    conditions.push(eq(schema.reserves.isSkip, false));
+                    conditions.push(eq(schema.reserves.isOverlap, true));
+                }
+                const whereClause = and(...conditions);
+                const rows = await db
+                    .select({
+                        ruleId: schema.reserves.ruleId,
+                        ruleIdCnt: sql<number>`count(${schema.reserves.ruleId})`,
+                    })
+                    .from(schema.reserves)
+                    .where(whereClause)
+                    .groupBy(schema.reserves.ruleId);
+                return rows.map(r => ({
+                    ruleId: r.ruleId!,
+                    ruleIdCnt: Number(r.ruleIdCnt),
+                }));
+            }
         });
+    }
+
+    private toRow(entity: Partial<Reserve>): any {
+        const row: any = { ...entity };
+        return row;
+    }
+
+    private toEntity(row: any): Reserve {
+        const entity = new Reserve();
+        Object.assign(entity, row);
+        entity.isSkip = !!row.isSkip;
+        entity.isConflict = !!row.isConflict;
+        entity.allowEndLack = !!row.allowEndLack;
+        entity.isOverlap = !!row.isOverlap;
+        entity.isIgnoreOverlap = !!row.isIgnoreOverlap;
+        entity.isTimeSpecified = !!row.isTimeSpecified;
+        entity.isEventRelay = !!row.isEventRelay;
+        entity.isDeleteOriginalAfterEncode = !!row.isDeleteOriginalAfterEncode;
+        return entity;
     }
 }

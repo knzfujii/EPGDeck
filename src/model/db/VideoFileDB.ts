@@ -1,183 +1,219 @@
+import { eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import VideoFile from '../../db/entities/VideoFile';
 import IPromiseRetry from '../IPromiseRetry';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IVideoFileDB, { UpdateFilePathOption } from './IVideoFileDB';
 
 @injectable()
 export default class VideoFileDB implements IVideoFileDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: VideoFile[]
-     * @return Promise<void>
      */
     public async restore(items: VideoFile[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(VideoFile, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(VideoFile, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.videoFiles);
+                    for (const item of items) {
+                        await tx.insert(schema.videoFiles).values({
+                            id: item.id,
+                            recordedId: item.recordedId,
+                            parentDirectoryName: item.parentDirectoryName,
+                            filePath: item.filePath,
+                            type: item.type,
+                            name: item.name,
+                            size: item.size,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.videoFiles);
+                    for (const item of items) {
+                        await tx.insert(schema.videoFiles).values({
+                            id: item.id,
+                            recordedId: item.recordedId,
+                            parentDirectoryName: item.parentDirectoryName,
+                            filePath: item.filePath,
+                            type: item.type,
+                            name: item.name,
+                            size: item.size,
+                        });
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
      * ビデオファイル情報を 1 件挿入
-     * @param videoFile: VideoFile
-     * @return inserted id
      */
     public async insertOnce(videoFile: VideoFile): Promise<apid.VideoFileId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(VideoFile).values(videoFile);
+        const client = this.drizzleOp.getDB();
 
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.videoFiles).values({
+                    recordedId: videoFile.recordedId,
+                    parentDirectoryName: videoFile.parentDirectoryName,
+                    filePath: videoFile.filePath,
+                    type: videoFile.type,
+                    name: videoFile.name,
+                    size: videoFile.size,
+                });
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.videoFiles).values({
+                    recordedId: videoFile.recordedId,
+                    parentDirectoryName: videoFile.parentDirectoryName,
+                    filePath: videoFile.filePath,
+                    type: videoFile.type,
+                    name: videoFile.name,
+                    size: videoFile.size,
+                });
+                return result.insertId;
+            }
         });
-
-        return insertedResult.identifiers[0].id;
     }
 
     /**
-     * ファイルパス変更
-     * @param option: UpdateFilePathOption
-     * @return Promise<void>
+     * ファイルパスを更新
      */
     public async updateFilePath(option: UpdateFilePathOption): Promise<void> {
-        const videoFile = await this.findId(option.videoFileId);
-        if (videoFile === null) {
-            throw new Error('VideoFileIsNull');
-        }
+        const client = this.drizzleOp.getDB();
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(VideoFile)
-            .set({
+        await this.promieRetry.run(async () => {
+            const values = {
                 parentDirectoryName: option.parentDirectoryName,
                 filePath: option.filePath,
-            })
-            .where({ id: option.videoFileId });
+            };
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.videoFiles).set(values).where(eq(schema.videoFiles.id, option.videoFileId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.videoFiles).set(values).where(eq(schema.videoFiles.id, option.videoFileId));
+            }
         });
     }
 
     /**
-     * ファイルサイズ更新
-     * @param videoFileId: video file id
-     * @param size: file size
-     * @return Promise<void>
+     * ファイルサイズを更新
      */
     public async updateSize(videoFileId: apid.VideoFileId, size: number): Promise<void> {
-        const videoFile = await this.findId(videoFileId);
-        if (videoFile === null) {
-            throw new Error('VideoFileIsNull');
-        }
+        const client = this.drizzleOp.getDB();
 
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .update(VideoFile)
-            .set({
-                size: size,
-            })
-            .where({ id: videoFileId });
-
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
+            } else {
+                const { db, schema } = client;
+                await db.update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
+            }
         });
     }
 
     /**
-     * 指定したビデオファイル情報を 1 件削除
-     * @param VideoFileId: apid.VideoFileId
-     * @return Promise<void>
+     * ビデオファイル情報を 1 件削除
      */
-    public async deleteOnce(VideoFileId: apid.VideoFileId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(VideoFile).where({
-            id: VideoFileId,
-        });
+    public async deleteOnce(videoFileId: apid.VideoFileId): Promise<void> {
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
+            }
         });
     }
 
     /**
-     * 指定した recordedId のビデオファイル情報を削除する
-     * @param recordedId: apid.RecordedId
-     * @return Promise<void>
+     * recordedId を指定してビデオファイル情報を削除
      */
     public async deleteRecordedId(recordedId: apid.RecordedId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(VideoFile).where({
-            recordedId: recordedId,
-        });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
+            }
         });
     }
 
     /**
-     * id を指定して取得する
-     * @param videoFileId: video file id
-     * @return Promise<VideoFile | null>
+     * videoFileId を指定してビデオファイル情報を取得
      */
     public async findId(videoFileId: apid.VideoFileId): Promise<VideoFile | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(VideoFile).createQueryBuilder().where({ id: videoFileId });
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
-     * 全てのビデオファイルを取得する
+     * 全件取得
      */
     public async findAll(): Promise<VideoFile[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(VideoFile).createQueryBuilder();
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.videoFiles);
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.videoFiles);
+                return rows.map(r => this.toEntity(r));
+            }
         });
+    }
+
+    private toEntity(row: any): VideoFile {
+        const entity = new VideoFile();
+        entity.id = row.id;
+        entity.parentDirectoryName = row.parentDirectoryName;
+        entity.filePath = row.filePath;
+        entity.type = row.type;
+        entity.name = row.name;
+        entity.size = row.size;
+        entity.recordedId = row.recordedId;
+        return entity;
     }
 }

@@ -1,7 +1,7 @@
 import { inject, injectable } from 'inversify';
 import mirakurun from 'mirakurun';
 import Util from '../util/Util';
-import IDBOperator from './db/IDBOperator';
+import IDrizzleOperator from './db/IDrizzleOperator';
 import IConnectionCheckModel from './IConnectionCheckModel';
 import ILogger from './ILogger';
 import ILoggerModel from './ILoggerModel';
@@ -11,21 +11,20 @@ import IMirakurunClientModel from './IMirakurunClientModel';
 export default class ConnectionCheckModel implements IConnectionCheckModel {
     private log: ILogger;
     private mirakurunClient: mirakurun;
-    private dbOperator: IDBOperator;
+    private drizzleOperator: IDrizzleOperator;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
         @inject('IMirakurunClientModel') mirakurunClientModel: IMirakurunClientModel,
-        @inject('IDBOperator') dbOperator: IDBOperator,
+        @inject('IDrizzleOperator') drizzleOperator: IDrizzleOperator,
     ) {
         this.log = logger.getLogger();
         this.mirakurunClient = mirakurunClientModel.getClient();
-        this.dbOperator = dbOperator;
+        this.drizzleOperator = drizzleOperator;
     }
 
     /**
      * mirakurun との接続を待つ
-     * @return Promise<void>
      */
     public async checkMirakurun(): Promise<void> {
         while (true) {
@@ -46,7 +45,7 @@ export default class ConnectionCheckModel implements IConnectionCheckModel {
         while (true) {
             try {
                 this.log.system.info('check db');
-                await this.dbOperator.checkConnection();
+                await this.drizzleOperator.checkConnection();
                 break;
             } catch (err: any) {
                 await Util.sleep(1000);

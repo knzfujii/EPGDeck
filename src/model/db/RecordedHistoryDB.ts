@@ -1,100 +1,127 @@
+import { lt } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import RecordedHistory from '../../db/entities/RecordedHistory';
 import IPromiseRetry from '../IPromiseRetry';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedHistoryDB from './IRecordedHistoryDB';
 
 @injectable()
 export default class RecordedHistoryDB implements IRecordedHistoryDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: RecordedHistory[]
-     * @return Promise<void>
      */
     public async restore(items: RecordedHistory[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(RecordedHistory, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(RecordedHistory, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.recordedHistory);
+                    for (const item of items) {
+                        await tx.insert(schema.recordedHistory).values({
+                            id: item.id,
+                            name: item.name,
+                            channelId: item.channelId,
+                            endAt: item.endAt,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.recordedHistory);
+                    for (const item of items) {
+                        await tx.insert(schema.recordedHistory).values({
+                            id: item.id,
+                            name: item.name,
+                            channelId: item.channelId,
+                            endAt: item.endAt,
+                        });
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
-     * 1件挿入
-     * @param program: RecordedHistory
-     * @return Promise<apid.RecordedHistoryId> inserted id
+     * 録画履歴情報を 1 件挿入
      */
     public async insertOnce(program: RecordedHistory): Promise<apid.RecordedHistoryId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(RecordedHistory).values(program);
+        const client = this.drizzleOp.getDB();
 
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.recordedHistory).values({
+                    name: program.name,
+                    channelId: program.channelId,
+                    endAt: program.endAt,
+                });
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.recordedHistory).values({
+                    name: program.name,
+                    channelId: program.channelId,
+                    endAt: program.endAt,
+                });
+                return result.insertId;
+            }
         });
-
-        return insertedResult.identifiers[0].id;
     }
 
     /**
-     * 指定した時刻より古い番組を削除
-     * @param time: apid.UnixtimeMS
+     * 古い録画履歴を削除
      */
     public async delete(time: apid.UnixtimeMS): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection
-            .createQueryBuilder()
-            .delete()
-            .from(RecordedHistory)
-            .where('endAt <= :time', { time: time });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
+            }
         });
     }
 
     /**
-     * 全ての録画履歴情報を取得
-     * @return Promise<RecordedHistory[]>
+     * 全件取得
      */
     public async findAll(): Promise<RecordedHistory[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(RecordedHistory).createQueryBuilder();
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.recordedHistory);
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.recordedHistory);
+                return rows.map(r => this.toEntity(r));
+            }
         });
+    }
+
+    private toEntity(row: any): RecordedHistory {
+        const entity = new RecordedHistory();
+        entity.id = row.id;
+        entity.name = row.name;
+        entity.channelId = row.channelId;
+        entity.endAt = row.endAt;
+        return entity;
     }
 }

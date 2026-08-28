@@ -1,132 +1,160 @@
+import { eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import Thumbnail from '../../db/entities/Thumbnail';
 import IPromiseRetry from '../IPromiseRetry';
-import IDBOperator from './IDBOperator';
+import IDrizzleOperator from './IDrizzleOperator';
 import IThumbnailDB from './IThumbnailDB';
 
 @injectable()
 export default class ThumbnailDB implements IThumbnailDB {
-    private op: IDBOperator;
+    private drizzleOp: IDrizzleOperator;
     private promieRetry: IPromiseRetry;
 
-    constructor(@inject('IDBOperator') op: IDBOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
-        this.op = op;
+    constructor(@inject('IDrizzleOperator') drizzleOp: IDrizzleOperator, @inject('IPromiseRetry') promieRetry: IPromiseRetry) {
+        this.drizzleOp = drizzleOp;
         this.promieRetry = promieRetry;
     }
 
     /**
      * バックアップから復元
-     * @param items: Thumbnail[]
-     * @return Promise<void>
      */
     public async restore(items: Thumbnail[]): Promise<void> {
-        // get queryRunner
-        const connection = await this.op.getConnection();
-        const queryRunner = connection.createQueryRunner();
+        const client = this.drizzleOp.getDB();
 
-        // start transaction
-        await queryRunner.startTransaction();
-
-        let hasError = false;
-        try {
-            // 削除
-            await queryRunner.manager.delete(Thumbnail, {});
-
-            // 挿入処理
-            for (const item of items) {
-                await queryRunner.manager.insert(Thumbnail, item);
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.thumbnails);
+                    for (const item of items) {
+                        await tx.insert(schema.thumbnails).values({
+                            id: item.id,
+                            filePath: item.filePath,
+                            recordedId: item.recordedId,
+                        });
+                    }
+                });
+            } else {
+                const { db, schema } = client;
+                await db.transaction(async tx => {
+                    await tx.delete(schema.thumbnails);
+                    for (const item of items) {
+                        await tx.insert(schema.thumbnails).values({
+                            id: item.id,
+                            filePath: item.filePath,
+                            recordedId: item.recordedId,
+                        });
+                    }
+                });
             }
-            await queryRunner.commitTransaction();
-        } catch (err: any) {
-            console.error(err);
-            hasError = err;
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release();
-        }
-
-        if (hasError) {
-            throw new Error('restore error');
-        }
+        });
     }
 
     /**
-     * サムネイル情報 1 件挿入
-     * @param thumbnail: Thumbnail
-     * @return inserted id
+     * サムネイル情報を 1 件挿入
      */
     public async insertOnce(thumbnail: Thumbnail): Promise<apid.ThumbnailId> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().insert().into(Thumbnail).values(thumbnail);
+        const client = this.drizzleOp.getDB();
 
-        const insertedResult = await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const result = await db.insert(schema.thumbnails).values({
+                    filePath: thumbnail.filePath,
+                    recordedId: thumbnail.recordedId,
+                });
+                return Number(result.lastInsertRowid);
+            } else {
+                const { db, schema } = client;
+                const [result] = await db.insert(schema.thumbnails).values({
+                    filePath: thumbnail.filePath,
+                    recordedId: thumbnail.recordedId,
+                });
+                return result.insertId;
+            }
         });
-
-        return insertedResult.identifiers[0].id;
     }
 
     /**
-     * 指定したサムネイル情報を 1 件削除
-     * @param thumbnailId: apid.ThumbnailId
-     * @return Promise<void>
+     * サムネイル情報を 1 件削除
      */
     public async deleteOnce(thumbnailId: apid.ThumbnailId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(Thumbnail).where({
-            id: thumbnailId,
-        });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
+            }
         });
     }
 
     /**
-     * 指定した reocrdeId のサムネイル情報を削除する
-     * @param recordedId: apid.ReocrdedId
-     * @return Promise<void>
+     * recordedId を指定してサムネイル情報を削除
      */
     public async deleteRecordedId(recordedId: apid.RecordedId): Promise<void> {
-        const connection = await this.op.getConnection();
-        const queryBuilder = connection.createQueryBuilder().delete().from(Thumbnail).where({
-            recordedId: recordedId,
-        });
+        const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(() => {
-            return queryBuilder.execute();
+        await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                await db.delete(schema.thumbnails).where(eq(schema.thumbnails.recordedId, recordedId));
+            } else {
+                const { db, schema } = client;
+                await db.delete(schema.thumbnails).where(eq(schema.thumbnails.recordedId, recordedId));
+            }
         });
     }
 
     /**
-     * id を指定して取得すｒ
-     * @param thumbnailId: apid.ThumbnailId
-     * @return Promise<Thumbnail | null>
+     * thumbnailId を指定してサムネイル情報を取得
      */
     public async findId(thumbnailId: apid.ThumbnailId): Promise<Thumbnail | null> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(Thumbnail).createQueryBuilder().where({ id: thumbnailId });
-
-        const result = await this.promieRetry.run(() => {
-            return queryBuilder.getOne();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
-
-        return typeof result === 'undefined' ? null : result;
     }
 
     /**
-     * 全てのサムネイル情報を取得
-     * @return Promise<Thumbnail[]>
+     * 全件取得
      */
     public async findAll(): Promise<Thumbnail[]> {
-        const connection = await this.op.getConnection();
+        const client = this.drizzleOp.getDB();
 
-        const queryBuilder = connection.getRepository(Thumbnail).createQueryBuilder();
-
-        return await this.promieRetry.run(() => {
-            return queryBuilder.getMany();
+        return await this.promieRetry.run(async () => {
+            if (client.type === 'sqlite') {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.thumbnails);
+                return rows.map(r => this.toEntity(r));
+            } else {
+                const { db, schema } = client;
+                const rows = await db.select().from(schema.thumbnails);
+                return rows.map(r => this.toEntity(r));
+            }
         });
+    }
+
+    private toEntity(row: any): Thumbnail {
+        const entity = new Thumbnail();
+        entity.id = row.id;
+        entity.filePath = row.filePath;
+        entity.recordedId = row.recordedId;
+        return entity;
     }
 }

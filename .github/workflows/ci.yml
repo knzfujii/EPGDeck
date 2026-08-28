@@ -11,16 +11,19 @@ on:
 
 jobs:
   server:
-    name: Server (Lint & Compile)
+    name: Server Check (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22, 26]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -40,8 +43,11 @@ jobs:
         run: npm test
 
   client:
-    name: Client (Lint & Build)
+    name: Client Check (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22, 26]
     defaults:
       run:
         working-directory: client
@@ -49,10 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
@@ -64,3 +70,4 @@ jobs:
 
       - name: Build Check
         run: npm run build
+

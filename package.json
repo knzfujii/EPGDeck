@@ -3,6 +3,9 @@
     "version": "0.1.0-alpha.1",
     "description": "DTV Software in Japan.",
     "main": "dist/index.js",
+    "engines": {
+        "node": ">=22.0.0"
+    },
     "scripts": {
         "all-install": "npm i --no-save && cd client && npm i --no-save",
         "start": "node dist/index.js",

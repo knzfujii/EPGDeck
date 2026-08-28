@@ -46,7 +46,7 @@
 
 4. 設定ファイルの編集
 
-    - 詳細な設定は [詳細マニュアル](conf-manual.md) を参照
+    - 詳細な設定は [詳細マニュアル](configuration.md) を参照
 
     ```yaml
     port: 8888

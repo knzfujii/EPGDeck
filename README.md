@@ -18,11 +18,11 @@ PC からの閲覧でもモダンな UI で操作可能です
     -   番組の視聴
         -   放送中番組のライブ視聴
         -   [aribb24.js][] を使用する Web での字幕/文字スーパー表示機能
-        -   [mpegts.js][] を使用する Web での[低遅延ライブ視聴機能](doc/caption-lowlatency-setup.md)
-        -   録画済み番組のストリーミング視聴
-        -   録画済み番組のダウンロード
+        -   [mpegts.js][] を使用する Web での[低遅延ライブ視聴機能](docs/manual/streaming-and-captions.md)
+    -   録画済み番組のストリーミング視聴
+    -   録画済み番組のダウンロード
 -   API
-    -   [WebAPI Document](doc/webapi.md)
+    -   [WebAPI Document](docs/dev/api.md)
 
 [aribb24.js]: https://github.com/monyone/aribb24.js
 [mpegts.js]: https://github.com/xqq/mpegts.js
@@ -36,7 +36,7 @@ PC からの閲覧でもモダンな UI で操作可能です
 -   [Mirakurun](https://github.com/Chinachu/Mirakurun) : ^3.8.0 or [mirakc](https://github.com/mirakc/mirakc) : ^3.1.10
 -   いずれかのデータベース
     -   [SQLite3](https://www.sqlite.org/)（設定不要だが検索機能に制限あり）[標準]
-        -   [SQLite3 使用時の正規表現での検索の有効化について](doc/sqlite3-regexp.md)
+        -   [SQLite3 使用時の正規表現での検索の有効化について](docs/manual/sqlite-regexp.md)
     -   [MySQL](https://www.mysql.com/jp/) ([MariaDB](https://mariadb.org/))【推奨(要設定)】※文字コードは utf8mb4
 -   [FFmpeg](http://ffmpeg.org/)
 
@@ -48,11 +48,14 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 ---
 
-## セットアップ方法
+## ドキュメント
 
-### [Linux / macOS 用セットアップマニュアル](doc/linux-setup.md)
+詳細なマニュアルおよび開発者向けガイドは **[docs/](docs/README.md)** を参照してください。
 
-### [字幕表示 / 低遅延配信用セットアップマニュアル](doc/caption-lowlatency-setup.md)
+- **[Linux / macOS 用セットアップマニュアル](docs/manual/setup.md)**
+- **[設定ファイル詳細マニュアル](docs/manual/configuration.md)**
+- **[開発環境セットアップガイド](docs/dev/getting-started.md)**
+- **[トラブルシューティング / FAQ](docs/manual/troubleshooting.md)**
 
 ---
 
@@ -79,7 +82,7 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 ### ログの確認
 
-#### [ログ出力の詳細設定](doc/log-manual.md)
+#### [ログ出力の詳細設定](docs/manual/logging.md)
 
 #### logs/EPGUpdater
 
@@ -123,9 +126,9 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 -   EPGDeck 上の動画再生を OS 上のアプリケーションで行うことが出来ます
 
-    -   [config.yml 内の設定 (iOS, Android, macOS, Windows)](doc/conf-manual.md#urlscheme)
-    -   [macOS 用の URL Scheme 設定方法](doc/mac-url-scheme.md)
-    -   [Windows 用の URL Scheme 設定方法](doc/windows-url-scheme.md)
+    -   [config.yml 内の設定 (iOS, Android, macOS, Windows)](docs/manual/configuration.md#urlscheme)
+    -   [macOS 用の URL Scheme 設定方法](docs/manual/client-integration/mac-url-scheme.md)
+    -   [Windows 用の URL Scheme 設定方法](docs/manual/client-integration/windows-url-scheme.md)
 
 -   上記以外の環境での設定は WebUI の設定で各ブラウザごとに設定してください
 
@@ -179,7 +182,7 @@ npm run restore FILENAME
 
 ### Kodi との連携
 
-[Kodi](https://kodi.tv/) との連携に対応しています詳細は [doc/kodi.md](doc/kodi.md) を参照してください
+[Kodi](https://kodi.tv/) との連携に対応しています詳細は [Kodi 連携ガイド](docs/manual/client-integration/kodi.md) を参照してください
 
 ### Android 6.0 以上での注意
 

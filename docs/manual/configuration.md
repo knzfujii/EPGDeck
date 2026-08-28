@@ -478,7 +478,7 @@ apiServers:
     - http://xxx.xxx.xxx.xxx:8888
 ```
 
-[WebAPI Document](./webapi.md)
+[WebAPI Document](../dev/api.md)
 
 ### isAllowAllCORS
 
@@ -937,8 +937,8 @@ streamingPriority: 1
 | -------------- | ------ | ---- | ----------------------------------------------------- |
 | ios            | string | no   | iOS の URL Scheme 設定                                |
 | android        | string | no   | Android の URL Scheme 設定                            |
-| mac            | string | no   | [Mac の URL Scheme 設定](./mac-url-scheme.md)         |
-| win            | string | no   | [Windows の URL Scheme 設定](./windows-url-scheme.md) |
+| mac            | string | no   | [Mac の URL Scheme 設定](./client-integration/mac-url-scheme.md)         |
+| win            | string | no   | [Windows の URL Scheme 設定](./client-integration/windows-url-scheme.md) |
 
 -   設定内で置換される変数は以下の通り
 
@@ -1105,4 +1105,4 @@ kodiHosts:
       password: pas
 ```
 
-[kodi.md](./kodi.md)
+[Kodi 連携マニュアル](./client-integration/kodi.md)

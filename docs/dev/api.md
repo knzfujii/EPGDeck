@@ -22,4 +22,4 @@ curl -o - -X {method} -H 'Content-type:{content-type}' http://<hostname>:<port>/
 
 localhost 以外からアクセスする場合は `config.yml` の `apiServers` の設定が必要です。
 
-[doc/manual.md](conf-manual.md#apiservers) を参照
+[設定マニュアル](../manual/configuration.md#apiservers) を参照

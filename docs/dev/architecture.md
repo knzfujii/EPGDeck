@@ -39,10 +39,12 @@ graph TD
 - 定義: `src/model/ModelContainer.ts`
 - 各クラスは `@injectable()` で修飾され、インターフェース名（文字列シンボル）でインジェクションされます。
 
-### REST API: express-openapi
-API のルーティングとバリデーションは、OpenAPI 仕様（`api.yml`）と `express-openapi` に基づいて宣言的に定義されています。
-- ルートハンドラー: `src/model/service/api/**/*.ts`
-- 各エンドポイントは OpenAPI の operationId や tags と対応付けられています。
+### REST API: Hono
+API のルーティングは、高速・軽量な Web 標準準拠フレームワーク **Hono** を採用しています。
+- ルートハンドラー: `src/model/service/hono/routes/**/*.ts`
+- アプリケーション定義: `src/model/service/hono/createHonoApp.ts`
+- Swagger UI / OpenAPI ドキュメント: `@hono/swagger-ui` により `/api-docs` および `/api/docs` で提供
+- 各エンドポイントは DI コンテナから各種 `*ApiModel` を呼び出し、型安全かつ低レイテンシでレスポンスを返却します。
 
 ### ORM: Drizzle ORM
 データベースアクセスには **Drizzle ORM**（および `@libsql/client` / `mysql2`）を採用し、軽量・高速かつ型安全なクエリ実行を行っています。

@@ -54,10 +54,14 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] 不要となったネイティブビルドツール（C++ / Python / setuptools）の削除
   - [x] `npm prune --production` による最終イメージからの devDependencies 排除
   - [x] コンテナイメージサイズの大幅削減
-- [ ] **自動テストの拡充**
-  - [ ] ルール検索エンジン（`ProgramDB.ts` の除外キーワード、時間帯、あいまい検索）のユニットテスト追加
-  - [ ] Hono REST API エンドポイントの統合テスト拡充
+- [x] **自動テストの拡充**
+  - [x] ルール検索エンジン（`ProgramDB.ts` の除外キーワード、時間帯、あいまい検索）のユニットテスト追加
+  - [x] Hono REST API エンドポイントの統合テスト拡充 (`test/unit/hono_api.test.ts`)
+  - [x] 録画・予約管理（並列チューナー競合解決・ライフサイクル）のユニットテスト追加 (`test/unit/reservation_conflict.test.ts`, `test/unit/recording_manage.test.ts`)
+  - [x] Drizzle ORM DAO CRUD クエリテスト拡充 (`test/unit/dao_crud.test.ts`)
+- [ ] **E2E テスト環境の検討**
   - [ ] Playwright による主要画面の E2E スモークテスト環境構築
+
 
 ---
 
@@ -73,4 +77,5 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 ## ユーザー追加メモ (User Notes)
 
-<!-- ここに自由に追記してください -->
+- [ ] configの利用状況。妥当性の確認
+- [ ] Playerのseekbarがふさわしくない画面での表示

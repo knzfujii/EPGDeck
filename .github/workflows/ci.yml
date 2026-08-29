@@ -65,8 +65,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Lint Check
-        run: npm run lint -- --no-fix
+      - name: Svelte & TypeScript Check
+        run: npm run check
 
       - name: Build Check
         run: npm run build

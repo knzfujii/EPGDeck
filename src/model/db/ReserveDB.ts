@@ -1,5 +1,4 @@
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import Reserve from '../../db/entities/Reserve';
 import { IReserveUpdateValues } from '../event/IReserveEvent';
@@ -204,9 +203,6 @@ export default class ReserveDB implements IReserveDB {
                 }
 
                 // 終了済み番組を除外
-                conditions.push(gt(schema.reserves.endAt, new Date().getTime()));
-
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
                 let query = db.select().from(schema.reserves);
                 if (whereClause) query = query.where(whereClause) as any;
                 query = query.orderBy(asc(schema.reserves.startAt)) as any;
@@ -247,9 +243,6 @@ export default class ReserveDB implements IReserveDB {
                 }
 
                 // 終了済み番組を除外
-                conditions.push(gt(schema.reserves.endAt, new Date().getTime()));
-
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
                 let query = db.select().from(schema.reserves);
                 if (whereClause) query = query.where(whereClause) as any;
                 query = query.orderBy(asc(schema.reserves.startAt)) as any;

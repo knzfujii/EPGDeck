@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, like, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import * as mapid from '../../../node_modules/mirakurun/api';
@@ -232,16 +232,24 @@ export default class ProgramDB implements IProgramDB {
                 const keywords = StrUtil.toHalf(searchOption.keyword).split(/ /);
                 for (const kw of keywords) {
                     if (kw.length > 0) {
+                        const kwPattern = `%${kw}%`;
                         const kwOr: any[] = [];
-                        if (searchOption.name) kwOr.push(like(client.schema.programs.halfWidthName, `%${kw}%`));
-                        if (searchOption.description)
-                            kwOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
-                        if (searchOption.extended) kwOr.push(like(client.schema.programs.halfWidthExtended, `%${kw}%`));
+                        if (searchOption.name) {
+                            kwOr.push(sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`);
+                        }
+                        if (searchOption.description) {
+                            kwOr.push(
+                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
+                            );
+                        }
+                        if (searchOption.extended) {
+                            kwOr.push(sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`);
+                        }
                         if (kwOr.length === 0) {
                             kwOr.push(
-                                like(client.schema.programs.halfWidthName, `%${kw}%`),
-                                like(client.schema.programs.halfWidthDescription, `%${kw}%`),
-                                like(client.schema.programs.halfWidthExtended, `%${kw}%`),
+                                sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`,
+                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
+                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
                             );
                         }
                         conditions.push(or(...kwOr));
@@ -254,21 +262,29 @@ export default class ProgramDB implements IProgramDB {
                 const ignoreKeywords = StrUtil.toHalf(searchOption.ignoreKeyword).split(/ /);
                 for (const kw of ignoreKeywords) {
                     if (kw.length > 0) {
+                        const kwPattern = `%${kw}%`;
                         const ignoreOr: any[] = [];
-                        if (searchOption.ignoreName)
-                            ignoreOr.push(like(client.schema.programs.halfWidthName, `%${kw}%`));
-                        if (searchOption.ignoreDescription)
-                            ignoreOr.push(like(client.schema.programs.halfWidthDescription, `%${kw}%`));
-                        if (searchOption.ignoreExtended)
-                            ignoreOr.push(like(client.schema.programs.halfWidthExtended, `%${kw}%`));
-                        if (ignoreOr.length === 0) {
+                        if (searchOption.ignoreName) {
+                            ignoreOr.push(sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`);
+                        }
+                        if (searchOption.ignoreDescription) {
                             ignoreOr.push(
-                                like(client.schema.programs.halfWidthName, `%${kw}%`),
-                                like(client.schema.programs.halfWidthDescription, `%${kw}%`),
-                                like(client.schema.programs.halfWidthExtended, `%${kw}%`),
+                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
                             );
                         }
-                        // NOT LIKE
+                        if (searchOption.ignoreExtended) {
+                            ignoreOr.push(
+                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
+                            );
+                        }
+                        if (ignoreOr.length === 0) {
+                            ignoreOr.push(
+                                sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`,
+                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
+                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
+                            );
+                        }
+                        // NOT LIKE (COALESCE しているので NULL にならず確実に判定)
                         conditions.push(sql`NOT (${or(...ignoreOr)})`);
                     }
                 }
@@ -326,7 +342,22 @@ export default class ProgramDB implements IProgramDB {
             if (typeof searchOption.times !== 'undefined' && searchOption.times.length > 0) {
                 const timeConditions: any[] = [];
                 for (const t of searchOption.times) {
-                    const tAnd: any[] = [eq(client.schema.programs.week, t.week)];
+                    const tAnd: any[] = [];
+
+                    // 曜日ビットマスク判定 (0x01=日, 0x02=月, 0x04=火, 0x08=水, 0x10=木, 0x20=金, 0x40=土)
+                    const weeks: number[] = [];
+                    if ((t.week & 0x01) !== 0) weeks.push(0); // 日
+                    if ((t.week & 0x02) !== 0) weeks.push(1); // 月
+                    if ((t.week & 0x04) !== 0) weeks.push(2); // 火
+                    if ((t.week & 0x08) !== 0) weeks.push(3); // 水
+                    if ((t.week & 0x10) !== 0) weeks.push(4); // 木
+                    if ((t.week & 0x20) !== 0) weeks.push(5); // 金
+                    if ((t.week & 0x40) !== 0) weeks.push(6); // 土
+
+                    if (weeks.length > 0) {
+                        tAnd.push(inArray(client.schema.programs.week, weeks));
+                    }
+
                     if (typeof t.start === 'number' && typeof t.range === 'number') {
                         const startHours: number[] = [];
                         for (let h = t.start; h < t.start + t.range; h++) {
@@ -336,9 +367,13 @@ export default class ProgramDB implements IProgramDB {
                             tAnd.push(inArray(client.schema.programs.startHour, startHours));
                         }
                     }
-                    timeConditions.push(and(...tAnd));
+                    if (tAnd.length > 0) {
+                        timeConditions.push(and(...tAnd));
+                    }
                 }
-                conditions.push(or(...timeConditions));
+                if (timeConditions.length > 0) {
+                    conditions.push(or(...timeConditions));
+                }
             }
 
             // 検索期間指定

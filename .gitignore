@@ -5,6 +5,8 @@
 *.db
 *.db-shm
 *.db-wal
+data/*.db
+data/*.db-*
 recorded/*
 thumbnail/*.jpg
 data/streamfiles/*

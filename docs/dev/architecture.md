@@ -55,16 +55,22 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 ---
 
 ## 4. フロントエンド設計
-
-- **ビルドツール**: **Vite** (`@vitejs/plugin-vue2`)
-  - Webpack 4 / Vue CLI を完全撤廃し、Node.js 18 〜 Node.js 26 (LTS) でのネイティブ高速ビルドに対応。
-- **フレームワーク**: Vue.js (v2.7 + TypeScript Class Component)
-- **UI コンポーネント**: Vuetify (Material Design)
-- **状態管理**: Inversify による DI を活用した State モデルクラス群（`client/src/model/state/`）でリアクティブに管理
+ 
+- **ビルドツール**: **Vite 6** (`@sveltejs/vite-plugin-svelte`)
+  - Webpack / Vue CLI を完全撤廃し、Node.js 22 〜 Node.js 26 (LTS) でのネイティブ超高速ビルドおよび HMR (Hot Module Replacement) に対応。
+- **フレームワーク**: **Svelte 5** (Runes `$state`, `$derived`, `$props`, `$effect` 準拠)
+  - 仮想 DOM レスによる圧倒的な実行速度と省メモリ性能。
+  - バンドルサイズ・CSS サイズを大幅に削減（CSS: 約 96% 削減、JS: 約 76% 削減）。
+- **スタイル / UI システム**: **Tailwind CSS v4** + `@tailwindcss/vite`
+  - デザインシステムを `space-y-5` (20px)、`p-4 sm:p-5`、`rounded-2xl` のデザイントークンで全画面統一。
+  - ダークモードとライトモードの完全対応（高輝度アクセントジャンルカラー採用）。
+- **ルーター**: Svelte 5 ネイティブ Reactive Router (`client/src/lib/router.svelte.ts`)
+  - HTML5 History モード完全連動、クエリパラメータ・URL 状態のリアクティブ管理。
 - **メディア再生**:
   - `aribb24.js`: 地デジ・BS の字幕 / 文字スーパーのブラウザ描画
   - `mpegts.js`: MPEG-2 TS の低遅延 HTTP ライブストリーミング
-  - `hls.js`: HLS による録画再生・トランスコード配信
+  - `hls.js`: HLS によるライブ・録画再生・トランスコード配信
+  - 映像鑑賞に最適なシャープな四角（直角デザイン / `rounded-none`）プレイヤーを採用。
 
 ---
 

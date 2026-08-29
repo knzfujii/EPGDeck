@@ -184,7 +184,7 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
                 }
             }
 
-            if (hasParentPlayList === true && fileCnt >= 2) {
+            if (hasParentPlayList === true && fileCnt >= 1) {
                 if (hasChildPlayList === true && hasSubtitlePlayList) {
                     // parentPlayList に字幕用のプレイリスト情報を追加する
                     await this.addSubtitleInfoToParentPlaylist(parentPlayListName, subtitlePlayListName).catch(err => {

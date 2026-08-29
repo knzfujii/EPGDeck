@@ -1,28 +1,21 @@
 # EPGDeck
 
 [Mirakurun](https://github.com/Chinachu/Mirakurun) を使用した録画管理ソフトです（[EPGStation](https://github.com/l3tnun/EPGStation) からフォークして開発されています）  
-iOS・Android での閲覧に最適化されたモバイルフレンドリーな Web インターフェイスが特徴です  
-PC からの閲覧でもモダンな UI で操作可能です
+**Svelte 5 Runes** と **Tailwind CSS v4** による、圧倒的に軽量・高速でモダンな Web インターフェイス（PC / iOS / Android / PWA 完全対応）が特徴です。
 
-## 機能
+## 特徴 ＆ 主な機能
 
-### 放送番組の視聴・録画・管理
+### 📺 放送番組の視聴・録画・アーカイブ管理
 
--   ブラウザでの Web インターフェイス操作
-    -   番組表の表示
-    -   番組検索
-    -   番組単位の予約
-        -   番組表からの手動予約
-        -   ルールによる自動予約
-        -   予約の競合や重複の警告
-    -   番組の視聴
-        -   放送中番組のライブ視聴
-        -   [aribb24.js][] を使用する Web での字幕/文字スーパー表示機能
-        -   [mpegts.js][] を使用する Web での[低遅延ライブ視聴機能](docs/manual/streaming-and-captions.md)
-    -   録画済み番組のストリーミング視聴
-    -   録画済み番組のダウンロード
--   API
-    -   [WebAPI Document](docs/dev/api.md)
+-   **超高速・省メモリな Web インターフェイス (Svelte 5 + Tailwind CSS v4)**
+    -   **番組表 (`/guide`)**: 視認性に優れたコンパクトグリッド（70% 幅最適化）、個別セルのタイトル・概要最大化、鮮明なダークモードジャンル色。
+    -   **放映中番組 (`/onair`)**: 現在放送中番組 ＆ 次番組のワンクリック予約・詳細ポップアップ、進行度プログレスバー。
+    -   **録画済み一覧 (`/recorded`)**: **15,000件超の録画アーカイブ対応**（年・月セレクターによる瞬間ジャンプ、ジャンルチップ絞り込み、テーブル/カード切り替え、保護トグル）。
+    -   **自動録画ルール管理 (`/rule`)**: 実予約数の集計バッジ表示、EPGStation 完全互換の詳細ルール作成・編集モーダル（保存先ストレージ/サブディレクトリ/エンコード2系統）。
+    -   **予約一覧 (`/reserves`)**: ワンクリックでの手動予約キャンセル（取消）＆ ルール予約スキップ / スキップ解除（復活）。
+    -   **統合動画プレイヤー (`Watch.svelte`)**: 映像鑑賞に最適なシャープな四角（直角デザイン / `rounded-none`）、[aribb24.js][] による字幕/文字スーパー表示、[mpegts.js][] による低遅延ライブ視聴、HLS キープアライブ ＆ 離脱時の自動チューナー解放。
+-   **API**
+    -   [WebAPI Document](docs/dev/api.md) (Hono REST API / Swagger UI)
 
 [aribb24.js]: https://github.com/monyone/aribb24.js
 [mpegts.js]: https://github.com/xqq/mpegts.js

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue2';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const resolveTypesOnly = {
     name: 'resolve-types-only',
     resolveId(id: string) {
-        if (id.includes('/api') && !id.endsWith('.vue') && !id.endsWith('.ts') && !id.endsWith('.js') && !id.endsWith('.css')) {
+        if (id.includes('/api') && !id.endsWith('.svelte') && !id.endsWith('.ts') && !id.endsWith('.js') && !id.endsWith('.css')) {
             return path.resolve(__dirname, '../api.d.ts');
         }
         return null;
@@ -22,15 +23,17 @@ const resolveTypesOnly = {
 };
 
 export default defineConfig({
-    plugins: [resolveTypesOnly, vue()],
+    plugins: [
+        resolveTypesOnly,
+        svelte(),
+        tailwindcss(),
+    ],
     base: '/',
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
-            vue: path.resolve(__dirname, './node_modules/vue/dist/vue.runtime.esm.js'),
         },
-        dedupe: ['vue', 'vuetify'],
-        extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'],
+        extensions: ['.mjs', '.js', '.ts', '.json', '.svelte'],
     },
     esbuild: {
         tsconfigRaw: {
@@ -38,6 +41,18 @@ export default defineConfig({
                 experimentalDecorators: true,
                 useDefineForClassFields: false,
             },
+        },
+    },
+    server: {
+        host: '0.0.0.0',
+        port: 5173,
+        proxy: {
+            '/api': 'http://localhost:8889',
+            '/thumbnail': 'http://localhost:8889',
+            '/streamfiles': 'http://localhost:8889',
+            '/icon': 'http://localhost:8889',
+            '/img': 'http://localhost:8889',
+            '/manifest.json': 'http://localhost:8889',
         },
     },
     build: {

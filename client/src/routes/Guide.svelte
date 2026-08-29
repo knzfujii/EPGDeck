@@ -1,0 +1,588 @@
+<script lang="ts">
+    import { onMount, tick } from 'svelte';
+    import { router } from '../lib/router.svelte';
+    import { channelStore } from '../lib/stores/channels.svelte';
+    import { snackbar } from '../lib/stores/snackbar.svelte';
+    import axios from 'axios';
+    import {
+        Calendar,
+        ChevronLeft,
+        ChevronRight,
+        Clock,
+        Filter,
+        X,
+        Plus,
+        Trash2,
+        Search,
+        CheckCircle2,
+        AlertTriangle,
+        Lock,
+        Radio,
+        Compass
+    } from '@lucide/svelte';
+
+    let schedules = $state<any[]>([]);
+    let isLoading = $state(true);
+    let selectedDate = $state(new Date());
+    let selectedType = $state<'GR' | 'BS' | 'CS' | 'SKY'>('GR');
+
+    // 番組詳細モーダル状態
+    let selectedProgram = $state<any>(null);
+    let isModalOpen = $state(false);
+    let isReserving = $state(false);
+
+    // 予約マップ (programId -> reserve)
+    let reservesMap = $state<Map<number, any>>(new Map());
+
+    // グリッドスクロールコンテナ参照
+    let scrollContainer = $state<HTMLDivElement | null>(null);
+
+    // タイムスケール定数 (1時間 = 180px, 1分 = 3px)
+    const HOUR_HEIGHT = 180;
+    const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // 3px
+    const DISPLAY_HOURS = 24; // 24時間
+    const GRID_HEIGHT = DISPLAY_HOURS * HOUR_HEIGHT; // 4320px
+
+    const channelTypes = [
+        { id: 'GR', name: '地デジ' },
+        { id: 'BS', name: 'BS' },
+        { id: 'CS', name: 'CS' },
+        { id: 'SKY', name: 'SKY' },
+    ];
+
+    // 時間帯ジャンプのプリセット (早朝4時は削除)
+    const timeJumps = [
+        { hour: 9, name: '朝 9時' },
+        { hour: 12, name: '昼 12時' },
+        { hour: 19, name: 'ゴールデン 19時' },
+        { hour: 23, name: '深夜 23時' },
+    ];
+
+    // 「現在」ボタンのクリック処理 (今日以外なら今日に復帰して現在時刻へスクロール)
+    function jumpToNow() {
+        const now = new Date();
+        const isToday = now.toDateString() === selectedDate.toDateString();
+        if (!isToday) {
+            selectedDate = new Date();
+            fetchGuide(true);
+        } else {
+            scrollToCurrentOrPreset('now');
+        }
+    }
+
+    // 番組表の開始・終了Unixtime
+    let guideStartAt = $state<number>(0);
+    let guideEndAt = $state<number>(0);
+
+    // タイムスケールの時間ラベル配列 [4, 5, 6, ..., 23, 0, 1, 2, 3]
+    let timeScaleHours = $derived.by(() => {
+        const hours: { hour: number; label: string; top: number }[] = [];
+        const base = new Date(guideStartAt || Date.now());
+        const startHour = base.getHours();
+
+        for (let i = 0; i < DISPLAY_HOURS; i++) {
+            const h = (startHour + i) % 24;
+            hours.push({
+                hour: h,
+                label: `${h.toString().padStart(2, '0')}:00`,
+                top: i * HOUR_HEIGHT
+            });
+        }
+        return hours;
+    });
+
+    // 現在時刻ラインの top 位置 (px)
+    let currentTimeTop = $state<number | null>(null);
+
+    function updateCurrentTimeLine() {
+        const now = Date.now();
+        if (now >= guideStartAt && now <= guideEndAt) {
+            currentTimeTop = ((now - guideStartAt) / 60000) * MINUTE_HEIGHT;
+        } else {
+            currentTimeTop = null;
+        }
+    }
+
+    async function fetchGuide(autoScroll = false) {
+        isLoading = true;
+        try {
+            await channelStore.fetch();
+
+            // 番組表の開始時刻を「選択日の 4:00」に設定 (テレビ番組表標準)
+            const start = new Date(selectedDate);
+            start.setHours(4, 0, 0, 0);
+            guideStartAt = start.getTime();
+            guideEndAt = guideStartAt + DISPLAY_HOURS * 60 * 60 * 1000;
+
+            const [scheduleRes, reservesRes] = await Promise.all([
+                axios.get('/api/schedules', {
+                    params: {
+                        startAt: guideStartAt,
+                        endAt: guideEndAt,
+                        [selectedType]: true,
+                        isHalfWidth: true,
+                    }
+                }),
+                axios.get('/api/reserves', {
+                    params: {
+                        startAt: guideStartAt,
+                        endAt: guideEndAt,
+                        isHalfWidth: true,
+                    }
+                }).catch(() => ({ data: { reserves: [] } }))
+            ]);
+
+            schedules = scheduleRes.data || [];
+
+            // 予約マップ構築
+            const map = new Map<number, any>();
+            for (const r of reservesRes.data.reserves || []) {
+                if (r.programId) map.set(r.programId, r);
+            }
+            reservesMap = map;
+
+            updateCurrentTimeLine();
+        } catch (e) {
+            console.error('Failed to fetch guide schedules', e);
+            snackbar.open({ text: '番組表データの取得に失敗しました', color: 'error' });
+        } finally {
+            isLoading = false;
+        }
+
+        // DOM が描画された後に確実に現在時刻へスクロール
+        if (autoScroll) {
+            await tick();
+            setTimeout(() => {
+                scrollToCurrentOrPreset('now');
+            }, 60);
+        }
+    }
+
+    // 指定時間または現在時刻へスクロール
+    function scrollToCurrentOrPreset(target: string | number) {
+        if (!scrollContainer) return;
+
+        let targetMinutes = 0;
+        if (target === 'now') {
+            const now = new Date();
+            const isToday = now.toDateString() === selectedDate.toDateString();
+            if (isToday) {
+                const diffMs = now.getTime() - guideStartAt;
+                targetMinutes = Math.max(0, diffMs / 60000 - 30); // 現在時刻の30分前を表示
+            } else {
+                targetMinutes = (19 - 4) * 60; // 他の日は夜19時を初期表示
+            }
+        } else {
+            const h = typeof target === 'number' ? target : parseInt(target, 10);
+            const baseHour = new Date(guideStartAt).getHours();
+            const diffHours = (h >= baseHour ? h - baseHour : h + 24 - baseHour);
+            targetMinutes = diffHours * 60;
+        }
+
+        const targetScrollTop = targetMinutes * MINUTE_HEIGHT;
+        scrollContainer.scrollTop = targetScrollTop;
+        scrollContainer.scrollTo({
+            top: targetScrollTop,
+            behavior: 'smooth'
+        });
+    }
+
+    onMount(() => {
+        fetchGuide(true);
+        const timer = setInterval(updateCurrentTimeLine, 30000);
+        return () => clearInterval(timer);
+    });
+
+    function changeDate(days: number) {
+        selectedDate = new Date(selectedDate.getTime() + days * 24 * 60 * 60 * 1000);
+        fetchGuide(true);
+    }
+
+    function setDateToday() {
+        selectedDate = new Date();
+        fetchGuide(true);
+    }
+
+    function formatDate(d: Date): string {
+        return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
+    }
+
+    function formatTime(timestamp: number): string {
+        const d = new Date(timestamp);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    // 番組クリックで詳細モーダルを開く
+    function openProgramModal(program: any, channel: any) {
+        selectedProgram = {
+            ...program,
+            channelName: channel.name,
+            channelId: channel.id,
+            reserve: reservesMap.get(program.id) || null
+        };
+        isModalOpen = true;
+    }
+
+    // 予約追加
+    async function addReserve(program: any) {
+        if (!program || isReserving) return;
+        isReserving = true;
+        try {
+            await axios.post('/api/reserves', {
+                programId: program.id,
+                isHalfWidth: true,
+            });
+            snackbar.open({ text: `「${program.name}」を録画予約しました`, color: 'success' });
+            await fetchGuide(false);
+            if (selectedProgram) {
+                selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
+            }
+        } catch (e) {
+            console.error('Failed to add reserve', e);
+            snackbar.open({ text: '録画予約の追加に失敗しました', color: 'error' });
+        } finally {
+            isReserving = false;
+        }
+    }
+
+    // 予約解除
+    async function deleteReserve(reserveId: number, name: string) {
+        if (!reserveId || isReserving) return;
+        isReserving = true;
+        try {
+            await axios.delete(`/api/reserves/${reserveId}`);
+            snackbar.open({ text: `「${name}」の予約を解除しました`, color: 'success' });
+            await fetchGuide(false);
+            if (selectedProgram) {
+                selectedProgram.reserve = null;
+            }
+        } catch (e) {
+            console.error('Failed to delete reserve', e);
+            snackbar.open({ text: '予約解除に失敗しました', color: 'error' });
+        } finally {
+            isReserving = false;
+        }
+    }
+
+    // ジャンル色
+    function getGenreClass(genre1?: number): string {
+        switch (genre1) {
+            case 0: return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30'; // ニュース
+            case 1: return 'border-l-4 border-l-orange-500 bg-orange-50/30 dark:bg-orange-950/30'; // スポーツ
+            case 2: return 'border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30'; // 情報
+            case 3: return 'border-l-4 border-l-rose-500 bg-rose-50/30 dark:bg-rose-950/30'; // ドラマ
+            case 4: return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30'; // 音楽
+            case 5: return 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/30'; // バラエティ
+            case 6: return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-950/30'; // 映画
+            case 7: return 'border-l-4 border-l-pink-500 bg-pink-50/30 dark:bg-pink-950/30'; // アニメ
+            default: return 'border-l-4 border-l-slate-300 dark:border-l-slate-700 bg-white dark:bg-slate-900';
+        }
+    }
+</script>
+
+<div class="space-y-5 w-full max-w-full min-w-0">
+    <!-- 日付 & 放送波ツールバー -->
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <!-- 日付ナビゲーション -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <button
+                type="button"
+                onclick={() => changeDate(-1)}
+                class="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                title="前日"
+            >
+                <ChevronLeft size={16} />
+            </button>
+
+            <button
+                type="button"
+                onclick={setDateToday}
+                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+                <Calendar size={14} />
+                {formatDate(selectedDate)}
+            </button>
+
+            <button
+                type="button"
+                onclick={() => changeDate(1)}
+                class="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                title="翌日"
+            >
+                <ChevronRight size={16} />
+            </button>
+        </div>
+
+        <!-- 時間帯クイックジャンプ -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <!-- 🔴 目立つ「現在」ボタン (今日以外なら今日に戻してスクロール) -->
+            <button
+                type="button"
+                onclick={jumpToNow}
+                class="flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 shadow-xs transition hover:bg-rose-100 hover:border-rose-300 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60"
+                title="現在の放送時刻へ移動（別の日を表示中の場合は今日に戻ります）"
+            >
+                <span class="relative flex h-2 w-2">
+                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"></span>
+                    <span class="relative inline-flex h-2 w-2 rounded-full bg-rose-600"></span>
+                </span>
+                現在
+            </button>
+
+            {#each timeJumps as jump}
+                <button
+                    type="button"
+                    onclick={() => scrollToCurrentOrPreset(jump.hour)}
+                    class="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                    {jump.name}
+                </button>
+            {/each}
+        </div>
+
+        <!-- 放送波セレクター -->
+        <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+            {#each channelTypes as type}
+                <button
+                    type="button"
+                    onclick={() => { selectedType = type.id as any; fetchGuide(true); }}
+                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {selectedType === type.id
+                        ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                >
+                    {type.name}
+                </button>
+            {/each}
+        </div>
+    </div>
+
+    <!-- 番組表グリッド (絶対時間軸レイアウト) -->
+    {#if isLoading}
+        <div class="flex h-96 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-sm font-medium text-slate-400">番組表データを読み込み中...</p>
+        </div>
+    {:else if schedules.length === 0}
+        <div class="flex h-96 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
+            <Calendar size={36} class="text-slate-300 dark:text-slate-600" />
+            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">番組表データがありません</p>
+        </div>
+    {:else}
+        <div
+            bind:this={scrollContainer}
+            class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            style="max-height: calc(100vh - 180px);"
+        >
+            <div class="inline-flex min-w-full">
+                <!-- 左端: タイムスケール目盛り列 (横固定) -->
+                <div class="sticky left-0 z-30 w-16 shrink-0 border-r border-slate-200 bg-slate-100/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+                    <!-- 左上コーナーヘッダー (局名行と高さ合わせ) -->
+                    <div class="sticky top-0 z-40 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-200/95 font-bold text-xs text-slate-600 backdrop-blur dark:border-slate-800 dark:bg-slate-800/95 dark:text-slate-300">
+                        時刻
+                    </div>
+
+                    <!-- 24時間目盛り (絶対配置) -->
+                    <div class="relative w-full" style="height: {GRID_HEIGHT}px;">
+                        {#each timeScaleHours as hour}
+                            <div
+                                class="absolute left-0 right-0 border-t border-slate-200/80 px-1 pt-1 text-center font-mono text-xs font-black text-slate-700 dark:border-slate-800 dark:text-slate-300"
+                                style="top: {hour.top}px; height: {HOUR_HEIGHT}px;"
+                            >
+                                {hour.label}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+
+                <!-- チャンネル列コンテナ群 -->
+                <div class="relative flex min-w-max flex-1">
+                    <!-- 現在時刻の赤い水平線 -->
+                    {#if currentTimeTop !== null}
+                        <div
+                            class="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
+                            style="top: {currentTimeTop}px;"
+                        >
+                            <span class="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-md animate-pulse">
+                                現在
+                            </span>
+                            <div class="h-0.5 w-full bg-rose-500 shadow-sm"></div>
+                        </div>
+                    {/if}
+
+                    {#each schedules as col}
+                        <div class="w-40 shrink-0 border-r border-slate-200 last:border-r-0 dark:border-slate-800">
+                            <!-- 局名ヘッダー (上部固定) -->
+                            <div class="sticky top-0 z-30 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-50/95 px-2 text-center backdrop-blur dark:border-slate-800 dark:bg-slate-800/95">
+                                <span class="truncate text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+                                    {col.channel?.name}
+                                </span>
+                            </div>
+
+                            <!-- チャンネル内番組配置エリア (高さ 4320px の絶対グリッド) -->
+                            <div class="relative w-full" style="height: {GRID_HEIGHT}px;">
+                                <!-- 1時間ごとの補助グリッド線 -->
+                                {#each timeScaleHours as hour}
+                                    <div
+                                        class="pointer-events-none absolute left-0 right-0 border-t border-slate-100/80 dark:border-slate-800/50"
+                                        style="top: {hour.top}px;"
+                                    ></div>
+                                {/each}
+
+                                <!-- 番組セル群 (計算された top と height で絶対配置) -->
+                                {#each col.programs || [] as prog}
+                                    {@const progStart = Math.max(guideStartAt, prog.startAt)}
+                                    {@const progEnd = Math.min(guideEndAt, prog.endAt)}
+                                    {@const topPx = ((progStart - guideStartAt) / 60000) * MINUTE_HEIGHT}
+                                    {@const heightPx = Math.max(14, ((progEnd - progStart) / 60000) * MINUTE_HEIGHT)}
+                                    {@const isReserved = reservesMap.has(prog.id)}
+
+                                    {#if heightPx > 0}
+                                        <button
+                                            type="button"
+                                            onclick={() => openProgramModal(prog, col.channel)}
+                                            style="top: {topPx}px; height: {heightPx}px;"
+                                            class="group absolute inset-x-0.5 overflow-hidden rounded-md border border-slate-200/90 p-2 text-left transition hover:z-20 hover:border-blue-500 hover:shadow-lg dark:border-slate-800 {getGenreClass(prog.genre1)}"
+                                        >
+                                            <div class="flex flex-col h-full justify-start overflow-hidden">
+                                                <!-- 予約バッジ (予約時のみ右上表示) -->
+                                                {#if isReserved}
+                                                    <div class="flex items-center justify-end mb-1 shrink-0">
+                                                        <span class="flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs">
+                                                            ● 予約中
+                                                        </span>
+                                                    </div>
+                                                {/if}
+
+                                                <!-- 番組タイトル (開始時間をなくし最上段からしっかり表示) -->
+                                                <p class="font-bold text-xs sm:text-[13px] leading-snug text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 {heightPx <= 30 ? 'truncate' : heightPx <= 60 ? 'line-clamp-2' : 'line-clamp-3'}">
+                                                    {prog.name}
+                                                </p>
+
+                                                <!-- 概要 (縦幅に合わせて優先表示) -->
+                                                {#if heightPx > 45 && prog.description}
+                                                    <p class="mt-1 text-xs leading-relaxed text-slate-600 line-clamp-3 dark:text-slate-400">
+                                                        {prog.description}
+                                                    </p>
+                                                {/if}
+                                            </div>
+                                        </button>
+                                    {/if}
+                                {/each}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}
+</div>
+
+<!-- 番組詳細 & 予約ダイアログ (`ProgramDialog`) -->
+{#if isModalOpen && selectedProgram}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <!-- バックドロップ -->
+        <button
+            type="button"
+            class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onclick={() => isModalOpen = false}
+            aria-label="閉じる"
+        ></button>
+
+        <!-- モーダル本体 -->
+        <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900">
+            <!-- モーダルヘッダー -->
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="rounded-md bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            {selectedProgram.channelName}
+                        </span>
+                        {#if selectedProgram.genre1 !== undefined}
+                            <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                ジャンル: {selectedProgram.genre1}
+                            </span>
+                        {/if}
+                    </div>
+                    <h3 class="mt-2 text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 leading-snug">
+                        {selectedProgram.name}
+                    </h3>
+                    <p class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <Clock size={14} />
+                        {formatDate(new Date(selectedProgram.startAt))} {formatTime(selectedProgram.startAt)} - {formatTime(selectedProgram.endAt)} ({Math.round((selectedProgram.endAt - selectedProgram.startAt) / 60000)}分間)
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onclick={() => isModalOpen = false}
+                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                >
+                    <X size={18} />
+                </button>
+            </div>
+
+            <!-- 番組内容・詳細テキスト -->
+            <div class="mt-4 max-h-80 overflow-y-auto space-y-3 text-xs pr-1">
+                {#if selectedProgram.description}
+                    <div>
+                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">番組概要</h4>
+                        <p class="leading-relaxed text-slate-600 dark:text-slate-400 text-xs">
+                            {selectedProgram.description}
+                        </p>
+                    </div>
+                {/if}
+
+                {#if selectedProgram.extended}
+                    <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">詳細情報・出演者</h4>
+                        <div class="whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-400 text-xs">
+                            {selectedProgram.extended}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+
+            <!-- アクションフッター (予約 / 解除 / ルール検索) -->
+            <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+                <button
+                    type="button"
+                    onclick={() => {
+                        isModalOpen = false;
+                        router.push(`/search?keyword=${encodeURIComponent(selectedProgram.name)}`);
+                    }}
+                    class="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400"
+                >
+                    <Search size={14} /> ルール検索へ
+                </button>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onclick={() => isModalOpen = false}
+                        class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                        閉じる
+                    </button>
+
+                    {#if selectedProgram.reserve}
+                        <button
+                            type="button"
+                            disabled={isReserving}
+                            onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name)}
+                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
+                        >
+                            <Trash2 size={14} /> 予約解除
+                        </button>
+                    {:else}
+                        <button
+                            type="button"
+                            disabled={isReserving}
+                            onclick={() => addReserve(selectedProgram)}
+                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            <Plus size={14} /> 録画予約する
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}

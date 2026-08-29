@@ -58,14 +58,14 @@ $ cp config/serviceLogConfig.sample.yml config/serviceLogConfig.yml
 ## 4. 開発時のビルド & 実行
 
 ### ① ワンコマンド開発モード（おすすめ）
-以下のコマンドを実行するだけで、**サーバー（自動コンパイル + nodemon による自動再起動）** と **クライアント（Vite による自動差分ビルド）** が並行して同時に起動します。
+以下のコマンドを実行するだけで、**サーバー（自動コンパイル + nodemon による自動再起動）** と **クライアント（Vite による自動差分ビルド / HMR）** が並行して同時に起動します。
 
 ```bash
 $ npm run dev
 ```
 
 - **サーバー側**: `src/` 配下の TypeScript を編集して保存すると、自動でコンパイルされサーバーが再起動します。
-- **クライアント側**: `client/src/` 配下の Vue / TS を編集して保存すると、Vite により自動で高速差分ビルドされ `client/dist` が更新されます（ブラウザをリロードすると反映）。
+- **クライアント側**: `client/src/` 配下の Svelte / TypeScript を編集して保存すると、Vite により自動で高速差分ビルドされ `client/dist` が更新されます（Vite 開発サーバーでは HMR により即座にブラウザに反映）。
 
 ---
 
@@ -79,7 +79,7 @@ $ npm run dev
   ```bash
   $ npm run dev:client
   ```
-- **クライアントの Vite 開発サーバー単体起動**:
+- **クライアントの Vite 開発サーバー単体起動 (HMR 有効・ポート 5173)**:
   ```bash
   $ cd client && npm run dev
   ```

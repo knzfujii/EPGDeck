@@ -74,9 +74,7 @@ export default class EncodeState implements IEncodeState {
                 time: DateUtil.format(startAt, 'MM/dd(w) hh:mm ~ ') + DateUtil.format(endAt, 'hh:mm'),
                 duration: Math.floor((item.recorded.endAt - item.recorded.startAt) / 1000 / 60),
                 topThumbnailPath:
-                    typeof item.recorded.thumbnails === 'undefined' || item.recorded.thumbnails.length === 0
-                        ? './img/noimg.png'
-                        : `./api/thumbnails/${item.recorded.thumbnails[0]}`,
+                    typeof item.recorded.thumbnails === 'undefined' || item.recorded.thumbnails.length === 0 ? '/img/noimg.png' : `/api/thumbnails/${item.recorded.thumbnails[0]}`,
                 mode: item.mode,
             },
             encodeItem: item,

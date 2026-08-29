@@ -99,7 +99,7 @@ namespace Util {
      * @return string
      */
     export const getSubDirectory = (): string => {
-        return window.location.pathname.replace(/\/[^\/]*$/, '');
+        return (window as any).subDirectory || '';
     };
 
     /**

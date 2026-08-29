@@ -31,7 +31,7 @@ export default class RecordedUtil implements IRecordedUtil {
                 duration: Math.floor((item.endAt - item.startAt) / 1000 / 60),
                 description: item.description,
                 extended: item.extended,
-                topThumbnailPath: typeof item.thumbnails === 'undefined' || item.thumbnails.length === 0 ? './img/noimg.png' : `./api/thumbnails/${item.thumbnails[0]}`,
+                topThumbnailPath: typeof item.thumbnails === 'undefined' || item.thumbnails.length === 0 ? '/img/noimg.png' : `/api/thumbnails/${item.thumbnails[0]}`,
                 thumbnails: item.thumbnails,
                 videoFiles: item.videoFiles,
                 hasDrop: false,

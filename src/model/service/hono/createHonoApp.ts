@@ -158,6 +158,12 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
                 return await api.responseFile(c, localPath, getMimeType(localPath), false);
             }
 
+            // 静的アセット（拡張子を持つファイル）へのリクエストが存在しない場合は 404 を返す（index.html に誤フォールバックさせない）
+            const ext = path.extname(reqPath);
+            if (ext !== '' && ext !== '.html') {
+                return c.notFound();
+            }
+
             // SPA Fallback to index.html
             const indexPath = path.join(clientDist, 'index.html');
             if (fs.existsSync(indexPath)) {

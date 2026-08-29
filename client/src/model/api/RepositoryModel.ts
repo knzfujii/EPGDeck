@@ -156,7 +156,7 @@ class RepositoryModel implements IRepositoryModel {
 }
 
 namespace RepositoryModel {
-    export const BASE_API = './api';
+    export const BASE_API = '/api';
 }
 
 export default RepositoryModel;

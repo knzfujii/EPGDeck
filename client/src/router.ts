@@ -25,6 +25,7 @@ import WatchRecordedStreaming from './views/WatchRecordedStreaming.vue';
 Vue.use(Router);
 
 export default new Router({
+    mode: 'history',
     routes: [
         {
             path: '/',

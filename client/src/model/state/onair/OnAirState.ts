@@ -91,7 +91,7 @@ export default class OnAirState implements IOnAirState {
         };
 
         if (schedule.channel.hasLogoData === true) {
-            result.display.logoSrc = `./api/channels/${schedule.channel.id.toString(10)}/logo`;
+            result.display.logoSrc = `/api/channels/${schedule.channel.id.toString(10)}/logo`;
         }
 
         return result;

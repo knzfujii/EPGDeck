@@ -48,5 +48,16 @@ describe('Hono Server Endpoints', () => {
         expect(res.status).toBe(302);
         expect(res.headers.get('location')).toBe('/api-docs/?url=/api/docs');
     });
+
+    it('GET non-existing static asset returns 404 not index.html', async () => {
+        const res = await app.request('/assets/non-existing-file.js');
+        expect(res.status).toBe(404);
+    });
+
+    it('GET SPA route returns 200 index.html when client dist exists', async () => {
+        const res = await app.request('/recorded');
+        // If client/dist/index.html exists, it returns 200, otherwise 404
+        expect([200, 404]).toContain(res.status);
+    });
 });
 

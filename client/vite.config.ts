@@ -23,7 +23,7 @@ const resolveTypesOnly = {
 
 export default defineConfig({
     plugins: [resolveTypesOnly, vue()],
-    base: './',
+    base: '/',
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),

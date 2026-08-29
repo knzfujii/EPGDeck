@@ -20,7 +20,7 @@
                                 width="100%"
                                 max-height="400"
                                 :src="recorded.display.topThumbnailPath"
-                                v-on:error="this.src = './img/noimg.png'"
+                                v-on:error="this.src = '/img/noimg.png'"
                                 :eager="true"
                             ></v-img>
                         </div>

@@ -4,7 +4,7 @@
             v-if="!!noThumbnail === false"
             aspect-ratio="1.7778"
             :src="item.display.topThumbnailPath"
-            v-on:error="this.src = './img/noimg.png'"
+            v-on:error="this.src = '/img/noimg.png'"
             v-on:click="gotoDetail"
             eager
             class="thumbnail"

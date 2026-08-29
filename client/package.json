@@ -17,28 +17,15 @@
         "@lucide/svelte": "1.37.0",
         "aribb24.js": "1.11.2",
         "axios": "1.6.8",
-        "clsx": "^2.1.1",
-        "date-fns": "^4.1.0",
-        "eventemitter2": "6.4.9",
         "hls.js": "1.5.8",
-        "inversify": "6.0.2",
-        "json-stable-stringify": "1.1.1",
-        "lodash": "4.17.21",
         "mpegts.js": "1.7.3",
-        "reflect-metadata": "0.2.2",
-        "resize-observer-polyfill": "1.5.1",
-        "smoothscroll-polyfill": "0.4.4",
         "socket.io-client": "4.7.5",
-        "svelte": "^5.0.0",
-        "tailwind-merge": "^3.0.1"
+        "svelte": "^5.0.0"
     },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^5.0.0",
         "@tailwindcss/vite": "^4.0.0",
         "@types/hls.js": "0.13.3",
-        "@types/json-stable-stringify": "1.0.36",
-        "@types/lodash": "4.17.0",
-        "@types/smoothscroll-polyfill": "0.3.4",
         "@types/socket.io-client": "1.4.36",
         "svelte-check": "^4.0.0",
         "tailwindcss": "^4.0.0",
@@ -46,3 +33,4 @@
         "vite": "6.4.3"
     }
 }
+

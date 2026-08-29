@@ -6,16 +6,16 @@
 
 ## 1. 全体概要
 
-EPGDeck は、**Node.js / Express** ベースのバックエンドと、**Vue.js** ベースの SPA フロントエンドで構成されています。
+EPGDeck は、**Node.js / Hono** ベースのバックエンドと、**Svelte 5** ベースの SPA フロントエンドで構成されています。
 
 ```mermaid
 graph TD
-    Client["Browser / PWA / Kodi"] <-->|HTTP / WebSocket| Service["Service Process (Express / Socket.IO)"]
+    Client["Browser / PWA / Kodi"] <-->|HTTP / WebSocket| Service["Service Process (Hono / Socket.IO)"]
     Service <-->|IPC| Operator["Operator Process (Main)"]
     Operator <-->|IPC| EPGUpdater["EPGUpdater Process"]
     Operator <-->|HTTP / Unix Socket| Mirakurun["Mirakurun / mirakc"]
-    Operator <-->|TypeORM| DB[(SQLite / MySQL)]
-    Service <-->|TypeORM| DB
+    Operator <-->|Drizzle ORM| DB[(SQLite / MySQL)]
+    Service <-->|Drizzle ORM| DB
 ```
 
 ---
@@ -28,7 +28,8 @@ graph TD
 |---|---|---|
 | **Operator** (メインプロセス) | 録画・チューナー管理 | 録画予約の競合解決、Mirakurun からのストリーム受信・録画ファイル書き込み、エンコードキューの管理 |
 | **EPGUpdater** (子プロセス) | 番組表更新 | Mirakurun から定期的に EPG データを取得し、DB（Programs / Services テーブル）を更新 |
-| **ServiceExecutor** (子プロセス) | Web サーバー | Express による REST API、Swagger UI、Socket.IO によるリアルタイム通知、静的ファイル配信 |
+| **ServiceExecutor** (子プロセス) | Web サーバー | Hono による REST API、Swagger UI、Socket.IO によるリアルタイム通知、静的ファイル配信 |
+
 
 ---
 

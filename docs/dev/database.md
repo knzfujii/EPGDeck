@@ -1,6 +1,6 @@
-# データベース & マイグレーション運用ガイド
+# データベース & スキーマ運用ガイド
 
-本ドキュメントでは、EPGDeck のデータベース構成、Entity 定義の変更手順、および TypeORM によるマイグレーション管理について解説します。
+本ドキュメントでは、EPGDeck のデータベース構成、Drizzle ORM によるスキーマ定義、DTO/Entity 構造、および EPGStation (v2.10.0) 完全互換ポリシーについて解説します。
 
 ---
 
@@ -8,14 +8,17 @@
 
 EPGDeck は以下の 2 種類のデータベースエンジンをサポートしています。
 
-- **SQLite3** (デフォルト): 設定不要で手軽に動作します。
-- **MySQL / MariaDB** (推奨): 大規模運用や高速な検索に適しています。必ず文字コードを `utf8mb4` に設定してください。
+- **SQLite3** (デフォルト): `@libsql/client` を使用し、ローカルファイル（`data/database.db`）で手軽に動作します。
+- **MySQL / MariaDB** (推奨): `mysql2` を使用し、大規模運用や高速な検索に適しています。必ず文字コードを `utf8mb4` に設定してください。
 
 ---
 
 ## 2. ディレクトリ構成
 
-- **Entity 定義**: `src/db/entities/`
+- **Drizzle Schema 定義**: `src/db/schema/`
+  - `sqlite/`: SQLite 用 Drizzle テーブル定義 (`channels.ts`, `programs.ts`, `recorded.ts`, `reserves.ts`, `rules.ts` 等)
+  - `mysql/`: MySQL 用 Drizzle テーブル定義
+- **DTO / Entity 定義**: `src/db/entities/`
   - `Program.ts`: 番組情報
   - `Recorded.ts`: 録画済み番組
   - `RecordedHistory.ts`: 録画履歴
@@ -26,42 +29,44 @@ EPGDeck は以下の 2 種類のデータベースエンジンをサポートし
   - `Thumbnail.ts`: サムネイル情報
   - `VideoFile.ts`: 録画動画ファイル情報
   - `DropLogFile.ts`: ドロップログファイル情報
-- **マイグレーションファイル**: `src/db/migrations/`
-  - `sqlite/`: SQLite 専用マイグレーション
-  - `mysql/`: MySQL 専用マイグレーション
-- **TypeORM 設定**: `ormconfig.js`
+- **DB クライアントファクトリ**: `src/db/drizzle.ts`
+- **DB 操作モデル (DAO)**: `src/model/db/`
+  - `DrizzleOperator.ts`: 初回接続確認および自動テーブル初期化
+  - `ProgramDB.ts`, `RecordedDB.ts`, `ReserveDB.ts`, `RuleDB.ts` 等: 各エンティティの CRUD クエリ
 
 ---
 
-## 3. スキーマ変更とマイグレーションの作成手順
+## 3. EPGStation 完全互換ポリシー
 
-Entity にフィールドを追加・変更した場合は、必ず SQLite と MySQL の両方のマイグレーションを生成してコミットしてください。
+EPGDeck は **EPGStation v2.10.0 との 100% データベース互換性** を維持しています。
 
-### ① Entity ファイルの修正
-`src/db/entities/` 配下の該当する Entity クラスにプロパティやカラム定義（`@Column` 等）を追加・修正します。
-
-### ② マイグレーションファイルの生成
-以下のコマンドで、Entity 定義と DB の差分からマイグレーションコードを自動生成します。
-
-```bash
-# SQLite 用マイグレーションの生成
-$ npm run orm-gen --db=sqlite --name=AddFeatureColumn
-
-# MySQL 用マイグレーションの生成
-$ npm run orm-gen --db=mysql --name=AddFeatureColumn
-```
-
-### ③ 生成されたマイグレーションの確認と修正
-`src/db/migrations/<db>/<timestamp>-<name>.ts` に生成されたマイグレーションコードの `up` / `down` メソッドを確認し、必要に応じてデータ移行処理を追加します。
-
-### ④ マイグレーションの実行
-```bash
-$ npm run orm-run
-```
+1. **新規セットアップ時の自動テーブル生成**:
+   - 初回起動時、`DrizzleOperator.checkConnection()` により EPGStation v2.10.0 と同一構造のテーブル群が自動生成されます。
+2. **既存環境からのシームレス移行**:
+   - 既存の EPGStation で使用していた SQLite DB ファイル（`data/database.db`）または MySQL データベースをそのまま指定するだけで、データ移行作業なしですぐに動作します。
 
 ---
 
-## 4. 破壊的変更に関するガイドライン
+## 4. スキーマ変更手順
 
-- 既存のカラム削除や型変更など、過去の録画データや予約ルールに影響を及ぼす変更を行う場合は、**既存データが破損しないマイグレーションパスを必ず用意**してください。
-- 既存ユーザーのデータを尊重し、不可逆な変更が必要な場合は事前に十分な検討を行ってください。
+テーブル構造やカラムを追加・変更する場合は、以下の手順に従って SQLite と MySQL の双方で整合性を保ってください。
+
+### ① Drizzle Schema の更新
+`src/db/schema/sqlite/` および `src/db/schema/mysql/` 配下の該当テーブル定義にカラムを追加・修正します。
+
+### ② DTO / Entity クラスの更新
+`src/db/entities/` 配下の該当クラスにプロパティを追加・修正します。
+
+### ③ DrizzleOperator の初期化 DDL の同期
+`src/model/db/DrizzleOperator.ts` 内の `CREATE TABLE IF NOT EXISTS` クエリに新カラム定義を反映します。
+
+### ④ DB 操作モデル (DAO) の更新
+`src/model/db/*DB.ts` の `toRow()`, `toEntity()`, `insert*()`, `find*()` 等のデータマッピング処理を更新します。
+
+---
+
+## 5. 破壊的変更に関するガイドライン
+
+- 既存のカラム削除やデータ型の互換性破壊など、過去の録画データや予約ルールに影響を及ぼす変更は避けてください。
+- 既存ユーザーの録画アーカイブ（15,000 件超の運用など）を安全に維持するため、破壊的変更が必要な場合は必ず事前に合意を得てください。
+

@@ -1,0 +1,76 @@
+# EPGDeck 改善 TODO リスト
+
+EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守性向上のためのタスク一覧です。
+今後の機能追加やリファクタリングのロードマップとして随時更新・追記可能です。
+
+---
+
+## 1. データベース & パフォーマンス (Database & Performance)
+
+- [ ] **DBインデックス（INDEX）の最適化**
+  - [ ] `program` テーブルに `(channelId, startAt, endAt)` 複合インデックスを追加（番組表・放映中取得の高速化）
+  - [ ] `recorded` テーブルに `(startAt, endAt)`, `(channelId)`, `(ruleId)`, `(genre1)` インデックスを追加（15,000件超アーカイブの年月ジャンプ・ジャンル絞り込み高速化）
+  - [ ] SQLite 側の `thumbnail` / `video_file` テーブルに `recordedId` インデックスを追加
+  - [ ] `reserve` テーブルに `(startAt, endAt)`, `(ruleId)` インデックスを追加
+- [ ] **番組一括更新（Bulk Insert）の最適化**
+  - [ ] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用し、EPG更新時の DB 負荷と処理時間を削減
+- [ ] **DBアクセス層の重複コード解消**
+  - [ ] `RecordedDB.ts`, `ReserveDB.ts`, `ChannelDB.ts`, `DropLogFileDB.ts` 等の方言差（SQLite / MySQL）がない同一クエリ処理を共通化
+
+---
+
+## 2. フロントエンド & UI/UX (Frontend & Realtime)
+
+- [ ] **バンドル分割・遅延ロード (Code Splitting / Lazy Loading)**
+  - [ ] Svelte 5 ルートコンポーネントの動的 `import()` 化
+  - [ ] `hls.js`, `mpegts.js` などの動画再生ライブラリを別チャンクに分離（Vite `manualChunks` 設定）
+  - [ ] 初期表示用 JS バンドルサイズの削減（932 kB ➔ 200 kB 以下を目標）
+- [ ] **Socket.IO リアルタイム通信のフロントエンド接続**
+  - [ ] グローバル Socket.IO リアクティブストア（`socket.svelte.ts`）の構築
+  - [ ] 録画開始/終了、予約変更、エンコード進捗通知を受信し、ダッシュボード・予約一覧・エンコード画面を自動同期
+- [ ] **フロントエンドの型安全性向上 (`any` の排除)**
+  - [ ] `Recorded.svelte`, `Reserves.svelte`, `Rule.svelte`, `Dashboard.svelte` などの状態変数を `api.d.ts` の厳格な型（`RecordedItem`, `ReserveItem`, `Rule` 等）へ置き換え
+- [ ] **共通ユーティリティ（フォーマッタ）の集約**
+  - [ ] `formatDate`, `formatTime`, `formatSize`, `formatDuration` を `client/src/lib/utils/format.ts` に集約・共通化
+- [ ] **字幕表示（`aribb24.js`）の実装**
+  - [ ] `VideoPlayer.svelte` に `aribb24.js` による字幕 / 文字スーパー描画レイヤーを統合
+- [x] **不要な依存パッケージの棚卸し**
+  - [x] `client/package.json` の未使用ライブラリ（`clsx`, `date-fns`, `eventemitter2`, `inversify`, `lodash`, `reflect-metadata`, `resize-observer-polyfill`, `smoothscroll-polyfill`, `tailwind-merge` 等）を削除
+
+---
+
+## 3. バックエンド & API (Backend & Robustness)
+
+- [ ] **大容量動画アップロード時のメモリ枯渇（OOM）防止**
+  - [ ] `src/model/service/hono/routes/videos.ts` の `/upload` エンドポイントで、一括バッファリングから `file.stream()` を用いたストリーム書き込みへ変更
+- [ ] **Hono ルートの共通エラーハンドリング強化**
+  - [ ] `app.onError` によるエラー型安全なレスポンス返却と詳細ロギングの統一
+
+---
+
+## 4. テスト・CI/CD・コンテナ環境 (Testing, CI/CD & Docker)
+
+- [x] **Dockerfile のマルチステージビルド最適化 & 軽量化**
+  - [x] 不要となったネイティブビルドツール（C++ / Python / setuptools）の削除
+  - [x] `npm prune --production` による最終イメージからの devDependencies 排除
+  - [x] コンテナイメージサイズの大幅削減
+- [ ] **自動テストの拡充**
+  - [ ] ルール検索エンジン（`ProgramDB.ts` の除外キーワード、時間帯、あいまい検索）のユニットテスト追加
+  - [ ] Hono REST API エンドポイントの統合テスト拡充
+  - [ ] Playwright による主要画面の E2E スモークテスト環境構築
+
+---
+
+## 5. ドキュメント & 設定 (Documentation & Hygiene)
+
+- [x] **旧技術スタック（TypeORM / Express / Vue）の残存表記の更新**
+  - [x] `docs/dev/architecture.md` の冒頭・Mermaid 図を Hono / Drizzle / Svelte 5 に同期
+  - [x] `docs/dev/database.md` を Drizzle ORM（`drizzle-kit`）の運用手順に書き換え
+  - [x] `client/tsconfig.json` の include 設定（Vue 時代の残骸）を最新の Svelte 5 構成に整理
+
+
+---
+
+## ユーザー追加メモ (User Notes)
+
+<!-- ここに自由に追記してください -->

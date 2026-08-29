@@ -32,6 +32,11 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
         const dbPath = customDbPath || path.join(appRootPath, 'data', 'database.db');
         const client = createClient({ url: `file:${dbPath}` });
 
+        // SQLite マルチプロセス並行アクセス対策 (WAL モード & 10秒 busy timeout)
+        client.execute('PRAGMA journal_mode = WAL;').catch(() => {});
+        client.execute('PRAGMA busy_timeout = 10000;').catch(() => {});
+        client.execute('PRAGMA synchronous = NORMAL;').catch(() => {});
+
         const db = drizzleLibSql(client, { schema: sqliteSchema });
         return {
             type: 'sqlite',

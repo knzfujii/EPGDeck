@@ -22,6 +22,20 @@ process.on('unhandledRejection', err => {
     log.system.fatal(`unhandledRejection: ${err}`);
 });
 
+// 親プロセス（Operator）が終了・切断されたら自プロセスも即座にクリーン終了する（孤児化防止）
+process.on('disconnect', () => {
+    log.system.info('parent process disconnected, exiting ServiceExecutor');
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    process.exit(0);
+});
+
 const encodeFinishModel = container.get<IEncodeFinishModel>('IEncodeFinishModel');
 encodeFinishModel.set();
 

@@ -89,10 +89,56 @@ const runOperator = async () => {
     storageManageModel.start();
 };
 
+let serviceChild: child_process.ChildProcess | null = null;
+let isShuttingDown: boolean = false;
+
+const shutdown = (signal: string) => {
+    if (isShuttingDown) {
+        return;
+    }
+    isShuttingDown = true;
+    try {
+        const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
+        log.system.info(`received ${signal}, shutting down gracefully...`);
+    } catch {
+        // ignore
+    }
+
+    if (serviceChild !== null) {
+        serviceChild.removeAllListeners();
+        try {
+            serviceChild.kill('SIGTERM');
+        } catch {
+            // ignore
+        }
+        serviceChild = null;
+    }
+
+    process.exit(0);
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('exit', () => {
+    if (serviceChild !== null) {
+        serviceChild.removeAllListeners();
+        try {
+            serviceChild.kill('SIGTERM');
+        } catch {
+            // ignore
+        }
+        serviceChild = null;
+    }
+});
+
 /**
  * Service 起動処理
  */
 const runService = async () => {
+    if (isShuttingDown) {
+        return;
+    }
+
     const child = child_process.spawn(
         process.argv[0],
         [path.join(__dirname, 'model', 'service', 'ServiceExecutor.js')],
@@ -100,15 +146,24 @@ const runService = async () => {
             stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
         },
     );
+    serviceChild = child;
 
     // 終了したら再起動
     const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
     child.once('exit', () => {
+        serviceChild = null;
+        if (isShuttingDown) {
+            return;
+        }
         log.system.fatal('service process is down');
         log.system.fatal('restart service');
         runService();
     });
     child.once('error', () => {
+        serviceChild = null;
+        if (isShuttingDown) {
+            return;
+        }
         runService();
     });
 

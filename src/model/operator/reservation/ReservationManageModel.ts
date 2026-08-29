@@ -260,6 +260,12 @@ class ReservationManageModel implements IReservationManageModel {
             throw new Error('ProgramIsNotFound');
         }
 
+        // すでに終了している番組は予約できない
+        if (program.endAt <= new Date().getTime()) {
+            this.log.system.warn(`program is already ended: ${option.programId}`);
+            throw new Error('ProgramIsAlreadyEnded');
+        }
+
         // 予約情報生成
         const newReserve = new Reserve();
         newReserve.updateTime = new Date().getTime();

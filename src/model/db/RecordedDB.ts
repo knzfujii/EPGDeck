@@ -31,29 +31,16 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.thumbnails);
-                    await tx.delete(schema.videoFiles);
-                    await tx.delete(schema.recorded);
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.thumbnails);
+                await tx.delete(schema.videoFiles);
+                await tx.delete(schema.recorded);
 
-                    for (const item of items) {
-                        await tx.insert(schema.recorded).values(this.toRow(item));
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.thumbnails);
-                    await tx.delete(schema.videoFiles);
-                    await tx.delete(schema.recorded);
-
-                    for (const item of items) {
-                        await tx.insert(schema.recorded).values(this.toRow(item));
-                    }
-                });
-            }
+                for (const item of items) {
+                    await tx.insert(schema.recorded).values(this.toRow(item));
+                }
+            });
         });
     }
 
@@ -87,14 +74,8 @@ export default class RecordedDB implements IRecordedDB {
 
         await this.promieRetry.run(async () => {
             const row = this.toRow(recorded);
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
         });
     }
 
@@ -105,13 +86,11 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set({ isRecording: false }).where(eq(schema.recorded.id, recordedId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set({ isRecording: false }).where(eq(schema.recorded.id, recordedId));
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .update(schema.recorded)
+                .set({ isRecording: false })
+                .where(eq(schema.recorded.id, recordedId));
         });
     }
 
@@ -122,19 +101,11 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ dropLogFileId: null })
-                    .where(eq(schema.recorded.dropLogFileId, dropLogFileId));
-            } else {
-                const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ dropLogFileId: null })
-                    .where(eq(schema.recorded.dropLogFileId, dropLogFileId));
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .update(schema.recorded)
+                .set({ dropLogFileId: null })
+                .where(eq(schema.recorded.dropLogFileId, dropLogFileId));
         });
     }
 
@@ -145,13 +116,8 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
         });
     }
 
@@ -162,19 +128,11 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ isProtected: isProtect })
-                    .where(eq(schema.recorded.id, recordedId));
-            } else {
-                const { db, schema } = client;
-                await db
-                    .update(schema.recorded)
-                    .set({ isProtected: isProtect })
-                    .where(eq(schema.recorded.id, recordedId));
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .update(schema.recorded)
+                .set({ isProtected: isProtect })
+                .where(eq(schema.recorded.id, recordedId));
         });
     }
 
@@ -185,13 +143,8 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
         });
     }
 
@@ -222,22 +175,13 @@ export default class RecordedDB implements IRecordedDB {
             const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
 
             let records: any[] = [];
+            const { db, schema } = client;
 
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                records = await db
-                    .select()
-                    .from(schema.recorded)
-                    .where(inArray(schema.recorded.id, recordedIds))
-                    .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
-            } else {
-                const { db, schema } = client;
-                records = await db
-                    .select()
-                    .from(schema.recorded)
-                    .where(inArray(schema.recorded.id, recordedIds))
-                    .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
-            }
+            records = await (db as any)
+                .select()
+                .from(schema.recorded)
+                .where(inArray(schema.recorded.id, recordedIds))
+                .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
 
             if (records.length === 0) return [];
 
@@ -282,130 +226,65 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let records: any[] = [];
-            let totalCount = 0;
+            const { db, schema } = client;
+            const conditions: any[] = [];
 
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-
-                if (typeof option.isRecording !== 'undefined') {
-                    conditions.push(eq(schema.recorded.isRecording, option.isRecording));
-                }
-
-                if (typeof option.ruleId !== 'undefined') {
-                    if (option.ruleId === 0) {
-                        conditions.push(isNull(schema.recorded.ruleId));
-                    } else {
-                        conditions.push(eq(schema.recorded.ruleId, option.ruleId));
-                    }
-                }
-
-                if (typeof option.channelId !== 'undefined') {
-                    conditions.push(eq(schema.recorded.channelId, option.channelId));
-                }
-
-                if (typeof option.genre !== 'undefined') {
-                    conditions.push(
-                        or(
-                            eq(schema.recorded.genre1, option.genre),
-                            eq(schema.recorded.genre2, option.genre),
-                            eq(schema.recorded.genre3, option.genre),
-                        ),
-                    );
-                }
-
-                if (typeof option.keyword !== 'undefined') {
-                    const keywords = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const kw of keywords) {
-                        if (kw.length > 0) {
-                            conditions.push(
-                                or(
-                                    like(schema.recorded.halfWidthName, `%${kw}%`),
-                                    like(schema.recorded.halfWidthDescription, `%${kw}%`),
-                                ),
-                            );
-                        }
-                    }
-                }
-
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-                let query = db.select().from(schema.recorded);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(
-                    option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt),
-                ) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                records = await query;
-
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recorded);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                totalCount = countResult[0]?.count || 0;
-            } else {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-
-                if (typeof option.isRecording !== 'undefined') {
-                    conditions.push(eq(schema.recorded.isRecording, option.isRecording));
-                }
-
-                if (typeof option.ruleId !== 'undefined') {
-                    if (option.ruleId === 0) {
-                        conditions.push(isNull(schema.recorded.ruleId));
-                    } else {
-                        conditions.push(eq(schema.recorded.ruleId, option.ruleId));
-                    }
-                }
-
-                if (typeof option.channelId !== 'undefined') {
-                    conditions.push(eq(schema.recorded.channelId, option.channelId));
-                }
-
-                if (typeof option.genre !== 'undefined') {
-                    conditions.push(
-                        or(
-                            eq(schema.recorded.genre1, option.genre),
-                            eq(schema.recorded.genre2, option.genre),
-                            eq(schema.recorded.genre3, option.genre),
-                        ),
-                    );
-                }
-
-                if (typeof option.keyword !== 'undefined') {
-                    const keywords = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const kw of keywords) {
-                        if (kw.length > 0) {
-                            conditions.push(
-                                or(
-                                    like(schema.recorded.halfWidthName, `%${kw}%`),
-                                    like(schema.recorded.halfWidthDescription, `%${kw}%`),
-                                ),
-                            );
-                        }
-                    }
-                }
-
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-                let query = db.select().from(schema.recorded);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(
-                    option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt),
-                ) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                records = await query;
-
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recorded);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                totalCount = countResult[0]?.count || 0;
+            if (typeof option.isRecording !== 'undefined') {
+                conditions.push(eq(schema.recorded.isRecording, option.isRecording));
             }
+
+            if (typeof option.ruleId !== 'undefined') {
+                if (option.ruleId === 0) {
+                    conditions.push(isNull(schema.recorded.ruleId));
+                } else {
+                    conditions.push(eq(schema.recorded.ruleId, option.ruleId));
+                }
+            }
+
+            if (typeof option.channelId !== 'undefined') {
+                conditions.push(eq(schema.recorded.channelId, option.channelId));
+            }
+
+            if (typeof option.genre !== 'undefined') {
+                conditions.push(
+                    or(
+                        eq(schema.recorded.genre1, option.genre),
+                        eq(schema.recorded.genre2, option.genre),
+                        eq(schema.recorded.genre3, option.genre),
+                    ),
+                );
+            }
+
+            if (typeof option.keyword !== 'undefined') {
+                const keywords = StrUtil.toHalf(option.keyword).split(/ /);
+                for (const kw of keywords) {
+                    if (kw.length > 0) {
+                        conditions.push(
+                            or(
+                                like(schema.recorded.halfWidthName, `%${kw}%`),
+                                like(schema.recorded.halfWidthDescription, `%${kw}%`),
+                            ),
+                        );
+                    }
+                }
+            }
+
+            const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+            let query = (db as any).select().from(schema.recorded);
+            if (whereClause) query = query.where(whereClause) as any;
+            query = query.orderBy(
+                option.isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt),
+            ) as any;
+            if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+            if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+            const records: any[] = await query;
+
+            let countQuery = (db as any).select({ count: sql<number>`count(*)` }).from(schema.recorded);
+            if (whereClause) countQuery = countQuery.where(whereClause) as any;
+            const countResult = await countQuery;
+            const totalCount = countResult[0]?.count || 0;
 
             if (records.length === 0) return [[], totalCount];
 
@@ -461,27 +340,15 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db
-                    .select({
-                        cnt: sql<number>`count(*)`,
-                        channelId: schema.recorded.channelId,
-                    })
-                    .from(schema.recorded)
-                    .groupBy(schema.recorded.channelId);
-                return rows.map(r => ({ cnt: Number(r.cnt), channelId: r.channelId }));
-            } else {
-                const { db, schema } = client;
-                const rows = await db
-                    .select({
-                        cnt: sql<number>`count(*)`,
-                        channelId: schema.recorded.channelId,
-                    })
-                    .from(schema.recorded)
-                    .groupBy(schema.recorded.channelId);
-                return rows.map(r => ({ cnt: Number(r.cnt), channelId: r.channelId }));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select({
+                    cnt: sql<number>`count(*)`,
+                    channelId: schema.recorded.channelId,
+                })
+                .from(schema.recorded)
+                .groupBy(schema.recorded.channelId);
+            return rows.map((r: any) => ({ cnt: Number(r.cnt), channelId: r.channelId }));
         });
     }
 
@@ -492,29 +359,16 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db
-                    .select({
-                        cnt: sql<number>`count(*)`,
-                        genre: schema.recorded.genre1,
-                    })
-                    .from(schema.recorded)
-                    .where(isNotNull(schema.recorded.genre1))
-                    .groupBy(schema.recorded.genre1);
-                return rows.map(r => ({ cnt: Number(r.cnt), genre: r.genre! }));
-            } else {
-                const { db, schema } = client;
-                const rows = await db
-                    .select({
-                        cnt: sql<number>`count(*)`,
-                        genre: schema.recorded.genre1,
-                    })
-                    .from(schema.recorded)
-                    .where(isNotNull(schema.recorded.genre1))
-                    .groupBy(schema.recorded.genre1);
-                return rows.map(r => ({ cnt: Number(r.cnt), genre: r.genre! }));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select({
+                    cnt: sql<number>`count(*)`,
+                    genre: schema.recorded.genre1,
+                })
+                .from(schema.recorded)
+                .where(isNotNull(schema.recorded.genre1))
+                .groupBy(schema.recorded.genre1);
+            return rows.map((r: any) => ({ cnt: Number(r.cnt), genre: r.genre! }));
         });
     }
 
@@ -525,24 +379,13 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                rows = await db
-                    .select()
-                    .from(schema.recorded)
-                    .where(eq(schema.recorded.isProtected, false))
-                    .orderBy(asc(schema.recorded.startAt), asc(schema.recorded.id))
-                    .limit(1);
-            } else {
-                const { db, schema } = client;
-                rows = await db
-                    .select()
-                    .from(schema.recorded)
-                    .where(eq(schema.recorded.isProtected, false))
-                    .orderBy(asc(schema.recorded.startAt), asc(schema.recorded.id))
-                    .limit(1);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.recorded)
+                .where(eq(schema.recorded.isProtected, false))
+                .orderBy(asc(schema.recorded.startAt), asc(schema.recorded.id))
+                .limit(1);
 
             if (rows.length === 0) return null;
 
@@ -558,18 +401,15 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.recorded).where(eq(schema.recorded.reserveId, reserveId));
-            } else {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.recorded).where(eq(schema.recorded.reserveId, reserveId));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.recorded)
+                .where(eq(schema.recorded.reserveId, reserveId));
 
             if (rows.length === 0) return [];
             return await this.findIds(
-                rows.map(r => r.id),
+                rows.map((r: any) => r.id),
                 undefined,
                 false,
             );

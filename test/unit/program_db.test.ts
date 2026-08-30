@@ -1,13 +1,15 @@
 import 'reflect-metadata';
+import * as fs from 'fs';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import * as sqliteSchema from '../../src/db/schema/sqlite';
 import ProgramDB from '../../src/model/db/ProgramDB';
 import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
 import IPromiseRetry from '../../src/model/IPromiseRetry';
 
 describe('ProgramDB findRule Tests', () => {
+    const testDbFile = 'test_program_db.db';
     let client: ReturnType<typeof createClient>;
     let db: ReturnType<typeof drizzle>;
     let programDB: ProgramDB;
@@ -16,10 +18,19 @@ describe('ProgramDB findRule Tests', () => {
         run: async <T>(fn: () => Promise<T>) => await fn(),
     } as any;
 
+    afterAll(() => {
+        try {
+            if (fs.existsSync(testDbFile)) {
+                fs.unlinkSync(testDbFile);
+            }
+        } catch (_) {}
+    });
+
     beforeEach(async () => {
-        client = createClient({ url: ':memory:' });
+        client = createClient({ url: `file:${testDbFile}` });
         db = drizzle(client, { schema: sqliteSchema });
 
+        await client.execute('DROP TABLE IF EXISTS program;');
         await client.execute(`
             CREATE TABLE program (
                 id INTEGER PRIMARY KEY,
@@ -190,5 +201,57 @@ describe('ProgramDB findRule Tests', () => {
         });
         expect(results).toHaveLength(1);
         expect(results[0].name).toBe('日曜ニュース7');
+    });
+
+    it('performs bulk insert and upsert operations correctly', async () => {
+        const channelTypes = {
+            32736: {
+                1024: {
+                    id: 1001,
+                    type: 'GR',
+                    channel: '27',
+                },
+            },
+        };
+
+        const newPrograms: any[] = [
+            {
+                id: 100,
+                eventId: 201,
+                serviceId: 1024,
+                networkId: 32736,
+                startAt: Date.now() + 200000,
+                duration: 1800000,
+                isFree: true,
+                name: '一括挿入番組A',
+            },
+            {
+                id: 101,
+                eventId: 202,
+                serviceId: 1024,
+                networkId: 32736,
+                startAt: Date.now() + 200000 + 1800000,
+                duration: 1800000,
+                isFree: true,
+                name: '一括挿入番組B',
+            },
+        ];
+
+        await programDB.insert(channelTypes as any, newPrograms);
+
+        const foundA = await programDB.findId(100);
+        const foundB = await programDB.findId(101);
+
+        expect(foundA).not.toBeNull();
+        expect(foundA?.name).toBe('一括挿入番組A');
+        expect(foundB).not.toBeNull();
+        expect(foundB?.name).toBe('一括挿入番組B');
+
+        // Upsert の検証: 名前を更新して再度 insert
+        newPrograms[0].name = '一括更新番組A-改';
+        await programDB.insert(channelTypes as any, newPrograms);
+
+        const updatedA = await programDB.findId(100);
+        expect(updatedA?.name).toBe('一括更新番組A-改');
     });
 });

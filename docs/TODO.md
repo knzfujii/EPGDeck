@@ -13,10 +13,11 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `reserve` テーブルに `(startAt, endAt)`, `(ruleId)`, `(channelId, startAt)` インデックスを追加
   - [x] `DrizzleOperator` で SQLite / MySQL の既存データを破壊しない安全な自動インデックス生成（`CREATE INDEX IF NOT EXISTS` / `INFORMATION_SCHEMA` チェック）を実装
 
-- [ ] **番組一括更新（Bulk Insert）の最適化**
-  - [ ] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用し、EPG更新時の DB 負荷と処理時間を削減
-- [ ] **DBアクセス層の重複コード解消**
-  - [ ] `RecordedDB.ts`, `ReserveDB.ts`, `ChannelDB.ts`, `DropLogFileDB.ts` 等の方言差（SQLite / MySQL）がない同一クエリ処理を共通化
+- [x] **番組一括更新（Bulk Insert）の最適化**
+  - [x] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用し、EPG更新時の DB 負荷と処理時間を削減
+- [x] **DBアクセス層の重複コード解消**
+  - [x] `ProgramDB.ts`, `RecordedDB.ts` 等の方言差（SQLite / MySQL）がない同一クエリ処理を共通化・リファクタリング
+
 
 ---
 

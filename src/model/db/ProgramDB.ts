@@ -35,7 +35,7 @@ export default class ProgramDB implements IProgramDB {
     }
 
     /**
-     * 全件削除 & 挿入
+     * 全件削除 & 挿入（Bulk Upsert 最適化）
      */
     public async insert(
         channelTypes: IChannelTypeIndex,
@@ -55,43 +55,110 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (deleteChannelIds.length > 0) {
-                        await tx.delete(schema.programs).where(inArray(schema.programs.channelId, deleteChannelIds));
-                    }
-                    const chunkSize = 50;
-                    for (let i = 0; i < rows.length; i += chunkSize) {
-                        const chunk = rows.slice(i, i + chunkSize);
-                        for (const r of chunk) {
-                            await tx.insert(schema.programs).values(r).onConflictDoUpdate({
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                if (deleteChannelIds.length > 0) {
+                    await tx.delete(schema.programs).where(inArray(schema.programs.channelId, deleteChannelIds));
+                }
+
+                const chunkSize = 100;
+                for (let i = 0; i < rows.length; i += chunkSize) {
+                    const chunk = rows.slice(i, i + chunkSize);
+                    if (chunk.length === 0) continue;
+
+                    if (client.type === 'sqlite') {
+                        await tx
+                            .insert(schema.programs)
+                            .values(chunk)
+                            .onConflictDoUpdate({
                                 target: schema.programs.id,
-                                set: r,
+                                set: {
+                                    updateTime: sql`excluded.updateTime`,
+                                    channelId: sql`excluded.channelId`,
+                                    eventId: sql`excluded.eventId`,
+                                    serviceId: sql`excluded.serviceId`,
+                                    networkId: sql`excluded.networkId`,
+                                    startAt: sql`excluded.startAt`,
+                                    endAt: sql`excluded.endAt`,
+                                    startHour: sql`excluded.startHour`,
+                                    week: sql`excluded.week`,
+                                    duration: sql`excluded.duration`,
+                                    isFree: sql`excluded.isFree`,
+                                    name: sql`excluded.name`,
+                                    halfWidthName: sql`excluded.halfWidthName`,
+                                    shortName: sql`excluded.shortName`,
+                                    description: sql`excluded.description`,
+                                    halfWidthDescription: sql`excluded.halfWidthDescription`,
+                                    extended: sql`excluded.extended`,
+                                    halfWidthExtended: sql`excluded.halfWidthExtended`,
+                                    rawExtended: sql`excluded.rawExtended`,
+                                    rawHalfWidthExtended: sql`excluded.rawHalfWidthExtended`,
+                                    genre1: sql`excluded.genre1`,
+                                    subGenre1: sql`excluded.subGenre1`,
+                                    genre2: sql`excluded.genre2`,
+                                    subGenre2: sql`excluded.subGenre2`,
+                                    genre3: sql`excluded.genre3`,
+                                    subGenre3: sql`excluded.subGenre3`,
+                                    channelType: sql`excluded.channelType`,
+                                    channel: sql`excluded.channel`,
+                                    videoType: sql`excluded.videoType`,
+                                    videoResolution: sql`excluded.videoResolution`,
+                                    videoStreamContent: sql`excluded.videoStreamContent`,
+                                    videoComponentType: sql`excluded.videoComponentType`,
+                                    audioSamplingRate: sql`excluded.audioSamplingRate`,
+                                    audioComponentType: sql`excluded.audioComponentType`,
+                                },
                             });
-                        }
+                    } else {
+                        await tx
+                            .insert(schema.programs)
+                            .values(chunk)
+                            .onDuplicateKeyUpdate({
+                                set: {
+                                    updateTime: sql`VALUES(\`updateTime\`)`,
+                                    channelId: sql`VALUES(\`channelId\`)`,
+                                    eventId: sql`VALUES(\`eventId\`)`,
+                                    serviceId: sql`VALUES(\`serviceId\`)`,
+                                    networkId: sql`VALUES(\`networkId\`)`,
+                                    startAt: sql`VALUES(\`startAt\`)`,
+                                    endAt: sql`VALUES(\`endAt\`)`,
+                                    startHour: sql`VALUES(\`startHour\`)`,
+                                    week: sql`VALUES(\`week\`)`,
+                                    duration: sql`VALUES(\`duration\`)`,
+                                    isFree: sql`VALUES(\`isFree\`)`,
+                                    name: sql`VALUES(\`name\`)`,
+                                    halfWidthName: sql`VALUES(\`halfWidthName\`)`,
+                                    shortName: sql`VALUES(\`shortName\`)`,
+                                    description: sql`VALUES(\`description\`)`,
+                                    halfWidthDescription: sql`VALUES(\`halfWidthDescription\`)`,
+                                    extended: sql`VALUES(\`extended\`)`,
+                                    halfWidthExtended: sql`VALUES(\`halfWidthExtended\`)`,
+                                    rawExtended: sql`VALUES(\`rawExtended\`)`,
+                                    rawHalfWidthExtended: sql`VALUES(\`rawHalfWidthExtended\`)`,
+                                    genre1: sql`VALUES(\`genre1\`)`,
+                                    subGenre1: sql`VALUES(\`subGenre1\`)`,
+                                    genre2: sql`VALUES(\`genre2\`)`,
+                                    subGenre2: sql`VALUES(\`subGenre2\`)`,
+                                    genre3: sql`VALUES(\`genre3\`)`,
+                                    subGenre3: sql`VALUES(\`subGenre3\`)`,
+                                    channelType: sql`VALUES(\`channelType\`)`,
+                                    channel: sql`VALUES(\`channel\`)`,
+                                    videoType: sql`VALUES(\`videoType\`)`,
+                                    videoResolution: sql`VALUES(\`videoResolution\`)`,
+                                    videoStreamContent: sql`VALUES(\`videoStreamContent\`)`,
+                                    videoComponentType: sql`VALUES(\`videoComponentType\`)`,
+                                    audioSamplingRate: sql`VALUES(\`audioSamplingRate\`)`,
+                                    audioComponentType: sql`VALUES(\`audioComponentType\`)`,
+                                },
+                            });
                     }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (deleteChannelIds.length > 0) {
-                        await tx.delete(schema.programs).where(inArray(schema.programs.channelId, deleteChannelIds));
-                    }
-                    const chunkSize = 50;
-                    for (let i = 0; i < rows.length; i += chunkSize) {
-                        const chunk = rows.slice(i, i + chunkSize);
-                        for (const r of chunk) {
-                            await tx.insert(schema.programs).values(r).onDuplicateKeyUpdate({ set: r });
-                        }
-                    }
-                });
-            }
+                }
+            });
         });
     }
 
     /**
-     * 部分更新
+     * 部分更新（Bulk Upsert 最適化）
      */
     public async update(channelTypes: IChannelTypeIndex, values: ProgramUpdateValues): Promise<void> {
         const updateTime = new Date().getTime();
@@ -108,30 +175,105 @@ export default class ProgramDB implements IProgramDB {
         }
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (values.delete.length > 0) {
-                        await tx.delete(schema.programs).where(inArray(schema.programs.id, values.delete));
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                if (values.delete.length > 0) {
+                    await tx.delete(schema.programs).where(inArray(schema.programs.id, values.delete));
+                }
+
+                const chunkSize = 100;
+                for (let i = 0; i < insertValues.length; i += chunkSize) {
+                    const chunk = insertValues.slice(i, i + chunkSize);
+                    if (chunk.length === 0) continue;
+
+                    if (client.type === 'sqlite') {
+                        await tx
+                            .insert(schema.programs)
+                            .values(chunk)
+                            .onConflictDoUpdate({
+                                target: schema.programs.id,
+                                set: {
+                                    updateTime: sql`excluded.updateTime`,
+                                    channelId: sql`excluded.channelId`,
+                                    eventId: sql`excluded.eventId`,
+                                    serviceId: sql`excluded.serviceId`,
+                                    networkId: sql`excluded.networkId`,
+                                    startAt: sql`excluded.startAt`,
+                                    endAt: sql`excluded.endAt`,
+                                    startHour: sql`excluded.startHour`,
+                                    week: sql`excluded.week`,
+                                    duration: sql`excluded.duration`,
+                                    isFree: sql`excluded.isFree`,
+                                    name: sql`excluded.name`,
+                                    halfWidthName: sql`excluded.halfWidthName`,
+                                    shortName: sql`excluded.shortName`,
+                                    description: sql`excluded.description`,
+                                    halfWidthDescription: sql`excluded.halfWidthDescription`,
+                                    extended: sql`excluded.extended`,
+                                    halfWidthExtended: sql`excluded.halfWidthExtended`,
+                                    rawExtended: sql`excluded.rawExtended`,
+                                    rawHalfWidthExtended: sql`excluded.rawHalfWidthExtended`,
+                                    genre1: sql`excluded.genre1`,
+                                    subGenre1: sql`excluded.subGenre1`,
+                                    genre2: sql`excluded.genre2`,
+                                    subGenre2: sql`excluded.subGenre2`,
+                                    genre3: sql`excluded.genre3`,
+                                    subGenre3: sql`excluded.subGenre3`,
+                                    channelType: sql`excluded.channelType`,
+                                    channel: sql`excluded.channel`,
+                                    videoType: sql`excluded.videoType`,
+                                    videoResolution: sql`excluded.videoResolution`,
+                                    videoStreamContent: sql`excluded.videoStreamContent`,
+                                    videoComponentType: sql`excluded.videoComponentType`,
+                                    audioSamplingRate: sql`excluded.audioSamplingRate`,
+                                    audioComponentType: sql`excluded.audioComponentType`,
+                                },
+                            });
+                    } else {
+                        await tx
+                            .insert(schema.programs)
+                            .values(chunk)
+                            .onDuplicateKeyUpdate({
+                                set: {
+                                    updateTime: sql`VALUES(\`updateTime\`)`,
+                                    channelId: sql`VALUES(\`channelId\`)`,
+                                    eventId: sql`VALUES(\`eventId\`)`,
+                                    serviceId: sql`VALUES(\`serviceId\`)`,
+                                    networkId: sql`VALUES(\`networkId\`)`,
+                                    startAt: sql`VALUES(\`startAt\`)`,
+                                    endAt: sql`VALUES(\`endAt\`)`,
+                                    startHour: sql`VALUES(\`startHour\`)`,
+                                    week: sql`VALUES(\`week\`)`,
+                                    duration: sql`VALUES(\`duration\`)`,
+                                    isFree: sql`VALUES(\`isFree\`)`,
+                                    name: sql`VALUES(\`name\`)`,
+                                    halfWidthName: sql`VALUES(\`halfWidthName\`)`,
+                                    shortName: sql`VALUES(\`shortName\`)`,
+                                    description: sql`VALUES(\`description\`)`,
+                                    halfWidthDescription: sql`VALUES(\`halfWidthDescription\`)`,
+                                    extended: sql`VALUES(\`extended\`)`,
+                                    halfWidthExtended: sql`VALUES(\`halfWidthExtended\`)`,
+                                    rawExtended: sql`VALUES(\`rawExtended\`)`,
+                                    rawHalfWidthExtended: sql`VALUES(\`rawHalfWidthExtended\`)`,
+                                    genre1: sql`VALUES(\`genre1\`)`,
+                                    subGenre1: sql`VALUES(\`subGenre1\`)`,
+                                    genre2: sql`VALUES(\`genre2\`)`,
+                                    subGenre2: sql`VALUES(\`subGenre2\`)`,
+                                    genre3: sql`VALUES(\`genre3\`)`,
+                                    subGenre3: sql`VALUES(\`subGenre3\`)`,
+                                    channelType: sql`VALUES(\`channelType\`)`,
+                                    channel: sql`VALUES(\`channel\`)`,
+                                    videoType: sql`VALUES(\`videoType\`)`,
+                                    videoResolution: sql`VALUES(\`videoResolution\`)`,
+                                    videoStreamContent: sql`VALUES(\`videoStreamContent\`)`,
+                                    videoComponentType: sql`VALUES(\`videoComponentType\`)`,
+                                    audioSamplingRate: sql`VALUES(\`audioSamplingRate\`)`,
+                                    audioComponentType: sql`VALUES(\`audioComponentType\`)`,
+                                },
+                            });
                     }
-                    for (const row of insertValues) {
-                        await tx.insert(schema.programs).values(row).onConflictDoUpdate({
-                            target: schema.programs.id,
-                            set: row,
-                        });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (values.delete.length > 0) {
-                        await tx.delete(schema.programs).where(inArray(schema.programs.id, values.delete));
-                    }
-                    for (const row of insertValues) {
-                        await tx.insert(schema.programs).values(row).onDuplicateKeyUpdate({ set: row });
-                    }
-                });
-            }
+                }
+            });
         });
     }
 
@@ -142,13 +284,8 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.programs).where(lt(schema.programs.endAt, time));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.programs).where(lt(schema.programs.endAt, time));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.programs).where(lt(schema.programs.endAt, time));
         });
     }
 
@@ -159,14 +296,8 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.programs).where(eq(schema.programs.id, programId));
-            } else {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.programs).where(eq(schema.programs.id, programId));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.programs).where(eq(schema.programs.id, programId));
 
             if (rows.length === 0) return null;
             return this.toEntity(rows[0]);
@@ -184,32 +315,17 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            const conditions: any[] = [];
-            let rows: any[] = [];
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                conditions.push(
-                    eq(schema.programs.networkId, networkId),
-                    eq(schema.programs.serviceId, serviceId),
-                    eq(schema.programs.eventId, eventId),
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.programs)
+                .where(
+                    and(
+                        eq(schema.programs.networkId, networkId),
+                        eq(schema.programs.serviceId, serviceId),
+                        eq(schema.programs.eventId, eventId),
+                    ),
                 );
-                rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(...conditions));
-            } else {
-                const { db, schema } = client;
-                conditions.push(
-                    eq(schema.programs.networkId, networkId),
-                    eq(schema.programs.serviceId, serviceId),
-                    eq(schema.programs.eventId, eventId),
-                );
-                rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(...conditions));
-            }
 
             if (rows.length === 0) return null;
             return this.toEntity(rows[0]);
@@ -402,19 +518,15 @@ export default class ProgramDB implements IProgramDB {
             }
 
             const whereClause = and(...conditions);
+            const { db, schema } = client;
 
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                let query = db.select().from(schema.programs).where(whereClause).orderBy(asc(schema.programs.startAt));
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-                rows = await query;
-            } else {
-                const { db, schema } = client;
-                let query = db.select().from(schema.programs).where(whereClause).orderBy(asc(schema.programs.startAt));
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-                rows = await query;
-            }
+            let query = (db as any)
+                .select()
+                .from(schema.programs)
+                .where(whereClause)
+                .orderBy(asc(schema.programs.startAt));
+            if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+            const rows: any[] = await query;
 
             // avoidDuplicate (重複判定)
             const avoidDuplicate = option.reserveOption?.avoidDuplicate === true;
@@ -430,57 +542,28 @@ export default class ProgramDB implements IProgramDB {
                 const shortNames = rows.map(r => r.shortName).filter(Boolean);
                 const channelIds = rows.map(r => r.channelId);
 
-                if (client.type === 'sqlite') {
-                    const { db, schema } = client;
-                    const histConditions: any[] = [
-                        inArray(schema.recordedHistory.name, shortNames),
-                        inArray(schema.recordedHistory.channelId, channelIds),
-                    ];
-                    if (period > 0) {
-                        histConditions.push(
-                            gte(schema.recordedHistory.endAt, now - period),
-                            lte(schema.recordedHistory.endAt, now),
-                        );
-                    } else {
-                        histConditions.push(lte(schema.recordedHistory.endAt, now));
-                    }
-
-                    const histRows = await db
-                        .select({ name: schema.recordedHistory.name, channelId: schema.recordedHistory.channelId })
-                        .from(schema.recordedHistory)
-                        .where(and(...histConditions));
-
-                    const histKeySet = new Set(histRows.map(h => `${h.name}_${h.channelId}`));
-                    for (const r of rows) {
-                        if (histKeySet.has(`${r.shortName}_${r.channelId}`)) {
-                            overlapSet.add(r.id);
-                        }
-                    }
+                const histConditions: any[] = [
+                    inArray(schema.recordedHistory.name, shortNames),
+                    inArray(schema.recordedHistory.channelId, channelIds),
+                ];
+                if (period > 0) {
+                    histConditions.push(
+                        gte(schema.recordedHistory.endAt, now - period),
+                        lte(schema.recordedHistory.endAt, now),
+                    );
                 } else {
-                    const { db, schema } = client;
-                    const histConditions: any[] = [
-                        inArray(schema.recordedHistory.name, shortNames),
-                        inArray(schema.recordedHistory.channelId, channelIds),
-                    ];
-                    if (period > 0) {
-                        histConditions.push(
-                            gte(schema.recordedHistory.endAt, now - period),
-                            lte(schema.recordedHistory.endAt, now),
-                        );
-                    } else {
-                        histConditions.push(lte(schema.recordedHistory.endAt, now));
-                    }
+                    histConditions.push(lte(schema.recordedHistory.endAt, now));
+                }
 
-                    const histRows = await db
-                        .select({ name: schema.recordedHistory.name, channelId: schema.recordedHistory.channelId })
-                        .from(schema.recordedHistory)
-                        .where(and(...histConditions));
+                const histRows = await (db as any)
+                    .select({ name: schema.recordedHistory.name, channelId: schema.recordedHistory.channelId })
+                    .from(schema.recordedHistory)
+                    .where(and(...histConditions));
 
-                    const histKeySet = new Set(histRows.map(h => `${h.name}_${h.channelId}`));
-                    for (const r of rows) {
-                        if (histKeySet.has(`${r.shortName}_${r.channelId}`)) {
-                            overlapSet.add(r.id);
-                        }
+                const histKeySet = new Set(histRows.map((h: any) => `${h.name}_${h.channelId}`));
+                for (const r of rows) {
+                    if (histKeySet.has(`${r.shortName}_${r.channelId}`)) {
+                        overlapSet.add(r.id);
                     }
                 }
             }
@@ -500,20 +583,11 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(eq(schema.programs.channelId, channelId), eq(schema.programs.startAt, startAt)));
-            } else {
-                const { db, schema } = client;
-                rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(eq(schema.programs.channelId, channelId), eq(schema.programs.startAt, startAt)));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.programs)
+                .where(and(eq(schema.programs.channelId, channelId), eq(schema.programs.startAt, startAt)));
 
             if (rows.length === 0) return null;
             return this.toEntity(rows[0]);
@@ -527,16 +601,10 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            let rows: any[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.programs).orderBy(asc(schema.programs.startAt));
-            } else {
-                const { db, schema } = client;
-                rows = await db.select().from(schema.programs).orderBy(asc(schema.programs.startAt));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.programs).orderBy(asc(schema.programs.startAt));
 
-            return rows.map(r => this.toEntity(r));
+            return rows.map((r: any) => this.toEntity(r));
         });
     }
 
@@ -547,55 +615,29 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const conditions: any[] = [
-                    lte(schema.programs.startAt, option.endAt),
-                    gte(schema.programs.endAt, option.startAt),
-                ];
+            const { db, schema } = client;
+            const conditions: any[] = [
+                lte(schema.programs.startAt, option.endAt),
+                gte(schema.programs.endAt, option.startAt),
+            ];
 
-                if ('channelId' in option && typeof option.channelId !== 'undefined') {
-                    conditions.push(eq(schema.programs.channelId, option.channelId));
-                } else if ('types' in option && option.types.length > 0) {
-                    conditions.push(inArray(schema.programs.channelType, option.types));
-                }
-
-                if (option.isFree) {
-                    conditions.push(eq(schema.programs.isFree, true));
-                }
-
-                const rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(...conditions))
-                    .orderBy(asc(schema.programs.startAt));
-
-                return rows.map(r => this.toEntity(r, option.isHalfWidth));
-            } else {
-                const { db, schema } = client;
-                const conditions: any[] = [
-                    lte(schema.programs.startAt, option.endAt),
-                    gte(schema.programs.endAt, option.startAt),
-                ];
-
-                if ('channelId' in option && typeof option.channelId !== 'undefined') {
-                    conditions.push(eq(schema.programs.channelId, option.channelId));
-                } else if ('types' in option && option.types.length > 0) {
-                    conditions.push(inArray(schema.programs.channelType, option.types));
-                }
-
-                if (option.isFree) {
-                    conditions.push(eq(schema.programs.isFree, true));
-                }
-
-                const rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(and(...conditions))
-                    .orderBy(asc(schema.programs.startAt));
-
-                return rows.map(r => this.toEntity(r, option.isHalfWidth));
+            if ('channelId' in option && typeof option.channelId !== 'undefined') {
+                conditions.push(eq(schema.programs.channelId, option.channelId));
+            } else if ('types' in option && option.types.length > 0) {
+                conditions.push(inArray(schema.programs.channelType, option.types));
             }
+
+            if (option.isFree) {
+                conditions.push(eq(schema.programs.isFree, true));
+            }
+
+            const rows = await (db as any)
+                .select()
+                .from(schema.programs)
+                .where(and(...conditions))
+                .orderBy(asc(schema.programs.startAt));
+
+            return rows.map((r: any) => this.toEntity(r, option.isHalfWidth));
         });
     }
 
@@ -610,29 +652,16 @@ export default class ProgramDB implements IProgramDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promieRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const whereClause = and(lte(schema.programs.startAt, time), gte(schema.programs.endAt, time));
+            const { db, schema } = client;
+            const whereClause = and(lte(schema.programs.startAt, time), gte(schema.programs.endAt, time));
 
-                const rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(whereClause)
-                    .orderBy(asc(schema.programs.startAt));
+            const rows = await (db as any)
+                .select()
+                .from(schema.programs)
+                .where(whereClause)
+                .orderBy(asc(schema.programs.startAt));
 
-                return rows.map(r => this.toEntity(r, option.isHalfWidth));
-            } else {
-                const { db, schema } = client;
-                const whereClause = and(lte(schema.programs.startAt, time), gte(schema.programs.endAt, time));
-
-                const rows = await db
-                    .select()
-                    .from(schema.programs)
-                    .where(whereClause)
-                    .orderBy(asc(schema.programs.startAt));
-
-                return rows.map(r => this.toEntity(r, option.isHalfWidth));
-            }
+            return rows.map((r: any) => this.toEntity(r, option.isHalfWidth));
         });
     }
 

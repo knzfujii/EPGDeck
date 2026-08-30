@@ -1,0 +1,15 @@
+const { runEncode } = require('./enc_helper');
+
+/**
+ * 軽量 720p エンコード設定 (スマホ・外出先視聴向け)
+ * - HD (1280x720) / CRF 23 / preset: fast
+ * - 主音声のみ抽出
+ */
+runEncode({
+    codec: 'libx264',
+    preset: 'fast',
+    crf: 23,
+    maxHeight: 720,
+    dualMono: 'main',
+    subtitle: false,
+});

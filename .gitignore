@@ -14,6 +14,7 @@ data/streamfiles/*
 config/*
 !config/*.template
 !config/*.sample.yml
+!config/enc_helper.js
 data/*.json
 data/upload/*
 drop/*.log
@@ -27,3 +28,7 @@ data/key/*
 test-results
 playwright-report
 blob-report
+scratch/
+*.m2ts
+*.ts.dummy
+

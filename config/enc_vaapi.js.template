@@ -1,0 +1,16 @@
+const { runEncode } = require('./enc_helper');
+
+/**
+ * Linux VAAPI ハードウェアアクセラレーション設定 (Intel / AMD GPU)
+ * - GPU によるインターレース解除 (deinterlace_vaapi)
+ * - 地デジ 1440x1080 を 1920x1080 にハードウェア拡大補正
+ * - 二重音声の2トラック分離
+ */
+runEncode({
+    codec: 'h264_vaapi',
+    vaapiDevice: '/dev/dri/renderD128',
+    videoBitrate: '4500k',
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: false,
+});

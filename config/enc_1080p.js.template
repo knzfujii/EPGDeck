@@ -1,0 +1,15 @@
+const { runEncode } = require('./enc_helper');
+
+/**
+ * 高品質 1080p エンコード設定
+ * - フルHD (1920x1080) / CRF 21 / preset: medium
+ * - 二重音声の2トラック（Main / Sub）分離
+ */
+runEncode({
+    codec: 'libx264',
+    preset: 'medium',
+    crf: 21,
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: false,
+});

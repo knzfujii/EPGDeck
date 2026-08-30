@@ -1,0 +1,15 @@
+const { runEncode } = require('./enc_helper');
+
+/**
+ * Intel QuickSync Video (QSV) ハードウェアアクセラレーション設定
+ * - h264_qsv / global_quality 23
+ * - 地デジ 1440x1080 の 1920x1080 自動補正
+ */
+runEncode({
+    codec: 'h264_qsv',
+    preset: 'medium',
+    crf: 23,
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: false,
+});

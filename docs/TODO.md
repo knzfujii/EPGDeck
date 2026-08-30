@@ -59,9 +59,9 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] Hono REST API エンドポイントの統合テスト拡充 (`test/unit/hono_api.test.ts`)
   - [x] 録画・予約管理（並列チューナー競合解決・ライフサイクル）のユニットテスト追加 (`test/unit/reservation_conflict.test.ts`, `test/unit/recording_manage.test.ts`)
   - [x] Drizzle ORM DAO CRUD クエリテスト拡充 (`test/unit/dao_crud.test.ts`)
-- [ ] **E2E テスト環境の検討**
-  - [ ] Playwright による主要画面の E2E スモークテスト環境構築
-
+- [x] **E2E テスト環境の構築**
+  - [x] Playwright による主要画面（システムログ画面等）の E2E 自動テスト環境構築 (`test/e2e/logs.spec.ts`)
+  - [x] Chromium ヘッドレスでの画面遷移・エラーゼロ・UI操作・実 API リアルタイムストリーミング自動検証
 
 ---
 
@@ -71,14 +71,17 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `docs/dev/architecture.md` の冒頭・Mermaid 図を Hono / Drizzle / Svelte 5 に同期
   - [x] `docs/dev/database.md` を Drizzle ORM（`drizzle-kit`）の運用手順に書き換え
   - [x] `client/tsconfig.json` の include 設定（Vue 時代の残骸）を最新の Svelte 5 構成に整理
-
+- [x] **エンコードシステムのモダン化と共通ヘルパー化**
+  - [x] `config/enc_helper.js` 共通化モジュールの作成（メディア解析、進捗計算、二重音声分離、地デジ 1440p 自動補正）
+  - [x] 用途別テンプレート（1080p, 720p, VAAPI, QSV, NVENC）の整備
+  - [x] エンコード仕様書 & 設定ガイドの作成 (`docs/encode.md`)
 
 ---
 
 ## ユーザー追加メモ (User Notes)
 
 - [ ] configの利用状況。妥当性の確認
-    - [ ] エンコード周辺の整理
+    - [x] エンコード周辺の整理
 - [ ] Playerのseekbarがふさわしくない画面での表示
 - [ ] Mirakurunとのバージョン互換の確認
 - [ ] ストレージ画面をダッシュボードに統合

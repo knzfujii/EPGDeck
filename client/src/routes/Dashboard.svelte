@@ -1,18 +1,27 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import axios from 'axios';
+    import type * as apid from '../../../api';
     import { Video, Clock, ArrowRight, AlertTriangle, Play } from '@lucide/svelte';
+
+    interface DashboardReserve extends apid.ReserveItem {
+        isRecording?: boolean;
+    }
 
     let recordedTotal = $state(0);
     let reservesTotal = $state(0);
-    let latestRecorded = $state<any[]>([]);
-    let upcomingReserves = $state<any[]>([]);
+    let latestRecorded = $state<apid.RecordedItem[]>([]);
+    let upcomingReserves = $state<DashboardReserve[]>([]);
     let isLoading = $state(true);
 
-    async function fetchDashboard() {
-        isLoading = true;
+    let unsubscribeSocket: (() => void) | null = null;
+
+    async function fetchDashboard(isSilent = false) {
+        if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
             const [recordingRes, recordedRes, reservesRes] = await Promise.all([
@@ -27,8 +36,8 @@
 
             // 予約リストに録画中フラグを付与
             const now = Date.now();
-            const reservesList = reservesRes.data.reserves || [];
-            upcomingReserves = reservesList.map((r: any) => {
+            const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
+            upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
                 const isCurrentlyRecording = recordingList.some((rec: any) => rec.programId === r.programId || rec.id === r.id) || (r.startAt <= now && now < r.endAt);
                 return {
                     ...r,
@@ -39,25 +48,27 @@
         } catch (e) {
             console.error('Failed to fetch dashboard data', e);
         } finally {
-            isLoading = false;
+            if (!isSilent) isLoading = false;
         }
     }
 
     onMount(() => {
         fetchDashboard();
-        const interval = setInterval(fetchDashboard, 30000); // 30秒ごとに自動更新
-        return () => clearInterval(interval);
+        // 30秒タイマーポーリングと Socket.IO リアルタイム通知のハイブリッド
+        const interval = setInterval(() => fetchDashboard(true), 30000);
+
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            fetchDashboard(true);
+        });
+
+        return () => {
+            clearInterval(interval);
+        };
     });
 
-    function formatTime(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDate(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getMonth() + 1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]}) ${formatTime(timestamp)}`;
-    }
+    onDestroy(() => {
+        unsubscribeSocket?.();
+    });
 
     function getRecordingProgress(startAt: number, endAt: number): number {
         const now = Date.now();
@@ -163,7 +174,7 @@
                                         </button>
                                     {:else}
                                         <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            {formatDate(item.startAt)}
+                                            {formatDate(item.startAt)} {formatTime(item.startAt)}
                                         </span>
                                     {/if}
                                 </div>
@@ -224,7 +235,7 @@
                                         {channelStore.getChannelName(item.channelId)}
                                     </span>
                                     <span class="text-[11px] text-slate-400">
-                                        {formatDate(item.startAt)}
+                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
                                     </span>
                                 </div>
                                 <h3 class="mt-0.5 truncate text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">

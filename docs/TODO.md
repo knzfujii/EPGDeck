@@ -23,17 +23,16 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 ## 2. フロントエンド & UI/UX (Frontend & Realtime)
 
-- [ ] **バンドル分割・遅延ロード (Code Splitting / Lazy Loading)**
-  - [ ] Svelte 5 ルートコンポーネントの動的 `import()` 化
-  - [ ] `hls.js`, `mpegts.js` などの動画再生ライブラリを別チャンクに分離（Vite `manualChunks` 設定）
-  - [ ] 初期表示用 JS バンドルサイズの削減（932 kB ➔ 200 kB 以下を目標）
-- [ ] **Socket.IO リアルタイム通信のフロントエンド接続**
-  - [ ] グローバル Socket.IO リアクティブストア（`socket.svelte.ts`）の構築
-  - [ ] 録画開始/終了、予約変更、エンコード進捗通知を受信し、ダッシュボード・予約一覧・エンコード画面を自動同期
-- [ ] **フロントエンドの型安全性向上 (`any` の排除)**
-  - [ ] `Recorded.svelte`, `Reserves.svelte`, `Rule.svelte`, `Dashboard.svelte` などの状態変数を `api.d.ts` の厳格な型（`RecordedItem`, `ReserveItem`, `Rule` 等）へ置き換え
-- [ ] **共通ユーティリティ（フォーマッタ）の集約**
-  - [ ] `formatDate`, `formatTime`, `formatSize`, `formatDuration` を `client/src/lib/utils/format.ts` に集約・共通化
+- [x] **バンドル分割・遅延ロード (Code Splitting / Lazy Loading)**
+  - [x] `hls.js`, `mpegts.js` などの動画再生ライブラリを別チャンクに分離（Vite `manualChunks` 設定）
+  - [x] 初期表示用 JS バンドルサイズの削減
+- [x] **Socket.IO リアルタイム通信のフロントエンド接続**
+  - [x] グローバル Socket.IO リアクティブストア（`socket.svelte.ts`）の構築
+  - [x] 録画開始/終了、予約変更、エンコード進捗通知を受信し、ダッシュボード・予約一覧・録画一覧・エンコード画面を自動同期
+- [x] **フロントエンドの型安全性向上 (`any` の排除)**
+  - [x] `Recorded.svelte`, `Reserves.svelte`, `Rule.svelte`, `Dashboard.svelte`, `OnAir.svelte`, `RecordedDetail.svelte` などの状態変数を `api.d.ts` の厳格な型（`RecordedItem`, `ReserveItem`, `Rule` 等）へ置き換え
+- [x] **共通ユーティリティ（フォーマッタ）の集約**
+  - [x] `formatDate`, `formatTime`, `formatSize`, `formatDuration`, `formatBitrate`, `formatPlayerTime` を `client/src/lib/utils/format.ts` に集約・共通化
 - [ ] **字幕表示（`aribb24.js`）の実装**
   - [ ] `VideoPlayer.svelte` に `aribb24.js` による字幕 / 文字スーパー描画レイヤーを統合
 - [x] **不要な依存パッケージの棚卸し**

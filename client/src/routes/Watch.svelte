@@ -267,13 +267,20 @@
         <button
             type="button"
             onclick={() => {
-                if (isLive) router.push('/onair');
-                else router.push('/recorded');
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else if (isLive) {
+                    router.push('/onair');
+                } else if (recordedData?.id) {
+                    router.push(`/recorded/detail?recordedId=${recordedData.id}`);
+                } else {
+                    router.push('/recorded');
+                }
             }}
             class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
         >
             <ArrowLeft size={16} />
-            {isLive ? '放映中一覧へ戻る' : '録画一覧へ戻る'}
+            {isLive ? '放映中へ戻る' : '戻る'}
         </button>
 
         {#if channelName}

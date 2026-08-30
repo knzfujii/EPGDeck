@@ -1,10 +1,13 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import axios from 'axios';
+    import type * as apid from '../../../api';
     import {
         Video,
         Search,
@@ -24,7 +27,7 @@
         Sparkles
     } from '@lucide/svelte';
 
-    let recorded = $state<any[]>([]);
+    let recorded = $state<apid.RecordedItem[]>([]);
     let total = $state(0);
     let isLoading = $state(true);
 
@@ -52,7 +55,7 @@
 
     // 再生モーダル状態
     let isStreamModalOpen = $state(false);
-    let selectedItemForStream = $state<any>(null);
+    let selectedItemForStream = $state<apid.RecordedItem | null>(null);
 
     // ジャンル定義
     const genres = [
@@ -71,8 +74,10 @@
     const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
-    async function fetchRecorded() {
-        isLoading = true;
+    let unsubscribeSocket: (() => void) | null = null;
+
+    async function fetchRecorded(isSilent = false) {
+        if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
             const params: Record<string, any> = {
@@ -101,9 +106,9 @@
             total = res.data.total || 0;
         } catch (e) {
             console.error('Failed to fetch recorded', e);
-            snackbar.open({ text: '録画データの取得に失敗しました', color: 'error' });
+            if (!isSilent) snackbar.open({ text: '録画データの取得に失敗しました', color: 'error' });
         } finally {
-            isLoading = false;
+            if (!isSilent) isLoading = false;
         }
     }
 
@@ -119,6 +124,15 @@
             }
         }
         fetchRecorded();
+
+        // Socket.IO による録画ステータス更新の受信
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            fetchRecorded(true);
+        });
+    });
+
+    onDestroy(() => {
+        unsubscribeSocket?.();
     });
 
     function handleSearch() {
@@ -147,7 +161,7 @@
     }
 
     // スマート再生トリガー
-    function handlePlayClick(item: any) {
+    function handlePlayClick(item: apid.RecordedItem) {
         const files = item.videoFiles || [];
         const encoded = files.filter((f: any) => f.type === 'encoded' || f.name.toLowerCase().includes('mp4'));
 
@@ -162,7 +176,7 @@
     }
 
     // 保護 / 保護解除
-    async function toggleProtect(item: any) {
+    async function toggleProtect(item: apid.RecordedItem) {
         try {
             if (item.isProtected) {
                 await axios.put(`/api/recorded/${item.id}/unprotect`);
@@ -192,25 +206,8 @@
         }
     }
 
-    function formatTime(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDate(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日','月','火','水','木','金','土'][d.getDay()]}) ${formatTime(timestamp)}`;
-    }
-
-    function formatSize(bytes?: number): string {
-        if (!bytes) return '-';
-        const gb = bytes / (1024 * 1024 * 1024);
-        return `${gb.toFixed(1)} GB`;
-    }
-
-    function formatDuration(startAt: number, endAt: number): string {
-        const min = Math.round((endAt - startAt) / 60000);
-        return `${min}分`;
+    function formatRecordedDuration(startAt: number, endAt: number): string {
+        return formatDuration(endAt - startAt);
     }
 </script>
 
@@ -341,7 +338,7 @@
                             <th class="px-4 py-3">放送局</th>
                             <th class="px-4 py-3">番組名 / 概要</th>
                             <th class="px-4 py-3">時間 / サイズ</th>
-                            <th class="px-4 py-3">状態</th>
+                            <th class="px-4 py-3">ドロップ</th>
                             <th class="px-4 py-3 text-right">再生 / 操作</th>
                         </tr>
                     </thead>
@@ -384,18 +381,20 @@
                                     {/if}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 text-slate-500 dark:text-slate-400">
-                                    <div>{formatDuration(item.startAt, item.endAt)}</div>
+                                    <div>{formatDuration(item.endAt - item.startAt)}</div>
                                     <div class="text-xs text-slate-400">{formatSize(item.videoFiles?.[0]?.size)}</div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    {#if item.dropCnt > 0 || item.errorCnt > 0}
-                                        <span class="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                                            <AlertTriangle size={11} /> Drop: {item.dropCnt}
+                                    {#if item.dropLogFile && (item.dropLogFile.dropCnt > 0 || item.dropLogFile.errorCnt > 0)}
+                                        <span class="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300" title={`Drop: ${item.dropLogFile.dropCnt}, Error: ${item.dropLogFile.errorCnt}, Scramble: ${item.dropLogFile.scramblingCnt}`}>
+                                            <AlertTriangle size={11} /> Drop: {item.dropLogFile.dropCnt}
+                                        </span>
+                                    {:else if item.dropLogFile}
+                                        <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                                            なし (0)
                                         </span>
                                     {:else}
-                                        <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                            正常
-                                        </span>
+                                        <span class="text-xs text-slate-400">-</span>
                                     {/if}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 text-right">
@@ -479,7 +478,7 @@
                         </div>
 
                         <span class="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            {formatDuration(item.startAt, item.endAt)}
+                            {formatDuration(item.endAt - item.startAt)}
                         </span>
 
                         {#if item.isProtected}
@@ -512,7 +511,7 @@
 
                         <!-- 下部メタ & アクションボタン -->
                         <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-slate-800">
-                            <span class="font-medium">{formatDate(item.startAt)}</span>
+                            <span class="font-medium">{formatDate(item.startAt)} {formatTime(item.startAt)}</span>
                             <div class="flex items-center gap-1.5">
                                 <button
                                     type="button"

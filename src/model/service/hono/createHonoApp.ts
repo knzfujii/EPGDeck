@@ -26,6 +26,7 @@ import thumbnailsRoute from './routes/thumbnails';
 import versionRoute from './routes/version';
 import videosRoute from './routes/videos';
 import * as api from './HonoApiUtil';
+import ProcessUtil from '../../../util/ProcessUtil';
 
 export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     const app = new Hono();
@@ -52,7 +53,7 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     };
 
     // 3. OpenAPI Document
-    const rootDir = path.join(__dirname, '..', '..', '..', '..');
+    const rootDir = ProcessUtil.ROOT_PATH;
     const apiYmlPath = path.join(rootDir, 'api.yml');
     const packageJsonPath = path.join(rootDir, 'package.json');
 
@@ -143,35 +144,38 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
 
     // Client static files & SPA Fallback
     const clientDist = path.join(rootDir, 'client', 'dist');
-    if (fs.existsSync(clientDist)) {
-        app.get(`${createUrl('/')}*`, async c => {
-            let reqPath = c.req.path;
-            if (config.subDirectory && reqPath.startsWith(config.subDirectory)) {
-                reqPath = reqPath.slice(config.subDirectory.length);
-            }
-            if (reqPath === '' || reqPath === '/') {
-                reqPath = '/index.html';
-            }
+    const handleClientFile = async (c: any) => {
+        let reqPath = c.req.path;
+        if (config.subDirectory && reqPath.startsWith(config.subDirectory)) {
+            reqPath = reqPath.slice(config.subDirectory.length);
+        }
+        if (reqPath === '' || reqPath === '/') {
+            reqPath = '/index.html';
+        }
 
-            const localPath = path.join(clientDist, reqPath);
-            if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
-                return await api.responseFile(c, localPath, getMimeType(localPath), false);
-            }
+        const localPath = path.join(clientDist, reqPath);
+        if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
+            return await api.responseFile(c, localPath, getMimeType(localPath), false);
+        }
 
-            // 静的アセット（拡張子を持つファイル）へのリクエストが存在しない場合は 404 を返す（index.html に誤フォールバックさせない）
-            const ext = path.extname(reqPath);
-            if (ext !== '' && ext !== '.html') {
-                return c.notFound();
-            }
-
-            // SPA Fallback to index.html
-            const indexPath = path.join(clientDist, 'index.html');
-            if (fs.existsSync(indexPath)) {
-                return await api.responseFile(c, indexPath, 'text/html', false);
-            }
-
+        // 静的アセット（拡張子を持つファイル）へのリクエストが存在しない場合は 404 を返す
+        const ext = path.extname(reqPath);
+        if (ext !== '' && ext !== '.html') {
             return c.notFound();
-        });
+        }
+
+        // SPA Fallback to index.html
+        const indexPath = path.join(clientDist, 'index.html');
+        if (fs.existsSync(indexPath)) {
+            return await api.responseFile(c, indexPath, getMimeType(indexPath), false);
+        }
+        return c.notFound();
+    };
+
+    if (fs.existsSync(clientDist)) {
+        app.get(createUrl('/'), handleClientFile);
+        app.get(`${createUrl('/')}*`, handleClientFile);
+        app.get('*', handleClientFile);
     }
 
     return app;

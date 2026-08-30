@@ -1,10 +1,13 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import axios from 'axios';
+    import type * as apid from '../../../api';
     import {
         ArrowLeft,
         Play,
@@ -25,7 +28,7 @@
         FileText
     } from '@lucide/svelte';
 
-    let recorded = $state<any>(null);
+    let recorded = $state<apid.RecordedItem | null>(null);
     let isLoading = $state(true);
     let isStreamModalOpen = $state(false);
 
@@ -40,12 +43,14 @@
     let dropLogData = $state<any>(null);
     let isLoadingDropLog = $state(false);
 
+    let unsubscribeSocket: (() => void) | null = null;
+
     const query = $derived(router.current.query);
     const recordedId = $derived(query.recordedId ? parseInt(query.recordedId, 10) : null);
 
-    async function fetchRecordedDetail() {
+    async function fetchRecordedDetail(isSilent = false) {
         if (!recordedId) return;
-        isLoading = true;
+        if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
             const res = await axios.get(`/api/recorded/${recordedId}?isHalfWidth=true`);
@@ -57,33 +62,23 @@
             encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
         } catch (e) {
             console.error('Failed to fetch recorded detail', e);
-            snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
+            if (!isSilent) snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
         } finally {
-            isLoading = false;
+            if (!isSilent) isLoading = false;
         }
     }
 
     onMount(() => {
         fetchRecordedDetail();
+
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            fetchRecordedDetail(true);
+        });
     });
 
-    function formatTime(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDate(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]}) ${formatTime(timestamp)}`;
-    }
-
-    function formatSize(bytes?: number): string {
-        if (!bytes) return '-';
-        const gb = bytes / (1024 * 1024 * 1024);
-        if (gb >= 1.0) return `${gb.toFixed(2)} GB`;
-        const mb = bytes / (1024 * 1024);
-        return `${mb.toFixed(1)} MB`;
-    }
+    onDestroy(() => {
+        unsubscribeSocket?.();
+    });
 
     // 番組保護トグル
     async function toggleProtect() {
@@ -270,9 +265,9 @@
                             <span class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                                 {channelStore.getChannelName(recorded.channelId)}
                             </span>
-                            {#if recorded.genres?.[0]}
+                            {#if typeof recorded.genre1 === 'number'}
                                 <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                    {recorded.genres[0].genre || '一般'}
+                                    ジャンル: {recorded.genre1}
                                 </span>
                             {/if}
                             {#if recorded.isProtected}
@@ -288,8 +283,8 @@
 
                         <div class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                             <Clock size={14} />
-                            <span>{formatDate(recorded.startAt)} 〜 {formatTime(recorded.endAt)}</span>
-                            <span>({Math.round((recorded.endAt - recorded.startAt) / 60000)}分間)</span>
+                            <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
+                            <span>({formatDuration(recorded.endAt - recorded.startAt)})</span>
                         </div>
                     </div>
 
@@ -374,10 +369,9 @@
                             <button
                                 type="button"
                                 onclick={() => {
-                                    if (file.type === 'encoded') {
+                                    if (file.type === 'encoded' && recorded) {
                                         router.push(`/recorded/watch?recordedId=${recorded.id}&videoId=${file.id}`);
                                     } else {
-                                        isStreamModalOpen = true;
                                     }
                                 }}
                                 class="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"

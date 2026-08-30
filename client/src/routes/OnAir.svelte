@@ -1,10 +1,13 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import axios from 'axios';
+    import type * as apid from '../../../api';
     import {
         Radio,
         Play,
@@ -22,9 +25,9 @@
     } from '@lucide/svelte';
 
     interface OnAirItem {
-        channel: any;
-        current: any;
-        next?: any;
+        channel: apid.ChannelItem;
+        current: apid.ScheduleProgramItem;
+        next?: apid.ScheduleProgramItem;
     }
 
     let onAirList = $state<OnAirItem[]>([]);
@@ -32,13 +35,15 @@
     let selectedType = $state<string>('all');
 
     // 配信設定モーダル状態
-    let selectedChannel = $state<any>(null);
+    let selectedChannel = $state<apid.ChannelItem | null>(null);
     let isStreamModalOpen = $state(false);
 
     // 番組詳細ポップアップモーダル状態
     let isDetailModalOpen = $state(false);
-    let selectedDetailItem = $state<{ program: any; channel: any; isNext?: boolean } | null>(null);
+    let selectedDetailItem = $state<{ program: apid.ScheduleProgramItem; channel: apid.ChannelItem; isNext?: boolean } | null>(null);
     let isReserving = $state(false);
+
+    let unsubscribeSocket: (() => void) | null = null;
 
     const channelTypes = [
         { id: 'all', name: 'すべて' },
@@ -48,8 +53,8 @@
         { id: 'SKY', name: 'SKY' },
     ];
 
-    async function fetchOnAir() {
-        isLoading = true;
+    async function fetchOnAir(isSilent = false) {
+        if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
             const now = Date.now();
@@ -90,32 +95,33 @@
             onAirList = list;
         } catch (e) {
             console.error('Failed to fetch on-air schedules', e);
-            snackbar.open({ text: '放映中データの取得に失敗しました', color: 'error' });
+            if (!isSilent) snackbar.open({ text: '放映中データの取得に失敗しました', color: 'error' });
         } finally {
-            isLoading = false;
+            if (!isSilent) isLoading = false;
         }
     }
 
     onMount(() => {
         fetchOnAir();
-        const interval = setInterval(fetchOnAir, 30000); // 30秒毎に自動更新
-        return () => clearInterval(interval);
+        const interval = setInterval(() => fetchOnAir(true), 30000); // 30秒毎に自動更新
+
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            fetchOnAir(true);
+        });
+
+        return () => {
+            clearInterval(interval);
+        };
+    });
+
+    onDestroy(() => {
+        unsubscribeSocket?.();
     });
 
     let filteredList = $derived.by(() => {
         if (selectedType === 'all') return onAirList;
         return onAirList.filter(item => item.channel?.channelType === selectedType);
     });
-
-    function formatTime(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDate(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
-    }
 
     function getProgress(startAt: number, endAt: number): number {
         const now = Date.now();
@@ -124,12 +130,12 @@
         return Math.min(100, Math.max(0, Math.round(((now - startAt) / (endAt - startAt)) * 100)));
     }
 
-    function openStreamModal(channel: any) {
+    function openStreamModal(channel: apid.ChannelItem) {
         selectedChannel = channel;
         isStreamModalOpen = true;
     }
 
-    function openProgramDetail(program: any, channel: any, isNext: boolean = false) {
+    function openProgramDetail(program: apid.ScheduleProgramItem, channel: apid.ChannelItem, isNext: boolean = false) {
         selectedDetailItem = { program, channel, isNext };
         isDetailModalOpen = true;
     }
@@ -436,11 +442,12 @@
 
 <!-- ライブ配信設定モーダル -->
 {#if selectedChannel}
+    {@const ch = selectedChannel}
     <StreamSelectModal
         isOpen={isStreamModalOpen}
-        title={onAirList.find(s => s.channel?.id === selectedChannel.id)?.current?.name || `${selectedChannel.name} ライブ視聴`}
-        channelId={selectedChannel.id}
-        channelName={selectedChannel.name}
+        title={onAirList.find(s => s.channel?.id === ch.id)?.current?.name || `${ch.name} ライブ視聴`}
+        channelId={ch.id}
+        channelName={ch.name}
         onClose={() => {
             isStreamModalOpen = false;
             selectedChannel = null;

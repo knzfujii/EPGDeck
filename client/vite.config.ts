@@ -57,6 +57,23 @@ export default defineConfig({
     },
     build: {
         outDir: 'dist',
-        emptyOutDir: true,
+        emptyOutDir: false,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('hls.js') || id.includes('mpegts.js') || id.includes('aribb24')) {
+                            return 'vendor-video';
+                        }
+                        if (id.includes('@lucide/svelte')) {
+                            return 'vendor-icons';
+                        }
+                        if (id.includes('axios') || id.includes('socket.io-client')) {
+                            return 'vendor-core';
+                        }
+                    }
+                },
+            },
+        },
     },
 });

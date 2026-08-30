@@ -8,13 +8,23 @@ export interface RouteLocation {
 }
 
 class RouterState {
-    current = $state<RouteLocation>({
-        path: typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/',
-        pathname: typeof window !== 'undefined' ? window.location.pathname : '/',
-        search: typeof window !== 'undefined' ? window.location.search : '',
-        query: typeof window !== 'undefined' ? parseQuery(window.location.search) : {},
-        params: {},
-    });
+    pathname = $state(typeof window !== 'undefined' ? window.location.pathname : '/');
+    search = $state(typeof window !== 'undefined' ? window.location.search : '');
+    query = $state<Record<string, string>>(typeof window !== 'undefined' ? parseQuery(window.location.search) : {});
+
+    get path(): string {
+        return this.pathname + this.search;
+    }
+
+    get current(): RouteLocation {
+        return {
+            path: this.path,
+            pathname: this.pathname,
+            search: this.search,
+            query: this.query,
+            params: {},
+        };
+    }
 
     constructor() {
         if (typeof window !== 'undefined') {
@@ -25,13 +35,10 @@ class RouterState {
     }
 
     private update() {
-        this.current = {
-            path: window.location.pathname + window.location.search,
-            pathname: window.location.pathname,
-            search: window.location.search,
-            query: parseQuery(window.location.search),
-            params: {},
-        };
+        if (typeof window === 'undefined') return;
+        this.pathname = window.location.pathname;
+        this.search = window.location.search;
+        this.query = parseQuery(window.location.search);
     }
 
     public push(url: string) {
@@ -48,6 +55,12 @@ class RouterState {
             this.update();
         }
     }
+
+    public back() {
+        if (typeof window !== 'undefined') {
+            window.history.back();
+        }
+    }
 }
 
 function parseQuery(search: string): Record<string, string> {
@@ -60,4 +73,3 @@ function parseQuery(search: string): Record<string, string> {
 }
 
 export const router = new RouterState();
-

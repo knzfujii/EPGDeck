@@ -1,8 +1,9 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import Hls from 'hls.js';
     import Mpegts from 'mpegts.js';
     import { playerState } from '../../stores/playerState.svelte';
+    import { formatPlayerTime } from '../../utils/format';
     import {
         Play,
         Pause,
@@ -15,7 +16,8 @@
         PictureInPicture,
         FastForward,
         Loader2,
-        AlertCircle
+        AlertCircle,
+        Subtitles
     } from '@lucide/svelte';
 
     interface Props {
@@ -54,6 +56,7 @@
     let resumeNotice = $state<{ position: number; visible: boolean } | null>(null);
 
     let hideControlsTimer: any = null;
+    let lastLoadedSrc = '';
 
     function resetHideControlsTimer() {
         showControls = true;
@@ -66,14 +69,7 @@
     }
 
     function formatTime(seconds: number): string {
-        if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '00:00';
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = Math.floor(seconds % 60);
-        if (h > 0) {
-            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return formatPlayerTime(seconds);
     }
 
     // 再生 / 一時停止
@@ -125,11 +121,13 @@
         resetHideControlsTimer();
     }
 
-    // 再生速度
+    // 再生速度 (動画をリロードせずに直接速度を変更)
     function setPlaybackRate(rate: number) {
-        if (!videoElement) return;
         playerState.setPlaybackRate(rate);
-        videoElement.playbackRate = rate;
+        if (videoElement) {
+            videoElement.playbackRate = rate;
+            videoElement.defaultPlaybackRate = rate;
+        }
         resetHideControlsTimer();
     }
 
@@ -161,7 +159,11 @@
 
     // キーボードショートカット
     function handleKeyDown(e: KeyboardEvent) {
+        // 入力フォームフォーカス中は無視
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+        // 修飾キー（Alt, Ctrl, Meta, Shift）が押されている場合は、ブラウザ標準動作（Alt+←で戻る等）を優先して完全にスキップ
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
 
         switch (e.key) {
             case ' ':
@@ -170,13 +172,9 @@
                 togglePlay();
                 break;
             case 'ArrowLeft':
-            case 'j':
                 e.preventDefault();
                 seekRelative(-10);
                 break;
-            case 'ArrowRight':
-            case 'l':
-                e.preventDefault();
                 seekRelative(10);
                 break;
             case 'ArrowUp':
@@ -337,8 +335,13 @@
     }
 
     $effect(() => {
-        if (src) {
-            initVideo();
+        const currentSrc = src;
+        const currentType = streamType;
+        if (currentSrc && currentSrc !== lastLoadedSrc) {
+            lastLoadedSrc = currentSrc;
+            untrack(() => {
+                initVideo();
+            });
         }
     });
 
@@ -381,13 +384,25 @@
     <video
         bind:this={videoElement}
         onclick={togglePlay}
-        onplay={() => { isPlaying = true; resetHideControlsTimer(); }}
+        onplay={() => {
+            isPlaying = true;
+            if (videoElement) {
+                videoElement.playbackRate = playerState.playbackRate;
+            }
+            resetHideControlsTimer();
+        }}
         onpause={() => { isPlaying = false; showControls = true; }}
         onwaiting={() => isLoading = true}
-        onplaying={() => isLoading = false}
+        onplaying={() => {
+            isLoading = false;
+            if (videoElement) {
+                videoElement.playbackRate = playerState.playbackRate;
+            }
+        }}
         onloadedmetadata={() => {
             if (videoElement) {
                 duration = videoElement.duration;
+                videoElement.playbackRate = playerState.playbackRate;
                 isLoading = false;
             }
         }}
@@ -490,6 +505,9 @@
                     step="1"
                     value={currentTime}
                     oninput={handleSeekChange}
+                    onchange={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                    onpointerup={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                    tabindex="-1"
                     class="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2"
                 />
                 <span class="text-[11px] font-medium text-slate-300">{formatTime(duration)}</span>
@@ -555,6 +573,9 @@
                         step="0.05"
                         value={playerState.isMuted ? 0 : playerState.volume}
                         oninput={handleVolumeChange}
+                        onchange={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                        onpointerup={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                        tabindex="-1"
                         class="hidden sm:block h-1 w-16 cursor-pointer appearance-none rounded-full bg-slate-600 accent-white"
                     />
                 </div>

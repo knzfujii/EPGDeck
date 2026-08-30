@@ -1,9 +1,12 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import axios from 'axios';
+    import type * as apid from '../../../api';
     import {
         Clock,
         Plus,
@@ -19,18 +22,20 @@
         Calendar
     } from '@lucide/svelte';
 
-    let reserves = $state<any[]>([]);
+    let reserves = $state<apid.ReserveItem[]>([]);
     let total = $state(0);
     let isLoading = $state(true);
     let filterMode = $state<'all' | 'conflicts' | 'skips' | 'overlaps'>('all');
 
     // 予約詳細モーダル状態
     let isDetailModalOpen = $state(false);
-    let selectedReserve = $state<any>(null);
+    let selectedReserve = $state<apid.ReserveItem | null>(null);
     let isCanceling = $state(false);
 
-    async function fetchReserves() {
-        isLoading = true;
+    let unsubscribeSocket: (() => void) | null = null;
+
+    async function fetchReserves(isSilent = false) {
+        if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
             const res = await axios.get('/api/reserves?limit=100&isHalfWidth=true');
@@ -38,14 +43,23 @@
             total = res.data.total || 0;
         } catch (e) {
             console.error('Failed to fetch reserves', e);
-            snackbar.open({ text: '予約一覧の取得に失敗しました', color: 'error' });
+            if (!isSilent) snackbar.open({ text: '予約一覧の取得に失敗しました', color: 'error' });
         } finally {
-            isLoading = false;
+            if (!isSilent) isLoading = false;
         }
     }
 
     onMount(() => {
         fetchReserves();
+
+        // Socket.IO による予約変更通知を受信してリアルタイム更新
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            fetchReserves(true);
+        });
+    });
+
+    onDestroy(() => {
+        unsubscribeSocket?.();
     });
 
     let filteredReserves = $derived(
@@ -63,7 +77,7 @@
     let overlapCount = $derived(reserves.filter(r => r.isOverlap).length);
 
     // 予約キャンセル / 取り消し
-    async function cancelReserve(item: any, e?: MouseEvent) {
+    async function cancelReserve(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
         const actionLabel = item.ruleId ? 'この回の録画をスキップ（除外）' : '予約を取り消し';
         if (!confirm(`「${item.name}」の${actionLabel}しますか？`)) return;
@@ -83,7 +97,7 @@
     }
 
     // スキップ解除 (予約復活)
-    async function restoreSkip(item: any, e?: MouseEvent) {
+    async function restoreSkip(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
         try {
             await axios.delete(`/api/reserves/${item.id}/skip`);
@@ -96,24 +110,9 @@
         }
     }
 
-    function openReserveDetail(item: any) {
+    function openReserveDetail(item: apid.ReserveItem) {
         selectedReserve = item;
         isDetailModalOpen = true;
-    }
-
-    function formatTime(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    }
-
-    function formatDate(timestamp: number): string {
-        const d = new Date(timestamp);
-        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日','月','火','水','木','金','土'][d.getDay()]}) ${formatTime(timestamp)}`;
-    }
-
-    function formatDuration(startAt: number, endAt: number): string {
-        const min = Math.round((endAt - startAt) / 60000);
-        return `${min}分`;
     }
 </script>
 
@@ -154,49 +153,59 @@
                 <button
                     type="button"
                     onclick={() => filterMode = 'skips'}
-                    class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode === 'skips'
-                        ? 'bg-amber-600 text-white font-bold shadow-xs'
-                        : skipCount > 0 ? 'text-amber-600 font-bold' : 'text-slate-500'}"
+                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode === 'skips'
+                        ? 'bg-amber-500 text-white font-bold shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
                 >
-                    <Ban size={12} /> スキップ ({skipCount})
+                    スキップ ({skipCount})
                 </button>
                 <button
                     type="button"
                     onclick={() => filterMode = 'overlaps'}
                     class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode === 'overlaps'
-                        ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                        : 'text-slate-500'}"
+                        ? 'bg-slate-700 text-white font-bold shadow-xs dark:bg-slate-600'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
                 >
                     重複 ({overlapCount})
                 </button>
             </div>
 
-            <!-- 時間指定予約ボタン -->
+            <!-- 手動予約ボタン -->
             <button
                 type="button"
                 onclick={() => router.push('/reserves/manual')}
-                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 transition cursor-pointer"
             >
-                <Plus size={15} /> 時間指定予約
+                <Plus size={15} /> 手動予約を追加
             </button>
         </div>
     </div>
 
-    <!-- 予約リストテーブル -->
+    <!-- コンテンツ表示 -->
     {#if isLoading}
         <div class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-sm font-medium text-slate-400">予約一覧を取得中...</p>
+            <p class="text-sm font-medium text-slate-400">予約データを読み込み中...</p>
         </div>
     {:else if filteredReserves.length === 0}
         <div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
-            <CheckCircle2 size={36} class="text-slate-300 dark:text-slate-600" />
-            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">該当する予約はありません</p>
+            <Clock size={36} class="text-slate-300 dark:text-slate-600" />
+            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                {#if filterMode === 'conflicts'}
+                    チューナー競合している予約はありません
+                {:else if filterMode === 'skips'}
+                    スキップ中の予約はありません
+                {:else}
+                    録画予約はありません
+                {/if}
+            </p>
+            <p class="text-xs text-slate-400">番組表や検索画面から録画予約を追加できます</p>
         </div>
     {:else}
+        <!-- テーブル表示 -->
         <div class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                <table class="w-full text-left text-xs">
+                    <thead class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
                         <tr>
                             <th class="px-4 py-3.5">放送日時</th>
                             <th class="px-4 py-3.5">放送局</th>
@@ -215,7 +224,7 @@
                             >
                                 <!-- 放送日時 -->
                                 <td class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-600 dark:text-slate-400">
-                                    {formatDate(item.startAt)}
+                                    {formatDate(item.startAt)} {formatTime(item.startAt)}
                                 </td>
 
                                 <!-- 放送局 -->
@@ -250,7 +259,7 @@
 
                                 <!-- 番組長 -->
                                 <td class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-500 dark:text-slate-400">
-                                    {formatDuration(item.startAt, item.endAt)}
+                                    {formatDuration(item.endAt - item.startAt)}
                                 </td>
 
                                 <!-- 状態バッジ -->
@@ -357,7 +366,7 @@
                     <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-bold">
                         <span class="flex items-center gap-1.5">
                             <Clock size={15} class="text-blue-600" />
-                            {formatDate(item.startAt)} - {formatTime(item.endAt)} ({formatDuration(item.startAt, item.endAt)})
+                            {formatTimeRange(item.startAt, item.endAt)} ({formatDuration(item.endAt - item.startAt)})
                         </span>
                         {#if item.isConflict}
                             <span class="text-rose-600 font-bold flex items-center gap-1">

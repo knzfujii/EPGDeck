@@ -12,6 +12,7 @@ import ILogger from '../../ILogger';
 import channelsRoute from './routes/channels';
 import configRoute from './routes/config';
 import dropLogsRoute from './routes/dropLogs';
+import logsRoute from './routes/logs';
 import encodeRoute from './routes/encode';
 import iptvRoute from './routes/iptv';
 import recordedRoute from './routes/recorded';
@@ -117,6 +118,7 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     apiApp.route('/thumbnails', thumbnailsRoute);
     apiApp.route('/videos', videosRoute);
     apiApp.route('/dropLogs', dropLogsRoute);
+    apiApp.route('/logs', logsRoute);
     apiApp.route('/encode', encodeRoute);
     apiApp.route('/iptv', iptvRoute);
     apiApp.route('/storages', storagesRoute);

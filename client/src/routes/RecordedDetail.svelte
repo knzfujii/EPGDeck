@@ -54,12 +54,20 @@
         try {
             const [, res] = await Promise.all([
                 channelStore.fetch(),
+                axios.get(`/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`),
+            ]);
+            recorded = res.data;
 
             axios.get('/api/config').then(configRes => {
                 const encList = configRes.data?.encode || [];
                 encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
             }).catch(() => {});
         } catch (e) {
+            console.error('Failed to fetch recorded detail', e);
+            snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
+        } finally {
+            if (!isSilent) isLoading = false;
+        }
     }
 
     onMount(() => {

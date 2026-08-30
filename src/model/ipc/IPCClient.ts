@@ -6,6 +6,7 @@ import ILogger from '../ILogger';
 import ILoggerModel from '../ILoggerModel';
 import { AddVideoFileOption, UploadedVideoFileOption } from '../operator/recorded/IRecordedManageModel';
 import IEncodeManageModel from '../service/encode/IEncodeManageModel';
+import ILogManageModel from '../service/log/ILogManageModel';
 import ISocketIOManageModel from '../service/socketio/ISocketIOManageModel';
 import IIPCClient, {
     IPCOperatorEncodeEvent,
@@ -22,6 +23,7 @@ import {
     ModelName,
     ParentMessage,
     PushEncodeMessage,
+    PushLogMessage,
     RecordedFunctions,
     RecordedTagFunctions,
     RecordingFunctions,
@@ -36,6 +38,7 @@ import {
 export default class IPCClient implements IIPCClient {
     private socketIO: ISocketIOManageModel;
     private encodeManage: IEncodeManageModel;
+    private logManage: ILogManageModel;
     public reserveation!: IPCReservationManageModel;
     public recorded!: IPCRecordedManageModel;
     public recordedTag!: IPCRecordedTagManageModel;
@@ -51,10 +54,12 @@ export default class IPCClient implements IIPCClient {
         @inject('ILoggerModel') logger: ILoggerModel,
         @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
         @inject('IEncodeManageModel') encodeManage: IEncodeManageModel,
+        @inject('ILogManageModel') logManage: ILogManageModel,
     ) {
         this.log = logger.getLogger();
         this.socketIO = socketIO;
         this.encodeManage = encodeManage;
+        this.logManage = logManage;
 
         if (typeof process.send === 'undefined') {
             this.log.system.fatal('bit child process');
@@ -84,6 +89,9 @@ export default class IPCClient implements IIPCClient {
             } else if ((<ParentMessage>msg).type === 'pushEncode') {
                 // エンコード依頼
                 this.encodeManage.push((<PushEncodeMessage>msg).value);
+            } else if ((<ParentMessage>msg).type === 'pushLog') {
+                // 親プロセス（Operator）からのログ集約
+                this.logManage.push((<PushLogMessage>msg).entry);
             }
         });
     }

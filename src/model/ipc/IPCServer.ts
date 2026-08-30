@@ -11,12 +11,14 @@ import IRecordingManageModel from '../operator/recording/IRecordingManageModel';
 import IReservationManageModel from '../operator/reservation/IReservationManageModel';
 import IRuleManageModel from '../operator/rule/IRuleManageModel';
 import IThumbnailManageModel from '../operator/thumbnail/IThumbnailManageModel';
+import { LogEntry } from '../ILogger';
 import IIPCServer from './IIPCServer';
 import {
     OperatorEncodeEventFunctions,
     ModelName,
     NotifyClientMessage,
     PushEncodeMessage,
+    PushLogMessage,
     RecordedFunctions,
     RecordedTagFunctions,
     RecordingFunctions,
@@ -122,6 +124,25 @@ export default class IPCServer implements IIPCServer {
             type: 'pushEncode',
             value: addOption,
         }));
+    }
+
+    /**
+     * 子プロセスへログエントリを送信する
+     * @param entry: LogEntry
+     */
+    public pushLog(entry: LogEntry): void {
+        if (this.child === null || !this.child.connected) {
+            return;
+        }
+
+        try {
+            this.child.send(<any>(<PushLogMessage>{
+                type: 'pushLog',
+                entry: entry,
+            }));
+        } catch {
+            // ignore
+        }
     }
 
     /**

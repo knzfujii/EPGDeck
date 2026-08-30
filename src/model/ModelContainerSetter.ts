@@ -142,6 +142,8 @@ import IServiceServer from './service/IServiceServer';
 import ServiceServer from './service/ServiceServer';
 import ISocketIOManageModel from './service/socketio/ISocketIOManageModel';
 import SocketIOManageModel from './service/socketio/SocketIOManageModel';
+import ILogManageModel from './service/log/ILogManageModel';
+import LogManageModel from './service/log/LogManageModel';
 import ILiveStreamBaseModel, {
     LiveHLSStreamModelProvider,
     LiveStreamModelProvider,
@@ -270,6 +272,8 @@ export const set = (container: Container): void => {
     container.bind<IEventSetter>('IEventSetter').to(EventSetter).inSingletonScope();
 
     container.bind<ISocketIOManageModel>('ISocketIOManageModel').to(SocketIOManageModel).inSingletonScope();
+
+    container.bind<ILogManageModel>('ILogManageModel').to(LogManageModel).inSingletonScope();
 
     container
         .bind<IExternalCommandManageModel>('IExternalCommandManageModel')

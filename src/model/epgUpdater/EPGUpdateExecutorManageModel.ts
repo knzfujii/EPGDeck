@@ -2,6 +2,7 @@ import * as child_process from 'child_process';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import IEPGUpdateEvent from '../event/IEPGUpdateEvent';
+import IIPCServer from '../ipc/IIPCServer';
 import ILogger from '../ILogger';
 import ILoggerModel from '../ILoggerModel';
 import IEPGUpdateExecutorManageModel from './IEPGUpdateExecutorManageModel';
@@ -10,15 +11,18 @@ import IEPGUpdateExecutorManageModel from './IEPGUpdateExecutorManageModel';
 export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorManageModel {
     private log: ILogger;
     private epgUpdateEvent: IEPGUpdateEvent;
+    private ipcServer: IIPCServer;
     private currentExecutor: child_process.ChildProcess | null = null;
     private isShuttingDown: boolean = false;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
         @inject('IEPGUpdateEvent') epgUpdateEvent: IEPGUpdateEvent,
+        @inject('IIPCServer') ipcServer: IIPCServer,
     ) {
         this.log = logger.getLogger();
         this.epgUpdateEvent = epgUpdateEvent;
+        this.ipcServer = ipcServer;
 
         const onShutdown = () => {
             this.isShuttingDown = true;
@@ -53,11 +57,13 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
 
         this.log.system.info(`start epg updater pid: ${executor.pid}`);
 
-        // epg 更新完了
+        // epg 更新完了 & ログ受信
         executor.on('message', msg => {
             if ((<any>msg).msg === 'updated') {
                 // epg 更新完了イベントを発行
                 this.epgUpdateEvent.emitUpdated();
+            } else if ((<any>msg).msg === 'log' && (<any>msg).entry) {
+                this.ipcServer.pushLog((<any>msg).entry);
             }
         });
         /**

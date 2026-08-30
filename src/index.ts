@@ -22,8 +22,14 @@ containerSetter.set(container);
  * 初期処理
  */
 const init = async () => {
+    const config = container.get<IConfiguration>('IConfiguration').getConfig();
     const logger = container.get<ILoggerModel>('ILoggerModel');
-    logger.initialize();
+    logger.initialize('Operator', config.log);
+
+    const ipcServer = container.get<IIPCServer>('IIPCServer');
+    logger.onLog(entry => {
+        ipcServer.pushLog(entry);
+    });
 
     const log = logger.getLogger();
     process.on('uncaughtException', err => {
@@ -35,8 +41,6 @@ const init = async () => {
         log.system.fatal('unhandledRejection');
         log.system.fatal(err);
     });
-
-    const config = container.get<IConfiguration>('IConfiguration').getConfig();
 
     // set uid & gid
     if (process.platform !== 'win32' && typeof process.getuid !== 'undefined' && process.getuid() === 0) {
@@ -56,9 +60,6 @@ const init = async () => {
             }
         }
     }
-
-    // uid, gid が設定されてから再度 log 再設定
-    logger.initialize(path.join(__dirname, '..', 'config', 'operatorLogConfig.yml'));
 
     // 接続確認
     const connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');

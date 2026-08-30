@@ -24,3 +24,6 @@ data/upload/*
 data/key/*
 *.sql
 !.gitkeep
+test-results
+playwright-report
+blob-report

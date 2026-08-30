@@ -11,6 +11,7 @@
         Film,
         HardDrive,
         Settings,
+        Terminal,
         X
     } from '@lucide/svelte';
 
@@ -30,6 +31,7 @@
         { label: 'ルール管理', path: '/rule', icon: SlidersHorizontal },
         { label: 'エンコード', path: '/encode', icon: Film },
         { label: 'ストレージ', path: '/storages', icon: HardDrive },
+        { label: 'システムログ', path: '/logs', icon: Terminal },
         { label: '設定', path: '/settings', icon: Settings },
     ];
 

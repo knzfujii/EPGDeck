@@ -1,6 +1,7 @@
-import * as path from 'path';
 import 'reflect-metadata';
 import { install } from 'source-map-support';
+import IConfiguration from '../IConfiguration';
+import IIPCClient from '../ipc/IIPCClient';
 import ILoggerModel from '../ILoggerModel';
 import container from '../ModelContainer';
 import * as containerSetter from '../ModelContainerSetter';
@@ -10,8 +11,12 @@ install();
 
 containerSetter.set(container);
 
+const config = container.get<IConfiguration>('IConfiguration').getConfig();
 const loggerModel = container.get<ILoggerModel>('ILoggerModel');
-loggerModel.initialize(path.join(__dirname, '..', '..', '..', 'config', 'serviceLogConfig.yml'));
+loggerModel.initialize('Service', config.log);
+
+// IPCClient を取得してメッセージ受信開始
+container.get<IIPCClient>('IIPCClient');
 
 const log = loggerModel.getLogger();
 process.on('uncaughtException', err => {

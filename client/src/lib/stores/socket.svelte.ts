@@ -1,7 +1,20 @@
 import { io, Socket } from 'socket.io-client';
 
-type SocketEventType = 'updateStatus' | 'updateEncode' | 'connect' | 'disconnect';
-type Callback = () => void;
+export type LogProcess = 'Operator' | 'Service' | 'EPGUpdater';
+export type LogCategory = 'system' | 'access' | 'stream' | 'encode';
+export type LogEntryLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export interface LogEntry {
+    id: number;
+    timestamp: number;
+    process: LogProcess;
+    category: LogCategory;
+    level: LogEntryLevel;
+    message: string;
+}
+
+type SocketEventType = 'updateStatus' | 'updateEncode' | 'connect' | 'disconnect' | 'logs';
+type Callback<T = any> = (data: T) => void;
 
 class SocketStore {
     private socket: Socket | null = null;
@@ -31,6 +44,9 @@ class SocketStore {
         this.socket.on('connect', () => {
             this.isConnected = true;
             this.emitEvent('connect');
+            if (this.listeners.has('logs') && (this.listeners.get('logs')?.size ?? 0) > 0) {
+                this.subscribeLogs();
+            }
         });
 
         this.socket.on('disconnect', () => {
@@ -47,25 +63,49 @@ class SocketStore {
             this.encodeVersion++;
             this.emitEvent('updateEncode');
         });
+
+        this.socket.on('logs', (entry: LogEntry) => {
+            this.emitEvent('logs', entry);
+        });
     }
 
-    public on(event: SocketEventType, cb: Callback): () => void {
+    public subscribeLogs() {
+        if (this.socket) {
+            this.socket.emit('subscribeLogs');
+        }
+    }
+
+    public unsubscribeLogs() {
+        if (this.socket) {
+            this.socket.emit('unsubscribeLogs');
+        }
+    }
+
+    public on<T = any>(event: SocketEventType, cb: Callback<T>): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
         this.listeners.get(event)!.add(cb);
 
+        // ログイベント購読開始時、接続済みならサーバーへ購読リクエスト
+        if (event === 'logs') {
+            this.subscribeLogs();
+        }
+
         return () => {
             this.listeners.get(event)?.delete(cb);
+            if (event === 'logs' && (!this.listeners.get('logs') || this.listeners.get('logs')!.size === 0)) {
+                this.unsubscribeLogs();
+            }
         };
     }
 
-    private emitEvent(event: SocketEventType) {
+    private emitEvent<T = any>(event: SocketEventType, data?: T) {
         const cbs = this.listeners.get(event);
         if (cbs) {
             for (const cb of cbs) {
                 try {
-                    cb();
+                    cb(data);
                 } catch (e) {
                     console.error(`Error in socket listener for ${event}:`, e);
                 }

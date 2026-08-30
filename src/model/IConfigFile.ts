@@ -36,10 +36,27 @@ export interface KodiInfo {
     password?: string;
 }
 
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface LogFileConfig {
+    enabled?: boolean;
+    path?: string;
+    maxSize?: number;
+    backups?: number;
+}
+
+export interface LogConfig {
+    level?: LogLevel;
+    console?: boolean;
+    file?: LogFileConfig;
+    bufferSize?: number;
+}
+
 /**
  * config ファイル形式
  */
 export default interface IConfigFile {
+    log?: LogConfig;
     port?: number;
     socketioPort?: number;
     clientSocketioPort?: number;

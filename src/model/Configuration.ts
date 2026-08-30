@@ -133,6 +133,15 @@ class Configuration implements IConfiguration {
         // streamfiles のパス整形
         newConfig.streamFilePath = this.directoryFormatting(newConfig.streamFilePath);
 
+        // log のパス整形
+        if (
+            typeof newConfig.log !== 'undefined' &&
+            typeof newConfig.log.file !== 'undefined' &&
+            typeof newConfig.log.file.path === 'string'
+        ) {
+            newConfig.log.file.path = this.directoryFormatting(newConfig.log.file.path);
+        }
+
         return newConfig;
     }
 
@@ -265,6 +274,17 @@ namespace Configuration {
             },
         },
         streamFilePath: path.join(__dirname, '..', '..', 'data', 'streamfiles'),
+        log: {
+            level: 'info',
+            console: true,
+            file: {
+                enabled: true,
+                path: path.join(__dirname, '..', '..', 'logs', 'epgdeck.log'),
+                maxSize: 10 * 1024 * 1024,
+                backups: 5,
+            },
+            bufferSize: 1000,
+        },
     };
 }
 

@@ -30,6 +30,7 @@
     "restore": "node dist/DBTools.js -m restore -o",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "prepare": "husky"
   },
   "repository": {
@@ -69,6 +70,7 @@
     "url-join": "4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/eventsource": "1.1.15",
     "@types/file-type": "10.9.1",
     "@types/js-yaml": "4.0.9",

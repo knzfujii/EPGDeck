@@ -1,4 +1,5 @@
 import * as apid from '../../../api';
+import { LogEntry } from '../ILogger';
 
 export type MessageId = number;
 
@@ -6,7 +7,7 @@ export type MessageId = number;
  * 親プロセスから子プロセスへのメッセージ
  */
 export interface ParentMessage {
-    type: 'pushEncode' | 'notifyClient';
+    type: 'pushEncode' | 'notifyClient' | 'pushLog';
     value?: any;
 }
 
@@ -20,6 +21,11 @@ export interface NotifyClientMessage extends ParentMessage {
 export interface PushEncodeMessage extends ParentMessage {
     type: 'pushEncode';
     value: apid.AddEncodeProgramOption;
+}
+
+export interface PushLogMessage extends ParentMessage {
+    type: 'pushLog';
+    entry: LogEntry;
 }
 
 /**

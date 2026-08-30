@@ -19,6 +19,7 @@
     import Encode from './routes/Encode.svelte';
     import Storages from './routes/Storages.svelte';
     import Settings from './routes/Settings.svelte';
+    import Logs from './routes/Logs.svelte';
 
     const routes: Record<string, any> = {
         '/': Dashboard,
@@ -36,6 +37,7 @@
         '/encode': Encode,
         '/storages': Storages,
         '/settings': Settings,
+        '/logs': Logs,
     };
 
     let isMobileOpen = $state(false);

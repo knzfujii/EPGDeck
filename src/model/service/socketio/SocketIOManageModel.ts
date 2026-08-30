@@ -4,7 +4,7 @@ import * as SocketIO from 'socket.io';
 import urljoin from 'url-join';
 import IConfigFile from '../../IConfigFile';
 import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
+import ILogger, { LogEntry } from '../../ILogger';
 import ILoggerModel from '../../ILoggerModel';
 import ISocketIOManageModel from './ISocketIOManageModel';
 
@@ -27,20 +27,39 @@ export default class SocketIOManageModel implements ISocketIOManageModel {
      */
     public initialize(servers: http.Server[]): void {
         for (const s of servers) {
-            this.ios.push(
-                new SocketIO.Server(s, {
-                    path:
-                        typeof this.config.subDirectory === 'undefined'
-                            ? '/socket.io'
-                            : urljoin(this.config.subDirectory, '/socket.io'),
-                    cors: {
-                        origin: '*',
-                    },
-                }),
-            );
+            const io = new SocketIO.Server(s, {
+                path:
+                    typeof this.config.subDirectory === 'undefined'
+                        ? '/socket.io'
+                        : urljoin(this.config.subDirectory, '/socket.io'),
+                cors: {
+                    origin: '*',
+                },
+            });
+
+            io.on('connection', socket => {
+                socket.on('subscribeLogs', () => {
+                    socket.join('logs');
+                });
+                socket.on('unsubscribeLogs', () => {
+                    socket.leave('logs');
+                });
+            });
+
+            this.ios.push(io);
         }
 
         this.log.system.info('SocketIO Server has started.');
+    }
+
+    /**
+     * ログメッセージを購読クライアントへ配信
+     * @param entry: LogEntry
+     */
+    public emitLogs(entry: LogEntry): void {
+        for (const io of this.ios) {
+            io.to('logs').emit('logs', entry);
+        }
     }
 
     /**

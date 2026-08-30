@@ -1,4 +1,4 @@
-import { ChildProcess, exec } from 'child_process';
+import { ChildProcess, execFile } from 'child_process';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import internal, { Readable } from 'stream';
@@ -186,20 +186,24 @@ export default abstract class RecordedStreamBaseModel
      */
     private getVideoInfo(filePath: string): Promise<VideoFileInfo> {
         return new Promise<VideoFileInfo>((resolve, reject) => {
-            exec(`${this.config.encode.binaries.ffprobe} -v 0 -show_format -of json "${filePath}"`, (err, std) => {
-                if (err) {
-                    reject(err);
+            execFile(
+                this.config.encode.binaries.ffprobe,
+                ['-v', '0', '-show_format', '-of', 'json', filePath],
+                (err, std) => {
+                    if (err) {
+                        reject(err);
 
-                    return;
-                }
-                const result = <any>JSON.parse(std);
+                        return;
+                    }
+                    const result = <any>JSON.parse(std);
 
-                resolve({
-                    duration: parseFloat(result.format.duration),
-                    size: parseInt(result.format.size, 10),
-                    bitRate: parseFloat(result.format.bit_rate),
-                });
-            });
+                    resolve({
+                        duration: parseFloat(result.format.duration),
+                        size: parseInt(result.format.size, 10),
+                        bitRate: parseFloat(result.format.bit_rate),
+                    });
+                },
+            );
         });
     }
 

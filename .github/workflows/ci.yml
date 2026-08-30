@@ -31,13 +31,13 @@ jobs:
         run: npm ci
 
       - name: Lint Check
-        run: npx eslint --ext .ts src/
+        run: npm run lint:check
 
       - name: Prettier Format Check
-        run: npx prettier --check 'src/**/*.ts'
+        run: npm run format:check
 
-      - name: TypeScript Compile Check
-        run: npx tsc --noEmit
+      - name: TypeScript Compile
+        run: npm run compile
 
       - name: Run Tests
         run: npm test

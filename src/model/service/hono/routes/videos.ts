@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import * as apid from '../../../../../api';
 import IConfiguration from '../../../IConfiguration';
 import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel';
@@ -33,8 +35,8 @@ app.post('/upload', async c => {
         const tempFileName = `file-${Date.now().toString(16)}${Math.floor(100000 * Math.random()).toString(16)}`;
         const tempFilePath = path.join(tempDir, tempFileName);
 
-        const arrayBuffer = await file.arrayBuffer();
-        await fs.promises.writeFile(tempFilePath, Buffer.from(arrayBuffer));
+        const fileStream = Readable.fromWeb(file.stream() as any);
+        await pipeline(fileStream, fs.createWriteStream(tempFilePath));
 
         const option: UploadedVideoFileOption = {
             recordedId: parseInt(body['recordedId'] as string, 10),

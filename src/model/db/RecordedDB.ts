@@ -277,6 +277,12 @@ export default class RecordedDB implements IRecordedDB {
                 }
             }
 
+            if (option.hasOriginalFile === true) {
+                conditions.push(
+                    sql`EXISTS (SELECT 1 FROM video_file WHERE video_file.recordedId = ${schema.recorded.id} AND video_file.type != 'encoded')`,
+                );
+            }
+
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
             let query = (db as any).select().from(schema.recorded);
@@ -323,7 +329,7 @@ export default class RecordedDB implements IRecordedDB {
                 tagsMap = await this.fetchTags(client, idList);
             }
 
-            let results = records.map(r => {
+            const results = records.map(r => {
                 const entity = this.toEntity(r);
                 if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
                 if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
@@ -332,10 +338,6 @@ export default class RecordedDB implements IRecordedDB {
                 if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
                 return entity;
             });
-
-            if (isNeedVideoFiles && option.hasOriginalFile === true) {
-                results = results.filter(r => r.videoFiles && r.videoFiles.some(vf => vf.type !== 'encoded'));
-            }
 
             return [results, totalCount];
         });

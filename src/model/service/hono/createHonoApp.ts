@@ -136,7 +136,11 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     for (const { prefix, dir } of staticDirs) {
         app.get(`${prefix}/:filename`, async c => {
             const filename = c.req.param('filename');
-            const targetFile = path.join(dir, filename);
+            const resolvedDir = path.resolve(dir);
+            const targetFile = path.resolve(dir, filename);
+            if (!targetFile.startsWith(resolvedDir + path.sep) && targetFile !== resolvedDir) {
+                return c.notFound();
+            }
             if (fs.existsSync(targetFile)) {
                 return await api.responseFile(c, targetFile, getMimeType(targetFile), false);
             }
@@ -155,7 +159,11 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
             reqPath = '/index.html';
         }
 
-        const localPath = path.join(clientDist, reqPath);
+        const resolvedClientDist = path.resolve(clientDist);
+        const localPath = path.resolve(clientDist, reqPath.replace(/^\//, ''));
+        if (!localPath.startsWith(resolvedClientDist + path.sep) && localPath !== resolvedClientDist) {
+            return c.notFound();
+        }
         if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
             return await api.responseFile(c, localPath, getMimeType(localPath), false);
         }

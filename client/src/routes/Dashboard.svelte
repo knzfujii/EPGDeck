@@ -6,14 +6,22 @@
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import axios from 'axios';
     import type * as apid from '../../../api';
-    import { Video, Clock, ArrowRight, AlertTriangle, Play } from '@lucide/svelte';
+    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server } from '@lucide/svelte';
 
     interface DashboardReserve extends apid.ReserveItem {
         isRecording?: boolean;
     }
 
+    interface StorageItem {
+        name: string;
+        available: number;
+        used: number;
+        total: number;
+    }
+
     let recordedTotal = $state(0);
     let reservesTotal = $state(0);
+    let storages = $state<StorageItem[]>([]);
     let latestRecorded = $state<apid.RecordedItem[]>([]);
     let upcomingReserves = $state<DashboardReserve[]>([]);
     let isLoading = $state(true);
@@ -24,15 +32,17 @@
         if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
-            const [recordingRes, recordedRes, reservesRes] = await Promise.all([
+            const [recordingRes, recordedRes, reservesRes, storagesRes] = await Promise.all([
                 axios.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
                 axios.get('/api/recorded?limit=8&isHalfWidth=true').catch(() => ({ data: { records: [], total: 0 } })),
                 axios.get('/api/reserves?limit=10&isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
+                axios.get('/api/storages').catch(() => ({ data: { items: [] } })),
             ]);
 
             const recordingList = recordingRes.data.records || [];
             latestRecorded = recordedRes.data.records || [];
             recordedTotal = recordedRes.data.total || 0;
+            storages = storagesRes.data?.items || [];
 
             // 予約リストに録画中フラグを付与
             const now = Date.now();
@@ -76,10 +86,25 @@
         if (now >= endAt) return 100;
         return Math.round(((now - startAt) / (endAt - startAt)) * 100);
     }
+
+    function formatGB(bytes?: number): string {
+        if (typeof bytes !== 'number' || isNaN(bytes)) return '0 GB';
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1000) {
+            const tb = gb / 1024;
+            return `${tb.toFixed(2)} TB`;
+        }
+        return `${gb.toFixed(1)} GB`;
+    }
+
+    function getUsagePercent(used: number, total: number): number {
+        if (!total || total === 0) return 0;
+        return Math.min(100, Math.max(0, Math.round((used / total) * 100)));
+    }
 </script>
 
 <div class="space-y-5 w-full max-w-full min-w-0">
-    <!-- ステータス概要カード (予約中 & 録画済み の2枚構成で固定) -->
+    <!-- ステータス概要カード -->
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <button
             type="button"
@@ -109,6 +134,51 @@
             </div>
         </button>
     </div>
+
+    <!-- ストレージ使用状況カード (ダッシュボード統合) -->
+    {#if storages.length > 0}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100">
+                    <HardDrive size={18} class="text-blue-600 dark:text-blue-400" />
+                    ストレージ容量
+                </h2>
+                <span class="text-xs text-slate-500 dark:text-slate-400">全 {storages.length} ドライブ</span>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 {storages.length > 1 ? 'sm:grid-cols-2' : ''}">
+                {#each storages as st}
+                    {@const percent = getUsagePercent(st.used, st.total)}
+                    <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                                <Server size={15} class="text-blue-500" />
+                                {st.name}
+                            </span>
+                            <span class="font-bold {percent > 90 ? 'text-rose-600 dark:text-rose-400' : percent > 75 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}">
+                                {percent}% 使用中
+                            </span>
+                        </div>
+
+                        <!-- プログレスバー -->
+                        <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                            <div
+                                class="h-full rounded-full transition-all duration-500 {percent > 90 ? 'bg-rose-500' : percent > 75 ? 'bg-amber-500' : 'bg-blue-600'}"
+                                style="width: {percent}%"
+                            ></div>
+                        </div>
+
+                        <!-- 容量詳細数値 -->
+                        <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            <span>使用: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.used)}</strong></span>
+                            <span>空き: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.available)}</strong></span>
+                            <span>合計: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.total)}</strong></span>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {/if}
 
     <!-- 直近の予約 & 最新録画 2カラム -->
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">

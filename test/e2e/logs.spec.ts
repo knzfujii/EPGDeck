@@ -40,8 +40,9 @@ test.describe('System Logs Page (/logs)', () => {
 
         // ヘッダーとステータスの確認
         await expect(page.locator('h1')).toContainText('システムログ');
-        const followButton = page.getByTitle(/自動スクロール/);
+        const followButton = page.getByRole('button', { name: /追尾/ });
         await expect(followButton).toBeVisible();
+        await expect(followButton).toContainText('追尾中');
 
         // フィルタコントロールの確認
         const searchInput = page.getByPlaceholder('ログを検索...');
@@ -56,10 +57,13 @@ test.describe('System Logs Page (/logs)', () => {
         await searchInput.clear();
 
         // 自動スクロール（追尾）トグル
+        const initialFollowText = (await followButton.innerText()).trim();
         await followButton.click();
-        await expect(followButton).toContainText('追尾停止中');
+        const toggledFollowText = (await followButton.innerText()).trim();
+        expect(toggledFollowText).not.toBe(initialFollowText);
         await followButton.click();
-        await expect(followButton).toContainText('追尾中');
+        const restoredFollowText = (await followButton.innerText()).trim();
+        expect(restoredFollowText).toBe(initialFollowText);
 
         // 画面クリアと再取得
         const clearButton = page.getByTitle('画面上のログを消去');

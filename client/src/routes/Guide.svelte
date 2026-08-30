@@ -21,10 +21,58 @@
         Compass
     } from '@lucide/svelte';
 
+    const MAX_DAYS_AHEAD = 8; // 今日から最大8日先まで (計9日間)
+
+    function getBaseDate(): Date {
+        const now = new Date();
+        if (now.getHours() < 4) {
+            now.setDate(now.getDate() - 1);
+        }
+        now.setHours(4, 0, 0, 0);
+        return now;
+    }
+
     let schedules = $state<any[]>([]);
     let isLoading = $state(true);
-    let selectedDate = $state(new Date());
+    let selectedDate = $state(getBaseDate());
     let selectedType = $state<'GR' | 'BS' | 'CS' | 'SKY'>('GR');
+
+    // 選択可能な日付リスト (今日〜8日後)
+    let availableDates = $derived.by(() => {
+        const list: { date: Date; label: string; value: string; isToday: boolean }[] = [];
+        const base = getBaseDate();
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+        for (let i = 0; i <= MAX_DAYS_AHEAD; i++) {
+            const d = new Date(base);
+            d.setDate(d.getDate() + i);
+            const month = d.getMonth() + 1;
+            const day = d.getDate();
+            const dayOfWeek = dayNames[d.getDay()];
+            const isToday = i === 0;
+            const prefix = isToday ? '今日 ' : i === 1 ? '明日 ' : i === 2 ? '明後日 ' : '';
+
+            list.push({
+                date: d,
+                label: `${prefix}${month}/${day} (${dayOfWeek})`,
+                value: d.toDateString(),
+                isToday,
+            });
+        }
+        return list;
+    });
+
+    // 過去方向 / 未来方向のナビゲーション可否判定
+    let isMinDate = $derived.by(() => {
+        const base = getBaseDate();
+        return selectedDate.getTime() <= base.getTime();
+    });
+
+    let isMaxDate = $derived.by(() => {
+        const max = getBaseDate();
+        max.setDate(max.getDate() + MAX_DAYS_AHEAD);
+        return selectedDate.getTime() >= max.getTime();
+    });
 
     // 番組詳細モーダル状態
     let selectedProgram = $state<any>(null);
@@ -60,10 +108,10 @@
 
     // 「現在」ボタンのクリック処理 (今日以外なら今日に復帰して現在時刻へスクロール)
     function jumpToNow() {
-        const now = new Date();
-        const isToday = now.toDateString() === selectedDate.toDateString();
+        const base = getBaseDate();
+        const isToday = base.toDateString() === selectedDate.toDateString();
         if (!isToday) {
-            selectedDate = new Date();
+            selectedDate = base;
             fetchGuide(true);
         } else {
             scrollToCurrentOrPreset('now');
@@ -194,12 +242,20 @@
     });
 
     function changeDate(days: number) {
-        selectedDate = new Date(selectedDate.getTime() + days * 24 * 60 * 60 * 1000);
+        const base = getBaseDate();
+        const max = new Date(base);
+        max.setDate(max.getDate() + MAX_DAYS_AHEAD);
+
+        const nextTime = selectedDate.getTime() + days * 24 * 60 * 60 * 1000;
+        if (days < 0 && nextTime < base.getTime()) return;
+        if (days > 0 && nextTime > max.getTime()) return;
+
+        selectedDate = new Date(nextTime);
         fetchGuide(true);
     }
 
     function setDateToday() {
-        selectedDate = new Date();
+        selectedDate = getBaseDate();
         fetchGuide(true);
     }
 
@@ -288,25 +344,38 @@
             <button
                 type="button"
                 onclick={() => changeDate(-1)}
-                class="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                disabled={isMinDate}
+                class="rounded-xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 title="前日"
             >
                 <ChevronLeft size={16} />
             </button>
 
-            <button
-                type="button"
-                onclick={setDateToday}
-                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-                <Calendar size={14} />
-                {formatDate(selectedDate)}
-            </button>
+            <!-- 日付クイックドロップダウン選択 -->
+            <div class="relative flex items-center">
+                <select
+                    value={selectedDate.toDateString()}
+                    onchange={(e) => {
+                        const target = availableDates.find(d => d.value === e.currentTarget.value);
+                        if (target) {
+                            selectedDate = target.date;
+                            fetchGuide(true);
+                        }
+                    }}
+                    class="appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-7 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                >
+                    {#each availableDates as opt}
+                        <option value={opt.value}>{opt.label}</option>
+                    {/each}
+                </select>
+                <Calendar size={14} class="pointer-events-none absolute left-2.5 text-slate-500 dark:text-slate-400" />
+            </div>
 
             <button
                 type="button"
                 onclick={() => changeDate(1)}
-                class="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                disabled={isMaxDate}
+                class="rounded-xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 title="翌日"
             >
                 <ChevronRight size={16} />

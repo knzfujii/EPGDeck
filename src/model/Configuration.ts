@@ -27,7 +27,7 @@ class Configuration implements IConfiguration {
             this.log.system.info('updated config file');
             try {
                 const newConfig = <any>yaml.load(await fs.promises.readFile(Configuration.CONFIG_FILE_PATH, 'utf-8'));
-                this.config = this.formatAndValidateConfig(newConfig);
+                this.config = Configuration.formatAndValidateConfig(newConfig);
             } catch (err: any) {
                 this.log.system.error('read config error');
                 this.log.system.error(err);
@@ -51,13 +51,13 @@ class Configuration implements IConfiguration {
         }
 
         const rawConfig: any = yaml.load(str) || {};
-        return this.formatAndValidateConfig(rawConfig);
+        return Configuration.formatAndValidateConfig(rawConfig);
     }
 
     /**
      * 設定のバリデーションとデフォルト値マージ & パス整形
      */
-    public formatAndValidateConfig(raw: any): IConfigFile {
+    public static formatAndValidateConfig(raw: any): IConfigFile {
         if (!raw || typeof raw !== 'object') {
             throw new Error('Config file is empty or not a valid YAML object');
         }
@@ -70,12 +70,10 @@ class Configuration implements IConfiguration {
             typeof server.subDirectory === 'string' ? urljoin('/', server.subDirectory).replace(/\/$/, '') : undefined;
 
         if (typeof server.port === 'undefined' && (!server.https || !server.https.port)) {
-            this.log.system.fatal('port setting error: server.port is required');
             throw new Error('PortSettingError: server.port is required');
         }
 
         if (typeof server.port === 'number' && (server.port < 1 || server.port > 65535)) {
-            this.log.system.fatal(`Invalid server port: ${server.port}`);
             throw new Error(`Invalid server port: ${server.port}`);
         }
 
@@ -95,7 +93,7 @@ class Configuration implements IConfiguration {
             console: typeof logConf.console === 'boolean' ? logConf.console : true,
             file: {
                 enabled: typeof logConf.file?.enabled === 'boolean' ? logConf.file.enabled : true,
-                path: this.directoryFormatting(
+                path: Configuration.directoryFormatting(
                     logConf.file?.path || path.join(Configuration.ROOT_PATH, 'logs', 'epgdeck.log'),
                 ),
                 maxSize: logConf.file?.maxSize || 10 * 1024 * 1024,
@@ -128,7 +126,7 @@ class Configuration implements IConfiguration {
         const directories = rawDirs
             .map((r: any) => ({
                 name: r.name,
-                path: this.directoryFormatting(r.path),
+                path: Configuration.directoryFormatting(r.path),
                 limitThreshold: r.limitThreshold,
                 action: r.action,
                 limitCmd: r.limitCmd,
@@ -137,7 +135,7 @@ class Configuration implements IConfiguration {
 
         const thumbConf = recConf.thumbnail || {};
         const thumbnail = {
-            path: this.directoryFormatting(
+            path: Configuration.directoryFormatting(
                 thumbConf.path || raw.thumbnail || path.join(Configuration.ROOT_PATH, 'thumbnail'),
             ),
             cmd:
@@ -151,7 +149,7 @@ class Configuration implements IConfiguration {
 
         const dropLogConf = recConf.dropLog || {};
         const dropLog = {
-            path: this.directoryFormatting(
+            path: Configuration.directoryFormatting(
                 dropLogConf.path || raw.dropLog || path.join(Configuration.ROOT_PATH, 'drop'),
             ),
             enabled: typeof dropLogConf.enabled === 'boolean' ? dropLogConf.enabled : raw.isEnabledDropCheck || false,
@@ -169,9 +167,9 @@ class Configuration implements IConfiguration {
             fileExtension: recConf.fileExtension || raw.recordedFileExtension || '.m2ts',
             directories,
             tempDir: recConf.tempDir
-                ? this.directoryFormatting(recConf.tempDir)
+                ? Configuration.directoryFormatting(recConf.tempDir)
                 : raw.recordedTmp
-                  ? this.directoryFormatting(raw.recordedTmp)
+                  ? Configuration.directoryFormatting(raw.recordedTmp)
                   : undefined,
             historyRetentionDays: recConf.historyRetentionDays || raw.recordedHistoryRetentionPeriodDays || 90,
             storageCheckIntervalSeconds: recConf.storageCheckIntervalSeconds || raw.storageLimitCheckIntervalTime || 60,
@@ -186,7 +184,7 @@ class Configuration implements IConfiguration {
                     : raw.timeSpecifiedEndMargin || 1,
             thumbnail,
             dropLog,
-            uploadTempDir: this.directoryFormatting(
+            uploadTempDir: Configuration.directoryFormatting(
                 recConf.uploadTempDir || raw.uploadTempDir || path.join(Configuration.ROOT_PATH, 'data', 'upload'),
             ),
         };
@@ -226,7 +224,7 @@ class Configuration implements IConfiguration {
         // 8. ストリーミング設定 (内部デフォルトとマージ)
         const rawStream = raw.streaming || raw.stream || {};
         const streaming: StreamingConfig = {
-            tempDir: this.directoryFormatting(
+            tempDir: Configuration.directoryFormatting(
                 rawStream.tempDir || raw.streamFilePath || path.join(Configuration.ROOT_PATH, 'data', 'streamfiles'),
             ),
             live: rawStream.live || Configuration.DEFAULT_STREAMING.live,
@@ -278,7 +276,7 @@ class Configuration implements IConfiguration {
     /**
      * 引数で渡されたディレクトリの末尾のパス区切り文字を削除する
      */
-    private directoryFormatting(dir: string): string {
+    private static directoryFormatting(dir: string): string {
         return dir.replace(/%ROOT%/g, Configuration.ROOT_PATH).replace(new RegExp(`\\${path.sep}$`), '');
     }
 

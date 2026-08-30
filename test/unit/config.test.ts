@@ -22,18 +22,11 @@ describe('Structured Config Schema', () => {
         expect(parsed.encode.presets.length).toBeGreaterThan(0);
     });
 
-    const dummyLoggerModel: any = {
-        getLogger: () => ({
-            system: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
-        }),
-    };
-
     it('should parse and merge default streaming configuration in Configuration model', () => {
         const templatePath = path.join(__dirname, '..', '..', 'config', 'config.yml.template');
         const content = fs.readFileSync(templatePath, 'utf-8');
         const rawConfig = yaml.load(content);
-        const configModel = new Configuration(dummyLoggerModel);
-        const conf = configModel.formatAndValidateConfig(rawConfig);
+        const conf = Configuration.formatAndValidateConfig(rawConfig);
 
         expect(conf.server.port).toBe(8888);
         expect(conf.database.type).toBe('sqlite');
@@ -44,9 +37,8 @@ describe('Structured Config Schema', () => {
     });
 
     it('should throw on invalid port in Configuration model', () => {
-        const configModel = new Configuration(dummyLoggerModel);
         expect(() => {
-            configModel.formatAndValidateConfig({
+            Configuration.formatAndValidateConfig({
                 server: {
                     port: 99999, // invalid port
                     mirakurun: 'http://localhost:40772',
@@ -60,8 +52,7 @@ describe('Structured Config Schema', () => {
     });
 
     it('should safely deep-merge partial urlscheme configuration', () => {
-        const configModel = new Configuration(dummyLoggerModel);
-        const conf = configModel.formatAndValidateConfig({
+        const conf = Configuration.formatAndValidateConfig({
             server: { port: 8888, mirakurun: 'http://localhost:40772' },
             database: { type: 'sqlite' },
             recording: { directories: [{ name: 'rec', path: '/path' }] },
@@ -77,6 +68,3 @@ describe('Structured Config Schema', () => {
         expect(conf.urlscheme.download.ios).toBe(Configuration.DEFAULT_URL_SCHEME.download.ios);
     });
 });
-
-
-

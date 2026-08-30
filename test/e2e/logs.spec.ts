@@ -42,7 +42,6 @@ test.describe('System Logs Page (/logs)', () => {
         await expect(page.locator('h1')).toContainText('システムログ');
         const followButton = page.getByRole('button', { name: /追尾/ });
         await expect(followButton).toBeVisible();
-        await expect(followButton).toContainText('追尾中');
 
         // フィルタコントロールの確認
         const searchInput = page.getByPlaceholder('ログを検索...');

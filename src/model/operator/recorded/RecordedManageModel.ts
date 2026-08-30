@@ -188,7 +188,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
      * @return string
      */
     private getThumbnailPath(thumbnail: Thumbnail): string {
-        return path.join(this.config.thumbnail, thumbnail.filePath);
+        return path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
     }
 
     /**
@@ -197,7 +197,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
      * @return string
      */
     private getDropLogFilePath(dropLogFile: DropLogFile): string {
-        return path.join(this.config.dropLog, dropLogFile.filePath);
+        return path.join(this.config.recording.dropLog.path, dropLogFile.filePath);
     }
 
     /**
@@ -498,7 +498,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
      * @return Promise<void>
      */
     public async historyCleanup(): Promise<void> {
-        const date = new Date().getTime() - this.config.recordedHistoryRetentionPeriodDays * 24 * 60 * 60 * 1000;
+        const date = new Date().getTime() - this.config.recording.historyRetentionDays * 24 * 60 * 60 * 1000;
         await this.recordedHistoryDB.delete(date).catch(err => {
             this.log.system.error('failed to historyCleanup');
             this.log.system.error(err);
@@ -539,7 +539,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
             files: [],
             directories: [],
         };
-        for (const r of this.config.recorded) {
+        for (const r of this.config.recording.directories) {
             const l = await FileUtil.getFileList(r.path);
             Array.prototype.push.apply(list.files, l.files);
             Array.prototype.push.apply(list.directories, l.directories);
@@ -614,7 +614,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
         }
 
         // ファイル索引上に存在しないファイルを削除する
-        const list = await FileUtil.getFileList(this.config.dropLog);
+        const list = await FileUtil.getFileList(this.config.recording.dropLog.path);
         for (const file of list.files) {
             if (typeof fileIndex[file] !== 'undefined') {
                 continue;

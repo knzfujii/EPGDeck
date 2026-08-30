@@ -44,13 +44,13 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     });
 
     // 2. CORS
-    if (config.isAllowAllCORS === true) {
+    if (config.server.isAllowAllCORS === true) {
         app.use('*', cors());
     }
 
     // Helper for URL with subDirectory
     const createUrl = (urlStr: string): string => {
-        return typeof config.subDirectory === 'undefined' ? urlStr : urljoin(config.subDirectory, urlStr);
+        return typeof config.server.subDirectory === 'undefined' ? urlStr : urljoin(config.server.subDirectory, urlStr);
     };
 
     // 3. OpenAPI Document
@@ -60,8 +60,8 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
 
     const getApiDocument = (): OpenAPIV3.Document => {
         const doc = yaml.load(fs.readFileSync(apiYmlPath, 'utf-8')) as OpenAPIV3.Document;
-        if (config.apiServers && config.apiServers.length > 0) {
-            doc.servers = config.apiServers.map(url => ({
+        if (config.server.apiServers && config.server.apiServers.length > 0) {
+            doc.servers = config.server.apiServers.map(url => ({
                 url: urljoin(url, createUrl('/api')),
             }));
         }
@@ -129,8 +129,8 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     // 5. Static Files & SPA Fallback
     const staticDirs: { prefix: string; dir: string }[] = [
         { prefix: createUrl('/img'), dir: path.join(rootDir, 'img') },
-        { prefix: createUrl('/thumbnail'), dir: config.thumbnail },
-        { prefix: createUrl('/streamfiles'), dir: config.streamFilePath },
+        { prefix: createUrl('/thumbnail'), dir: config.recording.thumbnail.path },
+        { prefix: createUrl('/streamfiles'), dir: config.streaming?.tempDir || '' },
     ];
 
     for (const { prefix, dir } of staticDirs) {
@@ -148,8 +148,8 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     const clientDist = path.join(rootDir, 'client', 'dist');
     const handleClientFile = async (c: any) => {
         let reqPath = c.req.path;
-        if (config.subDirectory && reqPath.startsWith(config.subDirectory)) {
-            reqPath = reqPath.slice(config.subDirectory.length);
+        if (config.server.subDirectory && reqPath.startsWith(config.server.subDirectory)) {
+            reqPath = reqPath.slice(config.server.subDirectory.length);
         }
         if (reqPath === '' || reqPath === '/') {
             reqPath = '/index.html';

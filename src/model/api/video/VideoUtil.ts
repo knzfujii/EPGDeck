@@ -39,11 +39,11 @@ export default class VideoUtil implements IVideoUtil {
     }
 
     public getParentDirPath(name: string): string | null {
-        if (name === 'tmp' && typeof this.config.recordedTmp !== 'undefined') {
-            return this.config.recordedTmp;
+        if (name === 'tmp' && typeof this.config.recording.tempDir !== 'undefined') {
+            return this.config.recording.tempDir;
         }
 
-        for (const r of this.config.recorded) {
+        for (const r of this.config.recording.directories) {
             if (r.name === name) {
                 return r.path;
             }
@@ -54,24 +54,28 @@ export default class VideoUtil implements IVideoUtil {
 
     public getInfo(filePath: string): Promise<VideoInfo> {
         return new Promise<VideoInfo>((resolve, reject) => {
-            execFile(this.config.ffprobe, ['-v', '0', '-show_format', '-of', 'json', filePath], (err, stdout) => {
-                if (err) {
-                    reject(err);
+            execFile(
+                this.config.encode.binaries.ffprobe,
+                ['-v', '0', '-show_format', '-of', 'json', filePath],
+                (err, stdout) => {
+                    if (err) {
+                        reject(err);
 
-                    return;
-                }
+                        return;
+                    }
 
-                try {
-                    const result = <any>JSON.parse(stdout);
-                    resolve({
-                        duration: parseFloat(result.format.duration),
-                        size: parseInt(result.format.size, 10),
-                        bitRate: parseFloat(result.format.bit_rate),
-                    });
-                } catch (err: any) {
-                    reject(err);
-                }
-            });
+                    try {
+                        const result = <any>JSON.parse(stdout);
+                        resolve({
+                            duration: parseFloat(result.format.duration),
+                            size: parseInt(result.format.size, 10),
+                            bitRate: parseFloat(result.format.bit_rate),
+                        });
+                    } catch (err: any) {
+                        reject(err);
+                    }
+                },
+            );
         });
     }
 }

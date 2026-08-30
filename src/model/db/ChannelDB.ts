@@ -211,11 +211,11 @@ export default class ChannelDB implements IChannelDB {
 
         let order: number[] = [];
         let key: string;
-        if (typeof config.channelOrder !== 'undefined') {
-            order = config.channelOrder;
+        if (typeof config.epg.channelOrder !== 'undefined') {
+            order = config.epg.channelOrder;
             key = 'id';
-        } else if (typeof config.sidOrder !== 'undefined') {
-            order = config.sidOrder;
+        } else if (typeof config.epg.sidOrder !== 'undefined') {
+            order = config.epg.sidOrder;
             key = 'serviceId';
         } else {
             return channels;

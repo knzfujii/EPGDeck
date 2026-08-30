@@ -22,7 +22,7 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
 
     constructor(@inject('ILoggerModel') logeer: ILoggerModel, @inject('IConfiguration') configure: IConfiguration) {
         this.log = logeer.getLogger();
-        this.maxEncode = configure.getConfig().encodeProcessNum;
+        this.maxEncode = configure.getConfig().encode.maxProcesses;
     }
 
     /**

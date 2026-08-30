@@ -3,38 +3,31 @@ import { inject, injectable } from 'inversify';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import urljoin from 'url-join';
-import IConfigFile from './IConfigFile';
+import IConfigFile, { StreamingConfig } from './IConfigFile';
 import IConfiguration from './IConfiguration';
 import ILogger from './ILogger';
 import ILoggerModel from './ILoggerModel';
 
 /**
  * Configuration
- * コンフィグ設定取得
+ * EPGDeck 構造化コンフィグ設定管理
  */
 @injectable()
 class Configuration implements IConfiguration {
-    private templateConfig: IConfigFile | null = null;
     private config!: IConfigFile;
     private log: ILogger;
 
     constructor(@inject('ILoggerModel') logger: ILoggerModel) {
         this.log = logger.getLogger();
 
-        try {
-            this.templateConfig = this.readConfig(Configuration.CONFIG_TEMPLATE_FILE_PATH, true);
-        } catch (err: any) {
-            this.templateConfig = null;
-        }
-
-        this.config = this.readConfig(Configuration.CONFIG_FILE_PATH, false);
+        this.config = this.readConfig(Configuration.CONFIG_FILE_PATH);
         this.log.system.info('config.yml read success');
 
         fs.watchFile(Configuration.CONFIG_FILE_PATH, async () => {
             this.log.system.info('updated config file');
             try {
                 const newConfig = <any>yaml.load(await fs.promises.readFile(Configuration.CONFIG_FILE_PATH, 'utf-8'));
-                this.config = this.formatConfig(newConfig);
+                this.config = this.formatAndValidateConfig(newConfig);
             } catch (err: any) {
                 this.log.system.error('read config error');
                 this.log.system.error(err);
@@ -45,170 +38,248 @@ class Configuration implements IConfiguration {
     /**
      * read config
      * @param configPath: ファイルパス
-     * @param isWarning エラーを warning でログに残すか
      * @return IConfigFile
      */
-    private readConfig(configPath: string, isWarning: boolean): IConfigFile {
+    private readConfig(configPath: string): IConfigFile {
         let str: string = '';
         try {
             str = fs.readFileSync(configPath, 'utf-8');
         } catch (e: any) {
-            if (e.code === 'ENOENT') {
-                const errMsg = `${configPath} is not found`;
-                if (isWarning === true) {
-                    this.log.system.warn(errMsg);
-                } else {
-                    this.log.system.fatal(errMsg);
-                }
-            } else {
-                if (isWarning === true) {
-                    this.log.stream.warn(e);
-                } else {
-                    this.log.system.fatal(e);
-                }
-            }
-
-            // warning 扱いの場合はエラーを throw する
-            if (isWarning === true) {
-                throw e;
-            } else {
-                process.exit(1);
-            }
+            const errMsg = `${configPath} is not found`;
+            this.log.system.fatal(errMsg);
+            process.exit(1);
         }
 
-        // parse configFile
-        const newConfig: IConfigFile = <any>yaml.load(str);
-
-        return this.formatConfig(newConfig);
+        const rawConfig: any = yaml.load(str) || {};
+        return this.formatAndValidateConfig(rawConfig);
     }
 
     /**
-     * 引数で渡された config のデフォルト値設定 & 整形
-     * @param newConfig: IConfigFile
-     * @return IConfigFile
+     * 設定のバリデーションとデフォルト値マージ & パス整形
      */
-    private formatConfig(newConfig: IConfigFile): IConfigFile {
-        this.setTemplateValues(newConfig);
-
-        // http or https の設定が存在するかチェック
-        if (
-            typeof newConfig.port === 'undefined' &&
-            (typeof newConfig.https === 'undefined' ||
-                typeof newConfig.https.port === 'undefined' ||
-                typeof newConfig.https.key === 'undefined' ||
-                typeof newConfig.https.cert === 'undefined')
-        ) {
-            this.log.system.fatal('port setting error');
-            throw new Error('PortSettingError');
+    public formatAndValidateConfig(raw: any): IConfigFile {
+        if (!raw || typeof raw !== 'object') {
+            throw new Error('Config file is empty or not a valid YAML object');
         }
 
-        // set apiServes
-        if (newConfig.apiServers.length === 0) {
-            newConfig.apiServers.push(`http://localhost:${newConfig.port}`);
+        // 1. サーバー基本設定
+        const server = raw.server || {};
+        const port = typeof server.port === 'number' ? server.port : 8889;
+        const mirakurun = server.mirakurun || server.mirakurunPath || 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/';
+        const subDirectory =
+            typeof server.subDirectory === 'string' ? urljoin('/', server.subDirectory).replace(/\/$/, '') : undefined;
+
+        if (typeof server.port === 'undefined' && (!server.https || !server.https.port)) {
+            this.log.system.fatal('port setting error: server.port is required');
+            throw new Error('PortSettingError: server.port is required');
         }
 
-        // subDirectory のパス整形
-        if (typeof newConfig.subDirectory !== 'undefined') {
-            newConfig.subDirectory = urljoin('/', newConfig.subDirectory).replace(/\/$/, '');
+        if (typeof server.port === 'number' && (server.port < 1 || server.port > 65535)) {
+            this.log.system.fatal(`Invalid server port: ${server.port}`);
+            throw new Error(`Invalid server port: ${server.port}`);
         }
 
-        // recorded のパス整形
-        for (let i = 0; i < newConfig.recorded.length; i++) {
-            newConfig.recorded[i].path = this.directoryFormatting(newConfig.recorded[i].path);
-        }
+        const apiServers =
+            Array.isArray(server.apiServers) && server.apiServers.length > 0
+                ? server.apiServers
+                : [`http://localhost:${port}`];
 
-        // recorded の中に tmp があったら削除する
-        newConfig.recorded = newConfig.recorded.filter(r => {
-            return r.name !== 'tmp';
-        });
+        // 2. データベース設定
+        const db = raw.database || {};
+        const dbtype = db.type || raw.dbtype || 'sqlite';
 
-        // recordedTmp のパス整形
-        if (typeof newConfig.recordedTmp !== 'undefined') {
-            newConfig.recordedTmp = this.directoryFormatting(newConfig.recordedTmp);
-        }
+        // 3. ログ設定
+        const logConf = raw.log || {};
+        const log: IConfigFile['log'] = {
+            level: logConf.level || 'info',
+            console: typeof logConf.console === 'boolean' ? logConf.console : true,
+            file: {
+                enabled: typeof logConf.file?.enabled === 'boolean' ? logConf.file.enabled : true,
+                path: this.directoryFormatting(
+                    logConf.file?.path || path.join(Configuration.ROOT_PATH, 'logs', 'epgdeck.log'),
+                ),
+                maxSize: logConf.file?.maxSize || 10 * 1024 * 1024,
+                backups: logConf.file?.backups || 5,
+            },
+            bufferSize: logConf.bufferSize || 1000,
+        };
 
-        // thumbnail のパス整形
-        newConfig.thumbnail = this.directoryFormatting(newConfig.thumbnail);
+        // 4. EPG 設定
+        const epgConf = raw.epg || {};
+        const epg = {
+            intervalMinutes:
+                typeof epgConf.intervalMinutes === 'number' ? epgConf.intervalMinutes : raw.epgUpdateIntervalTime || 10,
+            replaceEnclosingCharacters:
+                typeof epgConf.replaceEnclosingCharacters === 'boolean'
+                    ? epgConf.replaceEnclosingCharacters
+                    : typeof raw.needToReplaceEnclosingCharacters === 'boolean'
+                      ? raw.needToReplaceEnclosingCharacters
+                      : true,
+            channelOrder: epgConf.channelOrder || raw.channelOrder,
+            sidOrder: epgConf.sidOrder || raw.sidOrder,
+            excludeChannels: epgConf.excludeChannels || raw.excludeChannels,
+            excludeSids: epgConf.excludeSids || raw.excludeSids,
+        };
 
-        // streamfiles のパス整形
-        newConfig.streamFilePath = this.directoryFormatting(newConfig.streamFilePath);
+        // 5. 録画設定
+        const recConf = raw.recording || {};
+        const rawDirs = recConf.directories ||
+            raw.recorded || [{ name: 'recorded', path: path.join(Configuration.ROOT_PATH, 'recorded') }];
+        const directories = rawDirs
+            .map((r: any) => ({
+                name: r.name,
+                path: this.directoryFormatting(r.path),
+                limitThreshold: r.limitThreshold,
+                action: r.action,
+                limitCmd: r.limitCmd,
+            }))
+            .filter((r: any) => r.name !== 'tmp');
 
-        // log のパス整形
-        if (
-            typeof newConfig.log !== 'undefined' &&
-            typeof newConfig.log.file !== 'undefined' &&
-            typeof newConfig.log.file.path === 'string'
-        ) {
-            newConfig.log.file.path = this.directoryFormatting(newConfig.log.file.path);
-        }
+        const thumbConf = recConf.thumbnail || {};
+        const thumbnail = {
+            path: this.directoryFormatting(
+                thumbConf.path || raw.thumbnail || path.join(Configuration.ROOT_PATH, 'thumbnail'),
+            ),
+            cmd:
+                thumbConf.cmd ||
+                raw.thumbnailCmd ||
+                '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%',
+            size: thumbConf.size || raw.thumbnailSize || '480x270',
+            positionSeconds:
+                typeof thumbConf.positionSeconds === 'number' ? thumbConf.positionSeconds : raw.thumbnailPosition || 5,
+        };
 
-        return newConfig;
-    }
+        const dropLogConf = recConf.dropLog || {};
+        const dropLog = {
+            path: this.directoryFormatting(
+                dropLogConf.path || raw.dropLog || path.join(Configuration.ROOT_PATH, 'drop'),
+            ),
+            enabled: typeof dropLogConf.enabled === 'boolean' ? dropLogConf.enabled : raw.isEnabledDropCheck || false,
+        };
 
-    /**
-     * config デフォルト値をセットする
-     * @param config: IConfigFile
-     */
-    private setTemplateValues(config: IConfigFile): void {
-        for (const key in Configuration.DEFAULT_VALUE) {
-            if (typeof (<any>config)[key] === 'undefined') {
-                (<any>config)[key] = (<any>Configuration.DEFAULT_VALUE)[key];
-            }
-        }
+        const priorityConf = recConf.priority || {};
+        const priority = {
+            conflict: typeof priorityConf.conflict === 'number' ? priorityConf.conflict : raw.conflictPriority || 1,
+            recording: typeof priorityConf.recording === 'number' ? priorityConf.recording : raw.recPriority || 2,
+            streaming: typeof priorityConf.streaming === 'number' ? priorityConf.streaming : raw.streamingPriority || 0,
+        };
 
-        // stream のデフォルト値設定
-        if (this.templateConfig !== null && typeof config.stream !== 'undefined') {
-            if (typeof config.stream.live !== 'undefined' && typeof config.stream.live.ts !== 'undefined') {
-                if (typeof config.stream.live.ts.m2ts === 'undefined') {
-                    config.stream.live.ts.m2ts = this.templateConfig.stream?.live?.ts?.m2ts;
-                }
-                if (typeof config.stream.live.ts.m2tsll === 'undefined') {
-                    config.stream.live.ts.m2tsll = this.templateConfig.stream?.live?.ts?.m2tsll;
-                }
-                if (typeof config.stream.live.ts.webm === 'undefined') {
-                    config.stream.live.ts.webm = this.templateConfig.stream?.live?.ts?.webm;
-                }
-                if (typeof config.stream.live.ts.mp4 === 'undefined') {
-                    config.stream.live.ts.mp4 = this.templateConfig.stream?.live?.ts?.mp4;
-                }
-                if (typeof config.stream.live.ts.hls === 'undefined') {
-                    config.stream.live.ts.hls = this.templateConfig.stream?.live?.ts?.hls;
-                }
-            }
+        const recording: IConfigFile['recording'] = {
+            filenameFormat: recConf.filenameFormat || raw.recordedFormat || '%YEAR%_%MONTH%_%DAY%_%HOUR%%MIN%-%TITLE%',
+            fileExtension: recConf.fileExtension || raw.recordedFileExtension || '.m2ts',
+            directories,
+            tempDir: recConf.tempDir
+                ? this.directoryFormatting(recConf.tempDir)
+                : raw.recordedTmp
+                  ? this.directoryFormatting(raw.recordedTmp)
+                  : undefined,
+            historyRetentionDays: recConf.historyRetentionDays || raw.recordedHistoryRetentionPeriodDays || 90,
+            storageCheckIntervalSeconds: recConf.storageCheckIntervalSeconds || raw.storageLimitCheckIntervalTime || 60,
+            priority,
+            timeSpecifiedStartMargin:
+                typeof recConf.timeSpecifiedStartMargin === 'number'
+                    ? recConf.timeSpecifiedStartMargin
+                    : raw.timeSpecifiedStartMargin || 1,
+            timeSpecifiedEndMargin:
+                typeof recConf.timeSpecifiedEndMargin === 'number'
+                    ? recConf.timeSpecifiedEndMargin
+                    : raw.timeSpecifiedEndMargin || 1,
+            thumbnail,
+            dropLog,
+            uploadTempDir: this.directoryFormatting(
+                recConf.uploadTempDir || raw.uploadTempDir || path.join(Configuration.ROOT_PATH, 'data', 'upload'),
+            ),
+        };
 
-            if (typeof config.stream.recorded !== 'undefined') {
-                if (typeof config.stream.recorded.ts !== 'undefined') {
-                    if (typeof config.stream.recorded.ts.webm === 'undefined') {
-                        config.stream.recorded.ts.webm = this.templateConfig.stream?.recorded?.ts?.webm;
-                    }
-                    if (typeof config.stream.recorded.ts.mp4 === 'undefined') {
-                        config.stream.recorded.ts.mp4 = this.templateConfig.stream?.recorded?.ts?.mp4;
-                    }
-                    if (typeof config.stream.recorded.ts.hls === 'undefined') {
-                        config.stream.recorded.ts.hls = this.templateConfig.stream?.recorded?.ts?.hls;
-                    }
-                }
-                if (typeof config.stream.recorded.encoded !== 'undefined') {
-                    if (typeof config.stream.recorded.encoded.webm === 'undefined') {
-                        config.stream.recorded.encoded.webm = this.templateConfig.stream?.recorded?.encoded?.webm;
-                    }
-                    if (typeof config.stream.recorded.encoded.mp4 === 'undefined') {
-                        config.stream.recorded.encoded.mp4 = this.templateConfig.stream?.recorded?.encoded?.mp4;
-                    }
-                    if (typeof config.stream.recorded.encoded.hls === 'undefined') {
-                        config.stream.recorded.encoded.hls = this.templateConfig.stream?.recorded?.encoded?.hls;
-                    }
-                }
-            }
-        }
+        // 6. エンコード設定
+        const encConf = raw.encode || {};
+        const binaries = {
+            ffmpeg: encConf.binaries?.ffmpeg || raw.ffmpeg || '/usr/lib/jellyfin-ffmpeg/ffmpeg',
+            ffprobe: encConf.binaries?.ffprobe || raw.ffprobe || '/usr/lib/jellyfin-ffmpeg/ffprobe',
+        };
+        const presets = Array.isArray(encConf.presets) ? encConf.presets : Array.isArray(raw.encode) ? raw.encode : [];
+
+        const encode: IConfigFile['encode'] = {
+            binaries,
+            maxProcesses: typeof encConf.maxProcesses === 'number' ? encConf.maxProcesses : raw.encodeProcessNum || 2,
+            concurrency: typeof encConf.concurrency === 'number' ? encConf.concurrency : raw.concurrentEncodeNum || 1,
+            presets,
+        };
+
+        // 7. 外部連携 & URL Scheme
+        const rawUrlscheme = raw.urlscheme || {};
+        const urlscheme: IConfigFile['urlscheme'] = {
+            m2ts: {
+                ...Configuration.DEFAULT_URL_SCHEME.m2ts,
+                ...(rawUrlscheme.m2ts || {}),
+            },
+            video: {
+                ...Configuration.DEFAULT_URL_SCHEME.video,
+                ...(rawUrlscheme.video || {}),
+            },
+            download: {
+                ...Configuration.DEFAULT_URL_SCHEME.download,
+                ...(rawUrlscheme.download || {}),
+            },
+        };
+
+        // 8. ストリーミング設定 (内部デフォルトとマージ)
+        const rawStream = raw.streaming || raw.stream || {};
+        const streaming: StreamingConfig = {
+            tempDir: this.directoryFormatting(
+                rawStream.tempDir || raw.streamFilePath || path.join(Configuration.ROOT_PATH, 'data', 'streamfiles'),
+            ),
+            live: rawStream.live || Configuration.DEFAULT_STREAMING.live,
+            recorded: rawStream.recorded || Configuration.DEFAULT_STREAMING.recorded,
+        };
+
+        const config: IConfigFile = {
+            server: {
+                port,
+                mirakurun,
+                subDirectory,
+                https: server.https,
+                uid: server.uid || raw.uid,
+                gid: server.gid || raw.gid,
+                apiServers,
+                isAllowAllCORS:
+                    typeof server.isAllowAllCORS === 'boolean' ? server.isAllowAllCORS : raw.isAllowAllCORS || false,
+            },
+            database: {
+                type: dbtype,
+                sqlite: db.sqlite || raw.sqlite,
+                mysql: db.mysql || raw.mysql,
+                postgres: db.postgres || raw.postgres,
+            },
+            log,
+            epg,
+            recording,
+            encode,
+            hooks: raw.hooks || {
+                reserveNewAddition: raw.reserveNewAddtionCommand,
+                reserveUpdate: raw.reserveUpdateCommand,
+                reserveDeleted: raw.reservedeletedCommand,
+                recordingPreStart: raw.recordingPreStartCommand,
+                recordingPrepRecFailed: raw.recordingPrepRecFailedCommand,
+                recordingStart: raw.recordingStartCommand,
+                recordingFinish: raw.recordingFinishCommand,
+                recordingFailed: raw.recordingFailedCommand,
+                encodingFinish: raw.encodingFinishCommand,
+                isSuppressReservesUpdateAllLog: raw.isSuppressReservesUpdateAllLog || false,
+            },
+            urlscheme,
+            streaming,
+            kodi: raw.kodi || raw.kodiHosts,
+        };
+
+        return config;
     }
 
     /**
      * 引数で渡されたディレクトリの末尾のパス区切り文字を削除する
-     * @param dir: ディレクトリパス
      */
     private directoryFormatting(dir: string): string {
-        return dir.replace('%ROOT%', Configuration.ROOT_PATH).replace(new RegExp(`\\${path.sep}$`), '');
+        return dir.replace(/%ROOT%/g, Configuration.ROOT_PATH).replace(new RegExp(`\\${path.sep}$`), '');
     }
 
     /**
@@ -224,66 +295,116 @@ namespace Configuration {
     export const CONFIG_TEMPLATE_FILE_PATH = path.join(__dirname, '..', '..', 'config', 'config.yml.template');
     export const ROOT_PATH = path.join(__dirname, '..', '..').replace(new RegExp(`\\${path.sep}$`), '');
 
-    export const DEFAULT_VALUE: IConfigFile = {
-        mirakurunPath: 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/',
-        apiServers: [],
-        isAllowAllCORS: false,
-        dbtype: 'sqlite',
-        needToReplaceEnclosingCharacters: true,
-        epgUpdateIntervalTime: 10,
-        conflictPriority: 1,
-        recPriority: 2,
-        streamingPriority: 0,
-        timeSpecifiedStartMargin: 1,
-        timeSpecifiedEndMargin: 1,
-        recordedFormat: '%YEAR%年%MONTH%月%DAY%日%HOUR%時%MIN%分%SEC%秒-%TITLE%',
-        recordedFileExtension: '.ts',
-        recorded: [
-            {
-                name: 'recorded',
-                path: path.join(__dirname, '..', '..', 'recorded'),
-            },
-        ],
-        recordedHistoryRetentionPeriodDays: 90,
-        storageLimitCheckIntervalTime: 60,
-        thumbnail: path.join(__dirname, '..', '..', 'thumbnail'),
-        thumbnailCmd:
-            '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%',
-        thumbnailSize: '480x270',
-        thumbnailPosition: 5,
-        dropLog: path.join(__dirname, '..', '..', 'drop'),
-        uploadTempDir: path.join(__dirname, '..', '..', 'data', 'upload'),
-        isEnabledDropCheck: false,
-        ffmpeg: '/usr/local/bin/ffmpeg',
-        ffprobe: '/usr/local/bin/ffprobe',
-        encodeProcessNum: 0,
-        concurrentEncodeNum: 0,
-        encode: [],
-        isSuppressReservesUpdateAllLog: false,
-        urlscheme: {
-            m2ts: {
-                ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS"',
-                android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end',
-            },
-            video: {
-                ios: 'infuse://x-callback-url/play?url=PROTOCOL://ADDRESS',
-                android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end',
-            },
-            download: {
-                ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS&filename=FILENAME',
+    export const DEFAULT_URL_SCHEME = {
+        m2ts: {
+            ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS',
+            android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end',
+        },
+        video: {
+            ios: 'infuse://x-callback-url/play?url=PROTOCOL://ADDRESS',
+            android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end',
+        },
+        download: {
+            ios: 'vlc-x-callback://x-callback-url/download?url=PROTOCOL%3A%2F%2FADDRESS&filename=FILENAME',
+        },
+    };
+
+    /**
+     * 内部標準ストリーミングコマンド定義
+     */
+    export const DEFAULT_STREAMING: StreamingConfig = {
+        live: {
+            ts: {
+                m2ts: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -y -f mpegts pipe:1',
+                    },
+                    {
+                        name: '無変換',
+                    },
+                ],
+                m2tsll: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -f mpegts -analyzeduration 500000 -i pipe:0 -map 0 -c:s copy -c:d copy -ignore_unknown -fflags nobuffer -flags low_delay -max_delay 250000 -max_interleave_delta 1 -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -f mpegts -analyzeduration 500000 -i pipe:0 -map 0 -c:s copy -c:d copy -ignore_unknown -fflags nobuffer -flags low_delay -max_delay 250000 -max_interleave_delta 1 -threads 0 -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -y -f mpegts pipe:1',
+                    },
+                ],
+                mp4: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                ],
+                hls: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                ],
             },
         },
-        streamFilePath: path.join(__dirname, '..', '..', 'data', 'streamfiles'),
-        log: {
-            level: 'info',
-            console: true,
-            file: {
-                enabled: true,
-                path: path.join(__dirname, '..', '..', 'logs', 'epgdeck.log'),
-                maxSize: 10 * 1024 * 1024,
-                backups: 5,
+        recorded: {
+            ts: {
+                mp4: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                ],
+                hls: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                ],
             },
-            bufferSize: 1000,
+            encoded: {
+                mp4: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf scale=-2:720 -b:v 3000k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf scale=-2:480 -b:v 1500k -profile:v baseline -preset veryfast -tune fastdecode,zerolatency -movflags frag_keyframe+empty_moov+faststart+default_base_moof -y -f mp4 pipe:1',
+                    },
+                ],
+                hls: [
+                    {
+                        name: '720p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                    {
+                        name: '480p',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                    },
+                ],
+            },
         },
     };
 }

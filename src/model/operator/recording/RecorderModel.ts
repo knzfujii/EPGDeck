@@ -321,10 +321,10 @@ class RecorderModel implements IRecorderModel {
         this.stream.pipe(this.recFile);
 
         // drop checker
-        if (this.config.isEnabledDropCheck === true) {
+        if (this.config.recording.dropLog.enabled === true) {
             let dropFilePath: string | null = null;
             try {
-                await this.dropChecker.start(this.config.dropLog, recPath.fullPath, this.stream);
+                await this.dropChecker.start(this.config.recording.dropLog.path, recPath.fullPath, this.stream);
                 dropFilePath = this.dropChecker.getFilePath();
             } catch (err: any) {
                 this.log.system.error(`drop check error: ${recPath.fullPath}`);
@@ -645,7 +645,7 @@ class RecorderModel implements IRecorderModel {
             this.isRecording = false;
 
             // tmp に録画していた場合は移動する
-            if (typeof this.config.recordedTmp !== 'undefined' && this.videoFileId !== null) {
+            if (typeof this.config.recording.tempDir !== 'undefined' && this.videoFileId !== null) {
                 try {
                     const newVdeoFileFulPath = await this.recordingUtil.movingFromTmp(this.reserve, this.videoFileId);
                     this.videoFileFulPath = newVdeoFileFulPath;

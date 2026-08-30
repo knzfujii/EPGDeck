@@ -38,9 +38,6 @@
 
     ```bash
     $ cp config/config.yml.template config/config.yml
-    $ cp config/operatorLogConfig.sample.yml config/operatorLogConfig.yml
-    $ cp config/epgUpdaterLogConfig.sample.yml config/epgUpdaterLogConfig.yml
-    $ cp config/serviceLogConfig.sample.yml config/serviceLogConfig.yml
     $ cp config/enc.js.template config/enc.js
     ```
 
@@ -49,11 +46,12 @@
     - 詳細な設定は [詳細マニュアル](configuration.md) を参照
 
     ```yaml
-    port: 8888
-    mirakurunPath: 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/'
+    server:
+      port: 8888
+      mirakurun: 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/'
+      # Mirakurun が別ホストで動作している場合:
+      # mirakurun: 'http://192.168.1.10:40772/'
     ```
-
-    Mirakurun が別ホストで動作している場合は `mirakurunPath: 'http://<MirakurunURL>:<Port>'`
 
 ## EPGDeck の起動 / 終了
 

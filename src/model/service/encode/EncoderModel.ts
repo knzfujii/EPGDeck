@@ -129,7 +129,7 @@ class EncoderModel implements IEncoderModel {
         }
 
         // エンコードコマンド設定を探す
-        const encodeCmd = this.configure.getConfig().encode.find(enc => {
+        const encodeCmd = this.configure.getConfig().encode.presets.find(enc => {
             return enc.name === this.encodeOption?.mode;
         });
         if (typeof encodeCmd === 'undefined') {
@@ -189,8 +189,8 @@ class EncoderModel implements IEncoderModel {
                     OUTPUT: outputFilePath === null ? '' : outputFilePath,
                     DIR: dir,
                     SUBDIR: this.encodeOption.directory || '',
-                    FFMPEG: config.ffmpeg,
-                    FFPROBE: config.ffprobe,
+                    FFMPEG: config.encode.binaries.ffmpeg,
+                    FFPROBE: config.encode.binaries.ffprobe,
                     NAME: recorded.name,
                     HALF_WIDTH_NAME: recorded.halfWidthName,
                     DESCRIPTION: recorded.description || '',

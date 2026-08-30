@@ -32,7 +32,7 @@ export default class DropLogApiModel implements IDropLogApiModel {
             return null;
         }
 
-        const filePath = path.join(this.config.dropLog, dropLogFile.filePath);
+        const filePath = path.join(this.config.recording.dropLog.path, dropLogFile.filePath);
         const fileSize = await FileUtil.getFileSize(filePath);
 
         if (fileSize > maxSize * 1024) {

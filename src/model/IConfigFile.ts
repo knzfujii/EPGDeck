@@ -5,8 +5,7 @@ export interface HttpsConfig {
     port: number;
     key: string; // 秘密鍵
     cert: string; // 証明書
-    ca?: string | string[]; // クライアント認証用秘密鍵
-    socketioPort?: number;
+    ca?: string | string[]; // クライアント認証用
 }
 
 export interface RecordedDirInfo {
@@ -52,27 +51,19 @@ export interface LogConfig {
     bufferSize?: number;
 }
 
-/**
- * config ファイル形式
- */
-export default interface IConfigFile {
-    log?: LogConfig;
+export interface ServerConfig {
     port?: number;
-    socketioPort?: number;
-    clientSocketioPort?: number;
-    https?: HttpsConfig;
-    mirakurunPath: string;
-
+    mirakurun: string;
     subDirectory?: string;
+    https?: HttpsConfig;
+    uid?: number | string;
+    gid?: number | string;
+    apiServers?: string[];
+    isAllowAllCORS?: boolean;
+}
 
-    uid?: number | string; // uid
-    gid?: number | string; // gid
-
-    apiServers: string[];
-
-    isAllowAllCORS: boolean;
-
-    dbtype: Enums.DBType;
+export interface DatabaseConfig {
+    type: Enums.DBType;
     sqlite?: {
         extensions?: string[];
         regexp?: boolean;
@@ -92,119 +83,125 @@ export default interface IConfigFile {
         database: string;
         password: string;
     };
+}
 
-    // 囲み文字を置換するか
-    needToReplaceEnclosingCharacters: boolean;
-
-    // epg 更新時間間隔 (分)
-    epgUpdateIntervalTime: number;
-
-    // 放送局並び順
+export interface EPGConfig {
+    intervalMinutes: number;
+    replaceEnclosingCharacters: boolean;
     channelOrder?: apid.ChannelId[];
     sidOrder?: apid.ServiceId[];
-
-    // 放送局除外設定
     excludeChannels?: apid.ChannelId[];
     excludeSids?: apid.ServiceId[];
+}
 
-    // priority 設定
-    recPriority: number;
-    conflictPriority: number;
-    streamingPriority: number;
+export interface RecordingPriorityConfig {
+    conflict: number;
+    recording: number;
+    streaming: number;
+}
 
-    // 時刻指定予約マージン
+export interface ThumbnailConfig {
+    path: string;
+    cmd?: string;
+    size: string;
+    positionSeconds: number;
+}
+
+export interface DropLogConfig {
+    path: string;
+    enabled: boolean;
+}
+
+export interface RecordingConfig {
+    filenameFormat: string;
+    fileExtension: string;
+    directories: RecordedDirInfo[];
+    tempDir?: string;
+    historyRetentionDays: number;
+    storageCheckIntervalSeconds: number;
+    priority: RecordingPriorityConfig;
     timeSpecifiedStartMargin: number;
     timeSpecifiedEndMargin: number;
-
-    // 録画ファイル名フォーマット
-    recordedFormat: string;
-
-    // 拡張子
-    recordedFileExtension: string;
-
-    // 録画ディレクトリ
-    recorded: RecordedDirInfo[];
-    // 録画一時ディレクトリ
-    recordedTmp?: string;
-
-    // 録画履歴保存期間
-    recordedHistoryRetentionPeriodDays: number;
-
-    // ストレージ空き容量チェック間隔 (秒)
-    storageLimitCheckIntervalTime: number;
-
-    // サムネイル
-    thumbnail: string;
-    thumbnailCmd: string;
-    thumbnailSize: string;
-    thumbnailPosition: number;
-
-    // drop log
-    dropLog: string;
-    isEnabledDropCheck: boolean; // drop check を有効にするか
-
-    // upload
+    thumbnail: ThumbnailConfig;
+    dropLog: DropLogConfig;
     uploadTempDir: string;
+}
 
+export interface EncodeBinariesConfig {
     ffmpeg: string;
     ffprobe: string;
+}
 
-    // エンコード設定
-    encodeProcessNum: number; // エンコード、ストリーミング最大プロセス数
-    concurrentEncodeNum: number; // 同時エンコード数
-    encode: {
-        name: string;
-        cmd: string;
-        suffix?: string; // 非エンコードコマンドの場合 undefined
-        rate?: number;
-    }[];
+export interface EncodePresetConfig {
+    name: string;
+    cmd: string;
+    suffix?: string;
+    rate?: number;
+}
 
-    // 予約定期更新時のログ出力を抑えるか
-    isSuppressReservesUpdateAllLog: boolean;
+export interface EncodeConfig {
+    binaries: EncodeBinariesConfig;
+    maxProcesses: number;
+    concurrency: number;
+    presets: EncodePresetConfig[];
+}
 
-    // 各種フックコマンド
-    reserveNewAddtionCommand?: string; // 予約新規追加
-    reserveUpdateCommand?: string; // 予約情報更新
-    reservedeletedCommand?: string; // 予約削除
-    recordingPreStartCommand?: string; // 録画準備開始
-    recordingPrepRecFailedCommand?: string; // 録画準備失敗
-    recordingStartCommand?: string; // 録画開始
-    recordingFinishCommand?: string; // 録画終了
-    recordingFailedCommand?: string; // 録画中のエラー
-    encodingFinishCommand?: string; // エンコード終了
+export interface HookCommandsConfig {
+    reserveNewAddition?: string;
+    reserveUpdate?: string;
+    reserveDeleted?: string;
+    recordingPreStart?: string;
+    recordingPrepRecFailed?: string;
+    recordingStart?: string;
+    recordingFinish?: string;
+    recordingFailed?: string;
+    encodingFinish?: string;
+    isSuppressReservesUpdateAllLog?: boolean;
+}
 
-    // 視聴 URL Scheme 設定
-    urlscheme: {
-        m2ts: URLSchemeInfo;
-        video: URLSchemeInfo;
-        download: URLSchemeInfo;
-    };
+export interface URLSchemeConfig {
+    m2ts: URLSchemeInfo;
+    video: URLSchemeInfo;
+    download: URLSchemeInfo;
+}
 
-    streamFilePath: string;
-    stream?: {
-        live?: {
-            ts?: {
-                m2ts?: StreamingCmd[];
-                m2tsll?: StreamingCmd[];
-                webm?: StreamingCmd[];
-                mp4?: StreamingCmd[];
-                hls?: StreamingCmd[];
-            };
-        };
-        recorded?: {
-            ts?: {
-                webm?: StreamingCmd[];
-                mp4?: StreamingCmd[];
-                hls?: StreamingCmd[];
-            };
-            encoded?: {
-                webm?: StreamingCmd[];
-                mp4?: StreamingCmd[];
-                hls?: StreamingCmd[];
-            };
+export interface StreamingConfig {
+    tempDir?: string;
+    live?: {
+        ts?: {
+            m2ts?: StreamingCmd[];
+            m2tsll?: StreamingCmd[];
+            webm?: StreamingCmd[];
+            mp4?: StreamingCmd[];
+            hls?: StreamingCmd[];
         };
     };
+    recorded?: {
+        ts?: {
+            webm?: StreamingCmd[];
+            mp4?: StreamingCmd[];
+            hls?: StreamingCmd[];
+        };
+        encoded?: {
+            webm?: StreamingCmd[];
+            mp4?: StreamingCmd[];
+            hls?: StreamingCmd[];
+        };
+    };
+}
 
-    // 配信先 kodi 設定
-    kodiHosts?: KodiInfo[];
+/**
+ * 新 EPGDeck 構造化 config ファイル形式
+ */
+export default interface IConfigFile {
+    server: ServerConfig;
+    database: DatabaseConfig;
+    log?: LogConfig;
+    epg: EPGConfig;
+    recording: RecordingConfig;
+    encode: EncodeConfig;
+    hooks?: HookCommandsConfig;
+    urlscheme?: URLSchemeConfig;
+    streaming?: StreamingConfig;
+    kodi?: KodiInfo[];
 }

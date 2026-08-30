@@ -33,7 +33,7 @@ class EncodeManageModel implements IEncodeManageModel {
     ) {
         this.log = logger.getLogger();
         this.executeManagementModel = executeManagementModel;
-        this.concurrentEncodeNum = configure.getConfig().concurrentEncodeNum;
+        this.concurrentEncodeNum = configure.getConfig().encode.concurrency;
         this.encoderModelProvider = encoderModelProvider;
         this.encodeEvent = encodeEvent;
 

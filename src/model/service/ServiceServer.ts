@@ -47,10 +47,10 @@ class ServiceServer implements IServiceServer {
      */
     private createUploadDir(): void {
         try {
-            fs.statSync(this.config.uploadTempDir);
+            fs.statSync(this.config.recording.uploadTempDir);
         } catch {
-            this.log.system.info(`mkdirp: ${this.config.uploadTempDir}`);
-            mkdirp.sync(this.config.uploadTempDir);
+            this.log.system.info(`mkdirp: ${this.config.recording.uploadTempDir}`);
+            mkdirp.sync(this.config.recording.uploadTempDir);
         }
     }
 
@@ -61,39 +61,25 @@ class ServiceServer implements IServiceServer {
         const socketioServers: http.Server[] = [];
 
         // http
-        if (typeof this.config.port !== 'undefined') {
-            const socketioPort =
-                typeof this.config.socketioPort !== 'undefined' ? this.config.socketioPort : this.config.port;
-
+        if (typeof this.config.server.port !== 'undefined') {
             const server = http.createServer(this.requestListener);
-            server.listen(this.config.port, () => {
-                this.log.system.info(`http server listening on ${this.config.port}`);
+            server.listen(this.config.server.port, () => {
+                this.log.system.info(`http server listening on ${this.config.server.port}`);
             });
-
-            // socket.io
-            if (socketioPort === this.config.port) {
-                socketioServers.push(server);
-            } else {
-                const socketIOServer = http.createServer();
-                socketIOServer.listen(this.config.socketioPort, () => {
-                    this.log.system.info(`http SocketIO listening on ${this.config.socketioPort}`);
-                });
-
-                socketioServers.push(socketIOServer);
-            }
+            socketioServers.push(server);
         }
 
         // https
-        if (typeof this.config.https !== 'undefined') {
+        if (typeof this.config.server.https !== 'undefined') {
             const option: https.ServerOptions = {
-                key: fs.readFileSync(this.config.https.key),
-                cert: fs.readFileSync(this.config.https.cert),
+                key: fs.readFileSync(this.config.server.https.key),
+                cert: fs.readFileSync(this.config.server.https.cert),
             };
-            if (typeof this.config.https.ca !== 'undefined') {
-                if (typeof this.config.https.ca === 'string') {
-                    option.ca = fs.readFileSync(this.config.https.ca);
+            if (typeof this.config.server.https.ca !== 'undefined') {
+                if (typeof this.config.server.https.ca === 'string') {
+                    option.ca = fs.readFileSync(this.config.server.https.ca);
                 } else {
-                    option.ca = this.config.https.ca.map(f => {
+                    option.ca = this.config.server.https.ca.map(f => {
                         return fs.readFileSync(f);
                     });
                 }
@@ -102,22 +88,12 @@ class ServiceServer implements IServiceServer {
             }
 
             const httpsServer = https.createServer(option, this.requestListener);
-            httpsServer.listen(this.config.https.port, () => {
-                if (typeof this.config.https !== 'undefined') {
-                    this.log.system.info(`https server listening on ${this.config.https.port}`);
+            httpsServer.listen(this.config.server.https.port, () => {
+                if (typeof this.config.server.https !== 'undefined') {
+                    this.log.system.info(`https server listening on ${this.config.server.https.port}`);
                 }
             });
-
-            // socket.io
-            if (typeof this.config.https.socketioPort === 'undefined') {
-                socketioServers.push(httpsServer);
-            } else {
-                const socketIOServer = https.createServer(option);
-                socketioServers.push(socketIOServer);
-                socketIOServer.listen(this.config.https.socketioPort, () => {
-                    this.log.system.info(`https SocketIO listening on ${this.config.socketioPort}`);
-                });
-            }
+            socketioServers.push(httpsServer);
         }
 
         this.socketIoManageModel.initialize(socketioServers);

@@ -88,7 +88,7 @@ test.describe('System Logs Page (/logs)', () => {
         await expect(page.locator('h1')).toContainText('システムログ');
 
         // 1. Live バッジの確認
-        await expect(page.getByText('Live')).toBeVisible({ timeout: 5000 });
+        await expect(page.getByText('Live', { exact: true })).toBeVisible({ timeout: 5000 });
 
         // 2. ブラウザ側から API リクエストを発行（Hono access log が発生する）
         await page.evaluate(async () => {

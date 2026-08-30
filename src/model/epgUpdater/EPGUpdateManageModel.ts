@@ -62,17 +62,17 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
 
         // 除外放送局索引情報のセット
         const config = configuration.getConfig();
-        if (typeof config.excludeChannels !== 'undefined') {
-            for (const c of config.excludeChannels) {
+        if (typeof config.epg.excludeChannels !== 'undefined') {
+            for (const c of config.epg.excludeChannels) {
                 this.excludeChannelIndex[c] = true;
             }
         }
-        if (typeof config.excludeSids !== 'undefined') {
-            for (const c of config.excludeSids) {
+        if (typeof config.epg.excludeSids !== 'undefined') {
+            for (const c of config.epg.excludeSids) {
                 this.excludeSidIndex[c] = true;
             }
         }
-        this.mirakurunPath = config.mirakurunPath;
+        this.mirakurunPath = config.server.mirakurun;
     }
 
     /**

@@ -161,7 +161,10 @@ class RecordingManageModel implements IRecordingManageModel {
             if (typeof r.videoFiles !== 'undefined') {
                 for (const videoFile of r.videoFiles) {
                     // recordedTmp が有効な場合は正規の場所に移動させる
-                    if (videoFile.parentDirectoryName === 'tmp' && typeof this.config.recordedTmp !== 'undefined') {
+                    if (
+                        videoFile.parentDirectoryName === 'tmp' &&
+                        typeof this.config.recording.tempDir !== 'undefined'
+                    ) {
                         await this.recordingUtil.movingFromTmp(reserve, videoFile.id).catch(err => {
                             this.log.system.fatal(`movingFromTmp error: ${videoFile.id}`);
                             this.log.system.fatal(err);

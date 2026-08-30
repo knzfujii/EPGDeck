@@ -203,17 +203,17 @@ export default class StreamApiModel implements IStreamApiModel {
         const config = this.configure.getConfig();
 
         if (
-            typeof config.stream === 'undefined' ||
-            typeof config.stream.live === 'undefined' ||
-            typeof config.stream.live.ts === 'undefined' ||
-            typeof config.stream.live.ts[type] === 'undefined' ||
-            typeof (config.stream.live.ts[type] as any)[mode] === 'undefined'
+            typeof config.streaming === 'undefined' ||
+            typeof config.streaming.live === 'undefined' ||
+            typeof config.streaming.live.ts === 'undefined' ||
+            typeof config.streaming.live.ts[type] === 'undefined' ||
+            typeof (config.streaming.live.ts[type] as any)[mode] === 'undefined'
         ) {
             throw new Error('ConfigIsUndefined');
         }
 
         return {
-            cmd: (config.stream.live.ts[type] as any)[mode].cmd,
+            cmd: (config.streaming.live.ts[type] as any)[mode].cmd,
         };
     }
 
@@ -246,7 +246,7 @@ export default class StreamApiModel implements IStreamApiModel {
     }
 
     /**
-     * WebM 形式の Recorded streaming を開始する
+     * MP4 形式の Recorded streaming を開始する
      * @param option: apid.LiveStreamOption
      * @return Promise<StreamResponse>
      */
@@ -310,31 +310,31 @@ export default class StreamApiModel implements IStreamApiModel {
 
         // config が存在するか
         const config = this.configure.getConfig();
-        if (typeof config.stream === 'undefined' || typeof config.stream.recorded === 'undefined') {
+        if (typeof config.streaming === 'undefined' || typeof config.streaming.recorded === 'undefined') {
             throw new Error('ConfigIsUndefined');
         }
 
         let cmd: string;
         if (isEncodedVideo === true) {
             if (
-                typeof config.stream.recorded.encoded === 'undefined' ||
-                typeof config.stream.recorded.encoded[type] === 'undefined' ||
-                typeof (config.stream.recorded.encoded[type] as any)[option.mode] === 'undefined'
+                typeof config.streaming.recorded.encoded === 'undefined' ||
+                typeof config.streaming.recorded.encoded[type] === 'undefined' ||
+                typeof (config.streaming.recorded.encoded[type] as any)[option.mode] === 'undefined'
             ) {
                 throw new Error('ConfigIsUndefined');
             }
 
-            cmd = (config.stream.recorded.encoded[type] as any)[option.mode].cmd;
+            cmd = (config.streaming.recorded.encoded[type] as any)[option.mode].cmd;
         } else {
             if (
-                typeof config.stream.recorded.ts === 'undefined' ||
-                typeof config.stream.recorded.ts[type] === 'undefined' ||
-                typeof (config.stream.recorded.ts[type] as any)[option.mode] === 'undefined'
+                typeof config.streaming.recorded.ts === 'undefined' ||
+                typeof config.streaming.recorded.ts[type] === 'undefined' ||
+                typeof (config.streaming.recorded.ts[type] as any)[option.mode] === 'undefined'
             ) {
                 throw new Error('ConfigIsUndefined');
             }
 
-            cmd = (config.stream.recorded.ts[type] as any)[option.mode].cmd;
+            cmd = (config.streaming.recorded.ts[type] as any)[option.mode].cmd;
         }
 
         if (typeof cmd === 'undefined') {

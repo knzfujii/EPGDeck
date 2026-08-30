@@ -5,11 +5,48 @@ import ILogger from '../../src/model/ILogger';
 
 describe('Hono Server Endpoints', () => {
     const dummyConfig: IConfigFile = {
-        apiServers: [],
-        isAllowAllCORS: true,
-        thumbnail: '/tmp/thumbnail',
-        streamFilePath: '/tmp/streamfiles',
-        uploadTempDir: '/tmp/upload',
+        server: {
+            port: 8888,
+            mirakurun: 'http://localhost:40772',
+            apiServers: [],
+            isAllowAllCORS: true,
+        },
+        database: {
+            type: 'sqlite',
+        },
+        log: {
+            level: 'info',
+            console: true,
+            bufferSize: 1000,
+        },
+        epg: {
+            intervalMinutes: 10,
+            replaceEnclosingCharacters: true,
+        },
+        recording: {
+            filenameFormat: '%YEAR%_%MONTH%_%DAY%_%HOUR%%MIN%-%TITLE%',
+            fileExtension: '.m2ts',
+            directories: [{ name: 'recorded', path: '/tmp/recorded' }],
+            historyRetentionDays: 90,
+            storageCheckIntervalSeconds: 60,
+            priority: { conflict: 1, recording: 2, streaming: 0 },
+            timeSpecifiedStartMargin: 1,
+            timeSpecifiedEndMargin: 2,
+            thumbnail: { path: '/tmp/thumbnail', size: '480x270', positionSeconds: 5 },
+            dropLog: { path: '/tmp/drop', enabled: true },
+            uploadTempDir: '/tmp/upload',
+        },
+        encode: {
+            binaries: { ffmpeg: '/usr/bin/ffmpeg', ffprobe: '/usr/bin/ffprobe' },
+            maxProcesses: 4,
+            concurrency: 1,
+            presets: [],
+        },
+        streaming: {
+            tempDir: '/tmp/streamfiles',
+            live: {} as any,
+            recorded: {} as any,
+        },
     } as any;
 
     const dummyLog: ILogger = {

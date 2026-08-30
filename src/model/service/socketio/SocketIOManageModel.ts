@@ -29,9 +29,9 @@ export default class SocketIOManageModel implements ISocketIOManageModel {
         for (const s of servers) {
             const io = new SocketIO.Server(s, {
                 path:
-                    typeof this.config.subDirectory === 'undefined'
+                    typeof this.config.server.subDirectory === 'undefined'
                         ? '/socket.io'
-                        : urljoin(this.config.subDirectory, '/socket.io'),
+                        : urljoin(this.config.server.subDirectory, '/socket.io'),
                 cors: {
                     origin: '*',
                 },

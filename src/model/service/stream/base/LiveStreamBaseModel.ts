@@ -56,16 +56,15 @@ export default abstract class LiveStreamBaseModel
             return null;
         }
 
-        let cmd = this.processOption.cmd.replace(/%FFMPEG%/g, this.config.ffmpeg);
+        let cmd = this.processOption.cmd.replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg);
+        const streamFileDir = this.config.streaming?.tempDir || '';
         if (this.getStreamType() === 'LiveHLS') {
-            cmd = cmd
-                .replace(/%streamFileDir%/g, this.config.streamFilePath)
-                .replace(/%streamNum%/g, streamId.toString(10));
+            cmd = cmd.replace(/%streamFileDir%/g, streamFileDir).replace(/%streamNum%/g, streamId.toString(10));
         }
 
         return {
             input: null,
-            output: this.getStreamType() === 'LiveHLS' ? `${this.config.streamFilePath}\/stream${streamId}.m3u8` : null,
+            output: this.getStreamType() === 'LiveHLS' ? `${streamFileDir}\/stream${streamId}.m3u8` : null,
             cmd: cmd,
             priority: LiveStreamBaseModel.ENCODE_PROCESS_PRIORITY,
         };
@@ -177,11 +176,11 @@ export default abstract class LiveStreamBaseModel
         }
 
         const mirakurun = this.mirakurunClientModel.getClient();
-        mirakurun.priority = config.streamingPriority;
+        mirakurun.priority = config.recording.priority.streaming;
 
         this.log.stream.info(`get mirakurun service stream: ${this.processOption.channelId}`);
         this.stream = await mirakurun
-            .getServiceStream(this.processOption.channelId, true, config.streamingPriority)
+            .getServiceStream(this.processOption.channelId, true, config.recording.priority.streaming)
             .catch(err => {
                 this.stream = null;
                 if (this.processOption !== null) {

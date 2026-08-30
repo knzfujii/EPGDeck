@@ -25,7 +25,7 @@ app.get('/channel.m3u8', async c => {
             api.isSecureProtocol(c),
             mode,
             isHalfWidth,
-            configuration.getConfig().subDirectory,
+            configuration.getConfig().server.subDirectory,
         );
 
         return new Response(result, {

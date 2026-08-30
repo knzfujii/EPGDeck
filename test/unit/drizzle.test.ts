@@ -120,9 +120,9 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
     it('initializes all tables and composite indexes via DrizzleOperator.checkConnection()', async () => {
         const dummyConfig: any = {
             getConfig: () => ({
-                dbtype: 'sqlite',
-                sqlite3: {
-                    file: ':memory:',
+                database: {
+                    type: 'sqlite',
+                    sqlite: {},
                 },
             }),
         };

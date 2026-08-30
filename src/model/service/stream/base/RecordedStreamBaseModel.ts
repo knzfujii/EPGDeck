@@ -186,7 +186,7 @@ export default abstract class RecordedStreamBaseModel
      */
     private getVideoInfo(filePath: string): Promise<VideoFileInfo> {
         return new Promise<VideoFileInfo>((resolve, reject) => {
-            exec(`${this.config.ffprobe} -v 0 -show_format -of json "${filePath}"`, (err, std) => {
+            exec(`${this.config.encode.binaries.ffprobe} -v 0 -show_format -of json "${filePath}"`, (err, std) => {
                 if (err) {
                     reject(err);
 
@@ -216,22 +216,19 @@ export default abstract class RecordedStreamBaseModel
             throw new Error('SetVideoFileInfoError');
         }
 
+        const streamFileDir = this.config.streaming?.tempDir || '';
         let cmd = this.processOption.cmd
-            .replace(/%FFMPEG%/g, this.config.ffmpeg)
+            .replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg)
             .replace(/%SS%/g, this.videoFileType === 'ts' ? '' : this.processOption.playPosition.toString(10));
 
         if (this.getStreamType() === 'RecordedHLS') {
-            cmd = cmd
-                .replace(/%streamFileDir%/g, this.config.streamFilePath)
-                .replace(/%streamNum%/g, streamId.toString(10));
+            cmd = cmd.replace(/%streamFileDir%/g, streamFileDir).replace(/%streamNum%/g, streamId.toString(10));
         }
 
         const option: CreateProcessOption = {
             input: this.isRecording === true ? null : this.videoFilePath,
             output:
-                this.getStreamType() === 'RecordedHLS'
-                    ? `${this.config.streamFilePath}\/stream${streamId.toString(10)}.m3u8`
-                    : null,
+                this.getStreamType() === 'RecordedHLS' ? `${streamFileDir}\/stream${streamId.toString(10)}.m3u8` : null,
             cmd: cmd,
             priority: RecordedStreamBaseModel.ENCODE_PROCESS_PRIORITY,
         };

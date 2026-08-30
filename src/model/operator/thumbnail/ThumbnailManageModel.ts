@@ -78,23 +78,26 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
 
         // check thumbnail dir
         try {
-            await FileUtil.access(this.config.thumbnail, fs.constants.R_OK | fs.constants.W_OK);
+            await FileUtil.access(this.config.recording.thumbnail.path, fs.constants.R_OK | fs.constants.W_OK);
         } catch (err: any) {
             if (typeof err.code !== 'undefined' && err.code === 'ENOENT') {
                 // ディレクトリが存在しないので作成する
-                this.log.system.warn(`mkdirp: ${this.config.thumbnail}`);
-                await FileUtil.mkdir(this.config.thumbnail);
+                this.log.system.warn(`mkdirp: ${this.config.recording.thumbnail.path}`);
+                await FileUtil.mkdir(this.config.recording.thumbnail.path);
             } else {
                 // アクセス権に Read or Write が無い
-                this.log.system.fatal(`thumbnail dir permission error: ${this.config.thumbnail}`);
+                this.log.system.fatal(`thumbnail dir permission error: ${this.config.recording.thumbnail.path}`);
                 this.log.system.fatal(err);
                 throw err;
             }
         }
 
         const fileName = await this.getSaveFileName(videoFile.recordedId);
-        const output = path.join(this.config.thumbnail, fileName);
-        const cmdStr = this.config.thumbnailCmd.replace(/%FFMPEG%/g, this.config.ffmpeg);
+        const output = path.join(this.config.recording.thumbnail.path, fileName);
+        const cmdStr = (
+            this.config.recording.thumbnail.cmd ||
+            '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%'
+        ).replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg);
         const cmds = ProcessUtil.parseCmdStr(cmdStr);
 
         // コマンドの引数準備
@@ -102,8 +105,8 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
             cmds.args[i] = cmds.args[i]
                 .replace(/%INPUT%/, videoFilePath)
                 .replace(/%OUTPUT%/, output)
-                .replace(/%THUMBNAIL_POSITION%/, `${this.config.thumbnailPosition.toString(10)}`)
-                .replace(/%THUMBNAIL_SIZE%/, this.config.thumbnailSize);
+                .replace(/%THUMBNAIL_POSITION%/, `${this.config.recording.thumbnail.positionSeconds.toString(10)}`)
+                .replace(/%THUMBNAIL_SIZE%/, this.config.recording.thumbnail.size);
         }
 
         // run ffmpeg
@@ -186,7 +189,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     private async getSaveFileName(recordedId: apid.RecordedId, conflict: number = 0): Promise<string> {
         const conflictStr = conflict === 0 ? '' : `(${conflict})`;
         const fileName = `${recordedId}${conflictStr}.jpg`;
-        const filePath = path.join(this.config.thumbnail, fileName);
+        const filePath = path.join(this.config.recording.thumbnail.path, fileName);
 
         try {
             await FileUtil.stat(filePath);
@@ -218,7 +221,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         });
 
         // サムネイルファイルを削除
-        const filePath = path.join(this.config.thumbnail, thumbnail.filePath);
+        const filePath = path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
         await FileUtil.unlink(filePath).catch(err => {
             this.log.system.error(`delete thumbnail error: ${thumbnailId}`);
             this.log.system.error(err);
@@ -265,7 +268,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
 
             // サムネイルファイルが存在するか確認
             for (const thumbnail of recorded.thumbnails) {
-                const thumbnailPath = path.join(this.config.thumbnail, thumbnail.filePath);
+                const thumbnailPath = path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
                 try {
                     await FileUtil.stat(thumbnailPath);
                     // ファイルが存在するので無視
@@ -307,7 +310,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         // ファイル, ディレクトリ索引生成と DB 上に存在するが実ファイルが存在しないデータを削除する
         const fileIndex: { [filePath: string]: boolean } = {}; // ファイル索引
         for (const thumbnail of thumbnails) {
-            const filePath = path.join(this.config.thumbnail, thumbnail.filePath);
+            const filePath = path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
 
             if ((await this.checkFileExistence(filePath)) === true) {
                 // ファイルが存在するなら索引に追加
@@ -322,7 +325,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         }
 
         // ファイル索引上に存在しないファイルを削除する
-        const list = await FileUtil.getFileList(this.config.thumbnail);
+        const list = await FileUtil.getFileList(this.config.recording.thumbnail.path);
         for (const file of list.files) {
             if (typeof fileIndex[file] !== 'undefined') {
                 continue;

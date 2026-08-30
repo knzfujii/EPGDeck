@@ -34,21 +34,20 @@ $ npm run all-install
 ### 設定ファイルのコピー
 ```bash
 $ cp config/config.yml.template config/config.yml
-$ cp config/operatorLogConfig.sample.yml config/operatorLogConfig.yml
-$ cp config/epgUpdaterLogConfig.sample.yml config/epgUpdaterLogConfig.yml
-$ cp config/serviceLogConfig.sample.yml config/serviceLogConfig.yml
 ```
 
 ### `config/config.yml` の編集
 1. **ポート番号の変更**:
    本番（通常 `8888`）と被らないポート（例: `8889`）に変更します。
    ```yaml
-   port: 8889
+   server:
+     port: 8889
    ```
 2. **Mirakurun の接続先**:
    ホスト上で本番の Mirakurun が動作している場合は、そのソケットまたはポートを指定して共有参照します。
    ```yaml
-   mirakurunPath: http+unix://%2Fvar%2Frun%2Fmirakurun.sock/
+   server:
+     mirakurun: http+unix://%2Fvar%2Frun%2Fmirakurun.sock/
    ```
 3. **データベース設定**:
    デフォルトは SQLite（`data/database.db`）です。開発専用の DB ファイルとして扱われます。

@@ -20,7 +20,7 @@ export default class StorageApiModel implements IStorageApiModel {
     public async getInfo(): Promise<apid.StorageInfo> {
         const items: apid.StorageItem[] = [];
 
-        for (const r of this.config.recorded) {
+        for (const r of this.config.recording.directories) {
             const info = await this.getDiskInfo(r.path);
             (info as apid.StorageItem).name = r.name;
             items.push(info as apid.StorageItem);

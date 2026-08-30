@@ -78,18 +78,18 @@ class RecordingUtilModel implements IRecordingUtilModel {
         let parentDir: RecordedDirInfo | null = null;
         let subDir = ''; // サブディレクトリ
 
-        if (isEnableTmp === true && typeof this.config.recordedTmp !== 'undefined') {
+        if (isEnableTmp === true && typeof this.config.recording.tempDir !== 'undefined') {
             // 一時ディレクトリに保存する
             parentDir = {
                 name: 'tmp',
-                path: this.config.recordedTmp,
+                path: this.config.recording.tempDir,
             };
         } else {
             if (reserve.parentDirectoryName === null) {
                 // 設定がない場合は recorded の戦闘に定義されている保存先を使用する
-                parentDir = this.config.recorded[0];
+                parentDir = this.config.recording.directories[0];
             } else {
-                for (const d of this.config.recorded) {
+                for (const d of this.config.recording.directories) {
                     // parentDirectoryName に一致する親ディレクトリ設定を探す
                     if (d.name === reserve.parentDirectoryName) {
                         parentDir = d;
@@ -100,7 +100,7 @@ class RecordingUtilModel implements IRecordingUtilModel {
 
             if (parentDir === null) {
                 // 親ディレクトリが見つからなかった
-                parentDir = this.config.recorded[0];
+                parentDir = this.config.recording.directories[0];
             }
 
             // サブディレクトリ
@@ -108,7 +108,7 @@ class RecordingUtilModel implements IRecordingUtilModel {
         }
 
         // ファイル名
-        let fileName = reserve.recordedFormat === null ? this.config.recordedFormat : reserve.recordedFormat;
+        let fileName = reserve.recordedFormat === null ? this.config.recording.filenameFormat : reserve.recordedFormat;
         fileName = await this.formatFilePathString(fileName, reserve);
 
         // 使用禁止文字列置き換え
@@ -138,7 +138,12 @@ class RecordingUtilModel implements IRecordingUtilModel {
             }
         }
 
-        const newFileName = await this.getFileName(parentDir.path, subDir, fileName, this.config.recordedFileExtension);
+        const newFileName = await this.getFileName(
+            parentDir.path,
+            subDir,
+            fileName,
+            this.config.recording.fileExtension,
+        );
 
         return {
             parendDir: parentDir,
@@ -189,7 +194,7 @@ class RecordingUtilModel implements IRecordingUtilModel {
             throw new Error('VideoFilePathIsNull');
         }
 
-        if (typeof this.config.recordedTmp === 'undefined') {
+        if (typeof this.config.recording.tempDir === 'undefined') {
             throw new Error('RecordedTmpIsUndefined');
         }
 

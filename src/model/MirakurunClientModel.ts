@@ -27,7 +27,7 @@ export default class MirakurunClientModel implements IMirakurunClientModel {
      */
     private setClient(): void {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json')).toString());
-        const mirakurunPath = this.config.mirakurunPath;
+        const mirakurunPath = this.config.server.mirakurun;
 
         /**
          * Copyright (c) 2016 Yuki KAN and Chinachu Project Contributors

@@ -27,7 +27,7 @@ export type DrizzleDB =
 let drizzleInstance: DrizzleDB | null = null;
 
 export function createDrizzleClient(config: IConfigFile, customDbPath?: string): DrizzleDB {
-    if (config.dbtype === 'sqlite') {
+    if (config.database.type === 'sqlite') {
         const appRootPath = path.join(__dirname, '..', '..');
         const dbPath = customDbPath || path.join(appRootPath, 'data', 'database.db');
         const client = createClient({ url: `file:${dbPath}` });
@@ -39,13 +39,13 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
             rawClient: client,
             schema: sqliteSchema,
         };
-    } else if (config.dbtype === 'mysql' && config.mysql) {
+    } else if (config.database.type === 'mysql' && config.database.mysql) {
         const pool = mysql.createPool({
-            host: config.mysql.host,
-            port: config.mysql.port,
-            user: config.mysql.user,
-            password: config.mysql.password,
-            database: config.mysql.database,
+            host: config.database.mysql.host,
+            port: config.database.mysql.port,
+            user: config.database.mysql.user,
+            password: config.database.mysql.password,
+            database: config.database.mysql.database,
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,
@@ -59,7 +59,7 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
         };
     }
 
-    throw new Error(`Unsupported database type: ${config.dbtype}`);
+    throw new Error(`Unsupported dbtype: ${config.database.type}`);
 }
 
 export function getDrizzleInstance(config: IConfigFile): DrizzleDB {

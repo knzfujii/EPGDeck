@@ -64,7 +64,7 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
         // ゴミファイルを削除
         this.fileDeleter.setOption({
             streamId: streamId,
-            streamFilePath: this.config.streamFilePath,
+            streamFilePath: this.config.streaming?.tempDir || '',
         });
         await this.fileDeleter.deleteAllFiles();
     }
@@ -75,17 +75,18 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
      * @return Promise<void>
      */
     private async checkStreamDir(): Promise<void> {
+        const streamFilePath = this.config.streaming?.tempDir || '';
         // streamFilePath の存在チェック
         try {
-            await FileUtil.access(this.config.streamFilePath, fs.constants.R_OK | fs.constants.W_OK);
+            await FileUtil.access(streamFilePath, fs.constants.R_OK | fs.constants.W_OK);
         } catch (err: any) {
             if (typeof err.code !== 'undefined' && err.code === 'ENOENT') {
                 // ディレクトリが存在しないので作成する
-                this.log.stream.info(`mkdirp: ${this.config.streamFilePath}`);
-                await FileUtil.mkdir(this.config.streamFilePath);
+                this.log.stream.info(`mkdirp: ${streamFilePath}`);
+                await FileUtil.mkdir(streamFilePath);
             } else {
                 // アクセス権に Read or Write が無い
-                this.log.stream.fatal(`dir permission error: ${this.config.streamFilePath}`);
+                this.log.stream.fatal(`dir permission error: ${streamFilePath}`);
                 this.log.stream.fatal(err);
                 throw err;
             }
@@ -146,12 +147,13 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
         }
 
         this.log.stream.info(`start check stream file: ${streamId}`);
+        const streamFilePath = this.config.streaming?.tempDir || '';
         this.streamCheckTimer = setInterval(async () => {
             let fileList: string[];
             try {
-                fileList = await FileUtil.readDir(this.config.streamFilePath);
+                fileList = await FileUtil.readDir(streamFilePath);
             } catch (err: any) {
-                this.log.stream.error(`get stream files list error: ${streamId} ${this.config.streamFilePath}`);
+                this.log.stream.error(`get stream files list error: ${streamId} ${streamFilePath}`);
                 if (this.streamCheckTimer !== null) {
                     clearInterval(this.streamCheckTimer);
                     this.streamCheckTimer = null;
@@ -213,7 +215,8 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
         parentPlayListName: string,
         subtitlePlayListName: string,
     ): Promise<void> {
-        const parentPlayListPath = path.join(this.config.streamFilePath, parentPlayListName);
+        const streamFilePath = this.config.streaming?.tempDir || '';
+        const parentPlayListPath = path.join(streamFilePath, parentPlayListName);
         const file = await FileUtil.readFile(parentPlayListPath);
         const lines = file.split(/\n/);
 

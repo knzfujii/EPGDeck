@@ -206,7 +206,7 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
         }
 
         const config = this.conf.getConfig();
-        if (typeof config.encode === 'undefined') {
+        if (typeof config.encode === 'undefined' || typeof config.encode.presets === 'undefined') {
             // エンコードオプションが存在しないため
             return false;
         }
@@ -217,6 +217,7 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
         if (typeof option.mode2 !== 'undefined' && this.hasEncodeMode(config, option.mode2) === false) { return false; }
         // prettier-ignore
         if (typeof option.mode3 !== 'undefined' && this.hasEncodeMode(config, option.mode3) === false) { return false; }
+
         // prettier-ignore
         if (typeof option.mode1 === 'undefined' && typeof option.directory1 !== 'undefined') { return false; }
         // prettier-ignore
@@ -234,7 +235,7 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
      * @return boolean true なら存在する
      */
     private hasEncodeMode(config: IConfigFile, mode: string): boolean {
-        for (const e of config.encode) {
+        for (const e of config.encode.presets) {
             if (e.name === mode) {
                 return true;
             }

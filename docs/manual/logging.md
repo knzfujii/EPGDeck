@@ -1,110 +1,34 @@
-# ログ出力設定のマニュアル
+# ログ出力設定マニュアル
 
-本マニュアルでは、EPGDeck のログ出力設定ファイルである
+EPGDeck では、モダンで高性能な [Winston](https://github.com/winstonjs/winston) による統合ロギングを採用しています。  
+ログ設定はすべて `config/config.yml` 内の `log` セクションで一元管理されます。
 
--   `config/epgUpdaterLogConfig.yml`
--   `config/operatorLogConfig.yml`
--   `config/serviceLogConfig.yml`
-
-の設定について解説します
-
-## EPGDeck のログ出力
-
-EPGDeck ではログ出力に [log4js](https://npmjs.com/package/log4js) を利用しています  
-設定ファイルについても、 log4js の設定に準拠した形式となっています
-
-log4js のログレベルは以下の 6 段階となっています
-
-| レベル | 内容                                                                                         |
-| ------ | -------------------------------------------------------------------------------------------- |
-| fatal  | アプリケーションの異常終了など、致命的なエラーが発生した際のみログが出力されます             |
-| error  | アプリケーション内でエラーが発生し、例外が出力された際にログが出力されます                   |
-| warn   | アプリケーションの実行には影響はないが、正しくない実装が含まれる際に警告がログに出力されます |
-| info   | アプリケーションの動作時にユーザーが認知する必要のある場合に情報がログに出力されます         |
-| debug  | デバッグ時に利用し、アプリケーションの動作に関する詳細な情報がログに出力されます             |
-| trace  | デバッグ時に使用し、動作に関わるほぼ全ての情報がログに出力されます                           |
-
-各レベルは自身より上位のログの出力も含むため、`warn` 設定時は `error` と `fatal` も出力されます
-
-## 出力レベルを変更する
-
-EPGDeck では、デフォルトでは `info` レベルが設定されています  
-`ffmpeg` のコマンド出力結果などをログに出力したい場合は `debug` 以下の受信設定が必要です
-
-`config/operatorLogConfig.yml` あるいは `config/serviceLogConfig.yml` 内の以下を変更します
+## 1. ログ設定の構成 (`config.yml`)
 
 ```yaml
-categories:
-    default:
-        appenders:
-            - console
-            - stdout
-        level: info
-    system:
-        appenders:
-            - system
-            - stdout
-        level: info
-    access:
-        appenders:
-            - access
-            - stdout
-        level: info
-    stream:
-        appenders:
-            - stream
-            - stdout
-        level: info
-    encode:
-        appenders:
-            - encode
-            - stdout
-        level: info
+log:
+  level: info          # 出力ログレベル (debug | info | warn | error)
+  console: true        # ターミナル・コンソールへのカラー出力
+  file:
+    enabled: true      # ログファイルへの永続化
+    path: '%ROOT%/logs/epgdeck.log' # ログファイルの保存先
+    maxSize: 10485760  # 1ファイルあたりの最大サイズ(バイト) (例: 10MB)
+    backups: 5         # 保持世代数
+  bufferSize: 1000     # Web UI (/logs) および Socket.IO 配信用のインメモリ保持行数
 ```
 
-`"level": "info"` となっている部分を、任意のログレベルに変更することで出力されるログレベルも変更可能です  
-例えば、`ffmpeg` によるストリーミング出力時の変換ログを出力したい場合は
+## 2. ログレベル一覧
 
-```yaml
-stream:
-    appenders:
-        - stream
-        - stdout
-    level: info
-```
+| レベル | 説明 |
+| :--- | :--- |
+| **`error`** | 録画失敗、外部コマンド異常終了、致命的な例外 |
+| **`warn`** | 録画準備の競合警告、軽微な異常 |
+| **`info`** | 通常運用時の情報（予約更新、録画開始/完了、エンコード進捗等） |
+| **`debug`** | 開発・デバッグ時の詳細情報（FFmpeg の詳細な引数や実行ログ等） |
 
-上記部分を下記のように変更することで対応可能です
+## 3. Web UI リアルタイムストリーミング (/logs)
 
-```yaml
-stream:
-    appenders:
-        - stream
-        - stdout
-    level: debug
-```
+EPGDeck にはリアルタイムログビューアが標準搭載されています。
+- Web UI の「システムログ」画面（`/logs`）から、リアルタイムに流れるアクセスログやシステムログをブラウザ上で直接確認できます。
+- カテゴリ別フィルタ（System, Access, Stream, Encode）やログレベルによるリアルタイム絞り込み、ログファイル全体のダウンロードが可能です。
 
-エンコードの標準エラー出力を表示したい場合は同じ様に `encode` の `level` を `debug` へ変更してください。
-
-## ログファイルを変更する
-
-コンフィグファイル内の `appenders` 項目を変更することで対応可能です
-
-デフォルトではファイルサイズが 1024KB を超過するとログローテーションされます  
-ログファイルは 3 世代分保存され、古い方から消去されていきます  
-ログのファイル名は `system`, `access`, `stream` になっており、ローテーション時にファイル末尾に年月日が付加されます
-
-```yaml
-appenders:
-    system:
-        type: file
-        maxLogSize: 1048576
-        backups: 3
-        filename: '%OperatorSystem%'
-        pattern: '-yyyy-MM-dd'
-```
-
-`maxLogSize` を大きくすることでログローテーションの頻度を変更したり、`backups` の数を増やして管理世代数を増やすことが出
-来ます
-
-`filename` や `pattern` を編集することで、出力されるログファイル名を変更することも出来ます `type` に `dateFile` を指定す
-ると、容量ではなく日付でファイルが切り替わるようになります

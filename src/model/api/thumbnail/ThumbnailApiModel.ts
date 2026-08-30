@@ -34,7 +34,7 @@ export default class ThumbnailApiModel implements IThumbnailApiModel {
             return null;
         }
 
-        return path.join(this.config.thumbnail, thumbnail.filePath);
+        return path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
     }
 
     /**

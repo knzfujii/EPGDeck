@@ -41,14 +41,18 @@ sqlite3 パッケージのインストール時にバイナリが存在しなか
 
 ---
 
-## データベース互換性ポリシー
+## データベース ＆ 設定互換性ポリシー
 
+### データベース (SQLite / MySQL)
 EPGDeck は **EPGStation 最新版 (v2.10.0) との完全なデータベース互換性** を保証しています。
+* **新規インストール**: 初回起動時に EPGStation v2.10.0 互換の全テーブル・カラム・インデックスが自動生成されます。
+* **既存データ移行**: 既存の EPGStation の SQLite（`data/database.db`）や MySQL をそのまま指定して起動するだけで、録画・予約・ルールを 100% 保持したまま移行できます。
 
-1. **新規インストール時の動作**:
-   - データベース（SQLite / MySQL）が空の状態で初回起動した場合、EPGStation v2.10.0 完全互換の全テーブルおよびカラム定義が自動生成され、追加のマイグレーション作業なしですぐに使用できます。
-2. **既存 EPGStation (v2.10.0) からの直接移行**:
-   - 既存の EPGStation で使用していた SQLite データベースファイル（`data/database.db`）または MySQL データベースをそのまま指定して起動するだけで、録画データ・予約・ルールを 100% 保持したままシームレスに移行できます。
+### 設定ファイル (`config/config.yml`)
+EPGDeck では、システム構成に合わせて設定ファイルを機能別（`server`, `database`, `recording`, `encode` 等）にカテゴリ分けした構造を採用しています。
+* EPGStation 形式の `config.yml` とは設定キーの階層構造が異なります。
+* セットアップ時は、同梱されている `config/config.yml.template` を `config/config.yml` にコピーして設定を行ってください。
+* 設定の詳細は **[設定ファイル詳細マニュアル](docs/manual/configuration.md)** を参照してください。
 
 ---
 
@@ -58,6 +62,7 @@ EPGDeck は **EPGStation 最新版 (v2.10.0) との完全なデータベース�
 
 - **[Linux / macOS 用セットアップマニュアル](docs/manual/setup.md)**
 - **[設定ファイル詳細マニュアル](docs/manual/configuration.md)**
+- **[エンコードシステム仕様書 & 設定マニュアル](docs/manual/encoding.md)**
 - **[開発環境セットアップガイド](docs/dev/getting-started.md)**
 - **[トラブルシューティング / FAQ](docs/manual/troubleshooting.md)**
 

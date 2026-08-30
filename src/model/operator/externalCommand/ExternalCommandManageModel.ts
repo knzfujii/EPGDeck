@@ -49,30 +49,30 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
         if (
             typeof diff.insert !== 'undefined' &&
             diff.insert.length > 0 &&
-            typeof this.config.reserveNewAddtionCommand !== 'undefined'
+            typeof this.config.hooks?.reserveNewAddition !== 'undefined'
         ) {
             for (const r of diff.insert) {
-                this.addReserve(this.config.reserveNewAddtionCommand, r);
+                this.addReserve(this.config.hooks.reserveNewAddition, r);
             }
         }
 
         if (
             typeof diff.update !== 'undefined' &&
             diff.update.length > 0 &&
-            typeof this.config.reserveUpdateCommand !== 'undefined'
+            typeof this.config.hooks?.reserveUpdate !== 'undefined'
         ) {
             for (const r of diff.update) {
-                this.addReserve(this.config.reserveUpdateCommand, r);
+                this.addReserve(this.config.hooks.reserveUpdate, r);
             }
         }
 
         if (
             typeof diff.delete !== 'undefined' &&
             diff.delete.length > 0 &&
-            typeof this.config.reservedeletedCommand !== 'undefined'
+            typeof this.config.hooks?.reserveDeleted !== 'undefined'
         ) {
             for (const r of diff.delete) {
-                this.addReserve(this.config.reservedeletedCommand, r);
+                this.addReserve(this.config.hooks.reserveDeleted, r);
             }
         }
     }
@@ -82,11 +82,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param reserve: Reserve
      */
     public addRecordingPrepStartCmd(reserve: Reserve): void {
-        if (typeof this.config.recordingPreStartCommand === 'undefined') {
+        if (typeof this.config.hooks?.recordingPreStart === 'undefined') {
             return;
         }
 
-        this.addReserve(this.config.recordingPreStartCommand, reserve);
+        this.addReserve(this.config.hooks.recordingPreStart, reserve);
     }
 
     /**
@@ -94,11 +94,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param reserve: Reserve
      */
     public addRecordingPrepRecFailedCmd(reserve: Reserve): void {
-        if (typeof this.config.recordingPrepRecFailedCommand === 'undefined') {
+        if (typeof this.config.hooks?.recordingPrepRecFailed === 'undefined') {
             return;
         }
 
-        this.addReserve(this.config.recordingPrepRecFailedCommand, reserve);
+        this.addReserve(this.config.hooks.recordingPrepRecFailed, reserve);
     }
 
     /**
@@ -106,11 +106,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param recorded: Recorded
      */
     public addRecordingStartCmd(recorded: Recorded): void {
-        if (typeof this.config.recordingStartCommand === 'undefined') {
+        if (typeof this.config.hooks?.recordingStart === 'undefined') {
             return;
         }
 
-        this.addRecorded(this.config.recordingStartCommand, recorded);
+        this.addRecorded(this.config.hooks.recordingStart, recorded);
     }
 
     /**
@@ -118,11 +118,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param recorded: Recorded
      */
     public addRecordingFinishCmd(recorded: Recorded): void {
-        if (typeof this.config.recordingFinishCommand === 'undefined') {
+        if (typeof this.config.hooks?.recordingFinish === 'undefined') {
             return;
         }
 
-        this.addRecorded(this.config.recordingFinishCommand, recorded);
+        this.addRecorded(this.config.hooks.recordingFinish, recorded);
     }
 
     /**
@@ -130,11 +130,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param recorded: Recorded
      */
     public addRecordingFailedCmd(recorded: Recorded): void {
-        if (typeof this.config.recordingFailedCommand === 'undefined') {
+        if (typeof this.config.hooks?.recordingFailed === 'undefined') {
             return;
         }
 
-        this.addRecorded(this.config.recordingFailedCommand, recorded);
+        this.addRecorded(this.config.hooks.recordingFailed, recorded);
     }
 
     /**
@@ -142,12 +142,12 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param info: OperatorFinishEncodeInfo
      */
     public addEncodingFinishCmd(info: OperatorFinishEncodeInfo): void {
-        this.log.system.info(`encodingFinishCommand: ${this.config.encodingFinishCommand}`);
-        if (typeof this.config.encodingFinishCommand === 'undefined') {
+        this.log.system.info(`encodingFinishCommand: ${this.config.hooks?.encodingFinish}`);
+        if (typeof this.config.hooks?.encodingFinish === 'undefined') {
             return;
         }
 
-        this.addFinishEncode(this.config.encodingFinishCommand, info);
+        this.addFinishEncode(this.config.hooks.encodingFinish, info);
     }
 
     /**
@@ -294,7 +294,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
                     LOGPATH:
                         typeof recorded.dropLogFile === 'undefined' || recorded.dropLogFile === null
                             ? null
-                            : path.join(this.config.dropLog, recorded.dropLogFile.filePath),
+                            : path.join(this.config.recording.dropLog.path, recorded.dropLogFile.filePath),
                     ERROR_CNT: recorded.dropLogFile?.errorCnt.toString(10) || null,
                     DROP_CNT: recorded.dropLogFile?.dropCnt.toString(10) || null,
                     SCRAMBLING_CNT: recorded.dropLogFile?.scramblingCnt.toString(10) || null,

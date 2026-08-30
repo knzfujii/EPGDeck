@@ -1147,7 +1147,7 @@ class ReservationManageModel implements IReservationManageModel {
     public async updateAll(isFirstUpdate: boolean = false): Promise<void> {
         this.log.system.info('all reservation update start');
 
-        const isSuppressLog = this.config.isSuppressReservesUpdateAllLog;
+        const isSuppressLog = this.config.hooks?.isSuppressReservesUpdateAllLog || false;
 
         // 手動予約 (program id) の id を取得
         const manualIds = await this.reserveDB.getManualIds({ hasTimeReserve: false }).catch(err => {

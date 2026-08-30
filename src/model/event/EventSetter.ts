@@ -210,7 +210,7 @@ export default class EventSetter implements IEventSetter {
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:
                             reserve.encodeParentDirectoryName1 === null
-                                ? this.config.recorded[0].name
+                                ? this.config.recording.directories[0].name
                                 : reserve.encodeParentDirectoryName1,
                         directory: reserve.encodeDirectory1 === null ? undefined : reserve.encodeDirectory1,
                         mode: reserve.encodeMode1,
@@ -225,7 +225,7 @@ export default class EventSetter implements IEventSetter {
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:
                             reserve.encodeParentDirectoryName2 === null
-                                ? this.config.recorded[0].name
+                                ? this.config.recording.directories[0].name
                                 : reserve.encodeParentDirectoryName2,
                         directory: reserve.encodeDirectory2 === null ? undefined : reserve.encodeDirectory2,
                         mode: reserve.encodeMode2,
@@ -240,7 +240,7 @@ export default class EventSetter implements IEventSetter {
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:
                             reserve.encodeParentDirectoryName3 === null
-                                ? this.config.recorded[0].name
+                                ? this.config.recording.directories[0].name
                                 : reserve.encodeParentDirectoryName3,
                         directory: reserve.encodeDirectory3 === null ? undefined : reserve.encodeDirectory3,
                         mode: reserve.encodeMode3,

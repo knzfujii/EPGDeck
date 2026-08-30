@@ -2,47 +2,15 @@
 
 nginx を利用したリバースプロキシにて EPGDeck を動かす場合の設定について解説します。
 
-## config.yml
+## 1. config.yml の設定
 
-### port
-
-#### EPGDeck が Web アクセスを待ち受けるポート番号
-
-| 種類   | デフォルト値 | 必須 |
-| ------ | ------------ | ---- |
-| number | 8888         | yes  |
+EPGDeck では Web API と Socket.IO が同一ポートで統合動作するため、特別なポート分岐設定は不要です。
 
 ```yaml
-port: 8888
-```
-
-### socketioPort
-
-#### EPGDeck が Socket.IO アクセスを待ち受けるポート番号
-
-port と同じポート番号を設定しても良い
-
-| 種類   | デフォルト値 | 必須 |
-| ------ | ------------ | ---- |
-| number | port と同じ  | no   |
-
-```yaml
-socketioPort: 8888
-```
-
-### clientSocketioPort
-
-#### EPGDeck の Web クライアントが接続する Socket.IO のポート番号
-
-リバースプロキシを使用している場合は必須となる。
-リバースプロキシの待受ポートと同じポート番号を設定する事。
-
-| 種類   | デフォルト値        | 必須 |
-| ------ | ------------------- | ---- |
-| number | socketioPort と同じ | no   |
-
-```yaml
-clientSocketioPort: 80
+server:
+  port: 8888
+  # サブディレクトリ配下で運用する場合（例: http://example.com/epgdeck/）
+  # subDirectory: /epgdeck/
 ```
 
 ## nginx 設定

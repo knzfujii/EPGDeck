@@ -39,7 +39,7 @@ export default class StorageManageModel implements IStorageManageModel {
      */
     public start(): void {
         const checkList: RecordedDirInfo[] = [];
-        for (const r of this.config.recorded) {
+        for (const r of this.config.recording.directories) {
             if (typeof r.limitThreshold !== 'undefined') {
                 checkList.push(r);
             }
@@ -56,7 +56,7 @@ export default class StorageManageModel implements IStorageManageModel {
                 this.log.system.error('disk check error');
                 this.log.system.error(err);
             });
-        }, this.config.storageLimitCheckIntervalTime * 1000);
+        }, this.config.recording.storageCheckIntervalSeconds * 1000);
     }
 
     /**

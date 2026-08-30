@@ -25,7 +25,7 @@ app.post('/upload', async c => {
             throw new Error('FileIsNotFound');
         }
 
-        const tempDir = config.uploadTempDir;
+        const tempDir = config.recording.uploadTempDir;
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }

@@ -46,8 +46,8 @@ const init = async () => {
     if (process.platform !== 'win32' && typeof process.getuid !== 'undefined' && process.getuid() === 0) {
         // gid
         if (typeof process.setgid !== 'undefined') {
-            if (typeof config.gid === 'string' || typeof config.gid === 'number') {
-                process.setgid(config.gid);
+            if (typeof config.server.gid === 'string' || typeof config.server.gid === 'number') {
+                process.setgid(config.server.gid);
             } else {
                 process.setgid('video');
             }
@@ -55,8 +55,8 @@ const init = async () => {
 
         // uid
         if (typeof process.setuid !== 'undefined') {
-            if (typeof config.uid === 'string' || typeof config.uid === 'number') {
-                process.setuid(config.uid);
+            if (typeof config.server.uid === 'string' || typeof config.server.uid === 'number') {
+                process.setuid(config.server.uid);
             }
         }
     }

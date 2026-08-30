@@ -710,7 +710,7 @@ export default class ProgramDB implements IProgramDB {
         const jaDate = DateUtil.getJaDate(new Date(program.startAt));
 
         const name =
-            this.config.needToReplaceEnclosingCharacters === true
+            this.config.epg.replaceEnclosingCharacters === true
                 ? StrUtil.toDBStr(StrUtil.replaceEnclosedCharacters(program.name))
                 : StrUtil.toDBStr(program.name);
         const halfWidthName = StrUtil.toHalf(name);
@@ -752,7 +752,7 @@ export default class ProgramDB implements IProgramDB {
             value.halfWidthDescription = null;
         } else {
             const description =
-                this.config.needToReplaceEnclosingCharacters === true
+                this.config.epg.replaceEnclosingCharacters === true
                     ? StrUtil.toDBStr(StrUtil.replaceEnclosedCharacters(program.description))
                     : StrUtil.toDBStr(program.description);
             value.description = description;

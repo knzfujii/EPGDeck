@@ -23,95 +23,90 @@ export default class ConfigApiModel implements IConfigApiModel {
 
         const result: apid.Config = <any>{};
 
-        // socket.io ポート設定
-        if (typeof config.clientSocketioPort !== 'undefined') {
-            result.socketIOPort = config.clientSocketioPort;
-        } else if (isSecure === true) {
-            // https
-            if (typeof config.https === 'undefined') {
+        if (isSecure === true) {
+            if (typeof config.server.https === 'undefined') {
                 throw new Error('httpsConfigError');
             }
-
-            result.socketIOPort =
-                typeof config.https.socketioPort === 'undefined' ? config.https.port : config.https.socketioPort;
+            result.socketIOPort = config.server.https.port;
         } else {
-            // http
-            if (typeof config.port === 'undefined') {
+            if (typeof config.server.port === 'undefined') {
                 throw new Error('httpConfigError');
             }
-
-            result.socketIOPort = typeof config.socketioPort === 'undefined' ? config.port : config.socketioPort;
+            result.socketIOPort = config.server.port;
         }
 
-        result.recorded = config.recorded.map(r => {
+        result.recorded = config.recording.directories.map(r => {
             return r.name;
         });
 
-        result.encode = config.encode.map(e => {
+        result.encode = config.encode.presets.map(e => {
             return e.name;
         });
 
-        result.urlscheme = {
-            m2ts: {
-                ios: config.urlscheme.m2ts.ios,
-                android: config.urlscheme.m2ts.android,
-                mac: config.urlscheme.m2ts.mac,
-                win: config.urlscheme.m2ts.win,
-            },
-            video: {
-                ios: config.urlscheme.video.ios,
-                android: config.urlscheme.video.android,
-                mac: config.urlscheme.video.mac,
-                win: config.urlscheme.video.win,
-            },
-            download: {
-                ios: config.urlscheme.download.ios,
-                android: config.urlscheme.download.android,
-                mac: config.urlscheme.download.mac,
-                win: config.urlscheme.download.win,
-            },
-        };
+        result.urlscheme = config.urlscheme
+            ? {
+                  m2ts: {
+                      ios: config.urlscheme.m2ts.ios,
+                      android: config.urlscheme.m2ts.android,
+                      mac: config.urlscheme.m2ts.mac,
+                      win: config.urlscheme.m2ts.win,
+                  },
+                  video: {
+                      ios: config.urlscheme.video.ios,
+                      android: config.urlscheme.video.android,
+                      mac: config.urlscheme.video.mac,
+                      win: config.urlscheme.video.win,
+                  },
+                  download: {
+                      ios: config.urlscheme.download.ios,
+                      android: config.urlscheme.download.android,
+                      mac: config.urlscheme.download.mac,
+                      win: config.urlscheme.download.win,
+                  },
+              }
+            : <any>{};
 
         result.broadcast = await this.ipc.reserveation.getBroadcastStatus();
         result.isEnableTSLiveStream = false;
         result.isEnableTSRecordedStream = false;
         result.isEnableEncodedRecordedStream = false;
 
-        if (typeof config.stream !== 'undefined') {
+        const stream = config.streaming;
+        if (typeof stream !== 'undefined') {
             result.streamConfig = {};
 
             // live stream
-            if (typeof config.stream.live !== 'undefined') {
+            if (typeof stream.live !== 'undefined') {
                 result.streamConfig.live = {};
-                if (typeof config.stream.live.ts !== 'undefined') {
+                if (typeof stream.live.ts !== 'undefined') {
                     result.isEnableTSLiveStream = true;
                     result.streamConfig.live.ts = {};
 
-                    if (typeof config.stream.live.ts.m2ts !== 'undefined') {
-                        result.streamConfig.live.ts.m2ts = config.stream.live.ts.m2ts.map(c => {
+                    if (typeof stream.live.ts.m2ts !== 'undefined') {
+                        result.streamConfig.live.ts.m2ts = stream.live.ts.m2ts.map(c => {
                             return {
                                 name: c.name,
                                 isUnconverted: typeof c.cmd === 'undefined',
                             };
                         });
                     }
-                    if (typeof config.stream.live.ts.m2tsll !== 'undefined') {
-                        result.streamConfig.live.ts.m2tsll = config.stream.live.ts.m2tsll.map(c => {
+                    if (typeof stream.live.ts.m2tsll !== 'undefined') {
+                        result.streamConfig.live.ts.m2tsll = stream.live.ts.m2tsll.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.live.ts.webm !== 'undefined') {
-                        result.streamConfig.live.ts.webm = config.stream.live.ts.webm.map(c => {
+                    if (typeof stream.live.ts.webm !== 'undefined') {
+                        result.streamConfig.live.ts.webm = stream.live.ts.webm.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.live.ts.mp4 !== 'undefined') {
-                        result.streamConfig.live.ts.mp4 = config.stream.live.ts.mp4.map(c => {
+                    if (typeof stream.live.ts.mp4 !== 'undefined') {
+                        result.streamConfig.live.ts.mp4 = stream.live.ts.mp4.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.live.ts.hls !== 'undefined') {
-                        result.streamConfig.live.ts.hls = config.stream.live.ts.hls.map(c => {
+                    if (typeof stream.live.ts.hls !== 'undefined') {
+                        result.streamConfig.live.ts.hls = stream.live.ts.hls.map(c => {
                             return c.name;
                         });
                     }
@@ -119,45 +114,45 @@ export default class ConfigApiModel implements IConfigApiModel {
             }
 
             // recorded stream
-            if (typeof config.stream.recorded !== 'undefined') {
+            if (typeof stream.recorded !== 'undefined') {
                 result.streamConfig.recorded = {};
                 // ts
-                if (typeof config.stream.recorded.ts !== 'undefined') {
+                if (typeof stream.recorded.ts !== 'undefined') {
                     result.streamConfig.recorded.ts = {};
                     result.isEnableTSRecordedStream = true;
-                    if (typeof config.stream.recorded.ts.webm !== 'undefined') {
-                        result.streamConfig.recorded.ts.webm = config.stream.recorded.ts.webm.map(c => {
+                    if (typeof stream.recorded.ts.webm !== 'undefined') {
+                        result.streamConfig.recorded.ts.webm = stream.recorded.ts.webm.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.recorded.ts.mp4 !== 'undefined') {
-                        result.streamConfig.recorded.ts.mp4 = config.stream.recorded.ts.mp4.map(c => {
+                    if (typeof stream.recorded.ts.mp4 !== 'undefined') {
+                        result.streamConfig.recorded.ts.mp4 = stream.recorded.ts.mp4.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.recorded.ts.hls !== 'undefined') {
-                        result.streamConfig.recorded.ts.hls = config.stream.recorded.ts.hls.map(c => {
+                    if (typeof stream.recorded.ts.hls !== 'undefined') {
+                        result.streamConfig.recorded.ts.hls = stream.recorded.ts.hls.map(c => {
                             return c.name;
                         });
                     }
                 }
 
                 // encoded
-                if (typeof config.stream.recorded.encoded !== 'undefined') {
+                if (typeof stream.recorded.encoded !== 'undefined') {
                     result.streamConfig.recorded.encoded = {};
                     result.isEnableEncodedRecordedStream = true;
-                    if (typeof config.stream.recorded.encoded.webm !== 'undefined') {
-                        result.streamConfig.recorded.encoded.webm = config.stream.recorded.encoded.webm.map(c => {
+                    if (typeof stream.recorded.encoded.webm !== 'undefined') {
+                        result.streamConfig.recorded.encoded.webm = stream.recorded.encoded.webm.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.recorded.encoded.mp4 !== 'undefined') {
-                        result.streamConfig.recorded.encoded.mp4 = config.stream.recorded.encoded.mp4.map(c => {
+                    if (typeof stream.recorded.encoded.mp4 !== 'undefined') {
+                        result.streamConfig.recorded.encoded.mp4 = stream.recorded.encoded.mp4.map(c => {
                             return c.name;
                         });
                     }
-                    if (typeof config.stream.recorded.encoded.hls !== 'undefined') {
-                        result.streamConfig.recorded.encoded.hls = config.stream.recorded.encoded.hls.map(c => {
+                    if (typeof stream.recorded.encoded.hls !== 'undefined') {
+                        result.streamConfig.recorded.encoded.hls = stream.recorded.encoded.hls.map(c => {
                             return c.name;
                         });
                     }
@@ -165,8 +160,8 @@ export default class ConfigApiModel implements IConfigApiModel {
             }
         }
 
-        if (typeof config.kodiHosts !== 'undefined') {
-            result.kodiHosts = config.kodiHosts.map(k => {
+        if (typeof config.kodi !== 'undefined') {
+            result.kodiHosts = config.kodi.map(k => {
                 return k.name;
             });
         }

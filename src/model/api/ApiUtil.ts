@@ -34,7 +34,9 @@ export default class ApiUtil implements IApiUtil {
     public getHost(baseHost: string): string {
         const config = this.configuration.getConfig();
 
-        return typeof config.subDirectory === 'undefined' ? baseHost : path.join(baseHost, config.subDirectory);
+        return typeof config.server.subDirectory === 'undefined'
+            ? baseHost
+            : path.join(baseHost, config.server.subDirectory);
     }
 
     /**

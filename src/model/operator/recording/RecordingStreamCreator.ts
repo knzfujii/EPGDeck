@@ -238,7 +238,9 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
      */
     private getStream(reserve: Reserve, abortSignal?: AbortSignal): Promise<http.IncomingMessage> {
         const mirakurun = this.mirakurunClientModel.getClient();
-        mirakurun.priority = reserve.isConflict ? this.config.conflictPriority : this.config.recPriority;
+        mirakurun.priority = reserve.isConflict
+            ? this.config.recording.priority.conflict
+            : this.config.recording.priority.recording;
 
         if (reserve.programId === null) {
             // 時刻指定予約
@@ -271,7 +273,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
             () => {
                 this.destroyStream(reserve);
             },
-            reserve.endAt - now + 1000 * this.config.timeSpecifiedEndMargin,
+            reserve.endAt - now + 1000 * this.config.recording.timeSpecifiedEndMargin,
         );
 
         // mirakurun から channel stream を受け取る
@@ -294,7 +296,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
         // 予約時間まで待つ
         if (now < reserve.startAt) {
             channelStream.on('data', () => {}); // 読み込まないと stream がバッファに貯まるため
-            await Util.sleep(reserve.startAt - now - 1000 * this.config.timeSpecifiedStartMargin);
+            await Util.sleep(reserve.startAt - now - 1000 * this.config.recording.timeSpecifiedStartMargin);
             channelStream.removeAllListeners('data'); // clear
         }
 
@@ -338,7 +340,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
             () => {
                 this.destroyStream(reserve);
             },
-            reserve.endAt - new Date().getTime() + 1000 * this.config.timeSpecifiedEndMargin,
+            reserve.endAt - new Date().getTime() + 1000 * this.config.recording.timeSpecifiedEndMargin,
         );
     }
 }

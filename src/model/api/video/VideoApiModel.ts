@@ -137,10 +137,10 @@ export default class VideoApiModel implements IVideoApiModel {
 
         // kodiName で指定された kodi host を config から探す
         const config = this.configuration.getConfig();
-        if (typeof config.kodiHosts === 'undefined') {
+        if (typeof config.kodi === 'undefined') {
             throw new Error('KodiHostsIsUndefined');
         }
-        const kodi = config.kodiHosts.find(k => {
+        const kodi = config.kodi.find(k => {
             return k.name === kodiName;
         });
         if (typeof kodi === 'undefined') {

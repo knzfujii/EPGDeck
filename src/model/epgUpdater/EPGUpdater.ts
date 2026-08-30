@@ -69,7 +69,7 @@ class EPGUpdater implements IEPGUpdater {
     public async start(): Promise<void> {
         this.log.system.info('start EPG update');
 
-        const updateInterval = this.config.epgUpdateIntervalTime * 60 * 1000;
+        const updateInterval = this.config.epg.intervalMinutes * 60 * 1000;
 
         // チューナーサーバの種別を確認
         const tunerServerType = await this.updateManage.checkTunerServerType();

@@ -81,7 +81,11 @@ describe('ProgramDB findRule Tests', () => {
         } as any;
 
         const dummyConfigModel = {
-            getConfig: () => ({ isAllowAllCORS: true }),
+            getConfig: () => ({
+                epg: {
+                    replaceEnclosingCharacters: true,
+                },
+            }),
         } as any;
 
         programDB = new ProgramDB(dummyConfigModel, dummyDrizzleOp, dummyRetry);

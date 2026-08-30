@@ -200,7 +200,7 @@
                                 <span class="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">⚡ 高速 3-5秒 (ブラウザ)</span>
                             </button>
 
-                            <!-- HLS (高互換) -->
+                            <!-- HLS (高互換・字幕対応) -->
                             <button
                                 type="button"
                                 onclick={() => selectedStreamType = 'hls'}
@@ -208,8 +208,10 @@
                                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300'}"
                             >
-                                <span class="font-black">HLS</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">📱 iOS / iPadOS 推奨</span>
+                                <span class="flex items-center gap-1 font-black">
+                                    HLS <span class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">字幕対応</span>
+                                </span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">📺 字幕 / iOS・全環境対応</span>
                             </button>
                         {:else}
                             <!-- 録画再生の場合 -->
@@ -232,8 +234,10 @@
                                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300'}"
                             >
-                                <span class="font-black">HLS 配信</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">安定トランスコード</span>
+                                <span class="flex items-center gap-1 font-black">
+                                    HLS 配信 <span class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">字幕対応</span>
+                                </span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">📺 字幕・安定トランスコード</span>
                             </button>
                             <button
                                 type="button"

@@ -18,13 +18,12 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 - [x] **DBアクセス層の重複コード解消**
   - [x] `ProgramDB.ts`, `RecordedDB.ts` 等の方言差（SQLite / MySQL）がない同一クエリ処理を共通化・リファクタリング
 
-
 ---
 
 ## 2. フロントエンド & UI/UX (Frontend & Realtime)
 
 - [x] **バンドル分割・遅延ロード (Code Splitting / Lazy Loading)**
-  - [x] `hls.js`, `mpegts.js` などの動画再生ライブラリを別チャンクに分離（Vite `manualChunks` 設定）
+  - [x] `hls.js`, `mpegts.js`, `aribb24.js` などの動画再生ライブラリを別チャンクに分離（Vite `manualChunks` 設定）
   - [x] 初期表示用 JS バンドルサイズの削減
 - [x] **Socket.IO リアルタイム通信のフロントエンド接続**
   - [x] グローバル Socket.IO リアクティブストア（`socket.svelte.ts`）の構築
@@ -33,8 +32,8 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `Recorded.svelte`, `Reserves.svelte`, `Rule.svelte`, `Dashboard.svelte`, `OnAir.svelte`, `RecordedDetail.svelte` などの状態変数を `api.d.ts` の厳格な型（`RecordedItem`, `ReserveItem`, `Rule` 等）へ置き換え
 - [x] **共通ユーティリティ（フォーマッタ）の集約**
   - [x] `formatDate`, `formatTime`, `formatSize`, `formatDuration`, `formatBitrate`, `formatPlayerTime` を `client/src/lib/utils/format.ts` に集約・共通化
-- [ ] **字幕表示（`aribb24.js`）の実装**
-  - [ ] `VideoPlayer.svelte` に `aribb24.js` による字幕 / 文字スーパー描画レイヤーを統合
+- [x] **字幕表示（`aribb24.js`）の実装**
+  - [x] `VideoPlayer.svelte` に `aribb24.js` による字幕 / 文字スーパー描画レイヤーを統合
 - [x] **不要な依存パッケージの棚卸し**
   - [x] `client/package.json` の未使用ライブラリ（`clsx`, `date-fns`, `eventemitter2`, `inversify`, `lodash`, `reflect-metadata`, `resize-observer-polyfill`, `smoothscroll-polyfill`, `tailwind-merge` 等）を削除
 
@@ -79,4 +78,6 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 ## ユーザー追加メモ (User Notes)
 
 - [ ] configの利用状況。妥当性の確認
+    - [ ] エンコード周辺の整理
 - [ ] Playerのseekbarがふさわしくない画面での表示
+- [ ] Mirakurunとのバージョン互換の確認

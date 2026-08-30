@@ -61,7 +61,9 @@ export function formatDuration(durationMsOrSec: number | undefined | null, isSec
  * 秒数を "HH:MM:SS" または "MM:SS" にフォーマット（動画プレイヤー用）
  */
 export function formatPlayerTime(seconds: number | undefined | null): string {
-    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
+    if (seconds === undefined || seconds === null || isNaN(seconds) || !isFinite(seconds) || seconds < 0) {
+        return '00:00';
+    }
     const totalSec = Math.floor(seconds);
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);

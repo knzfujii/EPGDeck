@@ -35,28 +35,34 @@
     let recordedData = $state<any>(null);
     let isLoadingInfo = $state(true);
 
+    let totalDuration = $derived.by(() => {
+        if (!recordedData) return 0;
+        if (recordedData.startAt && recordedData.endAt) {
+            return Math.max(0, Math.floor((recordedData.endAt - recordedData.startAt) / 1000));
+        }
+        if (recordedData.duration && recordedData.duration > 0) {
+            return recordedData.duration > 86400 ? Math.floor(recordedData.duration / 1000) : recordedData.duration;
+        }
+        return 0;
+    });
+
     async function waitForStreamReady(id: number): Promise<boolean> {
         for (let i = 1; i <= 60; i++) {
-            const sec = (i * 0.5).toFixed(1);
+            const sec = (i * 0.3).toFixed(1);
             statusText = `HLS 配信を準備中... (${sec}秒)`;
             try {
-                // 1. API での isEnable チェック
+                // API での isEnable チェック (stream.info.isEnable)
                 const infoRes = await axios.get('/api/streams?isHalfWidth=true');
                 const items = infoRes.data?.items || [];
                 const stream = items.find((item: any) => Number(item.streamId) === Number(id));
-                if (stream && stream.isEnable === true) {
-                    return true;
-                }
-
-                // 2. m3u8 ファイルの直接存在チェック (フォールバック)
-                const fileCheck = await axios.head(`/streamfiles/stream${id}.m3u8`).catch(() => null);
-                if (fileCheck && fileCheck.status === 200) {
+                const isReady = stream?.info?.isEnable ?? stream?.isEnable;
+                if (isReady === true) {
                     return true;
                 }
             } catch (e) {
                 // ignore
             }
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
         return false;
     }
@@ -305,6 +311,7 @@
                 {isLive}
                 title={programTitle}
                 recordedId={recordedData?.id}
+                totalDuration={totalDuration}
                 onStreamEnded={stopStream}
             />
         {:else}

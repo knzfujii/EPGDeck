@@ -52,20 +52,14 @@
         if (!recordedId) return;
         if (!isSilent) isLoading = true;
         try {
-            await channelStore.fetch();
-            const res = await axios.get(`/api/recorded/${recordedId}?isHalfWidth=true`);
-            recorded = res.data;
+            const [, res] = await Promise.all([
+                channelStore.fetch(),
 
-            // エンコード設定の取得
-            const configRes = await axios.get('/api/config').catch(() => ({ data: {} }));
-            const encList = configRes.data?.encode || [];
-            encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
+            axios.get('/api/config').then(configRes => {
+                const encList = configRes.data?.encode || [];
+                encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
+            }).catch(() => {});
         } catch (e) {
-            console.error('Failed to fetch recorded detail', e);
-            if (!isSilent) snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
-        } finally {
-            if (!isSilent) isLoading = false;
-        }
     }
 
     onMount(() => {

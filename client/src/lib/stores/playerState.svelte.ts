@@ -6,6 +6,7 @@ class PlayerState {
     volume = $state(1.0);
     isMuted = $state(false);
     playbackRate = $state(1.0);
+    isSubtitleEnabled = $state(false);
     defaultStreamMode = $state<number>(0);
     defaultStreamType = $state<'hls' | 'mp4' | 'webm'>('hls');
 
@@ -20,9 +21,19 @@ class PlayerState {
 
                 const savedRate = localStorage.getItem('epgdeck_playback_rate');
                 if (savedRate !== null) this.playbackRate = parseFloat(savedRate);
+
+                const savedSub = localStorage.getItem('epgdeck_subtitle_enabled');
+                if (savedSub !== null) this.isSubtitleEnabled = savedSub === 'true';
             } catch (e) {
                 console.error('Failed to load player settings', e);
             }
+        }
+    }
+
+    setSubtitleEnabled(val: boolean) {
+        this.isSubtitleEnabled = val;
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('epgdeck_subtitle_enabled', this.isSubtitleEnabled.toString());
         }
     }
 

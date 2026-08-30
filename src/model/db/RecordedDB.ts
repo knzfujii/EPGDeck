@@ -82,15 +82,23 @@ export default class RecordedDB implements IRecordedDB {
     /**
      * 指定した録画情報の isRecording を false に
      */
-    public async removeRecording(recordedId: apid.RecordedId): Promise<void> {
+    public async removeRecording(
+        recordedId: apid.RecordedId,
+        actualDuration?: number,
+        actualEndAt?: number,
+    ): Promise<void> {
         const client = this.drizzleOp.getDB();
 
         await this.promieRetry.run(async () => {
             const { db, schema } = client;
-            await (db as any)
-                .update(schema.recorded)
-                .set({ isRecording: false })
-                .where(eq(schema.recorded.id, recordedId));
+            const updateValues: Record<string, any> = { isRecording: false };
+            if (typeof actualDuration === 'number' && actualDuration > 0) {
+                updateValues.duration = actualDuration;
+            }
+            if (typeof actualEndAt === 'number' && actualEndAt > 0) {
+                updateValues.endAt = actualEndAt;
+            }
+            await (db as any).update(schema.recorded).set(updateValues).where(eq(schema.recorded.id, recordedId));
         });
     }
 

@@ -16,8 +16,7 @@ export default interface IRecordedDB {
     restore(items: Recorded[]): Promise<void>;
     insertOnce(recorded: Recorded): Promise<apid.RecordedId>;
     updateOnce(recorded: Recorded): Promise<void>;
-    removeRecording(recordedId: apid.RecordedId): Promise<void>;
-    removeDropLogFileId(dropLogFileId: apid.DropLogFileId): Promise<void>;
+    removeRecording(recordedId: apid.RecordedId, actualDuration?: number, actualEndAt?: number): Promise<void>;
     removeRuleId(ruleId: apid.RuleId): Promise<void>;
     changeProtect(recordedId: apid.RecordedId, isProtect: boolean): Promise<void>;
     deleteOnce(recordedId: apid.RecordedId): Promise<void>;

@@ -2,6 +2,7 @@
     import { onMount, onDestroy, untrack } from 'svelte';
     import Hls from 'hls.js';
     import Mpegts from 'mpegts.js';
+    import * as aribb24 from 'aribb24.js';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
     import {
@@ -27,21 +28,18 @@
         isLive?: boolean;
         title?: string;
         recordedId?: number;
+        totalDuration?: number;
         onStreamEnded?: () => void;
     }
 
-    let {
-        src,
-        streamType = 'direct',
-        isHls = false,
-        isLive = false,
-        title = '',
-        recordedId,
-        onStreamEnded
-    }: Props = $props();
+    let props: Props = $props();
 
     let videoElement = $state<HTMLVideoElement | null>(null);
     let containerElement = $state<HTMLDivElement | null>(null);
+    let subtitleContainer = $state<HTMLDivElement | null>(null);
+    let subtitleRenderer: aribb24.CanvasRenderer | null = null;
+    let hasSubtitle = $state(false);
+    let isSubtitleOn = $state(false);
     let hlsInstance: Hls | null = null;
     let mpegtsInstance: Mpegts.Player | null = null;
 
@@ -54,6 +52,34 @@
     let showControls = $state(true);
     let errorMessage = $state<string | null>(null);
     let resumeNotice = $state<{ position: number; visible: boolean } | null>(null);
+
+    // props のエイリアス
+    let streamType = $derived(props.streamType || 'direct');
+    let isHls = $derived(props.isHls ?? false);
+    let isLive = $derived(props.isLive ?? false);
+    let title = $derived(props.title || '');
+    let recordedId = $derived(props.recordedId);
+    let src = $derived(props.src);
+
+    // 表示用の動画全体の長さ (秒)
+    // 直接再生（direct / mp4）の時はブラウザの videoElement.duration（実尺）を最優先。
+    // HLS や WebM などのストリーミング時は、DB上の totalDuration を優先しつつ、
+    // ネイティブ duration が totalDuration より大きい場合はネイティブを採用。
+    let displayDuration = $derived.by(() => {
+        const nativeDur = Number.isFinite(duration) && duration > 0 ? duration : 0;
+        const total = props.totalDuration ?? 0;
+
+        if (streamType === 'direct' && nativeDur > 0) {
+            return nativeDur;
+        }
+        if (total > 0) {
+            return nativeDur > total ? nativeDur : total;
+        }
+        return nativeDur;
+    });
+
+    // シーク可能かどうか
+    let canSeek = $derived(!isLive && displayDuration > 0 && Number.isFinite(displayDuration));
 
     let hideControlsTimer: any = null;
     let lastLoadedSrc = '';
@@ -157,6 +183,70 @@
         }
     }
 
+    // 字幕レンダラーの初期化 & 管理 (aribb24.js)
+    function initSubtitleRenderer() {
+        if (!videoElement || !subtitleContainer) return;
+        cleanupSubtitleRenderer();
+
+        try {
+            subtitleRenderer = new aribb24.CanvasRenderer({
+                enableAutoInBandMetadataTextTrackDetection: true,
+                keepAspectRatio: true,
+                normalFont: '"Rounded M+ 1m for ARIB", "Windows TV 丸ゴシック", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
+                gaijiFont: '"Rounded M+ 1m for ARIB", "Windows TV 丸ゴシック", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
+                drcsReplacement: true,
+            });
+
+            subtitleRenderer.attachMedia(videoElement, subtitleContainer);
+
+            isSubtitleOn = playerState.isSubtitleEnabled ?? false;
+            if (isSubtitleOn) {
+                subtitleRenderer.show();
+            } else {
+                subtitleRenderer.hide();
+            }
+        } catch (e) {
+            console.warn('Failed to initialize aribb24 subtitle renderer:', e);
+        }
+    }
+
+    function cleanupSubtitleRenderer() {
+        if (subtitleRenderer) {
+            try {
+                subtitleRenderer.detachMedia();
+                subtitleRenderer.dispose();
+            } catch (e) {
+                // ignore
+            }
+            subtitleRenderer = null;
+        }
+    }
+
+    function toggleSubtitle() {
+        const nextEnabled = !isSubtitleOn;
+        isSubtitleOn = nextEnabled;
+
+        if (typeof playerState.setSubtitleEnabled === 'function') {
+            playerState.setSubtitleEnabled(nextEnabled);
+        } else {
+            playerState.isSubtitleEnabled = nextEnabled;
+            try {
+                localStorage.setItem('epgdeck_subtitle_enabled', nextEnabled.toString());
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        if (subtitleRenderer) {
+            if (nextEnabled) {
+                subtitleRenderer.show();
+            } else {
+                subtitleRenderer.hide();
+            }
+        }
+        resetHideControlsTimer();
+    }
+
     // キーボードショートカット
     function handleKeyDown(e: KeyboardEvent) {
         // 入力フォームフォーカス中は無視
@@ -172,9 +262,13 @@
                 togglePlay();
                 break;
             case 'ArrowLeft':
+            case 'j':
                 e.preventDefault();
                 seekRelative(-10);
                 break;
+            case 'ArrowRight':
+            case 'l':
+                e.preventDefault();
                 seekRelative(10);
                 break;
             case 'ArrowUp':
@@ -186,6 +280,12 @@
                 e.preventDefault();
                 playerState.setVolume(Math.max(0, playerState.volume - 0.05));
                 if (videoElement) videoElement.volume = playerState.volume;
+                break;
+            case 'c':
+                if (isHls || streamType === 'hls') {
+                    e.preventDefault();
+                    toggleSubtitle();
+                }
                 break;
             case 'f':
                 e.preventDefault();
@@ -213,6 +313,7 @@
     }
 
     function cleanupEngines() {
+        cleanupSubtitleRenderer();
         if (hlsInstance) {
             hlsInstance.stopLoad();
             hlsInstance.detachMedia();
@@ -268,6 +369,15 @@
                 mpegtsInstance.on(Mpegts.Events.ERROR, (type, detail, info) => {
                     console.warn('Mpegts error:', type, detail, info);
                 });
+
+                // 字幕レンダラーの起動 & ID3 メタデータの連携
+                initSubtitleRenderer();
+                mpegtsInstance.on(Mpegts.Events.TIMED_ID3_METADATA_ARRIVED, (data: any) => {
+                    if (subtitleRenderer && data?.data && data?.pts !== undefined) {
+                        hasSubtitle = true;
+                        subtitleRenderer.pushID3v2Data(data.pts, data.data);
+                    }
+                });
                 return;
             }
         }
@@ -285,6 +395,19 @@
                 });
                 hlsInstance.loadSource(src);
                 hlsInstance.attachMedia(videoElement);
+
+                // 字幕レンダラーの起動 & HLS フラグメント ID3 メタデータの連携
+                initSubtitleRenderer();
+                hlsInstance.on(Hls.Events.FRAG_PARSING_METADATA, (_event, data) => {
+                    if (data?.samples) {
+                        hasSubtitle = true;
+                        for (const sample of data.samples) {
+                            if (subtitleRenderer && sample.data && sample.pts !== undefined) {
+                                subtitleRenderer.pushID3v2Data(sample.pts, sample.data);
+                            }
+                        }
+                    }
+                });
 
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     isLoading = false;
@@ -312,6 +435,7 @@
                 return;
             } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
                 videoElement.src = src;
+                initSubtitleRenderer();
                 videoElement.play().catch(e => console.log('Autoplay prevented:', e));
                 return;
             }
@@ -320,6 +444,7 @@
         // 3. WebM / MP4 / 直接再生ストリーム (ブラウザネイティブ)
         videoElement.src = src;
         videoElement.load();
+        initSubtitleRenderer();
         videoElement.play().catch(e => console.log('Autoplay prevented:', e));
 
         // レジューム位置の確認
@@ -418,13 +543,20 @@
             isPlaying = false;
             showControls = true;
             if (recordedId) playerState.clearPosition(recordedId);
-            if (onStreamEnded) onStreamEnded();
+            if (props.onStreamEnded) props.onStreamEnded();
         }}
         class="h-full w-full object-contain cursor-pointer"
         playsinline
     >
         <track kind="captions" />
     </video>
+
+    <!-- aribb24.js 字幕オーバーレイコンテナ -->
+    <div
+        bind:this={subtitleContainer}
+        class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-hidden"
+        aria-hidden="true"
+    ></div>
 
     <!-- ローディングスピナー -->
     {#if isLoading && !errorMessage}
@@ -451,7 +583,7 @@
     <!-- レジューム再開トースト通知 -->
     {#if resumeNotice?.visible && !isLive}
         <div class="absolute top-4 left-4 right-4 z-30 flex items-center justify-between rounded-xl bg-slate-900/90 p-3 text-xs text-white shadow-xl backdrop-blur sm:left-auto sm:right-4 sm:w-80">
-            <span>前回 <strong>{formatTime(resumeNotice.position)}</strong> まで視聴しました</span>
+            <span>前回 <strong>{formatPlayerTime(resumeNotice.position)}</strong> まで視聴しました</span>
             <div class="flex items-center gap-2">
                 <button
                     type="button"
@@ -494,14 +626,14 @@
     <div
         class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
     >
-        <!-- シークバー (ライブ時は非表示) -->
-        {#if !isLive && duration > 0}
+        <!-- シークバー (シーク可能時のみ表示) -->
+        {#if canSeek}
             <div class="mb-2.5 flex items-center gap-2">
-                <span class="text-[11px] font-medium text-slate-300">{formatTime(currentTime)}</span>
+                <span class="text-[11px] font-medium text-slate-300">{formatPlayerTime(currentTime)}</span>
                 <input
                     type="range"
                     min="0"
-                    max={duration}
+                    max={displayDuration}
                     step="1"
                     value={currentTime}
                     oninput={handleSeekChange}
@@ -510,7 +642,7 @@
                     tabindex="-1"
                     class="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2"
                 />
-                <span class="text-[11px] font-medium text-slate-300">{formatTime(duration)}</span>
+                <span class="text-[11px] font-medium text-slate-300">{formatPlayerTime(displayDuration)}</span>
             </div>
         {/if}
 
@@ -601,6 +733,19 @@
                             </button>
                         {/each}
                     </div>
+                {/if}
+
+                <!-- 字幕切り替えボタン (HLS 配信時のみ表示) -->
+                {#if isHls || streamType === 'hls'}
+                    <button
+                        type="button"
+                        onclick={toggleSubtitle}
+                        class="rounded-lg p-1.5 transition {isSubtitleOn ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-white/20'}"
+                        title={isSubtitleOn ? '字幕を非表示 (C)' : '字幕を表示 (C)'}
+                        aria-label="字幕切り替え"
+                    >
+                        <Subtitles size={18} />
+                    </button>
                 {/if}
 
                 <button

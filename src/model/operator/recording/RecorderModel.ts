@@ -65,6 +65,7 @@ class RecorderModel implements IRecorderModel {
     private eventEmitter = new events.EventEmitter();
 
     private dropLogFileId: apid.DropLogFileId | null = null;
+    private actualStartAt: number | null = null;
 
     private abortController: AbortController | null = null;
 
@@ -387,6 +388,8 @@ class RecorderModel implements IRecorderModel {
                     return;
                 }
 
+                this.actualStartAt = new Date().getTime();
+
                 // 番組情報追加
                 const recorded = await this.addRecorded(recPath);
 
@@ -633,9 +636,12 @@ class RecorderModel implements IRecorderModel {
         }
 
         if (this.recordedId !== null) {
-            // remove recording flag
+            // remove recording flag & update actual duration
             this.log.system.info(`remove recording flag: ${this.recordedId}`);
-            await this.recordedDB.removeRecording(this.recordedId);
+            const actualEndAt = new Date().getTime();
+            const actualDuration =
+                this.actualStartAt !== null ? Math.max(0, actualEndAt - this.actualStartAt) : undefined;
+            await this.recordedDB.removeRecording(this.recordedId, actualDuration, actualEndAt);
             this.isRecording = false;
 
             // tmp に録画していた場合は移動する

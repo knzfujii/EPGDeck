@@ -15,7 +15,7 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
 - **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**
   - `config/enc_helper.js` によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
 - **[ロギングシステム仕様 & ログビューア](manual/logging.md)**
-  - Winston 統合ログの出力設定および Web UI（`/logs`）でのリアルタイムログ確認。
+  - log4js 統合ログの出力設定および Web UI（`/logs`）でのリアルタイムログ確認。
 - **[データベースのバックアップ & レストア](manual/backup.md)**
   - データベース情報のバックアップ取得および復元手順。
 - **[リバースプロキシ設定 (Nginx)](manual/reverse-proxy.md)**

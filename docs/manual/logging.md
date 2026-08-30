@@ -1,6 +1,6 @@
 # ログ出力設定マニュアル
 
-EPGDeck では、モダンで高性能な [Winston](https://github.com/winstonjs/winston) による統合ロギングを採用しています。  
+EPGDeck では、[log4js](https://github.com/log4js-node/log4js-node) による統合ロギングを採用しています。  
 ログ設定はすべて `config/config.yml` 内の `log` セクションで一元管理されます。
 
 ## 1. ログ設定の構成 (`config.yml`)

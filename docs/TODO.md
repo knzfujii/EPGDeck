@@ -7,11 +7,12 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 ## 1. データベース & パフォーマンス (Database & Performance)
 
-- [ ] **DBインデックス（INDEX）の最適化**
-  - [ ] `program` テーブルに `(channelId, startAt, endAt)` 複合インデックスを追加（番組表・放映中取得の高速化）
-  - [ ] `recorded` テーブルに `(startAt, endAt)`, `(channelId)`, `(ruleId)`, `(genre1)` インデックスを追加（15,000件超アーカイブの年月ジャンプ・ジャンル絞り込み高速化）
-  - [ ] SQLite 側の `thumbnail` / `video_file` テーブルに `recordedId` インデックスを追加
-  - [ ] `reserve` テーブルに `(startAt, endAt)`, `(ruleId)` インデックスを追加
+- [x] **DBインデックス（INDEX）の最適化**
+  - [x] `program` テーブルに `(channelId, startAt, endAt)`, `(startAt, endAt)` 複合インデックスを追加（番組表・放映中取得の高速化）
+  - [x] `recorded` テーブルに `(channelId, startAt)`, `(startAt, endAt)`, `(ruleId)` インデックスを追加（15,000件超アーカイブの年月ジャンプ・ジャンル絞り込み高速化）
+  - [x] `reserve` テーブルに `(startAt, endAt)`, `(ruleId)`, `(channelId, startAt)` インデックスを追加
+  - [x] `DrizzleOperator` で SQLite / MySQL の既存データを破壊しない安全な自動インデックス生成（`CREATE INDEX IF NOT EXISTS` / `INFORMATION_SCHEMA` チェック）を実装
+
 - [ ] **番組一括更新（Bulk Insert）の最適化**
   - [ ] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用し、EPG更新時の DB 負荷と処理時間を削減
 - [ ] **DBアクセス層の重複コード解消**

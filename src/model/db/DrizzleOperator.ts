@@ -23,9 +23,9 @@ export default class DrizzleOperator implements IDrizzleOperator {
     public async checkConnection(): Promise<void> {
         const client = this.getDB();
         if (client.type === 'sqlite') {
-            // EPGStation v2.10.0 完全互換の SQLite テーブル定義自動作成
-            await client.rawClient.execute(`
-                CREATE TABLE IF NOT EXISTS channel (
+            // EPGStation v2.10.0 完全互換の SQLite テーブル定義およびインデックスの安全な自動作成
+            const queries = [
+                `CREATE TABLE IF NOT EXISTS channel (
                     id INTEGER PRIMARY KEY,
                     serviceId INTEGER NOT NULL,
                     networkId INTEGER NOT NULL,
@@ -37,15 +37,15 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     channelType TEXT NOT NULL,
                     channel TEXT NOT NULL,
                     type INTEGER
-                );
-                CREATE TABLE IF NOT EXISTS drop_log_file (
+                )`,
+                `CREATE TABLE IF NOT EXISTS drop_log_file (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     errorCnt INTEGER NOT NULL,
                     dropCnt INTEGER NOT NULL,
                     scramblingCnt INTEGER NOT NULL,
                     filePath TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS program (
+                )`,
+                `CREATE TABLE IF NOT EXISTS program (
                     id INTEGER PRIMARY KEY,
                     updateTime INTEGER NOT NULL,
                     channelId INTEGER NOT NULL,
@@ -81,8 +81,8 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     videoComponentType INTEGER,
                     audioSamplingRate INTEGER,
                     audioComponentType INTEGER
-                );
-                CREATE TABLE IF NOT EXISTS recorded (
+                )`,
+                `CREATE TABLE IF NOT EXISTS recorded (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     reserveId INTEGER,
                     ruleId INTEGER,
@@ -114,25 +114,25 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     audioComponentType INTEGER,
                     isRecording INTEGER NOT NULL,
                     dropLogFileId INTEGER UNIQUE
-                );
-                CREATE TABLE IF NOT EXISTS recorded_history (
+                )`,
+                `CREATE TABLE IF NOT EXISTS recorded_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     channelId INTEGER NOT NULL,
                     endAt INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS recorded_tag (
+                )`,
+                `CREATE TABLE IF NOT EXISTS recorded_tag (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE,
                     halfWidthName TEXT NOT NULL,
                     color TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS recorded_tags_recorded_tag (
+                )`,
+                `CREATE TABLE IF NOT EXISTS recorded_tags_recorded_tag (
                     recordedId INTEGER NOT NULL,
                     recordedTagId INTEGER NOT NULL,
                     PRIMARY KEY (recordedId, recordedTagId)
-                );
-                CREATE TABLE IF NOT EXISTS reserve (
+                )`,
+                `CREATE TABLE IF NOT EXISTS reserve (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     updateTime INTEGER NOT NULL,
                     ruleId INTEGER,
@@ -186,8 +186,8 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     audioSamplingRate INTEGER,
                     audioComponentType INTEGER,
                     isEventRelay INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS rule (
+                )`,
+                `CREATE TABLE IF NOT EXISTS rule (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     updateCnt INTEGER NOT NULL DEFAULT 0,
                     isTimeSpecification INTEGER NOT NULL DEFAULT 0,
@@ -234,13 +234,13 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     parentDirectoryName3 TEXT,
                     directory3 TEXT,
                     isDeleteOriginalAfterEncode INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS thumbnail (
+                )`,
+                `CREATE TABLE IF NOT EXISTS thumbnail (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     filePath TEXT NOT NULL,
                     recordedId INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS video_file (
+                )`,
+                `CREATE TABLE IF NOT EXISTS video_file (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     parentDirectoryName TEXT NOT NULL,
                     filePath TEXT NOT NULL,
@@ -248,8 +248,20 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     name TEXT NOT NULL,
                     size INTEGER NOT NULL DEFAULT 0,
                     recordedId INTEGER NOT NULL
-                );
-            `);
+                )`,
+                'CREATE INDEX IF NOT EXISTS idx_program_channel_time ON program(channelId, startAt, endAt)',
+                'CREATE INDEX IF NOT EXISTS idx_program_time ON program(startAt, endAt)',
+                'CREATE INDEX IF NOT EXISTS idx_recorded_channel_start ON recorded(channelId, startAt)',
+                'CREATE INDEX IF NOT EXISTS idx_recorded_start_end ON recorded(startAt, endAt)',
+                'CREATE INDEX IF NOT EXISTS idx_recorded_rule ON recorded(ruleId)',
+                'CREATE INDEX IF NOT EXISTS idx_reserve_start_end ON reserve(startAt, endAt)',
+                'CREATE INDEX IF NOT EXISTS idx_reserve_rule ON reserve(ruleId)',
+                'CREATE INDEX IF NOT EXISTS idx_reserve_channel_start ON reserve(channelId, startAt)',
+            ];
+
+            for (const q of queries) {
+                await client.rawClient.execute(q);
+            }
         } else {
             // EPGStation v2.10.0 完全互換の MySQL テーブル定義自動作成（キー名は自動命名）
             const queries = [
@@ -315,7 +327,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
                 `CREATE TABLE IF NOT EXISTS \`recorded\` (
                     \`id\` int(11) NOT NULL AUTO_INCREMENT,
-                    \`reserveId\` int(11) DEFAULT NULL,
+                    \`reserveId\` bigint(20) DEFAULT NULL,
                     \`ruleId\` int(11) DEFAULT NULL,
                     \`programId\` bigint(20) DEFAULT NULL,
                     \`channelId\` bigint(20) NOT NULL,
@@ -357,15 +369,16 @@ export default class DrizzleOperator implements IDrizzleOperator {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
                 `CREATE TABLE IF NOT EXISTS \`recorded_tag\` (
                     \`id\` int(11) NOT NULL AUTO_INCREMENT,
-                    \`name\` text NOT NULL,
+                    \`name\` varchar(255) NOT NULL,
                     \`halfWidthName\` text NOT NULL,
-                    \`color\` varchar(255) NOT NULL,
-                    PRIMARY KEY (\`id\`)
+                    \`color\` text NOT NULL,
+                    PRIMARY KEY (\`id\`),
+                    UNIQUE KEY (\`name\`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
                 `CREATE TABLE IF NOT EXISTS \`recorded_tags_recorded_tag\` (
                     \`recordedId\` int(11) NOT NULL,
                     \`recordedTagId\` int(11) NOT NULL,
-                    PRIMARY KEY (\`recordedId\`,\`recordedTagId\`),
+                    PRIMARY KEY (\`recordedId\`, \`recordedTagId\`),
                     KEY (\`recordedId\`),
                     KEY (\`recordedTagId\`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -381,6 +394,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`isOverlap\` tinyint(4) NOT NULL DEFAULT 0,
                     \`isIgnoreOverlap\` tinyint(4) NOT NULL DEFAULT 0,
                     \`isTimeSpecified\` tinyint(4) NOT NULL DEFAULT 0,
+                    \`isEventRelay\` tinyint(4) NOT NULL DEFAULT 0,
                     \`parentDirectoryName\` text DEFAULT NULL,
                     \`directory\` text DEFAULT NULL,
                     \`recordedFormat\` text DEFAULT NULL,
@@ -397,8 +411,8 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`programId\` bigint(20) DEFAULT NULL,
                     \`programUpdateTime\` bigint(20) DEFAULT NULL,
                     \`channelId\` bigint(20) NOT NULL,
-                    \`channel\` text NOT NULL,
-                    \`channelType\` text NOT NULL,
+                    \`channel\` varchar(255) NOT NULL,
+                    \`channelType\` varchar(255) NOT NULL,
                     \`startAt\` bigint(20) NOT NULL,
                     \`endAt\` bigint(20) NOT NULL,
                     \`name\` text DEFAULT NULL,
@@ -422,7 +436,6 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`audioComponentType\` int(11) DEFAULT NULL,
                     \`rawExtended\` text DEFAULT NULL,
                     \`rawHalfWidthExtended\` text DEFAULT NULL,
-                    \`isEventRelay\` tinyint(4) NOT NULL DEFAULT 0,
                     PRIMARY KEY (\`id\`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
                 `CREATE TABLE IF NOT EXISTS \`rule\` (
@@ -454,10 +467,10 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`durationMin\` int(11) DEFAULT NULL,
                     \`durationMax\` int(11) DEFAULT NULL,
                     \`searchPeriods\` text DEFAULT NULL,
-                    \`enable\` tinyint(4) NOT NULL DEFAULT 0,
+                    \`enable\` tinyint(4) NOT NULL DEFAULT 1,
+                    \`allowEndLack\` tinyint(4) NOT NULL DEFAULT 0,
                     \`avoidDuplicate\` tinyint(4) NOT NULL DEFAULT 0,
                     \`periodToAvoidDuplicate\` int(11) DEFAULT NULL,
-                    \`allowEndLack\` tinyint(4) NOT NULL DEFAULT 1,
                     \`tags\` text DEFAULT NULL,
                     \`parentDirectoryName\` text DEFAULT NULL,
                     \`directory\` text DEFAULT NULL,
@@ -496,6 +509,38 @@ export default class DrizzleOperator implements IDrizzleOperator {
 
             for (const q of queries) {
                 await client.pool.query(q);
+            }
+
+            await this.ensureMySQLIndexes(client.pool);
+        }
+    }
+
+    /**
+     * MySQL 向けにインデックスの存在を確認しながら安全に追加
+     */
+    private async ensureMySQLIndexes(pool: any): Promise<void> {
+        const indexes = [
+            { table: 'program', name: 'idx_program_channel_time', cols: '`channelId`, `startAt`, `endAt`' },
+            { table: 'program', name: 'idx_program_time', cols: '`startAt`, `endAt`' },
+            { table: 'recorded', name: 'idx_recorded_channel_start', cols: '`channelId`, `startAt`' },
+            { table: 'recorded', name: 'idx_recorded_start_end', cols: '`startAt`, `endAt`' },
+            { table: 'recorded', name: 'idx_recorded_rule', cols: '`ruleId`' },
+            { table: 'reserve', name: 'idx_reserve_start_end', cols: '`startAt`, `endAt`' },
+            { table: 'reserve', name: 'idx_reserve_rule', cols: '`ruleId`' },
+            { table: 'reserve', name: 'idx_reserve_channel_start', cols: '`channelId`, `startAt`' },
+        ];
+
+        for (const idx of indexes) {
+            try {
+                const [rows]: any = await pool.query(
+                    'SELECT COUNT(1) as cnt FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
+                    [idx.table, idx.name],
+                );
+                if (rows && rows[0] && rows[0].cnt === 0) {
+                    await pool.query(`CREATE INDEX \`${idx.name}\` ON \`${idx.table}\` (${idx.cols})`);
+                }
+            } catch (err: any) {
+                // 既存インデックスや権限によるエラーで起動をブロックしない
             }
         }
     }

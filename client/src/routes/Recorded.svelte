@@ -240,21 +240,21 @@
                 <div class="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
                     <button
                         type="button"
-                        onclick={() => setViewMode('table')}
-                        class="rounded-lg p-1.5 {viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
-                        title="テーブル表示"
-                        aria-label="テーブル表示"
-                    >
-                        <TableIcon size={16} />
-                    </button>
-                    <button
-                        type="button"
                         onclick={() => setViewMode('card')}
                         class="rounded-lg p-1.5 {viewMode === 'card' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="カード表示"
                         aria-label="カード表示"
                     >
                         <LayoutGrid size={16} />
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => setViewMode('table')}
+                        class="rounded-lg p-1.5 {viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
+                        title="テーブル表示"
+                        aria-label="テーブル表示"
+                    >
+                        <TableIcon size={16} />
                     </button>
                 </div>
             </div>

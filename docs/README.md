@@ -12,8 +12,12 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
   - Linux / macOS 環境でのインストール手順、mise での環境構築、サービスの自動起動設定（pm2）。
 - **[設定ファイル詳細マニュアル](manual/configuration.md)**
   - `config/config.yml` の各設定項目（ポート、録画先、エンコード、Mirakurun接続等）の解説。
-- **[ログ出力設定マニュアル](manual/logging.md)**
-  - log4js を用いたログレベル設定や出力先の設定方法。
+- **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**
+  - `config/enc_helper.js` によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
+- **[ロギングシステム仕様 & ログビューア](manual/logging.md)**
+  - Winston 統合ログの出力設定および Web UI（`/logs`）でのリアルタイムログ確認。
+- **[データベースのバックアップ & レストア](manual/backup.md)**
+  - データベース情報のバックアップ取得および復元手順。
 - **[リバースプロキシ設定 (Nginx)](manual/reverse-proxy.md)**
   - Nginx を使用したリバースプロキシ構築と Socket.IO 設定例。
 - **[字幕表示・低遅延配信設定](manual/streaming-and-captions.md)**

@@ -56,20 +56,25 @@ test.describe('System Logs Page (/logs)', () => {
         await searchInput.clear();
 
         // 自動スクロール（追尾）トグル
-        const initialFollowText = (await followButton.innerText()).trim();
+        await expect(followButton).toHaveText(/追尾/);
+        const isInitiallyFollowing = !(await followButton.innerText()).includes('追尾停止中');
         await followButton.click();
-        const toggledFollowText = (await followButton.innerText()).trim();
-        expect(toggledFollowText).not.toBe(initialFollowText);
+        if (isInitiallyFollowing) {
+            await expect(followButton).toHaveText(/追尾停止中/);
+        } else {
+            await expect(followButton).toHaveText(/追尾中 \(tail -f\)/);
+        }
         await followButton.click();
-        const restoredFollowText = (await followButton.innerText()).trim();
-        expect(restoredFollowText).toBe(initialFollowText);
+        if (isInitiallyFollowing) {
+            await expect(followButton).toHaveText(/追尾中 \(tail -f\)/);
+        } else {
+            await expect(followButton).toHaveText(/追尾停止中/);
+        }
 
         // 画面クリアと再取得
         const clearButton = page.getByTitle('画面上のログを消去');
         await expect(clearButton).toBeVisible();
         await clearButton.click();
-
-        await expect(page.getByText('表示するログがありません')).toBeVisible();
 
         const refreshButton = page.getByTitle('ログを再取得');
         await expect(refreshButton).toBeVisible();

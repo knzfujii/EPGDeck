@@ -4,7 +4,7 @@ COPY client/package*.json ./
 RUN npm config set fetch-retries 10 \
     && npm config set fetch-retry-mintimeout 100000 \
     && npm config set fetch-retry-maxtimeout 600000
-RUN npm install --no-save --loglevel=info
+RUN npm ci --loglevel=info
 COPY client/ ./
 COPY api.d.ts ../api.d.ts
 RUN npm run build --loglevel=info
@@ -17,11 +17,13 @@ ENV DOCKER="YES"
 RUN npm config set fetch-retries 10 \
     && npm config set fetch-retry-mintimeout 100000 \
     && npm config set fetch-retry-maxtimeout 600000
-RUN npm install --no-save --loglevel=info
-COPY . .
-RUN rm -rf client
-RUN npm run build-server --loglevel=info
-RUN npm prune --production
+RUN npm ci --loglevel=info
+COPY tsconfig.json ./
+COPY api.d.ts ./
+COPY api.yml ./
+COPY src/ ./src/
+RUN npx tsc
+RUN npm prune --omit=dev
 
 FROM node:26-bookworm-slim
 LABEL maintainer="knzfujii"
@@ -29,10 +31,9 @@ WORKDIR /app
 COPY --from=server-builder /app/package.json ./
 COPY --from=server-builder /app/node_modules ./node_modules
 COPY --from=server-builder /app/dist ./dist
-COPY --from=server-builder /app/config ./config
-COPY --from=server-builder /app/api.yml ./
+COPY config/ ./config/
+COPY api.yml ./
 COPY --from=client-builder /app/client/dist ./client/dist
+RUN mkdir -p /app/data /app/logs /app/thumbnail /app/recorded
 EXPOSE 8888
-ENTRYPOINT ["npm"]
-CMD ["start"]
-
+CMD ["node", "dist/index.js"]

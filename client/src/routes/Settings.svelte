@@ -1,21 +1,22 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { themeStore, type ThemeMode } from '../lib/stores/theme.svelte';
     import { Settings as SettingsIcon, Moon, Sun, Monitor, HardDrive, Check, Save } from '@lucide/svelte';
 
     let isHalfWidth = $state(true);
-    let themeMode = $state<'auto' | 'dark' | 'light'>('auto');
+    let themeMode = $state<ThemeMode>('auto');
     let isPWA = $state(true);
     let isSubdirCopy = $state(true);
     let isAvoidDuplicate = $state(true);
 
     onMount(() => {
+        themeMode = themeStore.mode;
         const saved = localStorage.getItem('epgdeck_settings');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (typeof parsed.isHalfWidth === 'boolean') isHalfWidth = parsed.isHalfWidth;
-                if (parsed.themeMode) themeMode = parsed.themeMode;
                 if (typeof parsed.isPWA === 'boolean') isPWA = parsed.isPWA;
                 if (typeof parsed.isSubdirCopy === 'boolean') isSubdirCopy = parsed.isSubdirCopy;
                 if (typeof parsed.isAvoidDuplicate === 'boolean') isAvoidDuplicate = parsed.isAvoidDuplicate;
@@ -23,7 +24,13 @@
         }
     });
 
+    function handleThemeChange(mode: ThemeMode) {
+        themeMode = mode;
+        themeStore.setMode(mode);
+    }
+
     function saveSettings() {
+        themeStore.setMode(themeMode);
         const settings = {
             isHalfWidth,
             themeMode,
@@ -49,7 +56,7 @@
         <button
             type="button"
             onclick={saveSettings}
-            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
+            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
         >
             <Save size={14} /> 保存
         </button>
@@ -59,6 +66,37 @@
         <div class="p-5">
             <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">外観・テーマ</h2>
             <div class="mt-4 space-y-4">
+                <!-- カラーテーマ切り替えボタングループ -->
+                <div>
+                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-2">テーマモード</p>
+                    <div class="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800/80">
+                        <button
+                            type="button"
+                            onclick={() => handleThemeChange('auto')}
+                            class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition {themeMode === 'auto' ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-900 dark:text-blue-400' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
+                        >
+                            <Monitor size={14} />
+                            <span>自動 (OS準拠)</span>
+                        </button>
+                        <button
+                            type="button"
+                            onclick={() => handleThemeChange('light')}
+                            class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition {themeMode === 'light' ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-900 dark:text-blue-400' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
+                        >
+                            <Sun size={14} />
+                            <span>ライト</span>
+                        </button>
+                        <button
+                            type="button"
+                            onclick={() => handleThemeChange('dark')}
+                            class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition {themeMode === 'dark' ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-900 dark:text-blue-400' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
+                        >
+                            <Moon size={14} />
+                            <span>ダーク</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">半角表示</p>
@@ -99,4 +137,3 @@
         </div>
     </div>
 </div>
-

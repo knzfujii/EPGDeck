@@ -1,44 +1,59 @@
 const THEME_KEY = 'epgdeck_theme';
 
+export type ThemeMode = 'auto' | 'dark' | 'light';
+
 class ThemeStore {
+    mode = $state<ThemeMode>('auto');
     isDark = $state(false);
 
     constructor() {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(THEME_KEY);
-            if (saved === 'dark') {
-                this.isDark = true;
-            } else if (saved === 'light') {
-                this.isDark = false;
-            } else {
-                this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
+            if (saved === 'dark' || saved === 'light' || saved === 'auto') {
+                this.mode = saved;
             }
-            this.applyTheme();
+            this.updateDarkState();
+
+            // システム設定変更の監視
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (this.mode === 'auto') {
+                    this.updateDarkState();
+                }
+            });
+        }
+    }
+
+    setMode(mode: ThemeMode) {
+        this.mode = mode;
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.setItem(THEME_KEY, mode);
+            } catch (e) {
+                // ignore
+            }
+            this.updateDarkState();
         }
     }
 
     toggle() {
-        this.isDark = !this.isDark;
-        if (typeof window !== 'undefined') {
-            try {
-                localStorage.setItem(THEME_KEY, this.isDark ? 'dark' : 'light');
-            } catch (e) {
-                // ignore
-            }
-            this.applyTheme();
-        }
+        this.setMode(this.isDark ? 'light' : 'dark');
     }
 
     setDark(val: boolean) {
-        this.isDark = val;
-        if (typeof window !== 'undefined') {
-            try {
-                localStorage.setItem(THEME_KEY, this.isDark ? 'dark' : 'light');
-            } catch (e) {
-                // ignore
-            }
-            this.applyTheme();
+        this.setMode(val ? 'dark' : 'light');
+    }
+
+    private updateDarkState() {
+        if (typeof window === 'undefined') return;
+
+        if (this.mode === 'dark') {
+            this.isDark = true;
+        } else if (this.mode === 'light') {
+            this.isDark = false;
+        } else {
+            this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
+        this.applyTheme();
     }
 
     applyTheme() {
@@ -53,4 +68,3 @@ class ThemeStore {
 }
 
 export const themeStore = new ThemeStore();
-

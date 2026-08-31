@@ -48,6 +48,13 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
         app.use('*', cors());
     }
 
+    // Global Error Handler
+    app.onError((err, c) => {
+        log.system.error(`[Unhandled Error] ${c.req.method} ${c.req.path}`);
+        log.system.error(err.stack || err.message);
+        return api.responseServerError(c, err.message || 'Internal Server Error');
+    });
+
     // Helper for URL with subDirectory
     const createUrl = (urlStr: string): string => {
         return typeof config.server.subDirectory === 'undefined' ? urlStr : urljoin(config.server.subDirectory, urlStr);

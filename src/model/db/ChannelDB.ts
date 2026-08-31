@@ -56,32 +56,24 @@ export default class ChannelDB implements IChannelDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (needesDeleted) {
-                        await tx.delete(schema.channels);
-                    }
-                    for (const value of values) {
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                if (needesDeleted) {
+                    await tx.delete(schema.channels);
+                }
+                for (const value of values) {
+                    if (client.type === 'sqlite') {
                         await tx.insert(schema.channels).values(value).onConflictDoUpdate({
                             target: schema.channels.id,
                             set: value,
                         });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    if (needesDeleted) {
-                        await tx.delete(schema.channels);
-                    }
-                    for (const value of values) {
+                    } else {
                         await tx.insert(schema.channels).values(value).onDuplicateKeyUpdate({
                             set: value,
                         });
                     }
-                });
-            }
+                }
+            });
         });
     }
 
@@ -118,17 +110,10 @@ export default class ChannelDB implements IChannelDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.channels).where(eq(schema.channels.id, channelId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.channels).where(eq(schema.channels.id, channelId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.channels).where(eq(schema.channels.id, channelId));
+            if (rows.length === 0) return null;
+            return this.toEntity(rows[0]);
         });
     }
 
@@ -139,33 +124,17 @@ export default class ChannelDB implements IChannelDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            let results: Channel[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.channels)
-                    .where(inArray(schema.channels.channelType, types))
-                    .orderBy(
-                        asc(schema.channels.channelTypeId),
-                        asc(schema.channels.remoteControlKeyId),
-                        asc(schema.channels.serviceId),
-                    );
-                results = rows.map(r => this.toEntity(r));
-            } else {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.channels)
-                    .where(inArray(schema.channels.channelType, types))
-                    .orderBy(
-                        asc(schema.channels.channelTypeId),
-                        asc(schema.channels.remoteControlKeyId),
-                        asc(schema.channels.serviceId),
-                    );
-                results = rows.map(r => this.toEntity(r));
-            }
-
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.channels)
+                .where(inArray(schema.channels.channelType, types))
+                .orderBy(
+                    asc(schema.channels.channelTypeId),
+                    asc(schema.channels.remoteControlKeyId),
+                    asc(schema.channels.serviceId),
+                );
+            const results = rows.map((r: any) => this.toEntity(r));
             return needSort ? this.sortChannels(results) : results;
         });
     }
@@ -177,31 +146,16 @@ export default class ChannelDB implements IChannelDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            let results: Channel[] = [];
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.channels)
-                    .orderBy(
-                        asc(schema.channels.channelTypeId),
-                        asc(schema.channels.remoteControlKeyId),
-                        asc(schema.channels.serviceId),
-                    );
-                results = rows.map(r => this.toEntity(r));
-            } else {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.channels)
-                    .orderBy(
-                        asc(schema.channels.channelTypeId),
-                        asc(schema.channels.remoteControlKeyId),
-                        asc(schema.channels.serviceId),
-                    );
-                results = rows.map(r => this.toEntity(r));
-            }
-
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.channels)
+                .orderBy(
+                    asc(schema.channels.channelTypeId),
+                    asc(schema.channels.remoteControlKeyId),
+                    asc(schema.channels.serviceId),
+                );
+            const results = rows.map((r: any) => this.toEntity(r));
             return needSort ? this.sortChannels(results) : results;
         });
     }

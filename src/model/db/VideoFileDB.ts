@@ -3,6 +3,7 @@ import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import VideoFile from '../../db/entities/VideoFile';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDrizzleOperator from './IDrizzleOperator';
 import IVideoFileDB, { UpdateFilePathOption } from './IVideoFileDB';
 
@@ -26,39 +27,21 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.videoFiles);
-                    for (const item of items) {
-                        await tx.insert(schema.videoFiles).values({
-                            id: item.id,
-                            recordedId: item.recordedId,
-                            parentDirectoryName: item.parentDirectoryName,
-                            filePath: item.filePath,
-                            type: item.type,
-                            name: item.name,
-                            size: item.size,
-                        });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.videoFiles);
-                    for (const item of items) {
-                        await tx.insert(schema.videoFiles).values({
-                            id: item.id,
-                            recordedId: item.recordedId,
-                            parentDirectoryName: item.parentDirectoryName,
-                            filePath: item.filePath,
-                            type: item.type,
-                            name: item.name,
-                            size: item.size,
-                        });
-                    }
-                });
-            }
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.videoFiles);
+                for (const item of items) {
+                    await tx.insert(schema.videoFiles).values({
+                        id: item.id,
+                        recordedId: item.recordedId,
+                        parentDirectoryName: item.parentDirectoryName,
+                        filePath: item.filePath,
+                        type: item.type,
+                        name: item.name,
+                        size: item.size,
+                    });
+                }
+            });
         });
     }
 
@@ -69,29 +52,16 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.videoFiles).values({
-                    recordedId: videoFile.recordedId,
-                    parentDirectoryName: videoFile.parentDirectoryName,
-                    filePath: videoFile.filePath,
-                    type: videoFile.type,
-                    name: videoFile.name,
-                    size: videoFile.size,
-                });
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.videoFiles).values({
-                    recordedId: videoFile.recordedId,
-                    parentDirectoryName: videoFile.parentDirectoryName,
-                    filePath: videoFile.filePath,
-                    type: videoFile.type,
-                    name: videoFile.name,
-                    size: videoFile.size,
-                });
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.videoFiles).values({
+                recordedId: videoFile.recordedId,
+                parentDirectoryName: videoFile.parentDirectoryName,
+                filePath: videoFile.filePath,
+                type: videoFile.type,
+                name: videoFile.name,
+                size: videoFile.size,
+            });
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 
@@ -106,14 +76,8 @@ export default class VideoFileDB implements IVideoFileDB {
                 parentDirectoryName: option.parentDirectoryName,
                 filePath: option.filePath,
             };
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.videoFiles).set(values).where(eq(schema.videoFiles.id, option.videoFileId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.videoFiles).set(values).where(eq(schema.videoFiles.id, option.videoFileId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.videoFiles).set(values).where(eq(schema.videoFiles.id, option.videoFileId));
         });
     }
 
@@ -124,13 +88,8 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
         });
     }
 
@@ -141,13 +100,8 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
         });
     }
 
@@ -158,13 +112,8 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
         });
     }
 
@@ -175,17 +124,13 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.videoFiles)
+                .where(eq(schema.videoFiles.id, videoFileId));
+            if (rows.length === 0) return null;
+            return this.toEntity(rows[0]);
         });
     }
 
@@ -196,15 +141,9 @@ export default class VideoFileDB implements IVideoFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.videoFiles);
-                return rows.map(r => this.toEntity(r));
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.videoFiles);
-                return rows.map(r => this.toEntity(r));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.videoFiles);
+            return rows.map((r: any) => this.toEntity(r));
         });
     }
 

@@ -3,6 +3,7 @@ import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import DropLogFile from '../../db/entities/DropLogFile';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDropLogFileDB, { UpdateCntOption } from './IDropLogFileDB';
 import IDrizzleOperator from './IDrizzleOperator';
 
@@ -26,35 +27,19 @@ export default class DropLogFileDB implements IDropLogFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.dropLogFiles);
-                    for (const item of items) {
-                        await tx.insert(schema.dropLogFiles).values({
-                            id: item.id,
-                            errorCnt: item.errorCnt,
-                            dropCnt: item.dropCnt,
-                            scramblingCnt: item.scramblingCnt,
-                            filePath: item.filePath,
-                        });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.dropLogFiles);
-                    for (const item of items) {
-                        await tx.insert(schema.dropLogFiles).values({
-                            id: item.id,
-                            errorCnt: item.errorCnt,
-                            dropCnt: item.dropCnt,
-                            scramblingCnt: item.scramblingCnt,
-                            filePath: item.filePath,
-                        });
-                    }
-                });
-            }
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.dropLogFiles);
+                for (const item of items) {
+                    await tx.insert(schema.dropLogFiles).values({
+                        id: item.id,
+                        errorCnt: item.errorCnt,
+                        dropCnt: item.dropCnt,
+                        scramblingCnt: item.scramblingCnt,
+                        filePath: item.filePath,
+                    });
+                }
+            });
         });
     }
 
@@ -65,25 +50,14 @@ export default class DropLogFileDB implements IDropLogFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.dropLogFiles).values({
-                    errorCnt: dropLogFile.errorCnt,
-                    dropCnt: dropLogFile.dropCnt,
-                    scramblingCnt: dropLogFile.scramblingCnt,
-                    filePath: dropLogFile.filePath,
-                });
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.dropLogFiles).values({
-                    errorCnt: dropLogFile.errorCnt,
-                    dropCnt: dropLogFile.dropCnt,
-                    scramblingCnt: dropLogFile.scramblingCnt,
-                    filePath: dropLogFile.filePath,
-                });
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.dropLogFiles).values({
+                errorCnt: dropLogFile.errorCnt,
+                dropCnt: dropLogFile.dropCnt,
+                scramblingCnt: dropLogFile.scramblingCnt,
+                filePath: dropLogFile.filePath,
+            });
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 
@@ -99,14 +73,11 @@ export default class DropLogFileDB implements IDropLogFileDB {
                 dropCnt: updateOption.dropCnt,
                 scramblingCnt: updateOption.scramblingCnt,
             };
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.dropLogFiles).set(values).where(eq(schema.dropLogFiles.id, updateOption.id));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.dropLogFiles).set(values).where(eq(schema.dropLogFiles.id, updateOption.id));
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .update(schema.dropLogFiles)
+                .set(values)
+                .where(eq(schema.dropLogFiles.id, updateOption.id));
         });
     }
 
@@ -117,13 +88,8 @@ export default class DropLogFileDB implements IDropLogFileDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.dropLogFiles).where(eq(schema.dropLogFiles.id, dropLogFileId));
         });
     }
 
@@ -134,23 +100,13 @@ export default class DropLogFileDB implements IDropLogFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.dropLogFiles)
-                    .where(eq(schema.dropLogFiles.id, dropLogFileId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            } else {
-                const { db, schema } = client;
-                const rows = await db
-                    .select()
-                    .from(schema.dropLogFiles)
-                    .where(eq(schema.dropLogFiles.id, dropLogFileId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.dropLogFiles)
+                .where(eq(schema.dropLogFiles.id, dropLogFileId));
+            if (rows.length === 0) return null;
+            return this.toEntity(rows[0]);
         });
     }
 
@@ -161,15 +117,9 @@ export default class DropLogFileDB implements IDropLogFileDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.dropLogFiles);
-                return rows.map(r => this.toEntity(r));
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.dropLogFiles);
-                return rows.map(r => this.toEntity(r));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.dropLogFiles);
+            return rows.map((r: any) => this.toEntity(r));
         });
     }
 

@@ -8,6 +8,7 @@ import Thumbnail from '../../db/entities/Thumbnail';
 import VideoFile from '../../db/entities/VideoFile';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB';
 
@@ -54,15 +55,9 @@ export default class RecordedDB implements IRecordedDB {
             const row = this.toRow(recorded);
             delete row.id;
 
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.recorded).values(row);
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.recorded).values(row);
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.recorded).values(row);
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 

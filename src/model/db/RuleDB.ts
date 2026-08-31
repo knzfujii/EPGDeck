@@ -3,6 +3,7 @@ import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDrizzleOperator from './IDrizzleOperator';
 import IRuleDB, { RuleWithCnt } from './IRuleDB';
 
@@ -26,23 +27,13 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.rules);
-                    for (const item of items) {
-                        await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.rules);
-                    for (const item of items) {
-                        await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
-                    }
-                });
-            }
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.rules);
+                for (const item of items) {
+                    await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
+                }
+            });
         });
     }
 
@@ -56,15 +47,9 @@ export default class RuleDB implements IRuleDB {
             const row = this.convertRuleToDBRow(rule);
             delete row.id;
 
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.rules).values(row);
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.rules).values(row);
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.rules).values(row);
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 
@@ -83,13 +68,8 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
         });
     }
 
@@ -113,14 +93,8 @@ export default class RuleDB implements IRuleDB {
                 enable: true,
                 updateCnt: rule.updateCnt + 1,
             };
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
         });
     }
 
@@ -144,14 +118,8 @@ export default class RuleDB implements IRuleDB {
                 enable: false,
                 updateCnt: rule.updateCnt + 1,
             };
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.rules).set(values).where(eq(schema.rules.id, ruleId));
         });
     }
 
@@ -162,13 +130,8 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.rules).where(eq(schema.rules.id, ruleId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.rules).where(eq(schema.rules.id, ruleId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.rules).where(eq(schema.rules.id, ruleId));
         });
     }
 
@@ -179,20 +142,11 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            let row: any = null;
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.rules).where(eq(schema.rules.id, ruleId));
-                if (rows.length > 0) row = rows[0];
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.rules).where(eq(schema.rules.id, ruleId));
-                if (rows.length > 0) row = rows[0];
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.rules).where(eq(schema.rules.id, ruleId));
+            if (rows.length === 0) return null;
 
-            if (!row) return null;
-
-            const rule = this.convertDBRowToRule(row);
+            const rule = this.convertDBRowToRule(rows[0]);
             if (!isNeedCnt) {
                 delete (rule as any).updateCnt;
             }
@@ -207,73 +161,38 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-                if (typeof option.keyword !== 'undefined') {
-                    const names = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const name of names) {
-                        if (name.length > 0) {
-                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
-                        }
+            const { db, schema } = client;
+            const conditions: any[] = [];
+            if (typeof option.keyword !== 'undefined') {
+                const names = StrUtil.toHalf(option.keyword).split(/ /);
+                for (const name of names) {
+                    if (name.length > 0) {
+                        conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
                     }
                 }
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-                let query = db.select().from(schema.rules);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(asc(schema.rules.id)) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                const rows = await query;
-
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.rules);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                const total = countResult[0]?.count || 0;
-
-                return [
-                    rows.map(r => {
-                        const rule = this.convertDBRowToRule(r);
-                        if (!isNeedCnt) delete (rule as any).updateCnt;
-                        return rule;
-                    }),
-                    total,
-                ];
-            } else {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-                if (typeof option.keyword !== 'undefined') {
-                    const names = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const name of names) {
-                        if (name.length > 0) {
-                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
-                        }
-                    }
-                }
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-                let query = db.select().from(schema.rules);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(asc(schema.rules.id)) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                const rows = await query;
-
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.rules);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                const total = countResult[0]?.count || 0;
-
-                return [
-                    rows.map(r => {
-                        const rule = this.convertDBRowToRule(r);
-                        if (!isNeedCnt) delete (rule as any).updateCnt;
-                        return rule;
-                    }),
-                    total,
-                ];
             }
+            const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+            let query = (db as any).select().from(schema.rules);
+            if (whereClause) query = query.where(whereClause) as any;
+            query = query.orderBy(asc(schema.rules.id)) as any;
+            if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+            if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+            const rows = await query;
+
+            let countQuery = (db as any).select({ count: sql<number>`count(*)` }).from(schema.rules);
+            if (whereClause) countQuery = countQuery.where(whereClause) as any;
+            const countResult = await countQuery;
+            const total = countResult[0]?.count || 0;
+
+            return [
+                rows.map((r: any) => {
+                    const rule = this.convertDBRowToRule(r);
+                    if (!isNeedCnt) delete (rule as any).updateCnt;
+                    return rule;
+                }),
+                total,
+            ];
         });
     }
 
@@ -284,53 +203,28 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-                if (typeof option.keyword !== 'undefined') {
-                    const names = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const name of names) {
-                        if (name.length > 0) {
-                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
-                        }
+            const { db, schema } = client;
+            const conditions: any[] = [];
+            if (typeof option.keyword !== 'undefined') {
+                const names = StrUtil.toHalf(option.keyword).split(/ /);
+                for (const name of names) {
+                    if (name.length > 0) {
+                        conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
                     }
                 }
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-                let query = db.select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(asc(schema.rules.id)) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                const rows = await query;
-                return rows.map(r => ({
-                    id: r.id,
-                    keyword: r.keyword === null ? '' : r.keyword,
-                }));
-            } else {
-                const { db, schema } = client;
-                const conditions: any[] = [];
-                if (typeof option.keyword !== 'undefined') {
-                    const names = StrUtil.toHalf(option.keyword).split(/ /);
-                    for (const name of names) {
-                        if (name.length > 0) {
-                            conditions.push(like(schema.rules.halfWidthKeyword, `%${name}%`));
-                        }
-                    }
-                }
-                const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-                let query = db.select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
-                if (whereClause) query = query.where(whereClause) as any;
-                query = query.orderBy(asc(schema.rules.id)) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                const rows = await query;
-                return rows.map(r => ({
-                    id: r.id,
-                    keyword: r.keyword === null ? '' : r.keyword,
-                }));
             }
+            const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+            let query = (db as any).select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
+            if (whereClause) query = query.where(whereClause) as any;
+            query = query.orderBy(asc(schema.rules.id)) as any;
+            if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+            if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+
+            const rows = await query;
+            return rows.map((r: any) => ({
+                id: r.id,
+                keyword: r.keyword === null ? '' : r.keyword,
+            }));
         });
     }
 
@@ -341,15 +235,12 @@ export default class RuleDB implements IRuleDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select({ id: schema.rules.id }).from(schema.rules).orderBy(asc(schema.rules.id));
-                return rows.map(r => r.id);
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select({ id: schema.rules.id }).from(schema.rules).orderBy(asc(schema.rules.id));
-                return rows.map(r => r.id);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select({ id: schema.rules.id })
+                .from(schema.rules)
+                .orderBy(asc(schema.rules.id));
+            return rows.map((r: any) => r.id);
         });
     }
 

@@ -3,6 +3,7 @@ import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import RecordedHistory from '../../db/entities/RecordedHistory';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedHistoryDB from './IRecordedHistoryDB';
 
@@ -26,33 +27,18 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.recordedHistory);
-                    for (const item of items) {
-                        await tx.insert(schema.recordedHistory).values({
-                            id: item.id,
-                            name: item.name,
-                            channelId: item.channelId,
-                            endAt: item.endAt,
-                        });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.recordedHistory);
-                    for (const item of items) {
-                        await tx.insert(schema.recordedHistory).values({
-                            id: item.id,
-                            name: item.name,
-                            channelId: item.channelId,
-                            endAt: item.endAt,
-                        });
-                    }
-                });
-            }
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.recordedHistory);
+                for (const item of items) {
+                    await tx.insert(schema.recordedHistory).values({
+                        id: item.id,
+                        name: item.name,
+                        channelId: item.channelId,
+                        endAt: item.endAt,
+                    });
+                }
+            });
         });
     }
 
@@ -63,23 +49,13 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.recordedHistory).values({
-                    name: program.name,
-                    channelId: program.channelId,
-                    endAt: program.endAt,
-                });
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.recordedHistory).values({
-                    name: program.name,
-                    channelId: program.channelId,
-                    endAt: program.endAt,
-                });
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.recordedHistory).values({
+                name: program.name,
+                channelId: program.channelId,
+                endAt: program.endAt,
+            });
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 
@@ -90,13 +66,8 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
         });
     }
 
@@ -107,15 +78,9 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.recordedHistory);
-                return rows.map(r => this.toEntity(r));
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.recordedHistory);
-                return rows.map(r => this.toEntity(r));
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.recordedHistory);
+            return rows.map((r: any) => this.toEntity(r));
         });
     }
 

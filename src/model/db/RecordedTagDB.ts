@@ -4,6 +4,7 @@ import * as apid from '../../../api';
 import RecordedTag from '../../db/entities/RecordedTag';
 import StrUtil from '../../util/StrUtil';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IDrizzleOperator from './IDrizzleOperator';
 import IRecordedTagDB from './IRecordedTagDB';
 
@@ -27,33 +28,18 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.recordedTags);
-                    for (const item of items) {
-                        await tx.insert(schema.recordedTags).values({
-                            id: item.id,
-                            name: item.name,
-                            halfWidthName: item.halfWidthName,
-                            color: item.color,
-                        });
-                    }
-                });
-            } else {
-                const { db, schema } = client;
-                await db.transaction(async tx => {
-                    await tx.delete(schema.recordedTags);
-                    for (const item of items) {
-                        await tx.insert(schema.recordedTags).values({
-                            id: item.id,
-                            name: item.name,
-                            halfWidthName: item.halfWidthName,
-                            color: item.color,
-                        });
-                    }
-                });
-            }
+            const { db, schema } = client;
+            await (db as any).transaction(async (tx: any) => {
+                await tx.delete(schema.recordedTags);
+                for (const item of items) {
+                    await tx.insert(schema.recordedTags).values({
+                        id: item.id,
+                        name: item.name,
+                        halfWidthName: item.halfWidthName,
+                        color: item.color,
+                    });
+                }
+            });
         });
     }
 
@@ -64,23 +50,13 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const result = await db.insert(schema.recordedTags).values({
-                    name: tag.name,
-                    halfWidthName: tag.halfWidthName,
-                    color: tag.color,
-                });
-                return Number(result.lastInsertRowid);
-            } else {
-                const { db, schema } = client;
-                const [result] = await db.insert(schema.recordedTags).values({
-                    name: tag.name,
-                    halfWidthName: tag.halfWidthName,
-                    color: tag.color,
-                });
-                return result.insertId;
-            }
+            const { db, schema } = client;
+            const result = await (db as any).insert(schema.recordedTags).values({
+                name: tag.name,
+                halfWidthName: tag.halfWidthName,
+                color: tag.color,
+            });
+            return DrizzleHelper.getInsertId(client.type, result);
         });
     }
 
@@ -96,14 +72,8 @@ export default class RecordedTagDB implements IRecordedTagDB {
                 color,
                 halfWidthName: StrUtil.toHalf(name),
             };
-
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.update(schema.recordedTags).set(values).where(eq(schema.recordedTags.id, tagId));
-            } else {
-                const { db, schema } = client;
-                await db.update(schema.recordedTags).set(values).where(eq(schema.recordedTags.id, tagId));
-            }
+            const { db, schema } = client;
+            await (db as any).update(schema.recordedTags).set(values).where(eq(schema.recordedTags.id, tagId));
         });
     }
 
@@ -114,9 +84,9 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
             if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db
+                await (db as any)
                     .insert(schema.recordedTagsRecordedTag)
                     .values({
                         recordedId,
@@ -124,8 +94,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
                     })
                     .onConflictDoNothing();
             } else {
-                const { db, schema } = client;
-                await db
+                await (db as any)
                     .insert(schema.recordedTagsRecordedTag)
                     .values({
                         recordedId,
@@ -143,27 +112,15 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db
-                    .delete(schema.recordedTagsRecordedTag)
-                    .where(
-                        and(
-                            eq(schema.recordedTagsRecordedTag.recordedId, recordedId),
-                            eq(schema.recordedTagsRecordedTag.recordedTagId, tagId),
-                        ),
-                    );
-            } else {
-                const { db, schema } = client;
-                await db
-                    .delete(schema.recordedTagsRecordedTag)
-                    .where(
-                        and(
-                            eq(schema.recordedTagsRecordedTag.recordedId, recordedId),
-                            eq(schema.recordedTagsRecordedTag.recordedTagId, tagId),
-                        ),
-                    );
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .delete(schema.recordedTagsRecordedTag)
+                .where(
+                    and(
+                        eq(schema.recordedTagsRecordedTag.recordedId, recordedId),
+                        eq(schema.recordedTagsRecordedTag.recordedTagId, tagId),
+                    ),
+                );
         });
     }
 
@@ -174,17 +131,10 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db
-                    .delete(schema.recordedTagsRecordedTag)
-                    .where(eq(schema.recordedTagsRecordedTag.recordedId, recordedId));
-            } else {
-                const { db, schema } = client;
-                await db
-                    .delete(schema.recordedTagsRecordedTag)
-                    .where(eq(schema.recordedTagsRecordedTag.recordedId, recordedId));
-            }
+            const { db, schema } = client;
+            await (db as any)
+                .delete(schema.recordedTagsRecordedTag)
+                .where(eq(schema.recordedTagsRecordedTag.recordedId, recordedId));
         });
     }
 
@@ -195,13 +145,8 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                await db.delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
-            } else {
-                const { db, schema } = client;
-                await db.delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
-            }
+            const { db, schema } = client;
+            await (db as any).delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
         });
     }
 
@@ -212,17 +157,10 @@ export default class RecordedTagDB implements IRecordedTagDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            } else {
-                const { db, schema } = client;
-                const rows = await db.select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
-                if (rows.length === 0) return null;
-                return this.toEntity(rows[0]);
-            }
+            const { db, schema } = client;
+            const rows = await (db as any).select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
+            if (rows.length === 0) return null;
+            return this.toEntity(rows[0]);
         });
     }
 
@@ -249,38 +187,21 @@ export default class RecordedTagDB implements IRecordedTagDB {
             }
 
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+            const { db, schema } = client;
 
-            if (client.type === 'sqlite') {
-                const { db, schema } = client;
-                let query = db.select().from(schema.recordedTags);
-                if (whereClause) query = query.where(whereClause) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
+            let query = (db as any).select().from(schema.recordedTags);
+            if (whereClause) query = query.where(whereClause) as any;
+            if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
+            if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
-                const rows = await query;
+            const rows = await query;
 
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recordedTags);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                const totalCount = countResult[0]?.count || 0;
+            let countQuery = (db as any).select({ count: sql<number>`count(*)` }).from(schema.recordedTags);
+            if (whereClause) countQuery = countQuery.where(whereClause) as any;
+            const countResult = await countQuery;
+            const totalCount = countResult[0]?.count || 0;
 
-                return [rows.map(r => this.toEntity(r)), totalCount];
-            } else {
-                const { db, schema } = client;
-                let query = db.select().from(schema.recordedTags);
-                if (whereClause) query = query.where(whereClause) as any;
-                if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
-                if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
-
-                const rows = await query;
-
-                let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.recordedTags);
-                if (whereClause) countQuery = countQuery.where(whereClause) as any;
-                const countResult = await countQuery;
-                const totalCount = countResult[0]?.count || 0;
-
-                return [rows.map(r => this.toEntity(r)), totalCount];
-            }
+            return [rows.map((r: any) => this.toEntity(r)), totalCount];
         });
     }
 

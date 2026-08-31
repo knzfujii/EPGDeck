@@ -33,10 +33,16 @@
     let isStreamModalOpen = $state(false);
 
     // エンコード追加モーダル
+    interface EncodePresetSelection {
+        enabled: boolean;
+        isSaveSameDirectory: boolean;
+        parentDir: string;
+        directory: string;
+    }
     let isEncodeModalOpen = $state(false);
     let encodeModes = $state<any[]>([]);
-    let selectedEncodeMode = $state<string>('');
-    let isEncodeSubtitles = $state(false);
+    let recordedDirs = $state<string[]>([]);
+    let encodeSelections = $state<Record<string, EncodePresetSelection>>({});
     let isRemoveOriginal = $state(false);
 
     // ドロップログモーダル
@@ -62,9 +68,20 @@
             axios.get('/api/config').then(configRes => {
                 const encList = configRes.data?.encode || [];
                 encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
-                if (!selectedEncodeMode && encodeModes.length > 0) {
-                    selectedEncodeMode = encodeModes[0].name;
+                recordedDirs = configRes.data?.recorded || [];
+
+                // 各プリセットの選択状態を初期化（既存があれば保持）
+                const defaultDir = recordedDirs[0] ?? '';
+                const next: Record<string, EncodePresetSelection> = {};
+                for (const mode of encodeModes) {
+                    next[mode.name] = encodeSelections[mode.name] ?? {
+                        enabled: false,
+                        isSaveSameDirectory: true,
+                        parentDir: defaultDir,
+                        directory: '',
+                    };
                 }
+                encodeSelections = next;
             }).catch(() => {});
         } catch (e) {
             console.error('Failed to fetch recorded detail', e);
@@ -159,20 +176,41 @@
             return;
         }
 
-        if (!selectedEncodeMode) {
-            snackbar.open({ text: 'エンコードプリセットを選択してください', color: 'error' });
+        const targets = encodeModes.filter(mode => encodeSelections[mode.name]?.enabled);
+        if (targets.length === 0) {
+            snackbar.open({ text: 'エンコードするプリセットを1つ以上選択してください', color: 'error' });
             return;
         }
 
+        // 保存先未設定チェック
+        for (const mode of targets) {
+            const sel = encodeSelections[mode.name];
+            if (!sel.isSaveSameDirectory && !sel.parentDir) {
+                snackbar.open({ text: `「${mode.name}」の保存先を選択してください`, color: 'error' });
+                return;
+            }
+        }
+
         try {
-            await axios.post('/api/encode', {
-                recordedId: recorded.id,
-                sourceVideoFileId: targetFile.id,
-                mode: selectedEncodeMode,
-                isSaveSameDirectory: true,
-                removeOriginal: isRemoveOriginal,
-            });
-            snackbar.open({ text: 'エンコードキューに追加しました', color: 'success' });
+            for (const mode of targets) {
+                const sel = encodeSelections[mode.name];
+                const body: Record<string, any> = {
+                    recordedId: recorded.id,
+                    sourceVideoFileId: targetFile.id,
+                    mode: mode.name,
+                    removeOriginal: isRemoveOriginal,
+                };
+                if (sel.isSaveSameDirectory) {
+                    body.isSaveSameDirectory = true;
+                } else {
+                    body.parentDir = sel.parentDir;
+                    if (sel.directory.trim()) {
+                        body.directory = sel.directory.trim();
+                    }
+                }
+                await axios.post('/api/encode', body);
+            }
+            snackbar.open({ text: `${targets.length}件をエンコードキューに追加しました`, color: 'success' });
             isEncodeModalOpen = false;
         } catch (e) {
             console.error('Failed to add encode', e);
@@ -448,32 +486,82 @@
             onclick={() => isEncodeModalOpen = false}
             aria-label="閉じる"
         ></button>
-        <div class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div class="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">エンコード追加</h3>
 
-            <div class="space-y-4 text-xs">
-                <div>
-                    <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">エンコードプリセット</p>
+            <div class="space-y-3 text-xs">
+                <p class="font-bold text-slate-700 dark:text-slate-300">エンコードプリセット</p>
+
+                {#if encodeModes.length === 0}
+                    <p class="text-slate-400 py-4 text-center">設定にエンコードプリセットがありません</p>
+                {:else}
                     <div class="space-y-2">
                         {#each encodeModes as mode}
-                            <label class="flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer {selectedEncodeMode === mode.name ? 'border-blue-500 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-800'}">
-                                <input
-                                    type="radio"
-                                    name="encodeMode"
-                                    value={mode.name}
-                                    bind:group={selectedEncodeMode}
-                                    class="accent-blue-600"
-                                />
-                                <span class="font-bold text-slate-900 dark:text-slate-100">{mode.name}</span>
-                                {#if mode.suffix}
-                                    <span class="text-slate-400 font-mono">({mode.suffix})</span>
-                                {/if}
-                            </label>
+                            {@const sel = encodeSelections[mode.name]}
+                            {#if sel}
+                                <!-- プリセット行 -->
+                                <div class="rounded-xl border transition {sel.enabled ? 'border-blue-400 bg-blue-50/40 dark:border-blue-600 dark:bg-blue-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                                    <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
+                                        <!-- チェックボックス + 名前 -->
+                                        <label class="flex shrink-0 items-center gap-2 cursor-pointer min-w-[120px]">
+                                            <input
+                                                type="checkbox"
+                                                bind:checked={sel.enabled}
+                                                class="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                                            />
+                                            <span class="font-bold text-slate-900 dark:text-slate-100">{mode.name}</span>
+                                            {#if mode.suffix}
+                                                <span class="text-slate-400 font-mono">({mode.suffix})</span>
+                                            {/if}
+                                        </label>
+
+                                        {#if sel.enabled}
+                                            <!-- 元ファイルと同じ場所トグル -->
+                                            <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    bind:checked={sel.isSaveSameDirectory}
+                                                    class="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
+                                                />
+                                                <span class="text-slate-600 dark:text-slate-300">元ファイルと同じ場所</span>
+                                            </label>
+
+                                            {#if !sel.isSaveSameDirectory}
+                                                <!-- 保存先ドロップダウン -->
+                                                <div class="flex items-center gap-1.5 min-w-[140px]">
+                                                    <span class="text-slate-500 shrink-0">保存先</span>
+                                                    <select
+                                                        bind:value={sel.parentDir}
+                                                        class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                                    >
+                                                        {#each recordedDirs as dir}
+                                                            <option value={dir}>{dir}</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
+
+                                                <!-- サブディレクトリ入力 -->
+                                                <div class="flex items-center gap-1.5 min-w-[160px]">
+                                                    <span class="text-slate-500 shrink-0">ディレクトリ</span>
+                                                    <input
+                                                        type="text"
+                                                        bind:value={sel.directory}
+                                                        placeholder="省略可"
+                                                        class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                                    />
+                                                </div>
+                                            {/if}
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
                         {/each}
                     </div>
-                </div>
+                {/if}
 
-                <div class="space-y-2 pt-2">
+                <!-- 全体共通: 元ファイル削除 -->
+                <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input
                             type="checkbox"
@@ -504,6 +592,7 @@
         </div>
     </div>
 {/if}
+
 
 <!-- ドロップログモーダル -->
 {#if isDropLogModalOpen}

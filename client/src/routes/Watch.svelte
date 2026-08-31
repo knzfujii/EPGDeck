@@ -47,11 +47,11 @@
     });
 
     async function waitForStreamReady(id: number): Promise<boolean> {
-        for (let i = 1; i <= 60; i++) {
+        for (let i = 1; i <= 100; i++) {
             const sec = (i * 0.3).toFixed(1);
             statusText = `HLS 配信を準備中... (${sec}秒)`;
             try {
-                // API での isEnable チェック (stream.info.isEnable)
+                // 1. API での isEnable チェック
                 const infoRes = await axios.get('/api/streams?isHalfWidth=true');
                 const items = infoRes.data?.items || [];
                 const stream = items.find((item: any) => Number(item.streamId) === Number(id));
@@ -59,7 +59,21 @@
                 if (isReady === true) {
                     return true;
                 }
-            } catch (e) {
+
+                // 2. マニフェストファイルが直接取得できるか確認
+                if (i >= 5) {
+                    try {
+                        const m3u8Res = await axios.get(`/streamfiles/stream${id}.m3u8`, {
+                            validateStatus: status => status === 200,
+                        });
+                        if (m3u8Res.status === 200 && typeof m3u8Res.data === 'string' && m3u8Res.data.includes('#EXTM3U')) {
+                            return true;
+                        }
+                    } catch {
+                        // ignore
+                    }
+                }
+            } catch {
                 // ignore
             }
             await new Promise(resolve => setTimeout(resolve, 300));

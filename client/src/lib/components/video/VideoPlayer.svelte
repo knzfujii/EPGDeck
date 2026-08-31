@@ -83,6 +83,8 @@
 
     let hideControlsTimer: any = null;
     let lastLoadedSrc = '';
+    let lastLoadedType = '';
+    let lastSavedSecond = -1;
 
     function resetHideControlsTimer() {
         showControls = true;
@@ -357,9 +359,11 @@
                     },
                     {
                         enableWorker: true,
+                        enableStashBuffer: true,
+                        stashInitialSize: 384 * 1024,
                         liveBufferLatencyChasing: true,
-                        liveBufferLatencyMinRemain: 0.8,
-                        liveBufferLatencyMaxLatency: 1.5,
+                        liveBufferLatencyMinRemain: 1.0,
+                        liveBufferLatencyMaxLatency: 3.0,
                     },
                 );
                 mpegtsInstance.attachMediaElement(videoElement);
@@ -370,12 +374,14 @@
                     console.warn('Mpegts error:', type, detail, info);
                 });
 
-                // 字幕レンダラーの起動 & ID3 メタデータの連携
-                initSubtitleRenderer();
+                // ID3 メタデータが到着した時に字幕レンダラーを起動
                 mpegtsInstance.on(Mpegts.Events.TIMED_ID3_METADATA_ARRIVED, (data: any) => {
-                    if (subtitleRenderer && data?.data && data?.pts !== undefined) {
+                    if (data?.data && data?.pts !== undefined) {
                         hasSubtitle = true;
-                        subtitleRenderer.pushID3v2Data(data.pts, data.data);
+                        if (!subtitleRenderer) {
+                            initSubtitleRenderer();
+                        }
+                        subtitleRenderer?.pushID3v2Data(data.pts, data.data);
                     }
                 });
                 return;
@@ -387,23 +393,27 @@
             if (Hls.isSupported()) {
                 hlsInstance = new Hls({
                     enableWorker: true,
-                    lowLatencyMode: true,
-                    backBufferLength: 90,
-                    manifestLoadingTimeOut: 15000,
-                    manifestLoadingMaxRetry: 8,
+                    lowLatencyMode: isLive,
+                    backBufferLength: isLive ? 30 : 90,
+                    maxBufferLength: isLive ? 10 : 60,
+                    maxMaxBufferLength: isLive ? 30 : 600,
+                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingMaxRetry: 10,
                     manifestLoadingRetryDelay: 1000,
                 });
                 hlsInstance.loadSource(src);
                 hlsInstance.attachMedia(videoElement);
 
-                // 字幕レンダラーの起動 & HLS フラグメント ID3 メタデータの連携
-                initSubtitleRenderer();
+                // HLS フラグメントから ID3 メタデータが到着した時に字幕レンダラーを起動
                 hlsInstance.on(Hls.Events.FRAG_PARSING_METADATA, (_event, data) => {
                     if (data?.samples) {
                         hasSubtitle = true;
+                        if (!subtitleRenderer) {
+                            initSubtitleRenderer();
+                        }
                         for (const sample of data.samples) {
-                            if (subtitleRenderer && sample.data && sample.pts !== undefined) {
-                                subtitleRenderer.pushID3v2Data(sample.pts, sample.data);
+                            if (sample.data && sample.pts !== undefined) {
+                                subtitleRenderer?.pushID3v2Data(sample.pts, sample.data);
                             }
                         }
                     }
@@ -435,7 +445,6 @@
                 return;
             } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
                 videoElement.src = src;
-                initSubtitleRenderer();
                 videoElement.play().catch(e => console.log('Autoplay prevented:', e));
                 return;
             }
@@ -444,7 +453,6 @@
         // 3. WebM / MP4 / 直接再生ストリーム (ブラウザネイティブ)
         videoElement.src = src;
         videoElement.load();
-        initSubtitleRenderer();
         videoElement.play().catch(e => console.log('Autoplay prevented:', e));
 
         // レジューム位置の確認
@@ -462,8 +470,9 @@
     $effect(() => {
         const currentSrc = src;
         const currentType = streamType;
-        if (currentSrc && currentSrc !== lastLoadedSrc) {
+        if (currentSrc && (currentSrc !== lastLoadedSrc || currentType !== lastLoadedType)) {
             lastLoadedSrc = currentSrc;
+            lastLoadedType = currentType;
             untrack(() => {
                 initVideo();
             });
@@ -478,9 +487,7 @@
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
             window.removeEventListener('keydown', handleKeyDown);
-            cleanupEngines();
             if (hideControlsTimer) clearTimeout(hideControlsTimer);
         };
     });
@@ -534,7 +541,9 @@
         ontimeupdate={() => {
             if (videoElement) {
                 currentTime = videoElement.currentTime;
-                if (recordedId && Math.round(currentTime) % 5 === 0) {
+                const currentSec = Math.floor(currentTime);
+                if (recordedId && currentSec % 5 === 0 && currentSec !== lastSavedSecond) {
+                    lastSavedSecond = currentSec;
                     playerState.savePosition(recordedId, currentTime);
                 }
             }
@@ -550,8 +559,6 @@
     >
         <track kind="captions" />
     </video>
-
-    <!-- aribb24.js 字幕オーバーレイコンテナ -->
     <div
         bind:this={subtitleContainer}
         class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-hidden"

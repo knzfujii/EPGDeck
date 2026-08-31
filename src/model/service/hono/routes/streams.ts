@@ -103,16 +103,36 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
         streamId = result.streamId;
 
         keepTimer = setInterval(() => {
-            if (streamId !== null) streamApiModel.keep(streamId);
+            try {
+                if (streamId !== null) streamApiModel.keep(streamId);
+            } catch {
+                if (keepTimer) {
+                    clearInterval(keepTimer);
+                    keepTimer = null;
+                }
+            }
         }, 10 * 1000);
 
         const nodeStream = result.stream;
+        const cleanup = async () => {
+            if (keepTimer) {
+                clearInterval(keepTimer);
+                keepTimer = null;
+            }
+            if (streamId !== null) {
+                const sId = streamId;
+                streamId = null;
+                await streamApiModel.stop(sId, true).catch(() => {});
+            }
+        };
+
+        nodeStream.on('close', cleanup);
+        nodeStream.on('end', cleanup);
+        nodeStream.on('error', cleanup);
+
         const webStream = Readable.toWeb(nodeStream);
 
-        c.req.raw.signal?.addEventListener('abort', async () => {
-            if (keepTimer) clearInterval(keepTimer);
-            if (streamId !== null) await streamApiModel.stop(streamId, true);
-        });
+        c.req.raw.signal?.addEventListener('abort', cleanup);
 
         return new Response(webStream as any, {
             status: 200,
@@ -122,8 +142,11 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
             },
         });
     } catch (err: any) {
-        if (keepTimer) clearInterval(keepTimer);
-        if (streamId !== null) await streamApiModel.stop(streamId, true);
+        if (keepTimer) {
+            clearInterval(keepTimer);
+            keepTimer = null;
+        }
+        if (streamId !== null) await streamApiModel.stop(streamId, true).catch(() => {});
         return api.responseServerError(c, err.message);
     }
 };

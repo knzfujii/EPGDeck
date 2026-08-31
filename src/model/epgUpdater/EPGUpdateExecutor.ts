@@ -1,8 +1,12 @@
+import 'reflect-metadata';
+import { install } from 'source-map-support';
 import IConfiguration from '../IConfiguration';
 import ILoggerModel from '../ILoggerModel';
 import container from '../ModelContainer';
 import * as containerSetter from '../ModelContainerSetter';
 import IEPGUpdater from './IEPGUpdater';
+
+install();
 
 containerSetter.set(container);
 

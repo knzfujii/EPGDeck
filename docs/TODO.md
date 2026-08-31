@@ -41,8 +41,14 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 ## 3. バックエンド & API (Backend & Robustness)
 
-- [ ] **大容量動画アップロード時のメモリ枯渇（OOM）防止**
-  - [ ] `src/model/service/hono/routes/videos.ts` の `/upload` エンドポイントで、一括バッファリングから `file.stream()` を用いたストリーム書き込みへ変更
+- [x] **大容量動画アップロード時のメモリ枯渇（OOM）防止**
+  - [x] `src/model/service/hono/routes/videos.ts` の `/upload` エンドポイントで、一括バッファリングから `file.stream()` を用いたストリーム書き込みへ変更
+- [x] **EPGUpdater のプロセスライフサイクル安定化**
+  - [x] `ModelContainer.ts` および `EPGUpdateExecutor.ts` への `reflect-metadata` 永続化による起動クラッシュ防止
+  - [x] `EPGUpdateExecutorManageModel.ts` での子プロセス終了ハンドラ一本化（排他制御）と 3秒バックオフ待機によるプロセス指数関数的増殖ループの恒久防止
+- [x] **ストリーミング例外および 500 エラー防止**
+  - [x] 終了済みストリームに対するキープタイマー競合（`StreamIsUndefined`）の安全ガード化
+  - [x] 実ファイル不在時の `stat` 存在確認ガードによる `ffprobe` クラッシュ防止
 - [ ] **Hono ルートの共通エラーハンドリング強化**
   - [ ] `app.onError` によるエラー型安全なレスポンス返却と詳細ロギングの統一
 
@@ -52,16 +58,16 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 - [x] **Dockerfile のマルチステージビルド最適化 & 軽量化**
   - [x] 不要となったネイティブビルドツール（C++ / Python / setuptools）の削除
-  - [x] `npm prune --production` による最終イメージからの devDependencies 排除
-  - [x] コンテナイメージサイズの大幅削減
+  - [x] `npm prune --omit=dev` による最終イメージからの devDependencies 排除
+  - [x] Node.js 26 ベース化とコンテナイメージサイズの大幅削減
 - [x] **自動テストの拡充**
   - [x] ルール検索エンジン（`ProgramDB.ts` の除外キーワード、時間帯、あいまい検索）のユニットテスト追加
   - [x] Hono REST API エンドポイントの統合テスト拡充 (`test/unit/hono_api.test.ts`)
   - [x] 録画・予約管理（並列チューナー競合解決・ライフサイクル）のユニットテスト追加 (`test/unit/reservation_conflict.test.ts`, `test/unit/recording_manage.test.ts`)
   - [x] Drizzle ORM DAO CRUD クエリテスト拡充 (`test/unit/dao_crud.test.ts`)
-- [x] **E2E テスト環境の構築**
-  - [x] Playwright による主要画面（システムログ画面等）の E2E 自動テスト環境構築 (`test/e2e/logs.spec.ts`)
-  - [x] Chromium ヘッドレスでの画面遷移・エラーゼロ・UI操作・実 API リアルタイムストリーミング自動検証
+- [x] **E2E テスト環境の全画面構築**
+  - [x] Playwright による全主要画面の E2E 自動テスト環境構築（全 15 テスト完備）
+  - [x] ダッシュボード、番組表、放映中、録画一覧/詳細、予約/手動予約、検索/ルール管理、エンコードキュー、ストレージ、設定、再生、システムログの自動検証オールグリーン
 
 ---
 
@@ -80,9 +86,17 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 
 ## ユーザー追加メモ (User Notes)
 
-- [ ] configの利用状況。妥当性の確認
+- [x] configの利用状況。妥当性の確認
     - [x] エンコード周辺の整理
+    - [x] WebM (VP9) ストリーミング設定の復元とビットレート誤記修正
+- [x] 録画詳細画面からの手動エンコード追加の修正
+    - [x] プリセット指定形式（`mode: string`）および `isSaveSameDirectory: true` の送信修正
+    - [x] 「エンコード完了後に元ファイルを削除する」オプションの追加
 - [ ] Playerのseekbarがふさわしくない画面での表示
 - [ ] Mirakurunとのバージョン互換の確認
 - [x] ストレージ画面をダッシュボードに統合
 - [x] 番組表が今日以前に戻れる。未来も制限がない
+- [ ] 録画中の番組の途中完了（正常完了扱い）、削除（なかったことにする）
+- [ ] 録画ファイルの削除を表示させない設定（configでグローバル設定、画面でデバイス単位）
+- [ ] 録画一覧より録画を複数選択してを削除する機能
+- [ ] 簡単録画（予約にそのまま入れる） / 詳細録画（いろいろ指定できる）

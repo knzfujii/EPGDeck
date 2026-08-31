@@ -173,6 +173,12 @@ export default abstract class RecordedStreamBaseModel
             throw new Error('GetVideoFilePathError');
         }
 
+        try {
+            await fs.promises.stat(this.videoFilePath);
+        } catch {
+            throw new Error('VideoFileIsNotFound');
+        }
+
         // videoFileInfo セット
         this.videoFileInfo = await this.getVideoInfo(this.videoFilePath);
 

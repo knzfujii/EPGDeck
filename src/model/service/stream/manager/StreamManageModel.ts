@@ -129,7 +129,7 @@ class StreamManageModel implements IStreamManageModel {
      */
     public keep(streamId: apid.StreamId): void {
         if (typeof this.streams[streamId] === 'undefined') {
-            throw new Error('StreamIsUndefined');
+            return;
         }
 
         this.streams[streamId].keep();

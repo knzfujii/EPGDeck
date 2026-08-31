@@ -35,8 +35,9 @@
     // エンコード追加モーダル
     let isEncodeModalOpen = $state(false);
     let encodeModes = $state<any[]>([]);
-    let selectedEncodeMode = $state<number>(0);
+    let selectedEncodeMode = $state<string>('');
     let isEncodeSubtitles = $state(false);
+    let isRemoveOriginal = $state(false);
 
     // ドロップログモーダル
     let isDropLogModalOpen = $state(false);
@@ -61,6 +62,9 @@
             axios.get('/api/config').then(configRes => {
                 const encList = configRes.data?.encode || [];
                 encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
+                if (!selectedEncodeMode && encodeModes.length > 0) {
+                    selectedEncodeMode = encodeModes[0].name;
+                }
             }).catch(() => {});
         } catch (e) {
             console.error('Failed to fetch recorded detail', e);
@@ -155,13 +159,18 @@
             return;
         }
 
+        if (!selectedEncodeMode) {
+            snackbar.open({ text: 'エンコードプリセットを選択してください', color: 'error' });
+            return;
+        }
+
         try {
             await axios.post('/api/encode', {
                 recordedId: recorded.id,
                 sourceVideoFileId: targetFile.id,
                 mode: selectedEncodeMode,
-                isSubTitle: isEncodeSubtitles,
-                removeOriginal: false,
+                isSaveSameDirectory: true,
+                removeOriginal: isRemoveOriginal,
             });
             snackbar.open({ text: 'エンコードキューに追加しました', color: 'success' });
             isEncodeModalOpen = false;
@@ -446,12 +455,12 @@
                 <div>
                     <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">エンコードプリセット</p>
                     <div class="space-y-2">
-                        {#each encodeModes as mode, index}
-                            <label class="flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer {selectedEncodeMode === index ? 'border-blue-500 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-800'}">
+                        {#each encodeModes as mode}
+                            <label class="flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer {selectedEncodeMode === mode.name ? 'border-blue-500 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-800'}">
                                 <input
                                     type="radio"
                                     name="encodeMode"
-                                    value={index}
+                                    value={mode.name}
                                     bind:group={selectedEncodeMode}
                                     class="accent-blue-600"
                                 />
@@ -464,14 +473,16 @@
                     </div>
                 </div>
 
-                <label class="flex items-center gap-2 cursor-pointer pt-2">
-                    <input
-                        type="checkbox"
-                        bind:checked={isEncodeSubtitles}
-                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span class="font-bold text-slate-700 dark:text-slate-300">字幕データを保持してエンコード</span>
-                </label>
+                <div class="space-y-2 pt-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            bind:checked={isRemoveOriginal}
+                            class="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                        />
+                        <span class="font-bold text-slate-700 dark:text-slate-300">エンコード完了後に元ファイルを削除する</span>
+                    </label>
+                </div>
             </div>
 
             <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">

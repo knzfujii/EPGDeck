@@ -189,15 +189,37 @@ encode:
   maxProcesses: 4                  # システム全体の最大エンコードプロセス数
   concurrency: 1                   # 同時実行キュー数
   presets:
+    # 1. 標準スクリプト指定 (config/ 配下のファイル名を指定)
     - name: H.264-1080p
-      cmd: '%NODE% %ROOT%/config/enc_helper.js 1080p'
+      script: enc_1080p.js
       suffix: .mp4
       rate: 4.0
     - name: H.264-720p
-      cmd: '%NODE% %ROOT%/config/enc_helper.js 720p'
+      script: enc_720p.js
       suffix: .mp4
       rate: 2.5
+
+    # 2. 独自コマンド・外部シェルスクリプト指定 (cmd を直接記述)
+    # %NODE% (Node.js実行パス), %ROOT% (プロジェクトルート) などのマクロや外部バイナリが利用可能です
+    # - name: Custom-Script
+    #   cmd: '%NODE% %ROOT%/config/my_custom_encode.js'
+    #   suffix: .mp4
+    #   rate: 3.0
+    # - name: Shell-Script
+    #   cmd: '/usr/local/bin/my_encode.sh'
+    #   suffix: .mkv
+    #   rate: 4.0
 ```
+
+### `encode.presets` パラメータ一覧
+
+| パラメータ名 | 型 | 必須 | 説明 |
+| :--- | :--- | :--- | :--- |
+| **`name`** | `string` | **必須** | Web UI 上に表示されるプリセット表示名（例: `H.264-1080p`） |
+| **`script`** | `string` | 任意 | `config/` ディレクトリ配下のエンコードスクリプト名（例: `enc_1080p.js`） |
+| **`cmd`** | `string` | 任意 | 独自コマンド・外部シェルスクリプトを実行する場合のコマンド文字列 |
+| **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
+| **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。録画実時間 × `rate` を超過した場合にハングアップとみなして強制終了します（例: 30分番組 × `rate: 4.0` = 120分でタイムアウト） |
 
 ---
 

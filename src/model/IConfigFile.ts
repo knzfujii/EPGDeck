@@ -134,6 +134,7 @@ export interface EncodeBinariesConfig {
 
 export interface EncodePresetConfig {
     name: string;
+    script?: string;
     cmd: string;
     suffix?: string;
     rate?: number;

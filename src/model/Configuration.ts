@@ -195,7 +195,18 @@ class Configuration implements IConfiguration {
             ffmpeg: encConf.binaries?.ffmpeg || raw.ffmpeg || '/usr/lib/jellyfin-ffmpeg/ffmpeg',
             ffprobe: encConf.binaries?.ffprobe || raw.ffprobe || '/usr/lib/jellyfin-ffmpeg/ffprobe',
         };
-        const presets = Array.isArray(encConf.presets) ? encConf.presets : Array.isArray(raw.encode) ? raw.encode : [];
+        const rawPresets = Array.isArray(encConf.presets)
+            ? encConf.presets
+            : Array.isArray(raw.encode)
+              ? raw.encode
+              : [];
+        const presets = rawPresets.map((p: any) => {
+            const preset = { ...p };
+            if (preset.script && !preset.cmd) {
+                preset.cmd = `%NODE% %ROOT%/config/${preset.script}`;
+            }
+            return preset;
+        });
 
         const encode: IConfigFile['encode'] = {
             binaries,

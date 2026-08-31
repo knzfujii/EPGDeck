@@ -443,16 +443,47 @@ async function runEncode(options = {}) {
         }
 
         // 4. 出力ファイルの整合性・動画長検証 (ドロップによる短小破損ブロック)
-        const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, options);
-        if (!check.valid) {
-            console.error(`[enc_helper] CRITICAL ERROR: Corrupted output detected! ${check.reason}`);
-            console.error('[enc_helper] Aborting with exit code 1 to protect source TS from deletion.');
-            process.exitCode = 1;
-            return;
-        }
+        try {
+            const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, options);
+            if (!check.valid) {
+                console.error(`[enc_helper] CRITICAL ERROR: Corrupted output detected! ${check.reason}`);
+                console.error('[enc_helper] Aborting with exit code 1 to protect source TS from deletion.');
+                process.exit(1);
+            }
 
-        console.error(`[enc_helper] Encode completed successfully. (Duration: ${check.outputDuration?.toFixed(1) || 'OK'}s)`);
-        process.exitCode = 0;
+            console.error(`[enc_helper] Encode completed successfully. (Duration: ${check.outputDuration?.toFixed(1) || 'OK'}s)`);
+            process.exit(0);
+        } catch (e) {
+            console.error('[enc_helper] Verification exception:', e);
+            console.error('[enc_helper] Aborting with exit code 1 to protect source TS from deletion.');
+            process.exit(1);
+        }
+    });
+}
+
+// CLI エントリポイント (node enc_helper.js [resolution/preset] [codec])
+if (require.main === module) {
+    const rawArgs = process.argv.slice(2);
+    const cliOptions = {};
+
+    for (const arg of rawArgs) {
+        const lower = arg.toLowerCase();
+        if (lower === '1080p' || lower === '720p' || lower === '540p' || lower === '480p') {
+            cliOptions.scale = lower;
+        } else if (lower.includes('vaapi')) {
+            cliOptions.codec = 'h264_vaapi';
+        } else if (lower.includes('qsv')) {
+            cliOptions.codec = 'h264_qsv';
+        } else if (lower.includes('nvenc')) {
+            cliOptions.codec = 'h264_nvenc';
+        } else if (lower.includes('hevc') || lower.includes('h265') || lower.includes('x265')) {
+            cliOptions.codec = 'libx265';
+        }
+    }
+
+    runEncode(cliOptions).catch((err) => {
+        console.error('[enc_helper] Top-level error:', err);
+        process.exit(1);
     });
 }
 

@@ -58,13 +58,40 @@ describe('Structured Config Schema', () => {
             recording: { directories: [{ name: 'rec', path: '/path' }] },
             urlscheme: {
                 video: {
-                    ios: 'custom-player://play?url=PROTOCOL://ADDRESS',
+                    ios: 'custom-scheme://play',
                 },
             },
         } as any);
 
-        expect(conf.urlscheme.video.ios).toBe('custom-player://play?url=PROTOCOL://ADDRESS');
+        expect(conf.urlscheme.video.ios).toBe('custom-scheme://play');
+        expect(conf.urlscheme.video.android).toContain('intent://');
         expect(conf.urlscheme.m2ts.ios).toBe(Configuration.DEFAULT_URL_SCHEME.m2ts.ios);
         expect(conf.urlscheme.download.ios).toBe(Configuration.DEFAULT_URL_SCHEME.download.ios);
+    });
+
+    it('should automatically resolve script property in presets to cmd', () => {
+        const conf = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+            encode: {
+                presets: [
+                    {
+                        name: 'H.264-1080p',
+                        script: 'enc_1080p.js',
+                        suffix: '.mp4',
+                    },
+                    {
+                        name: 'Custom-Command',
+                        cmd: 'custom_script.sh',
+                        suffix: '.mp4',
+                    },
+                ],
+            },
+        } as any);
+
+        expect(conf.encode.presets[0].script).toBe('enc_1080p.js');
+        expect(conf.encode.presets[0].cmd).toBe('%NODE% %ROOT%/config/enc_1080p.js');
+        expect(conf.encode.presets[1].cmd).toBe('custom_script.sh');
     });
 });

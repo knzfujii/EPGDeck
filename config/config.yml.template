@@ -111,23 +111,23 @@ encode:
   concurrency: 1
   presets:
     - name: H.264-1080p
-      cmd: '%NODE% %ROOT%/config/enc_helper.js 1080p'
+      script: enc_1080p.js
       suffix: .mp4
       rate: 4.0
     - name: H.264-720p
-      cmd: '%NODE% %ROOT%/config/enc_helper.js 720p'
+      script: enc_720p.js
       suffix: .mp4
       rate: 2.5
     # - name: H.264-VAAPI
-    #   cmd: '%NODE% %ROOT%/config/enc_helper.js vaapi'
+    #   script: enc_vaapi.js
     #   suffix: .mp4
     #   rate: 4.0
     # - name: H.264-QSV
-    #   cmd: '%NODE% %ROOT%/config/enc_helper.js qsv'
+    #   script: enc_qsv.js
     #   suffix: .mp4
     #   rate: 4.0
     # - name: H.264-NVENC
-    #   cmd: '%NODE% %ROOT%/config/enc_helper.js nvenc'
+    #   script: enc_nvenc.js
     #   suffix: .mp4
     #   rate: 4.0
 

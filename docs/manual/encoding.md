@@ -63,9 +63,59 @@ flowchart TD
 | **`customArgs`** | `string[]` | `[]` | 任意の追加 FFmpeg 引数 |
 | **`modifyArgs`** | `(args: string[]) => string[]` | `null` | 最終的な FFmpeg 引数配列を書き換えるコールバック関数 |
 
+## 3. 設定ファイル (`config.yml`) でのプリセット指定
+
+### 3.1 標準スクリプト指定 (`script`)
+`config/` ディレクトリ配下に配置したスクリプト名（`script`）を指定する推奨の登録方法です。
+
+```yaml
+encode:
+  presets:
+    - name: H.264-1080p
+      script: enc_1080p.js     # config/ 配下のファイル名を指定
+      suffix: .mp4
+      rate: 4.0
+    - name: H.264-720p
+      script: enc_720p.js      # config/ 配下のファイル名を指定
+      suffix: .mp4
+      rate: 2.5
+```
+
+### 3.2 独自コマンド・外部シェルスクリプト指定 (`cmd`)
+Python スクリプトや外部シェルスクリプト、独自のエンコードバイナリを直接呼び出す場合は、`cmd` プロパティを使用します。
+環境変数マクロ（`%NODE%`, `%ROOT%`, `%FFMPEG%`, `%FFPROBE%`）が展開されます。
+
+```yaml
+encode:
+  presets:
+    # 外部シェルスクリプトを呼び出す例
+    - name: Custom-Shell
+      cmd: '%ROOT%/config/custom_encode.sh'
+      suffix: .mp4
+      rate: 4.0
+    # Python 等の外部スクリプトを呼び出す例
+    - name: Python-Transcoder
+      cmd: 'python3 %ROOT%/config/transcode.py'
+      suffix: .mkv
+      rate: 3.5
+```
+
+> [!NOTE]
+> `cmd` 実行時、子プロセスには `INPUT`（元動画パス）、`OUTPUT`（出力先パス）、`RECORDEDID`（録画ID）、`FFMPEG`、`FFPROBE`、`NAME`（番組名）等の環境変数が自動的に渡されます。
+
+### 3.3 プリセット設定パラメータ一覧
+
+| パラメータ名 | 型 | 必須 | 説明 |
+| :--- | :--- | :--- | :--- |
+| **`name`** | `string` | **必須** | Web UI 上に表示されるプリセット表示名（例: `H.264-1080p`） |
+| **`script`** | `string` | 任意 | `config/` ディレクトリ配下のエンコードスクリプト名（例: `enc_1080p.js`） |
+| **`cmd`** | `string` | 任意 | 独自コマンド・外部シェルスクリプトを実行する場合のコマンド文字列 |
+| **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
+| **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。<br>録画時間 × `rate` の時間が経過してもエンコードが終わらない場合にハングアップとみなして強制終了します（例: 60分番組 × `rate: 4.0` = 最大240分待機） |
+
 ---
 
-## 3. プリセットテンプレート一覧
+## 4. プリセットテンプレート一覧
 
 `config/` ディレクトリ内に用途別のテンプレートが用意されています。
 

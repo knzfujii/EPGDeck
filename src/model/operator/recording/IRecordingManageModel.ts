@@ -1,5 +1,5 @@
 import * as apid from '../../../../api';
-import * as mapid from '../../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import { IReserveUpdateValues } from '../../event/IReserveEvent';
 
 export default interface IRecordingManageModel {

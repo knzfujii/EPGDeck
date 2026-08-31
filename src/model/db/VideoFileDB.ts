@@ -9,14 +9,14 @@ import IVideoFileDB, { UpdateFilePathOption } from './IVideoFileDB';
 @injectable()
 export default class VideoFileDB implements IVideoFileDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -25,7 +25,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async restore(items: VideoFile[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -68,7 +68,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async insertOnce(videoFile: VideoFile): Promise<apid.VideoFileId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const result = await db.insert(schema.videoFiles).values({
@@ -101,7 +101,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async updateFilePath(option: UpdateFilePathOption): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const values = {
                 parentDirectoryName: option.parentDirectoryName,
                 filePath: option.filePath,
@@ -123,7 +123,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async updateSize(videoFileId: apid.VideoFileId, size: number): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.update(schema.videoFiles).set({ size }).where(eq(schema.videoFiles.id, videoFileId));
@@ -140,7 +140,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async deleteOnce(videoFileId: apid.VideoFileId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
@@ -157,7 +157,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async deleteRecordedId(recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.videoFiles).where(eq(schema.videoFiles.recordedId, recordedId));
@@ -174,7 +174,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async findId(videoFileId: apid.VideoFileId): Promise<VideoFile | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.videoFiles).where(eq(schema.videoFiles.id, videoFileId));
@@ -195,7 +195,7 @@ export default class VideoFileDB implements IVideoFileDB {
     public async findAll(): Promise<VideoFile[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.videoFiles);

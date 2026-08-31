@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api';
-import * as mapid from '../../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import Channel from '../../../db/entities/Channel';
 import Program from '../../../db/entities/Program';
 import Reserve from '../../../db/entities/Reserve';

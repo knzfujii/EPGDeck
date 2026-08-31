@@ -4,7 +4,6 @@ import * as http from 'http';
 import * as https from 'https';
 import { inject, injectable } from 'inversify';
 import { mkdirp } from 'mkdirp';
-import * as path from 'path';
 import IConfigFile from '../IConfigFile';
 import IConfiguration from '../IConfiguration';
 import ILogger from '../ILogger';
@@ -98,15 +97,6 @@ class ServiceServer implements IServiceServer {
 
         this.socketIoManageModel.initialize(socketioServers);
     }
-}
-
-namespace ServiceServer {
-    export const ROOT_DIR = path.join(__dirname, '..', '..', '..');
-    export const API_YML = path.join(ServiceServer.ROOT_DIR, 'api.yml');
-    export const PACKAGE_JSON = path.join(ServiceServer.ROOT_DIR, 'package.json');
-    export const SWAGGER_UI_DIST = path.join(ServiceServer.ROOT_DIR, 'node_modules', 'swagger-ui-dist');
-    export const API_DIR = path.join(__dirname, 'api');
-    export const CLIENT_DIR = path.join(ROOT_DIR, 'client', 'dist');
 }
 
 export default ServiceServer;

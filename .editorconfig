@@ -1,4 +1,5 @@
 [*.json]
 indent_size = 4
+
 [*.yml]
 indent_size = 4

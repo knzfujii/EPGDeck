@@ -4,7 +4,7 @@ import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
-import * as mapid from '../../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import * as apid from '../../../../api';
 import DropLogFile from '../../../db/entities/DropLogFile';
 import Recorded from '../../../db/entities/Recorded';
@@ -241,8 +241,10 @@ class RecorderModel implements IRecorderModel {
                 if (needesUnpip === true) {
                     this.stream.unpipe();
                 }
-                this.stream.destroy();
-                this.stream.push(null); // eof 通知
+                if (!this.stream.destroyed) {
+                    this.stream.push(null); // eof 通知
+                    this.stream.destroy();
+                }
                 this.stream.removeAllListeners('data');
                 this.stream = null;
             } catch (err: any) {

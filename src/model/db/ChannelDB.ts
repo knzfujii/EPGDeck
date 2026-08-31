@@ -1,7 +1,7 @@
 import { asc, eq, inArray } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
-import * as mapid from '../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import Channel from '../../db/entities/Channel';
 import StrUtil from '../../util/StrUtil';
 import IConfiguration from '../IConfiguration';
@@ -13,16 +13,16 @@ import IDrizzleOperator from './IDrizzleOperator';
 export default class ChannelDB implements IChannelDB {
     private configuration: IConfiguration;
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IConfiguration') configuration: IConfiguration,
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.configuration = configuration;
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -55,7 +55,7 @@ export default class ChannelDB implements IChannelDB {
 
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -117,7 +117,7 @@ export default class ChannelDB implements IChannelDB {
     public async findId(channelId: apid.ChannelId): Promise<Channel | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.channels).where(eq(schema.channels.id, channelId));
@@ -138,7 +138,7 @@ export default class ChannelDB implements IChannelDB {
     public async findChannleTypes(types: apid.ChannelType[], needSort: boolean = false): Promise<Channel[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             let results: Channel[] = [];
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
@@ -176,7 +176,7 @@ export default class ChannelDB implements IChannelDB {
     public async findAll(needSort: boolean = false): Promise<Channel[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             let results: Channel[] = [];
             if (client.type === 'sqlite') {
                 const { db, schema } = client;

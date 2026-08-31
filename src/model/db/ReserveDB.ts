@@ -17,14 +17,14 @@ import IReserveDB, {
 @injectable()
 export default class ReserveDB implements IReserveDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -33,7 +33,7 @@ export default class ReserveDB implements IReserveDB {
     public async restore(items: Reserve[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -60,7 +60,7 @@ export default class ReserveDB implements IReserveDB {
     public async insertOnce(reserve: Reserve): Promise<apid.ReserveId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const row = this.toRow(reserve);
             delete row.id;
 
@@ -82,7 +82,7 @@ export default class ReserveDB implements IReserveDB {
     public async updateOnce(reserve: Reserve): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const row = this.toRow(reserve);
 
             if (client.type === 'sqlite') {
@@ -101,7 +101,7 @@ export default class ReserveDB implements IReserveDB {
     public async updateMany(values: IReserveUpdateValues): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -156,7 +156,7 @@ export default class ReserveDB implements IReserveDB {
     public async findId(reserveId: apid.ReserveId): Promise<Reserve | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.id, reserveId));
@@ -177,7 +177,7 @@ export default class ReserveDB implements IReserveDB {
     public async findAll(option: apid.GetReserveOption): Promise<[Reserve[], number]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [];
@@ -274,7 +274,7 @@ export default class ReserveDB implements IReserveDB {
     public async findLists(option?: apid.GetReserveListsOption): Promise<Reserve[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [];
@@ -309,7 +309,7 @@ export default class ReserveDB implements IReserveDB {
     public async findProgramId(programId: apid.ProgramId): Promise<Reserve[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.reserves).where(eq(schema.reserves.programId, programId));
@@ -356,7 +356,7 @@ export default class ReserveDB implements IReserveDB {
             option.times.slice(0, 1),
         );
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const timeConditions: any[] = [];
@@ -427,7 +427,7 @@ export default class ReserveDB implements IReserveDB {
     public async findRuleId(option: IFindRuleOption): Promise<Reserve[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [eq(schema.reserves.ruleId, option.ruleId)];
@@ -468,7 +468,7 @@ export default class ReserveDB implements IReserveDB {
     public async findOldTime(baseTime: apid.UnixtimeMS): Promise<Reserve[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.reserves).where(lt(schema.reserves.endAt, baseTime));
@@ -487,7 +487,7 @@ export default class ReserveDB implements IReserveDB {
     public async findTimeSpecification(option: IFindTimeSpecificationOption): Promise<Reserve | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const whereClause = and(
@@ -520,7 +520,7 @@ export default class ReserveDB implements IReserveDB {
     public async getManualIds(option: IGetManualIdsOption): Promise<apid.ReserveId[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [isNull(schema.reserves.ruleId)];
@@ -557,7 +557,7 @@ export default class ReserveDB implements IReserveDB {
     public async getRuleEventRelayIds(): Promise<apid.ReserveId[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const whereClause = and(isNotNull(schema.reserves.ruleId), eq(schema.reserves.isEventRelay, true));
@@ -588,7 +588,7 @@ export default class ReserveDB implements IReserveDB {
 
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [inArray(schema.reserves.ruleId, ruleIds)];

@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api';
-import * as mapid from '../../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import IRecordedDB from '../../db/IRecordedDB';
 import IReserveDB from '../../db/IReserveDB';
 import IRecordingEvent from '../../event/IRecordingEvent';

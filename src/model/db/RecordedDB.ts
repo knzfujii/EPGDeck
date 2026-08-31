@@ -14,14 +14,14 @@ import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB'
 @injectable()
 export default class RecordedDB implements IRecordedDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -30,7 +30,7 @@ export default class RecordedDB implements IRecordedDB {
     public async restore(items: Recorded[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.thumbnails);
@@ -50,7 +50,7 @@ export default class RecordedDB implements IRecordedDB {
     public async insertOnce(recorded: Recorded): Promise<apid.RecordedId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const row = this.toRow(recorded);
             delete row.id;
 
@@ -72,7 +72,7 @@ export default class RecordedDB implements IRecordedDB {
     public async updateOnce(recorded: Recorded): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const row = this.toRow(recorded);
             const { db, schema } = client;
             await (db as any).update(schema.recorded).set(row).where(eq(schema.recorded.id, recorded.id));
@@ -89,7 +89,7 @@ export default class RecordedDB implements IRecordedDB {
     ): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const updateValues: Record<string, any> = { isRecording: false };
             if (typeof actualDuration === 'number' && actualDuration > 0) {
@@ -108,7 +108,7 @@ export default class RecordedDB implements IRecordedDB {
     public async removeDropLogFileId(dropLogFileId: apid.DropLogFileId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any)
                 .update(schema.recorded)
@@ -123,7 +123,7 @@ export default class RecordedDB implements IRecordedDB {
     public async removeRuleId(ruleId: apid.RuleId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).update(schema.recorded).set({ ruleId: null }).where(eq(schema.recorded.ruleId, ruleId));
         });
@@ -135,7 +135,7 @@ export default class RecordedDB implements IRecordedDB {
     public async changeProtect(recordedId: apid.RecordedId, isProtect: boolean): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any)
                 .update(schema.recorded)
@@ -150,7 +150,7 @@ export default class RecordedDB implements IRecordedDB {
     public async deleteOnce(recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).delete(schema.recorded).where(eq(schema.recorded.id, recordedId));
         });
@@ -176,7 +176,7 @@ export default class RecordedDB implements IRecordedDB {
 
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const isNeedVideoFiles = typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true;
             const isNeedThumbnails = typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true;
             const isNeedsDropLog = typeof columnOption !== 'undefined' && columnOption.isNeedsDropLog === true;
@@ -233,7 +233,7 @@ export default class RecordedDB implements IRecordedDB {
     public async findAll(option: FindAllOption, columnOption: RecordedColumnOption): Promise<[Recorded[], number]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const conditions: any[] = [];
 
@@ -349,7 +349,7 @@ export default class RecordedDB implements IRecordedDB {
     public async findChannelList(): Promise<apid.RecordedChannelListItem[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select({
@@ -368,7 +368,7 @@ export default class RecordedDB implements IRecordedDB {
     public async findGenreList(): Promise<apid.RecordedGenreListItem[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select({
@@ -388,7 +388,7 @@ export default class RecordedDB implements IRecordedDB {
     public async findOld(): Promise<Recorded | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select()
@@ -410,7 +410,7 @@ export default class RecordedDB implements IRecordedDB {
     public async findReserveId(reserveId: apid.ReserveId): Promise<Recorded[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select()

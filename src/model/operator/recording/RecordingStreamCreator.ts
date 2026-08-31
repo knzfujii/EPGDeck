@@ -3,7 +3,7 @@ import { inject, injectable } from 'inversify';
 import Mirakurun from 'mirakurun';
 import { finished } from 'stream';
 import * as apid from '../../../../api';
-import * as mapid from '../../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import Reserve from '../../../db/entities/Reserve';
 import Util from '../../../util/Util';
 import IConfigFile from '../../IConfigFile';

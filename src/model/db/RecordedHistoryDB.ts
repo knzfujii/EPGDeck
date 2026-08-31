@@ -9,14 +9,14 @@ import IRecordedHistoryDB from './IRecordedHistoryDB';
 @injectable()
 export default class RecordedHistoryDB implements IRecordedHistoryDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -25,7 +25,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     public async restore(items: RecordedHistory[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -62,7 +62,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     public async insertOnce(program: RecordedHistory): Promise<apid.RecordedHistoryId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const result = await db.insert(schema.recordedHistory).values({
@@ -89,7 +89,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     public async delete(time: apid.UnixtimeMS): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.recordedHistory).where(lt(schema.recordedHistory.endAt, time));
@@ -106,7 +106,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     public async findAll(): Promise<RecordedHistory[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.recordedHistory);

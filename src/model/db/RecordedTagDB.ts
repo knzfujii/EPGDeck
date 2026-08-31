@@ -10,14 +10,14 @@ import IRecordedTagDB from './IRecordedTagDB';
 @injectable()
 export default class RecordedTagDB implements IRecordedTagDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -26,7 +26,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async restore(items: RecordedTag[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -63,7 +63,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async insertOnce(tag: RecordedTag): Promise<apid.RecordedTagId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const result = await db.insert(schema.recordedTags).values({
@@ -90,7 +90,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async updateOnce(tagId: apid.RecordedTagId, name: string, color: string): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const values = {
                 name,
                 color,
@@ -113,7 +113,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async setRelation(tagId: apid.RecordedTagId, recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db
@@ -142,7 +142,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async deleteRelation(tagId: apid.RecordedTagId, recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db
@@ -173,7 +173,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async deleteAllRelation(recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db
@@ -194,7 +194,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async deleteOnce(tagId: apid.RecordedTagId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
@@ -211,7 +211,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async findId(tagId: apid.RecordedTagId): Promise<RecordedTag | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.recordedTags).where(eq(schema.recordedTags.id, tagId));
@@ -232,7 +232,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
     public async findAll(option: apid.GetRecordedTagOption): Promise<[RecordedTag[], number]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const conditions: any[] = [];
 
             if (typeof option.excludeTagId !== 'undefined' && option.excludeTagId.length > 0) {

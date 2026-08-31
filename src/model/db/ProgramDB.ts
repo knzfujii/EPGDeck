@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
-import * as mapid from '../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import Program from '../../db/entities/Program';
 import DateUtil from '../../util/DateUtil';
 import StrUtil from '../../util/StrUtil';
@@ -22,16 +22,16 @@ import IProgramDB, {
 export default class ProgramDB implements IProgramDB {
     private config: IConfigFile;
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IConfiguration') conf: IConfiguration,
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.config = conf.getConfig();
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -54,7 +54,7 @@ export default class ProgramDB implements IProgramDB {
 
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 if (deleteChannelIds.length > 0) {
@@ -174,7 +174,7 @@ export default class ProgramDB implements IProgramDB {
             if (value !== null) insertValues.push(value);
         }
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 if (values.delete.length > 0) {
@@ -283,7 +283,7 @@ export default class ProgramDB implements IProgramDB {
     public async deleteOld(time: apid.UnixtimeMS): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             await (db as any).delete(schema.programs).where(lt(schema.programs.endAt, time));
         });
@@ -295,7 +295,7 @@ export default class ProgramDB implements IProgramDB {
     public async findId(programId: apid.ProgramId): Promise<Program | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any).select().from(schema.programs).where(eq(schema.programs.id, programId));
 
@@ -314,7 +314,7 @@ export default class ProgramDB implements IProgramDB {
     ): Promise<Program | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select()
@@ -340,7 +340,7 @@ export default class ProgramDB implements IProgramDB {
         const now = new Date().getTime();
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const conditions: any[] = [gte(client.schema.programs.endAt, now)];
 
             // キーワード検索
@@ -582,7 +582,7 @@ export default class ProgramDB implements IProgramDB {
     public async findChannelIdAndTime(channelId: apid.ChannelId, startAt: apid.UnixtimeMS): Promise<Program | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any)
                 .select()
@@ -600,7 +600,7 @@ export default class ProgramDB implements IProgramDB {
     public async findAll(): Promise<Program[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any).select().from(schema.programs).orderBy(asc(schema.programs.startAt));
 
@@ -614,7 +614,7 @@ export default class ProgramDB implements IProgramDB {
     public async findSchedule(option: FindScheduleOption | FindScheduleIdOption): Promise<Program[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const conditions: any[] = [
                 lte(schema.programs.startAt, option.endAt),
@@ -651,7 +651,7 @@ export default class ProgramDB implements IProgramDB {
         }
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const whereClause = and(lte(schema.programs.startAt, time), gte(schema.programs.endAt, time));
 

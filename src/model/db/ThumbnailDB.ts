@@ -9,14 +9,14 @@ import IThumbnailDB from './IThumbnailDB';
 @injectable()
 export default class ThumbnailDB implements IThumbnailDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -25,7 +25,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async restore(items: Thumbnail[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -60,7 +60,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async insertOnce(thumbnail: Thumbnail): Promise<apid.ThumbnailId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const result = await db.insert(schema.thumbnails).values({
@@ -85,7 +85,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async deleteOnce(thumbnailId: apid.ThumbnailId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
@@ -102,7 +102,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async deleteRecordedId(recordedId: apid.RecordedId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.thumbnails).where(eq(schema.thumbnails.recordedId, recordedId));
@@ -119,7 +119,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async findId(thumbnailId: apid.ThumbnailId): Promise<Thumbnail | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.thumbnails).where(eq(schema.thumbnails.id, thumbnailId));
@@ -140,7 +140,7 @@ export default class ThumbnailDB implements IThumbnailDB {
     public async findAll(): Promise<Thumbnail[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select().from(schema.thumbnails);

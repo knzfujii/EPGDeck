@@ -9,14 +9,14 @@ import IRuleDB, { RuleWithCnt } from './IRuleDB';
 @injectable()
 export default class RuleDB implements IRuleDB {
     private drizzleOp: IDrizzleOperator;
-    private promieRetry: IPromiseRetry;
+    private promiseRetry: IPromiseRetry;
 
     constructor(
         @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promieRetry: IPromiseRetry,
+        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
     ) {
         this.drizzleOp = drizzleOp;
-        this.promieRetry = promieRetry;
+        this.promiseRetry = promiseRetry;
     }
 
     /**
@@ -25,7 +25,7 @@ export default class RuleDB implements IRuleDB {
     public async restore(items: RuleWithCnt[]): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.transaction(async tx => {
@@ -52,7 +52,7 @@ export default class RuleDB implements IRuleDB {
     public async insertOnce(rule: apid.Rule | apid.AddRuleOption): Promise<apid.RuleId> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             const row = this.convertRuleToDBRow(rule);
             delete row.id;
 
@@ -82,7 +82,7 @@ export default class RuleDB implements IRuleDB {
 
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.update(schema.rules).set(convertedRow).where(eq(schema.rules.id, newRule.id));
@@ -108,7 +108,7 @@ export default class RuleDB implements IRuleDB {
 
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const values = {
                 enable: true,
                 updateCnt: rule.updateCnt + 1,
@@ -139,7 +139,7 @@ export default class RuleDB implements IRuleDB {
 
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             const values = {
                 enable: false,
                 updateCnt: rule.updateCnt + 1,
@@ -161,7 +161,7 @@ export default class RuleDB implements IRuleDB {
     public async deleteOnce(ruleId: apid.RuleId): Promise<void> {
         const client = this.drizzleOp.getDB();
 
-        await this.promieRetry.run(async () => {
+        await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 await db.delete(schema.rules).where(eq(schema.rules.id, ruleId));
@@ -178,7 +178,7 @@ export default class RuleDB implements IRuleDB {
     public async findId(ruleId: apid.RuleId, isNeedCnt: boolean = false): Promise<apid.Rule | RuleWithCnt | null> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             let row: any = null;
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
@@ -206,7 +206,7 @@ export default class RuleDB implements IRuleDB {
     public async findAll(option: apid.GetRuleOption, isNeedCnt: boolean = false): Promise<[apid.Rule[], number]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [];
@@ -283,7 +283,7 @@ export default class RuleDB implements IRuleDB {
     public async findKeyword(option: apid.GetRuleOption): Promise<apid.RuleKeywordItem[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const conditions: any[] = [];
@@ -340,7 +340,7 @@ export default class RuleDB implements IRuleDB {
     public async getIds(): Promise<apid.RuleId[]> {
         const client = this.drizzleOp.getDB();
 
-        return await this.promieRetry.run(async () => {
+        return await this.promiseRetry.run(async () => {
             if (client.type === 'sqlite') {
                 const { db, schema } = client;
                 const rows = await db.select({ id: schema.rules.id }).from(schema.rules).orderBy(asc(schema.rules.id));

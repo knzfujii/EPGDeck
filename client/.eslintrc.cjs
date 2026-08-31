@@ -1,20 +1,20 @@
 module.exports = {
     root: true,
     env: {
+        browser: true,
         node: true,
-        es6: true,
+        es2022: true,
     },
     extends: [
-        'plugin:vue/essential',
         'eslint:recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:prettier/recommended',
     ],
     plugins: ['@typescript-eslint'],
-    parser: 'vue-eslint-parser',
+    parser: '@typescript-eslint/parser',
     parserOptions: {
-        ecmaVersion: 2020,
-        parser: '@typescript-eslint/parser',
+        ecmaVersion: 2022,
+        sourceType: 'module',
     },
     rules: {
         'no-console': 'off',
@@ -24,25 +24,11 @@ module.exports = {
         '@typescript-eslint/no-empty-function': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
         '@typescript-eslint/no-namespace': 'off',
-        '@typescript-eslint/interface-name-prefix': 'off',
         '@typescript-eslint/explicit-module-boundary-types': 'off',
         '@typescript-eslint/no-var-requires': 'off',
         'no-constant-condition': 'off',
         'no-useless-escape': 'off',
         'no-async-promise-executor': 'off',
         'no-redeclare': 'off',
-        'vue/custom-event-name-casing': 'off',
-        'max-len': [
-            'error',
-            {
-                code: 180,
-                tabWidth: 4,
-                ignoreComments: true,
-                ignoreTrailingComments: true,
-                ignoreUrls: true,
-                ignoreStrings: true,
-                ignoreRegExpLiterals: true,
-            },
-        ],
     },
 };

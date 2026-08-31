@@ -123,7 +123,7 @@ const readRangeHeader = (
     }
 
     if (isNaN(start) && !isNaN(end)) {
-        result.Start = totalLength - end;
+        result.Start = Math.max(0, totalLength - end);
         result.End = totalLength - 1;
     }
 

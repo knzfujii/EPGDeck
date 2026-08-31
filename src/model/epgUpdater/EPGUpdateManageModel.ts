@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
 import { inject, injectable } from 'inversify';
 import mirakurun from 'mirakurun';
-import * as mapid from '../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import IChannelDB from '../db/IChannelDB';
 import IChannelTypeIndex from '../db/IChannelTypeHash';
 import IProgramDB from '../db/IProgramDB';

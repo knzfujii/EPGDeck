@@ -1,5 +1,5 @@
 import * as apid from '../../../api';
-import * as mapid from '../../../node_modules/mirakurun/api';
+import * as mapid from 'mirakurun/api';
 import Channel from '../../db/entities/Channel';
 
 export interface ChannelUpdateValues {

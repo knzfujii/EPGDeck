@@ -15,8 +15,8 @@
         if (!isSilent) isLoading = true;
         try {
             const res = await axios.get('/api/encode?isHalfWidth=true');
-            running = res.data.running || [];
-            waitList = res.data.waitList || [];
+            running = res.data.runningItems || [];
+            waitList = res.data.waitItems || [];
         } catch (e) {
             console.error('Failed to fetch encode', e);
             if (!isSilent) snackbar.open({ text: 'エンコード情報の取得に失敗しました', color: 'error' });

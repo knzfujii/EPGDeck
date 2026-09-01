@@ -419,10 +419,10 @@ async function runEncode(options = {}) {
             const match = text.match(timeRegExp);
             if (match && match.groups && match.groups.time) {
                 const currentTime = timeStrToSeconds(match.groups.time);
-                const percent = Math.min(1.0, Math.max(0.0, currentTime / mediaInfo.duration));
+                const percent = Math.min(100, Math.max(0, (currentTime / mediaInfo.duration) * 100));
                 const progressJson = JSON.stringify({
                     type: 'progress',
-                    percent: parseFloat(percent.toFixed(3)),
+                    percent: parseFloat(percent.toFixed(2)),
                     log: text.trim(),
                 });
                 console.log(progressJson);

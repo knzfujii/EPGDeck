@@ -443,7 +443,7 @@
                             isDetailModalOpen = false;
                             router.push(`/search?keyword=${encodeURIComponent(item.name)}`);
                         }}
-                        class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                        class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >
                         <Search size={14} /> 類似番組を検索
                     </button>
@@ -454,7 +454,7 @@
                                 isDetailModalOpen = false;
                                 router.push('/rule');
                             }}
-                            class="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-300 cursor-pointer"
+                            class="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/70 dark:hover:text-purple-100 cursor-pointer"
                         >
                             <SlidersHorizontal size={14} /> ルール一覧を見る
                         </button>

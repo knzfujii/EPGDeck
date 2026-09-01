@@ -263,7 +263,7 @@
             <!-- 再取得 -->
             <button
                 type="button"
-                class="p-2 text-slate-600 hover:text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                class="p-2 text-slate-600 hover:text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 onclick={fetchLogs}
                 title="ログを再取得"
                 disabled={isLoading}
@@ -274,7 +274,7 @@
             <!-- コピー -->
             <button
                 type="button"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition-colors"
                 onclick={copyToClipboard}
                 title="表示中のログをコピー"
             >
@@ -290,7 +290,7 @@
             <!-- ファイルダウンロード -->
             <button
                 type="button"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition-colors"
                 onclick={downloadLogFile}
                 title="ログファイル全体をダウンロード"
             >

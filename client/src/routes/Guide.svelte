@@ -323,15 +323,15 @@
     // ジャンル色
     function getGenreClass(genre1?: number): string {
         switch (genre1) {
-            case 0: return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30'; // ニュース
-            case 1: return 'border-l-4 border-l-orange-500 bg-orange-50/30 dark:bg-orange-950/30'; // スポーツ
-            case 2: return 'border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30'; // 情報
-            case 3: return 'border-l-4 border-l-rose-500 bg-rose-50/30 dark:bg-rose-950/30'; // ドラマ
-            case 4: return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30'; // 音楽
-            case 5: return 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/30'; // バラエティ
-            case 6: return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-950/30'; // 映画
-            case 7: return 'border-l-4 border-l-pink-500 bg-pink-50/30 dark:bg-pink-950/30'; // アニメ
-            default: return 'border-l-4 border-l-slate-300 dark:border-l-slate-700 bg-white dark:bg-slate-900';
+            case 0: return 'border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-700/45'; // ニュース
+            case 1: return 'border-l-4 border-l-orange-500 bg-orange-50/30 dark:bg-orange-700/45'; // スポーツ
+            case 2: return 'border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-700/45'; // 情報
+            case 3: return 'border-l-4 border-l-rose-500 bg-rose-50/30 dark:bg-rose-700/45'; // ドラマ
+            case 4: return 'border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-700/45'; // 音楽
+            case 5: return 'border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-700/45'; // バラエティ
+            case 6: return 'border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-700/45'; // 映画
+            case 7: return 'border-l-4 border-l-pink-500 bg-pink-50/30 dark:bg-pink-700/45'; // アニメ
+            default: return 'border-l-4 border-l-slate-300 dark:border-l-slate-500 bg-white dark:bg-slate-600';
         }
     }
 </script>
@@ -521,8 +521,8 @@
                                                     </div>
                                                 {/if}
 
-                                                <!-- 番組タイトル (開始時間をなくし最上段からしっかり表示) -->
-                                                <p class="font-bold text-xs sm:text-[13px] leading-snug text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 {heightPx <= 30 ? 'truncate' : heightPx <= 60 ? 'line-clamp-2' : 'line-clamp-3'}">
+                                                <!-- 番組タイトル -->
+                                                <p class="font-bold text-xs sm:text-[13px] leading-snug text-slate-900 dark:text-slate-100 {heightPx <= 30 ? 'truncate' : heightPx <= 60 ? 'line-clamp-2' : 'line-clamp-3'}">
                                                     {prog.name}
                                                 </p>
 

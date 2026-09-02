@@ -18,7 +18,8 @@
         AlertTriangle,
         Lock,
         Radio,
-        Compass
+        Compass,
+        SlidersHorizontal
     } from '@lucide/svelte';
 
     const MAX_DAYS_AHEAD = 8; // 今日から最大8日先まで (計9日間)
@@ -81,6 +82,49 @@
 
     // 予約マップ (programId -> reserve)
     let reservesMap = $state<Map<number, any>>(new Map());
+
+    // 予約オプション設定 (エンコードプリセット名 / 保存先ディレクトリ名)
+    let encodeModes = $state<string[]>([]);
+    let storageDirs = $state<string[]>([]);
+
+    // 予約フォーム状態
+    let saveParentDir = $state<string>(''); // TS保存先 (親ディレクトリ名)
+    let saveSubDir = $state<string>(''); // TS保存先 (サブディレクトリ)
+    let encRows = $state<{ mode: string; parentDir: string; subDir: string }[]>([
+        { mode: '', parentDir: '', subDir: '' },
+    ]);
+    let isDeleteOriginal = $state(false);
+
+    // 予約フォームを初期化 (新規予約時)
+    function resetReserveForm() {
+        saveParentDir = '';
+        saveSubDir = '';
+        encRows = [{ mode: '', parentDir: '', subDir: '' }];
+        isDeleteOriginal = false;
+    }
+
+    // 予約フォームに既存の予約設定を反映 (編集時)
+    function loadReserveForm(reserve: any) {
+        saveParentDir = reserve?.parentDirectoryName || '';
+        saveSubDir = reserve?.directory || '';
+        encRows = [
+            { mode: reserve?.encodeMode1 || '', parentDir: reserve?.encodeParentDirectoryName1 || '', subDir: reserve?.encodeDirectory1 || '' },
+            { mode: reserve?.encodeMode2 || '', parentDir: reserve?.encodeParentDirectoryName2 || '', subDir: reserve?.encodeDirectory2 || '' },
+            { mode: reserve?.encodeMode3 || '', parentDir: reserve?.encodeParentDirectoryName3 || '', subDir: reserve?.encodeDirectory3 || '' },
+        ].filter(r => r.mode || r.parentDir || r.subDir);
+        if (encRows.length === 0) encRows = [{ mode: '', parentDir: '', subDir: '' }];
+        isDeleteOriginal = reserve?.isDeleteOriginalAfterEncode || false;
+    }
+
+    // エンコード行の追加 / 削除
+    function addEncodeRow() {
+        if (encRows.length >= 3) return;
+        encRows = [...encRows, { mode: '', parentDir: '', subDir: '' }];
+    }
+    function removeEncodeRow(index: number) {
+        encRows = encRows.filter((_, i) => i !== index);
+        if (encRows.length === 0) encRows = [{ mode: '', parentDir: '', subDir: '' }];
+    }
 
     // グリッドスクロールコンテナ参照
     let scrollContainer = $state<HTMLDivElement | null>(null);
@@ -237,6 +281,13 @@
 
     onMount(() => {
         fetchGuide(true);
+        // エンコードプリセット名と保存先ディレクトリ名を取得
+        axios.get('/api/config')
+            .then(res => {
+                encodeModes = res.data.encode || [];
+                storageDirs = res.data.recorded || [];
+            })
+            .catch(e => console.error('Failed to fetch config', e));
         const timer = setInterval(updateCurrentTimeLine, 30000);
         return () => clearInterval(timer);
     });
@@ -270,13 +321,44 @@
 
     // 番組クリックで詳細モーダルを開く
     function openProgramModal(program: any, channel: any) {
+        const reserve = reservesMap.get(program.id) || null;
         selectedProgram = {
             ...program,
             channelName: channel.name,
             channelId: channel.id,
-            reserve: reservesMap.get(program.id) || null
+            reserve: reserve
         };
+        if (reserve) {
+            loadReserveForm(reserve);
+        } else {
+            resetReserveForm();
+        }
         isModalOpen = true;
+    }
+
+    // 予約フォームから saveOption を構築
+    function buildSaveOption() {
+        return {
+            parentDirectoryName: saveParentDir || undefined,
+            directory: saveSubDir || undefined,
+        };
+    }
+
+    // 予約フォームから encodeOption を構築
+    function buildEncodeOption() {
+        const filled = encRows.filter(r => r.mode);
+        return {
+            mode1: filled[0]?.mode || undefined,
+            encodeParentDirectoryName1: filled[0]?.parentDir || undefined,
+            directory1: filled[0]?.subDir || undefined,
+            mode2: filled[1]?.mode || undefined,
+            encodeParentDirectoryName2: filled[1]?.parentDir || undefined,
+            directory2: filled[1]?.subDir || undefined,
+            mode3: filled[2]?.mode || undefined,
+            encodeParentDirectoryName3: filled[2]?.parentDir || undefined,
+            directory3: filled[2]?.subDir || undefined,
+            isDeleteOriginalAfterEncode: isDeleteOriginal,
+        };
     }
 
     // 予約追加
@@ -287,6 +369,8 @@
             await axios.post('/api/reserves', {
                 programId: program.id,
                 isHalfWidth: true,
+                saveOption: buildSaveOption(),
+                encodeOption: buildEncodeOption(),
             });
             snackbar.open({ text: `「${program.name}」を録画予約しました`, color: 'success' });
             await fetchGuide(false);
@@ -296,6 +380,29 @@
         } catch (e) {
             console.error('Failed to add reserve', e);
             snackbar.open({ text: '録画予約の追加に失敗しました', color: 'error' });
+        } finally {
+            isReserving = false;
+        }
+    }
+
+    // 予約設定の更新
+    async function updateReserve(reserveId: number, program: any) {
+        if (!reserveId || isReserving) return;
+        isReserving = true;
+        try {
+            await axios.put(`/api/reserves/${reserveId}`, {
+                allowEndLack: false,
+                saveOption: buildSaveOption(),
+                encodeOption: buildEncodeOption(),
+            });
+            snackbar.open({ text: `「${program.name}」の予約設定を更新しました`, color: 'success' });
+            await fetchGuide(false);
+            if (selectedProgram) {
+                selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
+            }
+        } catch (e) {
+            console.error('Failed to update reserve', e);
+            snackbar.open({ text: '予約設定の更新に失敗しました', color: 'error' });
         } finally {
             isReserving = false;
         }
@@ -557,7 +664,7 @@
         ></button>
 
         <!-- モーダル本体 -->
-        <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900">
+        <div class="relative w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900">
             <!-- モーダルヘッダー -->
             <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
                 <div>
@@ -609,6 +716,110 @@
                 {/if}
             </div>
 
+            <!-- 録画オプション設定 -->
+            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/30">
+                <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+                    <SlidersHorizontal size={13} /> 録画オプション
+                </h4>
+
+                <!-- TS保存先 -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (親)</span>
+                        <select
+                            bind:value={saveParentDir}
+                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                            <option value="">デフォルト</option>
+                            {#each storageDirs as dir}
+                                <option value={dir}>{dir}</option>
+                            {/each}
+                        </select>
+                    </div>
+                    <div>
+                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (サブ)</span>
+                        <input
+                            type="text"
+                            bind:value={saveSubDir}
+                            placeholder="サブディレクトリ (任意)"
+                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                        />
+                    </div>
+                </div>
+
+                <!-- エンコード設定 -->
+                <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">エンコード設定</span>
+                        {#if encRows.length < 3}
+                            <button
+                                type="button"
+                                onclick={addEncodeRow}
+                                class="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                            >
+                                <Plus size={12} /> 追加
+                            </button>
+                        {/if}
+                    </div>
+
+                    {#each encRows as row, i}
+                        <div class="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-bold text-slate-400">#{i + 1}</span>
+                                <select
+                                    bind:value={row.mode}
+                                    class="h-8 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                >
+                                    <option value="">エンコードなし</option>
+                                    {#each encodeModes as mode}
+                                        <option value={mode}>{mode}</option>
+                                    {/each}
+                                </select>
+                                {#if encRows.length > 1}
+                                    <button
+                                        type="button"
+                                        onclick={() => removeEncodeRow(i)}
+                                        class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-700"
+                                        aria-label="エンコード行を削除"
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                {/if}
+                            </div>
+                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                <select
+                                    bind:value={row.parentDir}
+                                    class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                >
+                                    <option value="">保存先: デフォルト</option>
+                                    {#each storageDirs as dir}
+                                        <option value={dir}>{dir}</option>
+                                    {/each}
+                                </select>
+                                <input
+                                    type="text"
+                                    bind:value={row.subDir}
+                                    placeholder="サブディレクトリ (任意)"
+                                    class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                                />
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+
+                <!-- TSファイル削除 -->
+                <label class="mt-3 flex cursor-pointer items-center gap-2">
+                    <input
+                        type="checkbox"
+                        bind:checked={isDeleteOriginal}
+                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                    />
+                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        エンコード完了後に元のTSファイルを削除する
+                    </span>
+                </label>
+            </div>
+
             <!-- アクションフッター (予約 / 解除 / ルール検索) -->
             <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
@@ -632,6 +843,14 @@
                     </button>
 
                     {#if selectedProgram.reserve}
+                        <button
+                            type="button"
+                            disabled={isReserving}
+                            onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
+                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            <CheckCircle2 size={14} /> 設定を更新
+                        </button>
                         <button
                             type="button"
                             disabled={isReserving}

@@ -70,7 +70,7 @@
 
     // 2. 予約設定 (reserveOption)
     let isEnable = $state(true);
-    let allowEndLack = $state(true);
+    let allowEndLack = $state(false);
     let avoidDuplicate = $state(true);
     let periodToAvoidDuplicate = $state<number | null>(null);
 
@@ -196,7 +196,7 @@
                 durationMax = null;
 
                 isEnable = true;
-                allowEndLack = true;
+                allowEndLack = false;
                 avoidDuplicate = true;
                 periodToAvoidDuplicate = null;
 
@@ -743,7 +743,7 @@
                                             id="rule-enc-dir1"
                                             type="text"
                                             bind:value={encodeDir1}
-                                            placeholder="mp4"
+                                            placeholder="サブディレクトリ (任意)"
                                             class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                         />
                                     </div>
@@ -786,7 +786,50 @@
                                             id="rule-enc-dir2"
                                             type="text"
                                             bind:value={encodeDir2}
-                                            placeholder="webm"
+                                            placeholder="サブディレクトリ (任意)"
+                                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- エンコード設定 3 -->
+                            <div class="space-y-3 border-t border-slate-200/60 pt-3 mt-3 dark:border-slate-700/60">
+                                <p class="font-bold text-slate-800 dark:text-slate-200">エンコード設定 3 (追加)</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div>
+                                        <label for="rule-enc-mode3" class="block text-[11px] text-slate-500 mb-1">プリセット</label>
+                                        <select
+                                            id="rule-enc-mode3"
+                                            bind:value={encodeMode3}
+                                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        >
+                                            <option value="">なし</option>
+                                            {#each encodeModes as em}
+                                                <option value={em.name}>{em.name}{em.suffix ? ` (${em.suffix})` : ''}</option>
+                                            {/each}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="rule-enc-storage3" class="block text-[11px] text-slate-500 mb-1">保存先ストレージ</label>
+                                        <select
+                                            id="rule-enc-storage3"
+                                            bind:value={encodeParentDir3}
+                                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                        >
+                                            <option value="">デフォルト</option>
+                                            {#each storageList as st}
+                                                <option value={st}>{st}</option>
+                                            {/each}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="rule-enc-dir3" class="block text-[11px] text-slate-500 mb-1">サブディレクトリ</label>
+                                        <input
+                                            id="rule-enc-dir3"
+                                            type="text"
+                                            bind:value={encodeDir3}
+                                            placeholder="サブディレクトリ (任意)"
                                             class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                         />
                                     </div>

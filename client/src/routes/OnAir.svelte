@@ -147,7 +147,7 @@
         try {
             await axios.post('/api/reserves', {
                 programId: program.id,
-                allowEndLack: true,
+                allowEndLack: false,
             });
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
             isDetailModalOpen = false;

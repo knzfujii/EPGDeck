@@ -59,7 +59,16 @@
     }
 
     onMount(() => {
-        fetchRules();
+        fetchRules().then(() => {
+            // クエリパラメータ ?edit=<ruleId> で指定されたルールの編集モーダルを自動で開く
+            const editRuleId = router.query['edit'];
+            if (editRuleId) {
+                const rule = rules.find(r => String(r.id) === editRuleId);
+                if (rule) {
+                    openEditModal(rule);
+                }
+            }
+        });
     });
 
     // 新規作成モーダルを開く

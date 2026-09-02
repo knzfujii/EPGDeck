@@ -94,6 +94,7 @@
         { mode: '', parentDir: '', subDir: '' },
     ]);
     let isDeleteOriginal = $state(false);
+    let allowEndLack = $state(false);
 
     // 予約フォームを初期化 (新規予約時)
     function resetReserveForm() {
@@ -101,12 +102,14 @@
         saveSubDir = '';
         encRows = [{ mode: '', parentDir: '', subDir: '' }];
         isDeleteOriginal = false;
+        allowEndLack = false;
     }
 
     // 予約フォームに既存の予約設定を反映 (編集時)
     function loadReserveForm(reserve: any) {
         saveParentDir = reserve?.parentDirectoryName || '';
         saveSubDir = reserve?.directory || '';
+        allowEndLack = reserve?.allowEndLack || false;
         encRows = [
             { mode: reserve?.encodeMode1 || '', parentDir: reserve?.encodeParentDirectoryName1 || '', subDir: reserve?.encodeDirectory1 || '' },
             { mode: reserve?.encodeMode2 || '', parentDir: reserve?.encodeParentDirectoryName2 || '', subDir: reserve?.encodeDirectory2 || '' },
@@ -369,6 +372,7 @@
             await axios.post('/api/reserves', {
                 programId: program.id,
                 isHalfWidth: true,
+                allowEndLack: allowEndLack,
                 saveOption: buildSaveOption(),
                 encodeOption: buildEncodeOption(),
             });
@@ -391,7 +395,7 @@
         isReserving = true;
         try {
             await axios.put(`/api/reserves/${reserveId}`, {
-                allowEndLack: false,
+                allowEndLack: allowEndLack,
                 saveOption: buildSaveOption(),
                 encodeOption: buildEncodeOption(),
             });
@@ -816,6 +820,18 @@
                     />
                     <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
                         エンコード完了後に元のTSファイルを削除する
+                    </span>
+                </label>
+
+                <!-- 末尾欠け許可 -->
+                <label class="mt-3 flex cursor-pointer items-center gap-2">
+                    <input
+                        type="checkbox"
+                        bind:checked={allowEndLack}
+                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                    />
+                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        状況に応じて末尾が欠けることを許可する
                     </span>
                 </label>
             </div>

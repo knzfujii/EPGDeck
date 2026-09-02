@@ -74,7 +74,7 @@
             },
             reserveOption: {
                 enable: true,
-                allowEndLack: true,
+                allowEndLack: false,
                 avoidDuplicate: true,
             },
             saveOption: {

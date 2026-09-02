@@ -34,7 +34,7 @@ export default class Rule {
     public enable: boolean = false;
     public avoidDuplicate: boolean = false;
     public periodToAvoidDuplicate: number | null = null;
-    public allowEndLack: boolean = true;
+    public allowEndLack: boolean = false;
     public tags: string | null = null;
 
     public parentDirectoryName: string | null = null;

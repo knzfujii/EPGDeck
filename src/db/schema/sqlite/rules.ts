@@ -32,7 +32,7 @@ export const rules = sqliteTable('rule', {
     enable: integer('enable', { mode: 'boolean' }).notNull().default(false),
     avoidDuplicate: integer('avoidDuplicate', { mode: 'boolean' }).notNull().default(false),
     periodToAvoidDuplicate: integer('periodToAvoidDuplicate'),
-    allowEndLack: integer('allowEndLack', { mode: 'boolean' }).notNull().default(true),
+    allowEndLack: integer('allowEndLack', { mode: 'boolean' }).notNull().default(false),
     tags: text('tags'),
     parentDirectoryName: text('parentDirectoryName'),
     directory: text('directory'),

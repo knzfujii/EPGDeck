@@ -32,7 +32,7 @@ export const rules = mysqlTable('rule', {
     enable: boolean('enable').notNull().default(false),
     avoidDuplicate: boolean('avoidDuplicate').notNull().default(false),
     periodToAvoidDuplicate: int('periodToAvoidDuplicate'),
-    allowEndLack: boolean('allowEndLack').notNull().default(true),
+    allowEndLack: boolean('allowEndLack').notNull().default(false),
     tags: text('tags'),
     parentDirectoryName: text('parentDirectoryName'),
     directory: text('directory'),

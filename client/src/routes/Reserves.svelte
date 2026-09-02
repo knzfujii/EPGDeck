@@ -44,11 +44,13 @@
     ]);
     let isDeleteOriginal = $state(false);
     let isUpdating = $state(false);
+    let allowEndLack = $state(false);
 
     // 予約フォームに既存の予約設定を反映
     function loadReserveForm(reserve: apid.ReserveItem) {
         saveParentDir = reserve.parentDirectoryName || '';
         saveSubDir = reserve.directory || '';
+        allowEndLack = reserve.allowEndLack || false;
         encRows = [
             { mode: reserve.encodeMode1 || '', parentDir: reserve.encodeParentDirectoryName1 || '', subDir: reserve.encodeDirectory1 || '' },
             { mode: reserve.encodeMode2 || '', parentDir: reserve.encodeParentDirectoryName2 || '', subDir: reserve.encodeDirectory2 || '' },
@@ -93,13 +95,13 @@
         };
     }
 
-    // 予約設定の更新
+    // 予約設定の更新 (個別予約のみ)
     async function updateReserve(item: apid.ReserveItem) {
         if (!item || isUpdating) return;
         isUpdating = true;
         try {
             await axios.put(`/api/reserves/${item.id}`, {
-                allowEndLack: item.allowEndLack,
+                allowEndLack: allowEndLack,
                 saveOption: buildSaveOption(),
                 encodeOption: buildEncodeOption(),
             });
@@ -111,6 +113,12 @@
         } finally {
             isUpdating = false;
         }
+    }
+
+    // ルール予約の場合はルール編集ページへ遷移
+    function goToRuleEdit(item: apid.ReserveItem) {
+        isDetailModalOpen = false;
+        router.push(`/rule?edit=${item.ruleId}`);
     }
 
     let unsubscribeSocket: (() => void) | null = null;
@@ -507,7 +515,41 @@
                     </div>
                 {/if}
 
-                <!-- 録画オプション設定 (編集可能) -->
+                <!-- 録画オプション設定 -->
+                {#if item.ruleId}
+                    <!-- ルール予約: ルール側の設定が反映されるため、ルール編集ページへ誘導 -->
+                    <div class="rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 dark:border-purple-900/50 dark:bg-purple-950/30">
+                        <h4 class="flex items-center gap-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 mb-2">
+                            <SlidersHorizontal size={13} /> 録画オプション
+                        </h4>
+                        <p class="text-xs leading-relaxed text-purple-700/80 dark:text-purple-300/80">
+                            この予約は自動録画ルール (Rule #{item.ruleId}) によって作成されています。
+                            保存先・エンコード設定・末尾欠け許可などの録画オプションは、ルール側で管理されます。
+                        </p>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div class="rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/60">
+                                <span class="text-slate-400 text-[11px] block">保存先</span>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">
+                                    {item.parentDirectoryName || 'デフォルト'} {item.directory ? `/ ${item.directory}` : ''}
+                                </span>
+                            </div>
+                            <div class="rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/60">
+                                <span class="text-slate-400 text-[11px] block">エンコード設定</span>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">
+                                    {item.encodeMode1 || 'なし'} {item.encodeMode2 ? `, ${item.encodeMode2}` : ''}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onclick={() => goToRuleEdit(item)}
+                            class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-purple-700 cursor-pointer"
+                        >
+                            <SlidersHorizontal size={14} /> ルールを編集する
+                        </button>
+                    </div>
+                {:else}
+                <!-- 個別予約: 予約自体を編集可能 -->
                 <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-700 dark:bg-slate-800/30">
                     <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
                         <SlidersHorizontal size={13} /> 録画オプション
@@ -609,7 +651,20 @@
                             エンコード完了後に元のTSファイルを削除する
                         </span>
                     </label>
+
+                    <!-- 末尾欠け許可 -->
+                    <label class="mt-3 flex cursor-pointer items-center gap-2">
+                        <input
+                            type="checkbox"
+                            bind:checked={allowEndLack}
+                            class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                        />
+                        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            状況に応じて末尾が欠けることを許可する
+                        </span>
+                    </label>
                 </div>
+                {/if}
             </div>
 
             <!-- モーダルフッター -->
@@ -628,26 +683,25 @@
                     {#if item.ruleId}
                         <button
                             type="button"
-                            onclick={() => {
-                                isDetailModalOpen = false;
-                                router.push('/rule');
-                            }}
+                            onclick={() => goToRuleEdit(item)}
                             class="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/70 dark:hover:text-purple-100 cursor-pointer"
                         >
-                            <SlidersHorizontal size={14} /> ルール一覧を見る
+                            <SlidersHorizontal size={14} /> ルールを編集する
                         </button>
                     {/if}
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button
-                        type="button"
-                        disabled={isUpdating}
-                        onclick={() => updateReserve(item)}
-                        class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                    >
-                        <CheckCircle2 size={14} /> 設定を更新
-                    </button>
+                    {#if !item.ruleId}
+                        <button
+                            type="button"
+                            disabled={isUpdating}
+                            onclick={() => updateReserve(item)}
+                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                        >
+                            <CheckCircle2 size={14} /> 設定を更新
+                        </button>
+                    {/if}
                     {#if item.isSkip}
                         <button
                             type="button"

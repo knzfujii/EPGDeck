@@ -253,6 +253,27 @@
         }
     }
 
+    // 予約マップのみを更新 (番組表の再描画・スクロール位置のリセットを避ける)
+    async function refreshReservesMap() {
+        try {
+            const reservesRes = await axios.get('/api/reserves', {
+                params: {
+                    startAt: guideStartAt,
+                    endAt: guideEndAt,
+                    isHalfWidth: true,
+                }
+            }).catch(() => ({ data: { reserves: [] } }));
+
+            const map = new Map<number, any>();
+            for (const r of reservesRes.data.reserves || []) {
+                if (r.programId) map.set(r.programId, r);
+            }
+            reservesMap = map;
+        } catch (e) {
+            console.error('Failed to refresh reserves map', e);
+        }
+    }
+
     // 指定時間または現在時刻へスクロール
     function scrollToCurrentOrPreset(target: string | number) {
         if (!scrollContainer) return;
@@ -377,10 +398,11 @@
                 encodeOption: buildEncodeOption(),
             });
             snackbar.open({ text: `「${program.name}」を録画予約しました`, color: 'success' });
-            await fetchGuide(false);
+            await refreshReservesMap();
             if (selectedProgram) {
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
+            isModalOpen = false;
         } catch (e) {
             console.error('Failed to add reserve', e);
             snackbar.open({ text: '録画予約の追加に失敗しました', color: 'error' });
@@ -400,10 +422,11 @@
                 encodeOption: buildEncodeOption(),
             });
             snackbar.open({ text: `「${program.name}」の予約設定を更新しました`, color: 'success' });
-            await fetchGuide(false);
+            await refreshReservesMap();
             if (selectedProgram) {
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
+            isModalOpen = false;
         } catch (e) {
             console.error('Failed to update reserve', e);
             snackbar.open({ text: '予約設定の更新に失敗しました', color: 'error' });
@@ -419,10 +442,11 @@
         try {
             await axios.delete(`/api/reserves/${reserveId}`);
             snackbar.open({ text: `「${name}」の予約を解除しました`, color: 'success' });
-            await fetchGuide(false);
+            await refreshReservesMap();
             if (selectedProgram) {
                 selectedProgram.reserve = null;
             }
+            isModalOpen = false;
         } catch (e) {
             console.error('Failed to delete reserve', e);
             snackbar.open({ text: '予約解除に失敗しました', color: 'error' });

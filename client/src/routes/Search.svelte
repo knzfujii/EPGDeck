@@ -3,7 +3,6 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
-    import RuleEditModal from '../lib/components/rule/RuleEditModal.svelte';
     import axios from 'axios';
     import { Search as SearchIcon, Plus, SlidersHorizontal, Check } from '@lucide/svelte';
 
@@ -15,10 +14,6 @@
     let isName = $state(true);
     let isDescription = $state(true);
     let selectedGenre = $state<number | null>(null);
-
-    // ルール作成モーダル
-    let isRuleModalOpen = $state(false);
-    let prefillRule = $state<any>(null);
 
     const genres = [
         { id: null, name: 'すべてのジャンル' },
@@ -65,23 +60,14 @@
 
     function openCreateRuleModal() {
         if (!keyword.trim()) return;
-        prefillRule = {
-            searchOption: {
-                keyword: keyword.trim(),
-                name: isName,
-                description: isDescription,
-                genres: selectedGenre !== null ? [{ genre: selectedGenre }] : [],
-            },
-            reserveOption: {
-                enable: true,
-                allowEndLack: false,
-                avoidDuplicate: true,
-            },
-            saveOption: {
-                directory: keyword.trim(),
-            }
-        };
-        isRuleModalOpen = true;
+        // 検索条件をクエリパラメータで渡してルール作成ページへ遷移
+        const params = new URLSearchParams({
+            keyword: keyword.trim(),
+            name: isName ? '1' : '0',
+            description: isDescription ? '1' : '0',
+        });
+        if (selectedGenre !== null) params.set('genre', String(selectedGenre));
+        router.push(`/rule/edit?${params.toString()}`);
     }
 
     function formatTime(timestamp: number): string {
@@ -190,11 +176,3 @@
         </div>
     {/if}
 </div>
-
-<!-- ルール作成モーダル -->
-<RuleEditModal
-    isOpen={isRuleModalOpen}
-    rule={prefillRule}
-    onClose={() => isRuleModalOpen = false}
-    onSaveSuccess={() => router.push('/rule')}
-/>

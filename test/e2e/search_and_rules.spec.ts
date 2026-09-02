@@ -38,7 +38,7 @@ test.describe('Search and Rules Management Pages', () => {
         expect(consoleErrors).toEqual([]);
     });
 
-    test('should open rule management page (/rule) and open rule edit modal', async ({ page }) => {
+    test('should open rule management page (/rule) and navigate to rule edit page', async ({ page }) => {
         const consoleErrors: string[] = [];
         const pageErrors: string[] = [];
 
@@ -65,28 +65,28 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(addRuleButton).toBeVisible();
         await addRuleButton.click();
 
-        // 3. ルール編集モーダルの確認
-        await expect(page.getByRole('heading', { name: '新規自動録画ルールの作成' })).toBeVisible();
+        // 3. ルール編集ページ (/rule/edit) への遷移
+        await page.waitForURL('**/rule/edit');
+        await expect(page).toHaveURL(/\/rule\/edit(\?.*)?$/);
 
-        // モーダルのタブ切り替え（検索条件、対象局、録画設定、エンコード）
-        const channelsTab = page.getByRole('button', { name: /対象局|放送局/ });
-        if (await channelsTab.isVisible().catch(() => false)) {
-            await channelsTab.click();
-        }
+        // 4. 新規ルール作成ページのヘッダー確認
+        await expect(page.locator('h1')).toContainText('新規自動録画ルール');
 
-        const saveTab = page.getByRole('button', { name: /録画設定|保存先/ });
-        if (await saveTab.isVisible().catch(() => false)) {
-            await saveTab.click();
-        }
+        // 5. 検索条件セクションの確認
+        await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
 
-        const encodeTab = page.getByRole('button', { name: /エンコード/ });
-        if (await encodeTab.isVisible().catch(() => false)) {
-            await encodeTab.click();
-        }
+        // 6. 各セクション見出しの確認 (縦長レイアウト)
+        await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /放送局/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /予約設定/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /保存先ストレージ/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
 
-        // キャンセルで閉じる
+        // 7. キャンセルでルール一覧に戻る
         const cancelBtn = page.getByRole('button', { name: 'キャンセル' });
         await cancelBtn.click();
+        await page.waitForURL('**/rule');
+        await expect(page.locator('h1')).toContainText('自動録画ルール');
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

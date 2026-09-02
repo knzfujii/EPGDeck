@@ -40,7 +40,7 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
 - [ ] **API クライアント層の集約と型安全化 (T-5)**
   - [ ] 各コンポーネントに散在する `axios.get/post` を `client/src/lib/api/` に集約し、`api.d.ts` の型を完全バインド
 - [ ] **巨大コンポーネントの分割・リファクタリング (T-7)**
-  - [ ] `RuleEditModal.svelte`（822行）や `VideoPlayer.svelte`（783行）をサブコンポーネントや Svelte 5 Snippet に分割
+  - [ ] `VideoPlayer.svelte`（783行）をサブコンポーネントや Svelte 5 Snippet に分割
 - [ ] **番組表・ログの仮想スクロール (Virtual Scroll) 導入検討**
   - [ ] 大量ノード表示時の描画負荷軽減
 

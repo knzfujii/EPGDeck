@@ -22,6 +22,7 @@
         '/reserves': () => import('./routes/Reserves.svelte'),
         '/search': () => import('./routes/Search.svelte'),
         '/rule': () => import('./routes/Rule.svelte'),
+        '/rule/edit': () => import('./routes/RuleEdit.svelte'),
         '/encode': () => import('./routes/Encode.svelte'),
         '/storages': () => import('./routes/Storages.svelte'),
         '/settings': () => import('./routes/Settings.svelte'),

@@ -3,7 +3,6 @@
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
-    import RuleEditModal from '../lib/components/rule/RuleEditModal.svelte';
     import axios from 'axios';
     import {
         SlidersHorizontal,
@@ -25,10 +24,6 @@
     let total = $state(0);
     let isLoading = $state(true);
     let ruleReservesMap = $state<Record<number, number>>({});
-
-    // モーダル管理
-    let isEditModalOpen = $state(false);
-    let selectedRuleForEdit = $state<any>(null);
 
     async function fetchRules() {
         isLoading = true;
@@ -59,28 +54,17 @@
     }
 
     onMount(() => {
-        fetchRules().then(() => {
-            // クエリパラメータ ?edit=<ruleId> で指定されたルールの編集モーダルを自動で開く
-            const editRuleId = router.query['edit'];
-            if (editRuleId) {
-                const rule = rules.find(r => String(r.id) === editRuleId);
-                if (rule) {
-                    openEditModal(rule);
-                }
-            }
-        });
+        fetchRules();
     });
 
-    // 新規作成モーダルを開く
-    function openCreateModal() {
-        selectedRuleForEdit = null;
-        isEditModalOpen = true;
+    // 新規作成ページへ遷移
+    function goCreateRule() {
+        router.push('/rule/edit');
     }
 
-    // 編集モーダルを開く
-    function openEditModal(rule: any) {
-        selectedRuleForEdit = rule;
-        isEditModalOpen = true;
+    // 編集ページへ遷移
+    function goEditRule(rule: any) {
+        router.push(`/rule/edit?id=${rule.id}`);
     }
 
     // 有効 / 無効トグル
@@ -145,7 +129,7 @@
 
         <button
             type="button"
-            onclick={openCreateModal}
+            onclick={goCreateRule}
             class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
         >
             <Plus size={16} /> 新規ルール作成
@@ -163,7 +147,7 @@
             <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">登録されたルールはありません</p>
             <button
                 type="button"
-                onclick={openCreateModal}
+                onclick={goCreateRule}
                 class="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
             >
                 最初のルールを作成する
@@ -191,7 +175,7 @@
                             {@const save = r.saveOption || {}}
                             {@const enc = r.encodeOption || {}}
                             <tr
-                                onclick={() => openEditModal(r)}
+                                onclick={() => goEditRule(r)}
                                 class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled ? '' : 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'}"
                             >
                                 <!-- 有効/無効スイッチ -->
@@ -332,7 +316,7 @@
                                         <!-- 編集ボタン -->
                                         <button
                                             type="button"
-                                            onclick={(e) => { e.stopPropagation(); openEditModal(r); }}
+                                            onclick={(e) => { e.stopPropagation(); goEditRule(r); }}
                                             class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-600 shadow-2xs hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-400"
                                             title="ルールを編集"
                                         >
@@ -358,11 +342,3 @@
         </div>
     {/if}
 </div>
-
-<!-- ルール作成 & 編集モーダル -->
-<RuleEditModal
-    isOpen={isEditModalOpen}
-    rule={selectedRuleForEdit}
-    onClose={() => isEditModalOpen = false}
-    onSaveSuccess={fetchRules}
-/>

@@ -118,7 +118,7 @@
     // ルール予約の場合はルール編集ページへ遷移
     function goToRuleEdit(item: apid.ReserveItem) {
         isDetailModalOpen = false;
-        router.push(`/rule?edit=${item.ruleId}`);
+        router.push(`/rule/edit?id=${item.ruleId}`);
     }
 
     let unsubscribeSocket: (() => void) | null = null;
@@ -680,15 +680,6 @@
                     >
                         <Search size={14} /> 類似番組を検索
                     </button>
-                    {#if item.ruleId}
-                        <button
-                            type="button"
-                            onclick={() => goToRuleEdit(item)}
-                            class="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 hover:text-purple-900 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/70 dark:hover:text-purple-100 cursor-pointer"
-                        >
-                            <SlidersHorizontal size={14} /> ルールを編集する
-                        </button>
-                    {/if}
                 </div>
 
                 <div class="flex items-center gap-2">

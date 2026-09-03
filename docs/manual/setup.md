@@ -4,7 +4,7 @@
 
 ## セットアップ
 
-1. **Node.js, Mirakurun, FFmpeg/FFprobe, Python (v3.x), GCC** がインストール済みであることを確認する
+1. **Node.js, Mirakurun, FFmpeg/FFprobe** がインストール済みであることを確認する
 
     本リポジトリには `.mise.toml` が含まれているため、[mise](https://mise.jdx.dev/) をお使いの場合は以下で推奨バージョンの Node.js を自動セットアップできます。
 
@@ -18,8 +18,6 @@
     $ node --version
     $ curl -o - http://<MirakurunURL>:<Port>/api/version
     $ ffmpeg -version
-    $ python --version
-    $ gcc --version
     ```
 
     FFmpeg/FFprobe についてデフォルトでは `/usr/local/bin/` にインストールされていると想定しています  
@@ -75,8 +73,10 @@
 
 -   手動で終了する場合
 
+    `npm start` で起動した場合は、ターミナルで **`Ctrl+C`（SIGINT）** を送信して終了します。
+
     ```
-    $ npm stop
+    $ Ctrl+C
     ```
 
 -   自動起動した EPGDeck を終了する場合

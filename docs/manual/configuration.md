@@ -45,6 +45,20 @@ server:
   # mirakurun: 'http://192.168.1.10:40772/'
 ```
 
+### `server.apiServers`
+Swagger UI の OpenAPI ドキュメントに記載するサーバー URL の一覧です。  
+localhost 以外のホストから API を利用する場合に設定します（未指定時は `http://localhost:<port>` が自動設定されます）。
+
+| 種類 | デフォルト値 | 必須 |
+| --- | --- | --- |
+| string[] | `http://localhost:<port>` | no |
+
+```yaml
+server:
+  apiServers:
+    - http://192.168.1.10:8888
+```
+
 ### `server.subDirectory`
 リバースプロキシ等でサブディレクトリ下に配置する場合のプレフィックスパスです。
 
@@ -184,8 +198,8 @@ EPGDeck では Jellyfin-FFmpeg などの高速・高機能なトランスコー�
 ```yaml
 encode:
   binaries:
-    ffmpeg: /usr/lib/jellyfin-ffmpeg/ffmpeg
-    ffprobe: /usr/lib/jellyfin-ffmpeg/ffprobe
+    ffmpeg: /usr/bin/ffmpeg
+    ffprobe: /usr/bin/ffprobe
   maxProcesses: 4                  # システム全体の最大エンコードプロセス数
   concurrency: 1                   # 同時実行キュー数
   presets:

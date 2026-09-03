@@ -34,6 +34,8 @@ describe('Structured Config Schema', () => {
         expect(conf.streaming.live).toBeDefined();
         expect(conf.streaming.recorded).toBeDefined();
         expect(conf.streaming.tempDir).toBeDefined();
+        expect(conf.encode.binaries.ffmpeg).toBe('/usr/bin/ffmpeg');
+        expect(conf.encode.binaries.ffprobe).toBe('/usr/bin/ffprobe');
     });
 
     it('should throw on invalid port in Configuration model', () => {

@@ -6,13 +6,13 @@ Web 視聴での字幕機能を有効にするため、`config.yml` で幾つか
 
 iOS Safari を含むフルプラットフォーム対応しています。
 
-[node-arib-subtitle-timedmetadater][] を利用するため、特に設定は不要です。
+[arib-subtitle-timedmetadater][] を利用するため、特に設定は不要です。
 
 そのため、`config.yml` の `useSubtitleUnrecognizerCmd` オプションが廃止となりますので、ご注意ください。
 
 なお、HLS 配信時の文字スーパー表示は未支援です。
 
-[node-arib-subtitle-timedmetadater]: https://github.com/monyone/node-arib-subtitle-timedmetadater
+[arib-subtitle-timedmetadater]: https://github.com/monyone/node-arib-subtitle-timedmetadater
 
 ### ※iOS 及び iPadOS(PWA モード時のみ)での制約
 

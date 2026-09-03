@@ -192,8 +192,8 @@ class Configuration implements IConfiguration {
         // 6. エンコード設定
         const encConf = raw.encode || {};
         const binaries = {
-            ffmpeg: encConf.binaries?.ffmpeg || raw.ffmpeg || '/usr/lib/jellyfin-ffmpeg/ffmpeg',
-            ffprobe: encConf.binaries?.ffprobe || raw.ffprobe || '/usr/lib/jellyfin-ffmpeg/ffprobe',
+            ffmpeg: encConf.binaries?.ffmpeg || raw.ffmpeg || '/usr/bin/ffmpeg',
+            ffprobe: encConf.binaries?.ffprobe || raw.ffprobe || '/usr/bin/ffprobe',
         };
         const rawPresets = Array.isArray(encConf.presets)
             ? encConf.presets

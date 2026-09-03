@@ -105,8 +105,8 @@ recording:
 # ------------------------------------------------------------------------------
 encode:
   binaries:
-    ffmpeg: /usr/lib/jellyfin-ffmpeg/ffmpeg
-    ffprobe: /usr/lib/jellyfin-ffmpeg/ffprobe
+    ffmpeg: /usr/bin/ffmpeg
+    ffprobe: /usr/bin/ffprobe
   maxProcesses: 4
   concurrency: 1
   presets:

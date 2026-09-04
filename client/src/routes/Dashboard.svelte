@@ -6,7 +6,7 @@
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import axios from 'axios';
     import type * as apid from '../../../api';
-    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server } from '@lucide/svelte';
+    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle } from '@lucide/svelte';
 
     interface DashboardReserve extends apid.ReserveItem {
         isRecording?: boolean;
@@ -22,6 +22,7 @@
     let recordedTotal = $state(0);
     let reservesTotal = $state(0);
     let storages = $state<StorageItem[]>([]);
+    let isStorageOpen = $state(false);
     let latestRecorded = $state<apid.RecordedItem[]>([]);
     let upcomingReserves = $state<DashboardReserve[]>([]);
     let isLoading = $state(true);
@@ -101,82 +102,128 @@
         if (!total || total === 0) return 0;
         return Math.min(100, Math.max(0, Math.round((used / total) * 100)));
     }
+
+    const worstStorageStatus = $derived.by(() => {
+        if (storages.length === 0) return null;
+        let maxPercent = 0;
+        let worstDriveName = storages[0].name;
+        for (const st of storages) {
+            const pct = getUsagePercent(st.used, st.total);
+            if (pct >= maxPercent) {
+                maxPercent = pct;
+                worstDriveName = st.name;
+            }
+        }
+        if (maxPercent >= 90) {
+            return {
+                level: 'danger' as const,
+                maxPercent,
+                worstDriveName,
+                label: `容量逼迫 (${maxPercent}%)`,
+                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-900',
+                iconColor: 'text-rose-600 dark:text-rose-400'
+            };
+        } else if (maxPercent >= 75) {
+            return {
+                level: 'warning' as const,
+                maxPercent,
+                worstDriveName,
+                label: `注意 (${maxPercent}%)`,
+                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900',
+                iconColor: 'text-amber-600 dark:text-amber-400'
+            };
+        } else {
+            return {
+                level: 'healthy' as const,
+                maxPercent,
+                worstDriveName,
+                label: `健全 (最大 ${maxPercent}%)`,
+                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900',
+                iconColor: 'text-emerald-600 dark:text-emerald-400'
+            };
+        }
+    });
 </script>
 
 <div class="space-y-5 w-full max-w-full min-w-0">
-    <!-- ステータス概要カード -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <button
-            type="button"
-            onclick={() => router.push('/reserves')}
-            class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-xs transition hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 cursor-pointer"
-        >
-            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
-                <Clock size={28} />
-            </div>
-            <div>
-                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">予約中</p>
-                <p class="text-3xl font-black text-slate-900 dark:text-slate-100">{reservesTotal} <span class="text-sm font-normal text-slate-500">件</span></p>
-            </div>
-        </button>
-
-        <button
-            type="button"
-            onclick={() => router.push('/recorded')}
-            class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-xs transition hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 cursor-pointer"
-        >
-            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                <Video size={28} />
-            </div>
-            <div>
-                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">録画済み</p>
-                <p class="text-3xl font-black text-slate-900 dark:text-slate-100">{recordedTotal.toLocaleString()} <span class="text-sm font-normal text-slate-500">件</span></p>
-            </div>
-        </button>
-    </div>
-
-    <!-- ストレージ使用状況カード (ダッシュボード統合) -->
+    <!-- ストレージ使用状況カード (最上部に配置 / デフォルト折りたたみ) -->
     {#if storages.length > 0}
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div class="mb-3 flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100">
-                    <HardDrive size={18} class="text-blue-600 dark:text-blue-400" />
-                    ストレージ容量
-                </h2>
-                <span class="text-xs text-slate-500 dark:text-slate-400">全 {storages.length} ドライブ</span>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 {storages.length > 1 ? 'sm:grid-cols-2' : ''}">
-                {#each storages as st}
-                    {@const percent = getUsagePercent(st.used, st.total)}
-                    <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                                <Server size={15} class="text-blue-500" />
-                                {st.name}
-                            </span>
-                            <span class="font-bold {percent > 90 ? 'text-rose-600 dark:text-rose-400' : percent > 75 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}">
-                                {percent}% 使用中
-                            </span>
-                        </div>
-
-                        <!-- プログレスバー -->
-                        <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                            <div
-                                class="h-full rounded-full transition-all duration-500 {percent > 90 ? 'bg-rose-500' : percent > 75 ? 'bg-amber-500' : 'bg-blue-600'}"
-                                style="width: {percent}%"
-                            ></div>
-                        </div>
-
-                        <!-- 容量詳細数値 -->
-                        <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                            <span>使用: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.used)}</strong></span>
-                            <span>空き: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.available)}</strong></span>
-                            <span>合計: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.total)}</strong></span>
-                        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden">
+            <button
+                type="button"
+                onclick={() => (isStorageOpen = !isStorageOpen)}
+                class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+            >
+                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <HardDrive size={18} class={worstStorageStatus?.iconColor || 'text-blue-600 dark:text-blue-400'} />
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            ストレージ容量
+                        </h2>
                     </div>
-                {/each}
-            </div>
+
+                    <!-- 健全性ステータスバッジ (一番悪いステータス) -->
+                    {#if worstStorageStatus}
+                        <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold {worstStorageStatus.badgeClass}">
+                            {#if worstStorageStatus.level === 'danger'}
+                                <AlertTriangle size={13} />
+                            {:else if worstStorageStatus.level === 'warning'}
+                                <AlertCircle size={13} />
+                            {:else}
+                                <CheckCircle2 size={13} />
+                            {/if}
+                            {worstStorageStatus.label}
+                        </span>
+                    {/if}
+
+                    <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">({storages.length} ドライブ)</span>
+                </div>
+
+                <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <span>{isStorageOpen ? '閉じる' : '詳細'}</span>
+                    {#if isStorageOpen}
+                        <ChevronDown size={16} />
+                    {:else}
+                        <ChevronRight size={16} />
+                    {/if}
+                </div>
+            </button>
+
+            {#if isStorageOpen}
+                <div class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
+                    <div class="grid grid-cols-1 gap-4 {storages.length > 1 ? 'sm:grid-cols-2' : ''}">
+                        {#each storages as st}
+                            {@const percent = getUsagePercent(st.used, st.total)}
+                            <div class="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-800/60">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                                        <Server size={15} class="text-blue-500" />
+                                        {st.name}
+                                    </span>
+                                    <span class="font-bold {percent > 90 ? 'text-rose-600 dark:text-rose-400' : percent > 75 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}">
+                                        {percent}% 使用中
+                                    </span>
+                                </div>
+
+                                <!-- プログレスバー -->
+                                <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                    <div
+                                        class="h-full rounded-full transition-all duration-500 {percent > 90 ? 'bg-rose-500' : percent > 75 ? 'bg-amber-500' : 'bg-blue-600'}"
+                                        style="width: {percent}%"
+                                    ></div>
+                                </div>
+
+                                <!-- 容量詳細数値 -->
+                                <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                                    <span>使用: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.used)}</strong></span>
+                                    <span>空き: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.available)}</strong></span>
+                                    <span>合計: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.total)}</strong></span>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
         </div>
     {/if}
 
@@ -185,10 +232,15 @@
         <!-- 予約一覧 (一覧の中で録画中を自然に表現) -->
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
-                    <Clock size={18} class="text-amber-500" />
-                    直近の予約
-                </h2>
+                <div class="flex items-center gap-2">
+                    <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                        <Clock size={18} class="text-amber-500" />
+                        予約リスト
+                    </h2>
+                    <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+                        {reservesTotal} 件
+                    </span>
+                </div>
                 <button
                     type="button"
                     onclick={() => router.push('/reserves')}
@@ -270,13 +322,18 @@
             {/if}
         </div>
 
-        <!-- 最新の録画 (再生ボタンを目立たせて配置) -->
+        <!-- 録画リスト (再生ボタンを目立たせて配置) -->
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
-                    <Video size={18} class="text-emerald-500" />
-                    最新の録画済み
-                </h2>
+                <div class="flex items-center gap-2">
+                    <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                        <Video size={18} class="text-emerald-500" />
+                        録画リスト
+                    </h2>
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                        {recordedTotal.toLocaleString()} 件
+                    </span>
+                </div>
                 <button
                     type="button"
                     onclick={() => router.push('/recorded')}

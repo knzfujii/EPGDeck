@@ -173,7 +173,14 @@
                 const start = new Date(recordedData.startAt);
                 const end = new Date(recordedData.endAt);
                 timeRange = `${start.getMonth() + 1}/${start.getDate()} ${formatTime(start)} - ${formatTime(end)}`;
+            } catch (e) {
+                console.error('Failed to fetch recorded detail', e);
+                snackbar.open({ text: '録画情報の取得に失敗しました', color: 'error' });
+                isLoadingInfo = false;
+                return;
+            }
 
+            try {
                 if (videoId !== null && !isNaN(videoId)) {
                     // 直接再生 (MP4 / WebM)
                     streamType = 'direct';
@@ -202,7 +209,7 @@
                             videoSrc = `/streamfiles/stream${sId}.m3u8`;
                             isHls = true;
                         } else {
-                            throw new Error('Stream timed out');
+                            throw new Error('Stream timed out waiting for manifest');
                         }
                     }
                 } else if (recordedData.videoFiles?.[0]) {
@@ -227,12 +234,14 @@
                         if (isReady) {
                             videoSrc = `/streamfiles/stream${sId}.m3u8`;
                             isHls = true;
+                        } else {
+                            throw new Error('Stream timed out waiting for manifest');
                         }
                     }
                 }
             } catch (e) {
-                console.error('Failed to fetch recorded detail', e);
-                snackbar.open({ text: '録画情報の取得に失敗しました', color: 'error' });
+                console.error('Failed to start recorded stream', e);
+                snackbar.open({ text: '録画ストリームの開始に失敗しました', color: 'error' });
             } finally {
                 isLoadingInfo = false;
                 isPreparingStream = false;

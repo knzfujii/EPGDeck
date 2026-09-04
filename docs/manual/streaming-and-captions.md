@@ -4,28 +4,41 @@ Web 視聴での字幕機能を有効にするため、`config.yml` で幾つか
 
 ## HLS 配信時の字幕表示機能
 
-iOS Safari を含むフルプラットフォーム対応しています。
+iOS Safari を含むフルプラットフォームに対応しています。
 
-[arib-subtitle-timedmetadater][] を利用するため、特に設定は不要です。
+サーバー側で [arib-subtitle-timedmetadater][] により字幕ストリームを ID3 Timed Metadata に変換して TS セグメント内に多重化するため、クライアント側（hls.js / VideoJS 等）で高品位な ARIB STD-B24 字幕が表示されます。
 
-そのため、`config.yml` の `useSubtitleUnrecognizerCmd` オプションが廃止となりますので、ご注意ください。
+そのため、`config.yml` の `useSubtitleUnrecognizerCmd` オプションは不要です。
 
-なお、HLS 配信時の文字スーパー表示は未支援です。
+なお、HLS 配信時の文字スーパー表示は未対応です（文字スーパーも必要な場合は M2TS-LL をご利用ください）。
 
 [arib-subtitle-timedmetadater]: https://github.com/monyone/node-arib-subtitle-timedmetadater
 
-### ※iOS 及び iPadOS(PWA モード時のみ)での制約
+### FFmpeg パラメータの指定時の注意点 (HLS)
 
-iOS 及び iPadOS(PWA モード時のみ) でフルスクリーン再生した場合に字幕が表示できません。(os のビデオプレーヤが使用されるた
-め)
+1. **`-c:s copy` は指定しない（`-sn` を指定する）**:
+   FFmpeg の HLS muxer (`-f hls`) で `-c:s copy` を指定すると、FFmpeg が WebVTT 変換を行おうとしてエラー（`-22 Invalid argument`）となり配信が即座に失敗します。
+   字幕は ID3 データストリームとして多重化するため、`-sn -map 0 -c:d copy` を指定してください。
+2. **ライブ HLS では `-re` を指定しない**:
+   Mirakurun からの放送波ストリームはすでにリアルタイムレートで供給されています。ライブ HLS に `-re` を付与するとクロック競合によりバッファ枯渇・カクつきが発生するため、付与しないでください。
+3. **推奨セグメント設定**:
+   セグメント時間は `-hls_time 3`（3秒）、ライブ配信時のプレイリスト件数は `-hls_list_size 17` を推奨します。また、映像には Closed GOP (`-flags +cgop`) を指定してください。
 
-ただし WebVTT による字幕表示は可能なので、libaribb24 を有効化した ffmpeg による VTT 字幕は表示できます。 (表現力は劣りま
-す)
-
-### ffmpeg による VTT 字幕 720p のサンプル配置
+### HLS 720p の標準サンプル設定 (config.yml)
 
 ```bash
-'%FFMPEG% -re -dual_mono_mode main -fix_sub_duration -i pipe:0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header -c:s webvtt -master_pl_name stream%streamNum%.m3u8 %streamFileDir%/stream%streamNum%-child.m3u8'
+'%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%'
+```
+
+### ※iOS 及び iPadOS(PWA モード時のみ)での制約
+
+iOS 及び iPadOS(PWA モード時のみ) でフルスクリーン再生した場合に、OS 標準ビデオプレーヤーが使用されるため ARIB 字幕が表示できません。
+フルスクリーン時にも字幕を表示したい場合は、libaribb24 を有効化した FFmpeg で WebVTT 字幕として出力する設定を行ってください（表現力は劣ります）。
+
+#### ffmpeg による VTT 字幕 720p のサンプル設定
+
+```bash
+'%FFMPEG% -dual_mono_mode main -fix_sub_duration -i pipe:0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header -c:s webvtt -master_pl_name stream%streamNum%.m3u8 %streamFileDir%/stream%streamNum%-child.m3u8'
 ```
 
 ## M2TS-LL 低遅延配信の設定および字幕表示の設定

@@ -370,11 +370,11 @@ namespace Configuration {
                 hls: [
                     {
                         name: '720p',
-                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                     {
                         name: '480p',
-                        cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                 ],
             },
@@ -404,11 +404,11 @@ namespace Configuration {
                 hls: [
                     {
                         name: '720p',
-                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                     {
                         name: '480p',
-                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                 ],
             },
@@ -436,11 +436,11 @@ namespace Configuration {
                 hls: [
                     {
                         name: '720p',
-                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -map 0 -c:d copy -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf scale=-2:720 -b:v 3000k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                     {
                         name: '480p',
-                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -vf scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
+                        cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -map 0 -c:d copy -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 128k -ac 2 -c:v libx264 -flags +cgop -vf scale=-2:480 -b:v 1500k -preset veryfast -flags +loop-global_header %OUTPUT%',
                     },
                 ],
             },

@@ -2,7 +2,7 @@
     import { onMount, onDestroy, untrack } from 'svelte';
     import Hls from 'hls.js';
     import Mpegts from 'mpegts.js';
-    import * as aribb24 from 'aribb24.js';
+    import { SubtitleManager } from './SubtitleManager';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
     import {
@@ -37,9 +37,13 @@
     let videoElement = $state<HTMLVideoElement | null>(null);
     let containerElement = $state<HTMLDivElement | null>(null);
     let subtitleContainer = $state<HTMLDivElement | null>(null);
-    let subtitleRenderer: aribb24.CanvasRenderer | null = null;
     let hasSubtitle = $state(false);
     let isSubtitleOn = $state(false);
+    const subtitleManager = new SubtitleManager({
+        onSubtitleDetected: () => {
+            hasSubtitle = true;
+        },
+    });
     let hlsInstance: Hls | null = null;
     let mpegtsInstance: Mpegts.Player | null = null;
 
@@ -151,10 +155,13 @@
 
     // 再生速度 (動画をリロードせずに直接速度を変更)
     function setPlaybackRate(rate: number) {
-        playerState.setPlaybackRate(rate);
+        const effectiveRate = isLive ? 1 : rate;
+        if (!isLive) {
+            playerState.setPlaybackRate(rate);
+        }
         if (videoElement) {
-            videoElement.playbackRate = rate;
-            videoElement.defaultPlaybackRate = rate;
+            videoElement.playbackRate = effectiveRate;
+            videoElement.defaultPlaybackRate = effectiveRate;
         }
         resetHideControlsTimer();
     }
@@ -185,43 +192,15 @@
         }
     }
 
-    // 字幕レンダラーの初期化 & 管理 (aribb24.js)
+    // 字幕レンダラーの初期化 & 管理
     function initSubtitleRenderer() {
         if (!videoElement || !subtitleContainer) return;
-        cleanupSubtitleRenderer();
-
-        try {
-            subtitleRenderer = new aribb24.CanvasRenderer({
-                enableAutoInBandMetadataTextTrackDetection: true,
-                keepAspectRatio: true,
-                normalFont: '"Rounded M+ 1m for ARIB", "Windows TV 丸ゴシック", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
-                gaijiFont: '"Rounded M+ 1m for ARIB", "Windows TV 丸ゴシック", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
-                drcsReplacement: true,
-            });
-
-            subtitleRenderer.attachMedia(videoElement, subtitleContainer);
-
-            isSubtitleOn = playerState.isSubtitleEnabled ?? false;
-            if (isSubtitleOn) {
-                subtitleRenderer.show();
-            } else {
-                subtitleRenderer.hide();
-            }
-        } catch (e) {
-            console.warn('Failed to initialize aribb24 subtitle renderer:', e);
-        }
+        isSubtitleOn = playerState.isSubtitleEnabled ?? false;
+        subtitleManager.attach(videoElement, subtitleContainer, isSubtitleOn);
     }
 
     function cleanupSubtitleRenderer() {
-        if (subtitleRenderer) {
-            try {
-                subtitleRenderer.detachMedia();
-                subtitleRenderer.dispose();
-            } catch (e) {
-                // ignore
-            }
-            subtitleRenderer = null;
-        }
+        subtitleManager.detach();
     }
 
     function toggleSubtitle() {
@@ -239,13 +218,7 @@
             }
         }
 
-        if (subtitleRenderer) {
-            if (nextEnabled) {
-                subtitleRenderer.show();
-            } else {
-                subtitleRenderer.hide();
-            }
-        }
+        subtitleManager.setEnabled(nextEnabled);
         resetHideControlsTimer();
     }
 
@@ -284,7 +257,7 @@
                 if (videoElement) videoElement.volume = playerState.volume;
                 break;
             case 'c':
-                if (isHls || streamType === 'hls') {
+                if (isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts') {
                     e.preventDefault();
                     toggleSubtitle();
                 }
@@ -338,15 +311,17 @@
         cleanupEngines();
         isLoading = true;
         errorMessage = null;
+        hasSubtitle = false;
 
         // 設定の復元
         videoElement.volume = playerState.volume;
         videoElement.muted = playerState.isMuted;
-        videoElement.playbackRate = playerState.playbackRate;
+        videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
 
         // 1. M2TS-LL (MPEG-TS Low Latency) 爆速再生モード
         if (streamType === 'm2tsll' || streamType === 'm2ts') {
             if (Mpegts.isSupported() && Mpegts.getFeatureList().mseLivePlayback) {
+                initSubtitleRenderer();
                 Mpegts.LoggingControl.enableVerbose = false;
                 // WebWorker 内での fetch に対応するため絶対 URL に変換
                 const absoluteUrl = src.startsWith('http') ? src : `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}`;
@@ -374,15 +349,12 @@
                     console.warn('Mpegts error:', type, detail, info);
                 });
 
-                // ID3 メタデータが到着した時に字幕レンダラーを起動
                 mpegtsInstance.on(Mpegts.Events.TIMED_ID3_METADATA_ARRIVED, (data: any) => {
-                    if (data?.data && data?.pts !== undefined) {
-                        hasSubtitle = true;
-                        if (!subtitleRenderer) {
-                            initSubtitleRenderer();
-                        }
-                        subtitleRenderer?.pushID3v2Data(data.pts, data.data);
-                    }
+                    subtitleManager.feedMpegtsId3Data(data);
+                });
+
+                mpegtsInstance.on(Mpegts.Events.PES_PRIVATE_DATA_ARRIVED, (data: any) => {
+                    subtitleManager.feedMpegtsPesData(data);
                 });
                 return;
             }
@@ -391,6 +363,7 @@
         // 2. HLS モード
         if (isHls || streamType === 'hls') {
             if (Hls.isSupported()) {
+                initSubtitleRenderer();
                 hlsInstance = new Hls({
                     enableWorker: true,
                     lowLatencyMode: isLive,
@@ -404,24 +377,13 @@
                 hlsInstance.loadSource(src);
                 hlsInstance.attachMedia(videoElement);
 
-                // HLS フラグメントから ID3 メタデータが到着した時に字幕レンダラーを起動
-                hlsInstance.on(Hls.Events.FRAG_PARSING_METADATA, (_event, data) => {
-                    if (data?.samples) {
-                        hasSubtitle = true;
-                        if (!subtitleRenderer) {
-                            initSubtitleRenderer();
-                        }
-                        for (const sample of data.samples) {
-                            if (sample.data && sample.pts !== undefined) {
-                                subtitleRenderer?.pushID3v2Data(sample.pts, sample.data);
-                            }
-                        }
-                    }
-                });
-
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     isLoading = false;
                     videoElement?.play().catch(e => console.log('Autoplay prevented:', e));
+                });
+
+                hlsInstance.on(Hls.Events.FRAG_PARSING_METADATA, (_event, data) => {
+                    subtitleManager.feedHlsMetadata(data.samples);
                 });
 
                 hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
@@ -519,7 +481,7 @@
         onplay={() => {
             isPlaying = true;
             if (videoElement) {
-                videoElement.playbackRate = playerState.playbackRate;
+                videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
             resetHideControlsTimer();
         }}
@@ -528,13 +490,13 @@
         onplaying={() => {
             isLoading = false;
             if (videoElement) {
-                videoElement.playbackRate = playerState.playbackRate;
+                videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
         }}
         onloadedmetadata={() => {
             if (videoElement) {
                 duration = videoElement.duration;
-                videoElement.playbackRate = playerState.playbackRate;
+                videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
                 isLoading = false;
             }
         }}
@@ -742,8 +704,8 @@
                     </div>
                 {/if}
 
-                <!-- 字幕切り替えボタン (HLS 配信時のみ表示) -->
-                {#if isHls || streamType === 'hls'}
+                <!-- 字幕切り替えボタン (HLS / M2TS 配信時) -->
+                {#if isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts'}
                     <button
                         type="button"
                         onclick={toggleSubtitle}

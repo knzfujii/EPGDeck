@@ -51,8 +51,8 @@
     // 放送局 (channelIds)
     let selectedChannelIds = $state<number[]>([]);
 
-    // ジャンル & 時間
-    let selectedGenre = $state<number | null>(null);
+    // ジャンル & 時間 (value は "genre" または "genre:subGenre")
+    let selectedGenreKeys = $state<string[]>([]);
     let isFree = $state(false);
     let durationMin = $state<number | null>(null);
     let durationMax = $state<number | null>(null);
@@ -80,17 +80,239 @@
     let encodeDir3 = $state<string>('');
     let isDeleteOriginalAfterEncode = $state(false);
 
-    const genres = [
+    interface SubGenreItem {
+        id: number;
+        name: string;
+    }
+
+    interface GenreItem {
+        id: number | null;
+        name: string;
+        subGenres?: SubGenreItem[];
+    }
+
+    const genres: GenreItem[] = [
         { id: null, name: 'すべてのジャンル' },
-        { id: 7, name: 'アニメ' },
-        { id: 6, name: '映画' },
-        { id: 3, name: 'ドラマ' },
-        { id: 0, name: 'ニュース' },
-        { id: 5, name: 'バラエティ' },
-        { id: 1, name: 'スポーツ' },
-        { id: 4, name: '音楽' },
-        { id: 2, name: '情報' },
+        {
+            id: 0,
+            name: 'ニュース／報道',
+            subGenres: [
+                { id: 0, name: '定時・総合' },
+                { id: 1, name: '天気' },
+                { id: 2, name: '特集・ドキュメント' },
+                { id: 3, name: '政治・国会' },
+                { id: 4, name: '経済・市況' },
+                { id: 5, name: '海外・国際' },
+                { id: 6, name: '解説' },
+                { id: 7, name: '討論・会談' },
+                { id: 8, name: '報道特番' },
+                { id: 9, name: 'ローカル・地域' },
+                { id: 10, name: '交通' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 1,
+            name: 'スポーツ',
+            subGenres: [
+                { id: 0, name: 'スポーツニュース' },
+                { id: 1, name: '野球' },
+                { id: 2, name: 'サッカー' },
+                { id: 3, name: 'ゴルフ' },
+                { id: 4, name: 'その他の球技' },
+                { id: 5, name: '相撲・格闘技' },
+                { id: 6, name: 'オリンピック・国際大会' },
+                { id: 7, name: 'マラソン・陸上・水泳' },
+                { id: 8, name: 'モータースポーツ' },
+                { id: 9, name: 'マリン・ウィンタースポーツ' },
+                { id: 10, name: '競馬・公営競技' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 2,
+            name: '情報／ワイドショー',
+            subGenres: [
+                { id: 0, name: '芸能・ワイドショー' },
+                { id: 1, name: 'ファッション' },
+                { id: 2, name: '暮らし・住まい' },
+                { id: 3, name: '健康・医療' },
+                { id: 4, name: 'ショッピング・通販' },
+                { id: 5, name: 'グルメ・料理' },
+                { id: 6, name: 'イベント' },
+                { id: 7, name: '番組紹介・お知らせ' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 3,
+            name: 'ドラマ',
+            subGenres: [
+                { id: 0, name: '国内ドラマ' },
+                { id: 1, name: '海外ドラマ' },
+                { id: 2, name: '時代劇' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 4,
+            name: '音楽',
+            subGenres: [
+                { id: 0, name: '国内ロック・ポップス' },
+                { id: 1, name: '海外ロック・ポップス' },
+                { id: 2, name: 'クラシック・オペラ' },
+                { id: 3, name: 'ジャズ・フュージョン' },
+                { id: 4, name: '歌謡曲・演歌' },
+                { id: 5, name: 'ライブ・コンサート' },
+                { id: 6, name: 'ランキング・リクエスト' },
+                { id: 7, name: 'カラオケ・のど自慢' },
+                { id: 8, name: '民謡・邦楽' },
+                { id: 9, name: '童謡・キッズ' },
+                { id: 10, name: '民族音楽・ワールドミュージック' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 5,
+            name: 'バラエティ',
+            subGenres: [
+                { id: 0, name: 'クイズ' },
+                { id: 1, name: 'ゲーム' },
+                { id: 2, name: 'トークバラエティ' },
+                { id: 3, name: 'お笑い・コメディ' },
+                { id: 4, name: '音楽バラエティ' },
+                { id: 5, name: '旅バラエティ' },
+                { id: 6, name: '料理バラエティ' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 6,
+            name: '映画',
+            subGenres: [
+                { id: 0, name: '洋画' },
+                { id: 1, name: '邦画' },
+                { id: 2, name: 'アニメ' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 7,
+            name: 'アニメ／特撮',
+            subGenres: [
+                { id: 0, name: '国内アニメ' },
+                { id: 1, name: '海外アニメ' },
+                { id: 2, name: '特撮' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 8,
+            name: 'ドキュメンタリー／教養',
+            subGenres: [
+                { id: 0, name: '社会・時事' },
+                { id: 1, name: '歴史・紀行' },
+                { id: 2, name: '自然・動物・環境' },
+                { id: 3, name: '宇宙・科学・医学' },
+                { id: 4, name: 'カルチャー・伝統文化' },
+                { id: 5, name: '文学・文芸' },
+                { id: 6, name: 'スポーツ' },
+                { id: 7, name: 'ドキュメンタリー全般' },
+                { id: 8, name: 'インタビュー・討論' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 9,
+            name: '劇場／公演',
+            subGenres: [
+                { id: 0, name: '現代劇・新劇' },
+                { id: 1, name: 'ミュージカル' },
+                { id: 2, name: 'ダンス・バレエ' },
+                { id: 3, name: '落語・演芸' },
+                { id: 4, name: '歌舞伎・古典' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 10,
+            name: '趣味／教育',
+            subGenres: [
+                { id: 0, name: '旅・釣り・アウトドア' },
+                { id: 1, name: '園芸・ペット・手芸' },
+                { id: 2, name: '音楽・美術・工芸' },
+                { id: 3, name: '囲碁・将棋' },
+                { id: 4, name: '麻雀・パチンコ' },
+                { id: 5, name: '車・オートバイ' },
+                { id: 6, name: 'コンピュータ・TVゲーム' },
+                { id: 7, name: '会話・語学' },
+                { id: 8, name: '幼児・小学生' },
+                { id: 9, name: '中学生・高校生' },
+                { id: 10, name: '大学生・受験' },
+                { id: 11, name: '生涯教育・資格' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 11,
+            name: '福祉',
+            subGenres: [
+                { id: 0, name: '高齢者' },
+                { id: 1, name: '障害者' },
+                { id: 2, name: '社会福祉' },
+                { id: 3, name: 'ボランティア' },
+                { id: 4, name: '手話' },
+                { id: 5, name: '文字（字幕）' },
+                { id: 6, name: '音声解説' },
+                { id: 15, name: 'その他' },
+            ],
+        },
+        {
+            id: 15,
+            name: 'その他',
+            subGenres: [
+                { id: 15, name: 'その他' },
+            ],
+        },
     ];
+
+    function clearAllGenres() {
+        selectedGenreKeys = [];
+    }
+
+    function toggleGenreKey(key: string, g: (typeof genres)[number]) {
+        if (g.id === null) return;
+        const mainKey = `${g.id}`;
+        if (selectedGenreKeys.includes(mainKey)) {
+            // もし「主ジャンルすべて」が選択されていた場合、それを外して
+            // クリックした子ジャンル以外のすべての子ジャンルを選択状態にする（除外動作）
+            const otherSubKeys = (g.subGenres || [])
+                .filter(sg => `${g.id}:${sg.id}` !== key)
+                .map(sg => `${g.id}:${sg.id}`);
+            selectedGenreKeys = selectedGenreKeys.filter(k => k !== mainKey).concat(otherSubKeys);
+        } else if (selectedGenreKeys.includes(key)) {
+            selectedGenreKeys = selectedGenreKeys.filter(k => k !== key);
+        } else {
+            selectedGenreKeys = [...selectedGenreKeys, key];
+        }
+    }
+
+    function toggleMainGenre(g: (typeof genres)[number]) {
+        if (g.id === null) return;
+        const mainKey = `${g.id}`;
+        const subKeys = g.subGenres ? g.subGenres.map(sg => `${g.id}:${sg.id}`) : [];
+        const allKeys = [mainKey, ...subKeys];
+
+        const isAnySelected = selectedGenreKeys.includes(mainKey) || subKeys.some(k => selectedGenreKeys.includes(k));
+
+        if (isAnySelected) {
+            // 解除: このジャンルの主・子キーをすべて削除
+            selectedGenreKeys = selectedGenreKeys.filter(k => !allKeys.includes(k));
+        } else {
+            // 選択: 主ジャンルすべて（mainKey）をオンにする
+            selectedGenreKeys = [...selectedGenreKeys, mainKey];
+        }
+    }
 
     async function initOptions() {
         try {
@@ -128,7 +350,17 @@
         isCS = s.CS !== false;
         isSKY = s.SKY !== false;
         selectedChannelIds = Array.isArray(s.channelIds) ? [...s.channelIds] : [];
-        selectedGenre = s.genres?.[0]?.lv1 ?? s.genres?.[0]?.genre ?? null;
+        if (Array.isArray(s.genres)) {
+            selectedGenreKeys = s.genres
+                .filter((g: any) => typeof (g.lv1 ?? g.genre) === 'number')
+                .map((g: any) => {
+                    const genre = g.lv1 ?? g.genre;
+                    const subGenre = g.lv2 ?? g.subGenre;
+                    return typeof subGenre === 'number' ? `${genre}:${subGenre}` : `${genre}`;
+                });
+        } else {
+            selectedGenreKeys = [];
+        }
         isFree = !!s.isFree;
         durationMin = s.durationMin || null;
         durationMax = s.durationMax || null;
@@ -178,7 +410,11 @@
                 keyword = q['keyword'];
                 isName = q['name'] !== '0';
                 isDescription = q['description'] !== '0';
-                if (q['genre']) selectedGenre = parseInt(q['genre'], 10);
+                if (q['genre']) {
+                    const gVal = q['genre'];
+                    const sgVal = q['subGenre'];
+                    selectedGenreKeys = [sgVal ? `${gVal}:${sgVal}` : `${gVal}`];
+                }
             }
         }
         isLoading = false;
@@ -250,8 +486,16 @@
                 payload.searchOption.ignoreExtended = isIgnoreExtended;
             }
 
-            if (selectedGenre !== null) {
-                payload.searchOption.genres = [{ genre: selectedGenre }];
+            if (selectedGenreKeys.length > 0) {
+                payload.searchOption.genres = selectedGenreKeys.map(key => {
+                    const parts = key.split(':');
+                    const genre = parseInt(parts[0], 10);
+                    const item: any = { genre };
+                    if (parts.length > 1) {
+                        item.subGenre = parseInt(parts[1], 10);
+                    }
+                    return item;
+                });
             }
 
             if (durationMin !== null && durationMin > 0) payload.searchOption.durationMin = durationMin;
@@ -395,38 +639,107 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3 dark:border-slate-800">
-                    <div>
-                        <label for="rule-genre" class="block font-bold text-slate-700 dark:text-slate-300 mb-2">ジャンル絞り込み</label>
-                        <select
-                            id="rule-genre"
-                            bind:value={selectedGenre}
-                            class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                        >
-                            {#each genres as g}
-                                <option value={g.id}>{g.name}</option>
-                            {/each}
-                        </select>
+                <!-- ジャンル絞り込み (スクロールコンテナ & バッジ複数選択) -->
+                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="block font-bold text-slate-700 dark:text-slate-300">
+                            ジャンル絞り込み (複数選択可)
+                        </span>
+                        {#if selectedGenreKeys.length > 0}
+                            <button
+                                type="button"
+                                onclick={clearAllGenres}
+                                class="rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer"
+                            >
+                                全解除 (すべて対象)
+                            </button>
+                        {/if}
                     </div>
-                    <div>
-                        <span class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">番組の長さ (分)</span>
-                        <div class="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min="0"
-                                bind:value={durationMin}
-                                placeholder="最小"
-                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                            />
-                            <span class="text-slate-400">~</span>
-                            <input
-                                type="number"
-                                min="0"
-                                bind:value={durationMax}
-                                placeholder="最大"
-                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                            />
-                        </div>
+                    <p class="text-[11px] text-slate-400 mb-2">
+                        {selectedGenreKeys.length === 0
+                            ? '※ 未選択時は「すべてのジャンル」が対象になります。親ジャンルをクリックで一括選択、各子ジャンルをクリックで個別選択できます。'
+                            : '※ 選択したジャンル・子ジャンルに一致する番組のみが対象になります'}
+                    </p>
+
+                    <div
+                        id="rule-genre-container"
+                        class="max-h-72 overflow-y-auto border border-slate-100 rounded-xl p-3 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/40 space-y-3"
+                    >
+                        {#each genres as g}
+                            {#if g.id !== null}
+                                {@const mainKey = `${g.id}`}
+                                {@const isMainAll = selectedGenreKeys.includes(mainKey)}
+                                {@const hasSelectedSub = g.subGenres ? g.subGenres.some(sg => selectedGenreKeys.includes(`${g.id}:${sg.id}`)) : false}
+                                <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900 transition-shadow hover:shadow-xs">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                                {g.name}
+                                            </span>
+                                            {#if isMainAll}
+                                                <span class="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                                                    全選択中
+                                                </span>
+                                            {:else if hasSelectedSub}
+                                                <span class="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
+                                                    一部選択中
+                                                </span>
+                                            {/if}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onclick={() => toggleMainGenre(g)}
+                                            class="rounded-md border px-2 py-0.5 text-[10px] font-bold transition cursor-pointer {isMainAll || hasSelectedSub
+                                                ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
+                                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
+                                        >
+                                            {isMainAll || hasSelectedSub ? 'ジャンル解除' : '一括選択 (すべて)'}
+                                        </button>
+                                    </div>
+
+                                    {#if g.subGenres && g.subGenres.length > 0}
+                                        <div class="flex flex-wrap gap-1.5">
+                                            {#each g.subGenres as sg}
+                                                {@const sgKey = `${g.id}:${sg.id}`}
+                                                {@const isSgSelected = selectedGenreKeys.includes(sgKey)}
+                                                {@const isCoveredByMain = isMainAll}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => toggleGenreKey(sgKey, g)}
+                                                    class="rounded-lg border px-2.5 py-1 text-[11px] font-medium transition cursor-pointer {isSgSelected || isCoveredByMain
+                                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/70 dark:text-blue-200'
+                                                        : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800'}"
+                                                >
+                                                    {sg.name}
+                                                </button>
+                                            {/each}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
+
+                <!-- 番組の長さ (分) -->
+                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
+                    <span class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">番組の長さ (分)</span>
+                    <div class="flex items-center gap-2 max-w-sm">
+                        <input
+                            type="number"
+                            min="0"
+                            bind:value={durationMin}
+                            placeholder="最小 (分)"
+                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                        <span class="text-slate-400 font-bold">~</span>
+                        <input
+                            type="number"
+                            min="0"
+                            bind:value={durationMax}
+                            placeholder="最大 (分)"
+                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
                     </div>
                 </div>
 

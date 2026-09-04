@@ -251,6 +251,47 @@ describe('ProgramDB findRule Tests', () => {
         expect(channelIdsPriorityResults[0].name).toBe('BSスペシャル番組');
     });
 
+    it('matches programs by subGenre correctly', async () => {
+        // genre1: 7 (アニメ), subGenre1: 0 (国内アニメ) の番組を追加
+        await db.insert(sqliteSchema.programs).values({
+            id: 4,
+            updateTime: 0,
+            channelId: 1001,
+            eventId: 104,
+            serviceId: 1024,
+            networkId: 32736,
+            startAt: Date.now() + 150000,
+            endAt: Date.now() + 150000 + 1800000,
+            startHour: 23,
+            week: 0,
+            duration: 1800000,
+            isFree: true,
+            name: '深夜アニメ (国内)',
+            halfWidthName: '深夜アニメ (国内)',
+            shortName: '深夜アニメ (国内)',
+            channelType: 'GR',
+            channel: '27',
+            genre1: 7,
+            subGenre1: 0,
+        });
+
+        // 1. subGenre が一致する場合
+        const matched = await programDB.findRule({
+            searchOption: {
+                genres: [{ genre: 7, subGenre: 0 }],
+            },
+        });
+        expect(matched.map(p => p.name)).toContain('深夜アニメ (国内)');
+
+        // 2. subGenre が不一致の場合 (海外アニメ: 1)
+        const notMatched = await programDB.findRule({
+            searchOption: {
+                genres: [{ genre: 7, subGenre: 1 }],
+            },
+        });
+        expect(notMatched.map(p => p.name)).not.toContain('深夜アニメ (国内)');
+    });
+
     it('performs bulk insert and upsert operations correctly', async () => {
         const channelTypes = {
             32736: {

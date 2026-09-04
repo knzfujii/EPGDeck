@@ -174,4 +174,50 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should allow selecting multiple genres and subgenres in scrollable groups', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.goto('/rule/edit');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 初期状態: 未選択（すべてのジャンルが対象）
+        await expect(page.getByText('※ 未選択時は「すべてのジャンル」が対象になります')).toBeVisible();
+
+        // 2. 子ジャンルバッジの個別クリック: 「国内アニメ」をクリック
+        const domesticAnimeBtn = page.getByRole('button', { name: '国内アニメ' });
+        await domesticAnimeBtn.click();
+        await expect(domesticAnimeBtn).toHaveClass(/border-blue-500/);
+
+        // 3. 親ジャンルの「一括選択 (すべて)」をクリック: 「映画」ジャンル
+        const movieCard = page.locator('div', { hasText: /^映画/ }).first();
+        const movieAllBtn = movieCard.getByRole('button', { name: '一括選択 (すべて)' });
+        await movieAllBtn.click();
+        await expect(movieAllBtn).toHaveText('ジャンル解除');
+
+        // 4. 全解除ボタンをクリック
+        const clearBtn = page.getByRole('button', { name: '全解除 (すべて対象)' });
+        await expect(clearBtn).toBeVisible();
+        await clearBtn.click();
+
+        // 5. 未選択状態に戻る
+        await expect(page.getByText('※ 未選択時は「すべてのジャンル」が対象になります')).toBeVisible();
+        await expect(clearBtn).not.toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

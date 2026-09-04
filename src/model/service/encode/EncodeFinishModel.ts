@@ -40,6 +40,7 @@ export default class EncodeFinishModel implements IEncodeFinishModel {
      */
     private addEncode(_encodeId: apid.EncodeId): void {
         this.socket.notifyClient();
+        this.socket.notifyUpdateEncodeProgress();
     }
 
     /**
@@ -48,6 +49,7 @@ export default class EncodeFinishModel implements IEncodeFinishModel {
      */
     private cancelEncode(_encodeId: apid.EncodeId): void {
         this.socket.notifyClient();
+        this.socket.notifyUpdateEncodeProgress();
     }
 
     /**
@@ -82,6 +84,7 @@ export default class EncodeFinishModel implements IEncodeFinishModel {
         }
 
         this.socket.notifyClient();
+        this.socket.notifyUpdateEncodeProgress();
 
         // Operator にイベントを転送
         await this.ipc.encodeEvent.emitFinishEncode({
@@ -96,6 +99,7 @@ export default class EncodeFinishModel implements IEncodeFinishModel {
      */
     private errorEncode(): void {
         this.socket.notifyClient();
+        this.socket.notifyUpdateEncodeProgress();
     }
 
     /**

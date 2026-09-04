@@ -9,7 +9,7 @@
     let waitList = $state<any[]>([]);
     let isLoading = $state(true);
 
-    let unsubscribeSocket: (() => void) | null = null;
+    let unsubscribeSockets: (() => void)[] = [];
 
     async function fetchEncode(isSilent = false) {
         if (!isSilent) isLoading = true;
@@ -28,14 +28,22 @@
     onMount(() => {
         fetchEncode();
 
-        // Socket.IO によるエンコード進捗通知を受信
-        unsubscribeSocket = socketStore.on('updateEncode', () => {
-            fetchEncode(true);
-        });
+        // Socket.IO によるエンコード進捗通知およびステータス更新を受信
+        unsubscribeSockets = [
+            socketStore.on('updateEncode', () => {
+                fetchEncode(true);
+            }),
+            socketStore.on('updateStatus', () => {
+                fetchEncode(true);
+            }),
+        ];
     });
 
     onDestroy(() => {
-        unsubscribeSocket?.();
+        for (const unsub of unsubscribeSockets) {
+            unsub();
+        }
+        unsubscribeSockets = [];
     });
 
     async function cancelEncode(id: number) {

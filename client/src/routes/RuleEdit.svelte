@@ -13,7 +13,8 @@
         HardDrive,
         Sparkles,
         Check,
-        Save
+        Save,
+        Info
     } from '@lucide/svelte';
 
     // 編集対象のルールID (?id=<ruleId>)。未指定なら新規作成
@@ -307,7 +308,7 @@
     }
 </script>
 
-<div class="w-full max-w-3xl min-w-0 space-y-5">
+<div class="w-full max-w-full min-w-0 space-y-5">
     <!-- ヘッダー -->
     <div class="flex items-center gap-3">
         <button
@@ -396,20 +397,6 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3 dark:border-slate-800">
                     <div>
-                        <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">対象放送波</p>
-                        <div class="flex items-center gap-3">
-                            <label class="flex items-center gap-1 cursor-pointer">
-                                <input type="checkbox" bind:checked={isGR} class="rounded border-slate-300 text-blue-600" /> 地デジ (GR)
-                            </label>
-                            <label class="flex items-center gap-1 cursor-pointer">
-                                <input type="checkbox" bind:checked={isBS} class="rounded border-slate-300 text-blue-600" /> BS
-                            </label>
-                            <label class="flex items-center gap-1 cursor-pointer">
-                                <input type="checkbox" bind:checked={isCS} class="rounded border-slate-300 text-blue-600" /> CS
-                            </label>
-                        </div>
-                    </div>
-                    <div>
                         <label for="rule-genre" class="block font-bold text-slate-700 dark:text-slate-300 mb-2">ジャンル絞り込み</label>
                         <select
                             id="rule-genre"
@@ -421,9 +408,6 @@
                             {/each}
                         </select>
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3 dark:border-slate-800">
                     <div>
                         <span class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">番組の長さ (分)</span>
                         <div class="flex items-center gap-2">
@@ -434,7 +418,7 @@
                                 placeholder="最小"
                                 class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
-                            <span>~</span>
+                            <span class="text-slate-400">~</span>
                             <input
                                 type="number"
                                 min="0"
@@ -444,95 +428,168 @@
                             />
                         </div>
                     </div>
-                    <div class="flex items-end">
-                        <label class="flex items-center gap-2 cursor-pointer pb-2 font-bold text-slate-700 dark:text-slate-300">
-                            <input type="checkbox" bind:checked={isFree} class="rounded border-slate-300 text-blue-600" />
-                            無料放送のみ録画する
-                        </label>
-                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" bind:checked={isFree} class="rounded border-slate-300 text-blue-600" />
+                        無料放送のみ録画する
+                    </label>
                 </div>
             </div>
         </section>
 
-        <!-- 2. 放送局・局指定 -->
+        <!-- 2. 放送波・放送局の指定 -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
-                <Tv size={16} class="text-blue-600 dark:text-blue-400" /> 放送局・局指定
-            </h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100">
+                    <Tv size={16} class="text-blue-600 dark:text-blue-400" /> 放送波・放送局の指定
+                </h2>
+                {#if selectedChannelIds.length > 0}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                        個別指定モード優先中（{selectedChannelIds.length}局）
+                    </span>
+                {:else}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        放送波一括指定モード
+                    </span>
+                {/if}
+            </div>
+
             <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="font-bold text-slate-900 dark:text-slate-100">対象放送局の個別指定</p>
-                        <p class="text-[11px] text-slate-400">
-                            {selectedChannelIds.length === 0
-                                ? '※ 現在「全放送局」が対象です（局を選択するとその局のみに限定されます）'
-                                : `※ 選択された ${selectedChannelIds.length} 局のみが録画対象になります`}
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button
-                            type="button"
-                            onclick={selectAllChannels}
-                            class="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer"
-                        >
-                            全選択
-                        </button>
-                        <button
-                            type="button"
-                            onclick={clearAllChannels}
-                            class="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 cursor-pointer"
-                        >
-                            クリア (全対象)
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2 pt-1">
-                    <span class="text-[11px] font-bold text-slate-500">種別追加:</span>
-                    <button
-                        type="button"
-                        onclick={() => selectChannelsByType('GR')}
-                        class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                    >
-                        + 地デジ局
-                    </button>
-                    <button
-                        type="button"
-                        onclick={() => selectChannelsByType('BS')}
-                        class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                    >
-                        + BS局
-                    </button>
-                    <button
-                        type="button"
-                        onclick={() => selectChannelsByType('CS')}
-                        class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                    >
-                        + CS局
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto border border-slate-100 rounded-xl p-2.5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
-                    {#each channelStore.channels as ch}
-                        {@const isSelected = selectedChannelIds.includes(ch.id)}
-                        <button
-                            type="button"
-                            onclick={() => toggleChannel(ch.id)}
-                            class="flex items-center justify-between rounded-xl p-2 text-left transition border cursor-pointer {isSelected
-                                ? 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-100'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'}"
-                        >
-                            <div class="min-w-0 pr-1">
-                                <span class="text-[9px] font-black uppercase text-slate-400 block">[{ch.channelType}]</span>
-                                <p class="text-xs font-bold truncate">{ch.name}</p>
+                <!-- 放送波一括指定 -->
+                <div class="rounded-xl border p-3.5 transition-colors {selectedChannelIds.length > 0
+                    ? 'border-slate-200 bg-slate-50/60 opacity-60 dark:border-slate-800 dark:bg-slate-900/40'
+                    : 'border-blue-100 bg-blue-50/30 dark:border-blue-950 dark:bg-blue-950/20'}">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-xs text-slate-800 dark:text-slate-200">対象放送波（一括指定）</span>
+                                {#if selectedChannelIds.length > 0}
+                                    <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded">
+                                        ※ 下記で放送局が個別指定されているため無効（スキップ）
+                                    </span>
+                                {/if}
                             </div>
-                            {#if isSelected}
-                                <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
-                                    <Check size={12} />
-                                </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">
+                                下の放送局を個別指定していない場合に、チェックした放送波の全チャンネルが対象になります
+                            </p>
+                        </div>
+
+                        <div class="flex items-center gap-4 text-xs font-semibold">
+                            <label class="flex items-center gap-1.5 {selectedChannelIds.length > 0 ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                                <input
+                                    type="checkbox"
+                                    bind:checked={isGR}
+                                    disabled={selectedChannelIds.length > 0}
+                                    class="rounded border-slate-300 text-blue-600 disabled:opacity-50"
+                                /> 地デジ (GR)
+                            </label>
+                            <label class="flex items-center gap-1.5 {selectedChannelIds.length > 0 ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                                <input
+                                    type="checkbox"
+                                    bind:checked={isBS}
+                                    disabled={selectedChannelIds.length > 0}
+                                    class="rounded border-slate-300 text-blue-600 disabled:opacity-50"
+                                /> BS
+                            </label>
+                            <label class="flex items-center gap-1.5 {selectedChannelIds.length > 0 ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                                <input
+                                    type="checkbox"
+                                    bind:checked={isCS}
+                                    disabled={selectedChannelIds.length > 0}
+                                    class="rounded border-slate-300 text-blue-600 disabled:opacity-50"
+                                /> CS
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 放送局個別指定 -->
+                <div class="space-y-3 pt-1">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="font-bold text-xs text-slate-800 dark:text-slate-200">対象放送局（個別指定・優先）</p>
+                                {#if selectedChannelIds.length > 0}
+                                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                        {selectedChannelIds.length} 局選択中
+                                    </span>
+                                {/if}
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">
+                                {selectedChannelIds.length === 0
+                                    ? '局を選択すると個別指定が最優先されます（未選択時は上の放送波指定が適用されます）'
+                                    : '局が指定されているため、上の放送波指定にかかわらず選択された局のみが録画されます'}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button
+                                type="button"
+                                onclick={selectAllChannels}
+                                class="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer"
+                            >
+                                全選択
+                            </button>
+                            {#if selectedChannelIds.length > 0}
+                                <button
+                                    type="button"
+                                    onclick={clearAllChannels}
+                                    class="rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer"
+                                >
+                                    クリア (放送波指定に戻す)
+                                </button>
                             {/if}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-0.5">
+                        <span class="text-[11px] font-bold text-slate-500">放送波ごとに追加:</span>
+                        <button
+                            type="button"
+                            onclick={() => selectChannelsByType('GR')}
+                            class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
+                        >
+                            + 地デジ局
                         </button>
-                    {/each}
+                        <button
+                            type="button"
+                            onclick={() => selectChannelsByType('BS')}
+                            class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
+                        >
+                            + BS局
+                        </button>
+                        <button
+                            type="button"
+                            onclick={() => selectChannelsByType('CS')}
+                            class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
+                        >
+                            + CS局
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-72 overflow-y-auto border border-slate-100 rounded-xl p-2.5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
+                        {#each channelStore.channels as ch}
+                            {@const isSelected = selectedChannelIds.includes(ch.id)}
+                            <button
+                                type="button"
+                                onclick={() => toggleChannel(ch.id)}
+                                class="flex items-center justify-between rounded-xl p-2 text-left transition border cursor-pointer {isSelected
+                                    ? 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-100'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'}"
+                            >
+                                <div class="min-w-0 pr-1">
+                                    <span class="text-[9px] font-black uppercase text-slate-400 block">[{ch.channelType}]</span>
+                                    <p class="text-xs font-bold truncate">{ch.name}</p>
+                                </div>
+                                {#if isSelected}
+                                    <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
+                                        <Check size={12} />
+                                    </div>
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
                 </div>
             </div>
         </section>

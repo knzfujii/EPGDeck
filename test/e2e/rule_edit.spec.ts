@@ -115,4 +115,63 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should reflect priority and disable broadcast wave checkboxes when channels are selected', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.goto('/rule/edit');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 初期状態: 放送波一括指定モード
+        await expect(page.getByText('放送波一括指定モード')).toBeVisible();
+
+        const grCheckbox = page.getByLabel('地デジ (GR)');
+        const bsCheckbox = page.getByLabel('BS');
+        const csCheckbox = page.getByLabel('CS');
+
+        // チェックボックスが操作可能
+        await expect(grCheckbox).toBeEnabled();
+        await expect(bsCheckbox).toBeEnabled();
+        await expect(csCheckbox).toBeEnabled();
+
+        // 2. 全選択ボタンをクリックして局を個別指定する
+        const selectAllBtn = page.getByRole('button', { name: '全選択' });
+        await selectAllBtn.click();
+
+        // 個別指定モード優先中バッジが表示される
+        await expect(page.getByText(/個別指定モード優先中/)).toBeVisible();
+        await expect(page.getByText(/※ 下記で放送局が個別指定されているため無効/)).toBeVisible();
+
+        // 放送波チェックボックスが disabled になる
+        await expect(grCheckbox).toBeDisabled();
+        await expect(bsCheckbox).toBeDisabled();
+        await expect(csCheckbox).toBeDisabled();
+
+        // 3. クリアボタンで放送波指定モードに復帰する
+        const clearBtn = page.getByRole('button', { name: 'クリア (放送波指定に戻す)' });
+        await expect(clearBtn).toBeVisible();
+        await clearBtn.click();
+
+        // 放送波一括指定モードに戻り、チェックボックスが再び操作可能になる
+        await expect(page.getByText('放送波一括指定モード')).toBeVisible();
+        await expect(grCheckbox).toBeEnabled();
+        await expect(bsCheckbox).toBeEnabled();
+        await expect(csCheckbox).toBeEnabled();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

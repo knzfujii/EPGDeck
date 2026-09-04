@@ -207,6 +207,50 @@ describe('ProgramDB findRule Tests', () => {
         expect(results[0].name).toBe('日曜ニュース7');
     });
 
+    it('prioritizes channelIds over channelType options (GR/BS/CS)', async () => {
+        // channelId: 1002, channelType: 'BS' の番組を追加
+        await db.insert(sqliteSchema.programs).values({
+            id: 3,
+            updateTime: 0,
+            channelId: 1002,
+            eventId: 103,
+            serviceId: 1025,
+            networkId: 32737,
+            startAt: Date.now() + 100000,
+            endAt: Date.now() + 100000 + 3600000,
+            startHour: 20,
+            week: 0,
+            duration: 3600000,
+            isFree: true,
+            name: 'BSスペシャル番組',
+            halfWidthName: 'BSスペシャル番組',
+            shortName: 'BSスペシャル番組',
+            channelType: 'BS',
+            channel: 'BS01_0',
+        });
+
+        // 1. channelIds 未指定時: 放送波 (GR のみ) でフィルタされる
+        const waveOnlyResults = await programDB.findRule({
+            searchOption: {
+                GR: true,
+                BS: false,
+            },
+        });
+        expect(waveOnlyResults.map(r => r.name)).not.toContain('BSスペシャル番組');
+
+        // 2. channelIds 指定時: 放送波の指定 (GR: true, BS: false) より channelIds が優先され、
+        // BS番組であっても channelIds に含まれていればヒットする
+        const channelIdsPriorityResults = await programDB.findRule({
+            searchOption: {
+                GR: true,
+                BS: false,
+                channelIds: [1002],
+            },
+        });
+        expect(channelIdsPriorityResults).toHaveLength(1);
+        expect(channelIdsPriorityResults[0].name).toBe('BSスペシャル番組');
+    });
+
     it('performs bulk insert and upsert operations correctly', async () => {
         const channelTypes = {
             32736: {

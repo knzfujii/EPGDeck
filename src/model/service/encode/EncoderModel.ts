@@ -223,6 +223,7 @@ class EncoderModel implements IEncoderModel {
                     ERROR_CNT: recorded.dropLogFile?.errorCnt.toString(10) || '',
                     DROP_CNT: recorded.dropLogFile?.dropCnt.toString(10) || '',
                     SCRAMBLING_CNT: recorded.dropLogFile?.scramblingCnt.toString(10) || '',
+                    SUBTITLE: encodeCmd.subtitle ? 'true' : 'false',
                 },
             },
         });

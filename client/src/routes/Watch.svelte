@@ -18,6 +18,7 @@
     } from '@lucide/svelte';
 
     let videoSrc = $state<string>('');
+    let vttSrc = $state<string | undefined>(undefined);
     let streamType = $state<'m2tsll' | 'm2ts' | 'webm' | 'mp4' | 'hls' | 'direct'>('direct');
     let isHls = $state(false);
     let isLive = $state(false);
@@ -185,8 +186,10 @@
                     // 直接再生 (MP4 / WebM)
                     streamType = 'direct';
                     videoSrc = `/api/videos/${videoId}`;
+                    vttSrc = `/api/videos/${videoId}/vtt`;
                     isHls = false;
                 } else if (videoFileId !== null && !isNaN(videoFileId)) {
+                    vttSrc = undefined;
                     if (reqType === 'mp4' || reqType === 'webm') {
                         // トランスコード MP4/WebM 直接ストリーム
                         streamType = reqType;
@@ -218,6 +221,7 @@
                     if (firstFile.type === 'encoded') {
                         streamType = 'direct';
                         videoSrc = `/api/videos/${firstFile.id}`;
+                        vttSrc = `/api/videos/${firstFile.id}/vtt`;
                         isHls = false;
                     } else {
                         streamType = 'hls';
@@ -335,6 +339,7 @@
                 title={programTitle}
                 recordedId={recordedData?.id}
                 totalDuration={totalDuration}
+                {vttSrc}
                 onStreamEnded={stopStream}
             />
         {:else}

@@ -154,7 +154,7 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         audioStreamMode = 'first', // 'first' (第1トラックのみ・標準) | 'all' (全トラック保持)
         mainAudioBitrate = (envVideoHeight || mediaInfo.height) > 720 ? '192k' : '128k',
         secondaryAudioBitrate = '128k',
-        subtitle = false, // true: -c:s mov_text, false: -sn
+        subtitle = typeof options.subtitle === 'boolean' ? options.subtitle : process.env.SUBTITLE === 'true',
         faststart = true,
         analyzeduration = '10M',
         probesize = '32M',
@@ -165,6 +165,11 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     } = options;
 
     const args = ['-y', '-analyzeduration', analyzeduration, '-probesize', probesize];
+
+    // ARIB 字幕の無限 duration による MP4 muxer クラッシュ (error -22) を防止
+    if (subtitle) {
+        args.push('-fix_sub_duration');
+    }
 
     if (isVAAPI) {
         args.push('-vaapi_device', vaapiDevice, '-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi');
@@ -180,9 +185,9 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     args.push('-map', '0:v:0');
     args.push('-ignore_unknown', '-max_muxing_queue_size', String(maxMuxingQueueSize));
 
-    // 字幕ストリーム設定
+    // 字幕ストリーム設定 (ARIB STD-B24 -> MP4 mov_text)
     if (subtitle) {
-        args.push('-map', '0:s?', '-c:s', 'mov_text');
+        args.push('-map', '0:s?', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=jpn');
     } else {
         args.push('-sn');
     }

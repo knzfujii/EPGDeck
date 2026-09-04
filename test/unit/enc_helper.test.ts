@@ -210,7 +210,7 @@ describe('enc_helper.js', () => {
             expect(args).toContain('4500k');
         });
 
-        it('should include subtitle streams when subtitle is true', () => {
+        it('should include subtitle streams and -fix_sub_duration when subtitle is true', () => {
             const mediaInfo = {
                 duration: 1800,
                 width: 1920,
@@ -220,11 +220,50 @@ describe('enc_helper.js', () => {
 
             const args = buildFFmpegArgs({ subtitle: true }, mediaInfo);
 
+            expect(args).toContain('-fix_sub_duration');
+            const fixSubIndex = args.indexOf('-fix_sub_duration');
+            const inputIndex = args.indexOf('-i');
+            expect(fixSubIndex).toBeLessThan(inputIndex);
+
             expect(args).toContain('-map');
             expect(args).toContain('0:s?');
             expect(args).toContain('-c:s');
             expect(args).toContain('mov_text');
+            expect(args).toContain('-metadata:s:s:0');
+            expect(args).toContain('language=jpn');
             expect(args).not.toContain('-sn');
+        });
+
+        it('should enable subtitle streams when process.env.SUBTITLE is true', () => {
+            process.env.SUBTITLE = 'true';
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({}, mediaInfo);
+
+            expect(args).toContain('-fix_sub_duration');
+            expect(args).toContain('mov_text');
+            expect(args).not.toContain('-sn');
+        });
+
+        it('should exclude subtitle streams and include -sn when subtitle is false', () => {
+            process.env.SUBTITLE = 'false';
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ subtitle: false }, mediaInfo);
+
+            expect(args).not.toContain('-fix_sub_duration');
+            expect(args).not.toContain('mov_text');
+            expect(args).toContain('-sn');
         });
     });
 });

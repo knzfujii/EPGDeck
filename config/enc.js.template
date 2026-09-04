@@ -12,5 +12,5 @@ runEncode({
     crf: 23,
     maxHeight: 1080,
     dualMono: 'split', // 'split' (2トラック分離) | 'main' (主音声のみ) | 'sub' (副音声のみ)
-    subtitle: false,   // true で字幕を保持 (mov_text)
+    subtitle: process.env.SUBTITLE === 'true' || false, // true で字幕を保持 (mov_text)、config.yml の設定または環境変数を反映
 });

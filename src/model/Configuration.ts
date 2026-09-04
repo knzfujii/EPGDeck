@@ -200,11 +200,13 @@ class Configuration implements IConfiguration {
             : Array.isArray(raw.encode)
               ? raw.encode
               : [];
+        const globalSubtitle = typeof encConf.subtitle === 'boolean' ? encConf.subtitle : false;
         const presets = rawPresets.map((p: any) => {
             const preset = { ...p };
             if (preset.script && !preset.cmd) {
                 preset.cmd = `%NODE% %ROOT%/config/${preset.script}`;
             }
+            preset.subtitle = typeof p.subtitle === 'boolean' ? p.subtitle : globalSubtitle;
             return preset;
         });
 

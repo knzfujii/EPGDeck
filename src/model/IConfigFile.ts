@@ -138,6 +138,7 @@ export interface EncodePresetConfig {
     cmd: string;
     suffix?: string;
     rate?: number;
+    subtitle?: boolean;
 }
 
 export interface EncodeConfig {

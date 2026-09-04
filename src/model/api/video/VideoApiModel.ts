@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import * as fileType from 'file-type';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
@@ -6,6 +7,7 @@ import IRecordedDB from '../../db/IRecordedDB';
 import IVideoFileDB from '../../db/IVideoFileDB';
 import IConfiguration from '../../IConfiguration';
 import IIPCClient from '../../ipc/IIPCClient';
+import FileUtil from '../../../util/FileUtil';
 import IApiUtil from '../IApiUtil';
 import IPlayList from '../IPlayList';
 import IVideoApiModel, { VideoFilePathInfo } from './IVideoApiModel';
@@ -155,5 +157,64 @@ export default class VideoApiModel implements IVideoApiModel {
         const source = `${isSecure ? 'https' : 'http'}://${host}/api/videos/${videoFileId}`;
 
         return this.apiUtil.sendToKodi(source, kodi);
+    }
+
+    private vttCache: Map<number, { vtt: string; mtimeMs: number }> = new Map();
+
+    /**
+     * 指定した videoFileId の WebVTT 形式字幕テキストを取得する (ファイルレス・インメモリキャッシュ)
+     * @param videoFileId: apid.VideoFileId
+     * @return Promise<string | null>
+     */
+    public async getVtt(videoFileId: apid.VideoFileId): Promise<string | null> {
+        const fullPath = await this.videoUtil.getFullFilePathFromId(videoFileId);
+        if (fullPath === null) {
+            return null;
+        }
+
+        try {
+            const stat = await FileUtil.stat(fullPath);
+            const cached = this.vttCache.get(videoFileId);
+            if (cached && cached.mtimeMs === stat.mtimeMs) {
+                return cached.vtt;
+            }
+
+            const ffmpegPath = this.configuration.getConfig().encode.binaries.ffmpeg || '/usr/bin/ffmpeg';
+
+            // FFmpeg で字幕ストリームを WebVTT 形式で抽出 (pipe:1)
+            const vtt = await new Promise<string>(resolve => {
+                const child = spawn(ffmpegPath, ['-i', fullPath, '-map', '0:s:0', '-f', 'webvtt', 'pipe:1'], {
+                    windowsHide: true,
+                });
+                let stdoutData = '';
+                child.stdout.on('data', chunk => {
+                    stdoutData += chunk.toString();
+                });
+                child.on('close', code => {
+                    if (code === 0 && stdoutData.trim().startsWith('WEBVTT')) {
+                        resolve(stdoutData);
+                    } else {
+                        // 字幕なしまたはエラー時は空の有効な WEBVTT を返す
+                        resolve('WEBVTT\n\n');
+                    }
+                });
+                child.on('error', () => {
+                    resolve('WEBVTT\n\n');
+                });
+            });
+
+            // キャッシュ上限管理 (最大100件)
+            if (this.vttCache.size > 100) {
+                const firstKey = this.vttCache.keys().next().value;
+                if (typeof firstKey !== 'undefined') {
+                    this.vttCache.delete(firstKey);
+                }
+            }
+            this.vttCache.set(videoFileId, { vtt, mtimeMs: stat.mtimeMs });
+
+            return vtt;
+        } catch (e) {
+            return 'WEBVTT\n\n';
+        }
     }
 }

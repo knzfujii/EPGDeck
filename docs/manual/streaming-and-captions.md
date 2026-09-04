@@ -90,3 +90,38 @@ libx264 使用の場合、`-flags +cgop` をつけて closed-gop を明示的に
 ```bash
 '%FFMPEG% -dual_mono_mode main -f mpegts -analyzeduration 500000 -i pipe:0 -map 0 -c:s copy -c:d copy -ignore_unknown -fflags nobuffer -flags low_delay -max_delay 250000 -max_interleave_delta 1 -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1'
 ```
+
+---
+
+## エンコード時の字幕保存機能 (MP4 mov_text)
+
+libaribb24 を有効化した FFmpeg を使用している場合、録画 TS ファイルに含まれる ARIB STD-B24 字幕を、エンコード後の MP4 ファイル内に標準字幕トラック（`mov_text`）として保持できます。
+
+### 設定方法 (`config.yml`)
+
+プリセット定義に `subtitle: true` を指定することで、該当プリセットでのエンコード時に字幕トラックが自動生成されます（デフォルト: `false`）。
+
+```yaml
+encode:
+  binaries:
+    ffmpeg: /opt/ffmpeg-custom/bin/ffmpeg
+    ffprobe: /opt/ffmpeg-custom/bin/ffprobe
+  presets:
+    - name: H.264-1080p
+      script: enc_1080p.js
+      suffix: .mp4
+      rate: 4.0
+      subtitle: true    # MP4 内に字幕 (mov_text) を保存
+    - name: H.264-720p
+      script: enc_720p.js
+      suffix: .mp4
+      rate: 2.5
+      subtitle: false   # 字幕を保存しない
+```
+
+※全プリセットで一括して字幕保存を有効化したい場合は、`encode.subtitle: true` を指定することも可能です。
+
+### 再生環境と互換性
+- **Web プレイヤー**: EPGDeck のプレイヤーで直接再生時、画面右下の字幕ボタンまたはキーボードの `C` キーで字幕の表示/非表示を切り替えられます。
+- **外部プレイヤー / デバイス**: iOS / iPadOS / macOS 標準プレイヤー、Apple TV、VLC、Kodi、Infuse 等でそのまま字幕付き動画として再生できます。
+- **SRT 抽出**: 外部 SRT ファイルが必要な場合、`ffmpeg -i video.mp4 -map 0:s:0 video.srt` でいつでも一瞬で抽出できます。

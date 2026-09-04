@@ -160,3 +160,24 @@ private injectDefaultCaptionManagement(): void {
   -y -f mpegts pipe:1
 ```
 
+---
+
+## 6. MP4 エンコード時の ARIB 字幕保存アーキテクチャ
+
+### 6.1 MP4 コンテナと字幕フォーマット規格 (`mov_text` / `tx3g`)
+- MP4（ISO Base Media File Format）の国際規格でサポートされている標準字幕形式は **`mov_text`（FourCC: `tx3g`）** のみです。生 SRT（`subrip`）を MP4 コンテナに直接多重化することは規格上できず、FFmpeg でもエラーで拒否されます。
+- `tx3g` は実質的に「MP4 規格に適合させたバイナリ版 SRT」であり、Apple 製品（iOS / iPadOS / macOS / Safari）、モダンブラウザ（HTML5 `<video>` の `textTracks`）、各種メディアプレイヤー（VLC / Kodi / Infuse）でネイティブに認識・描画されます。
+- 外部 SRT ファイルが必要な場合も、`ffmpeg -i file.mp4 -map 0:s:0 file.srt` でいつでも無劣化・一瞬でテキスト抽出が可能です。
+
+### 6.2 `-fix_sub_duration` の必須性（クラッシュ防止）
+- **課題**: 放送波（ARIB STD-B24）の字幕パケットは表示終了時刻（duration）が明示されておらず、未指定（UINT32_MAX）として渡されます。これをそのまま MP4 muxer（`mov_text`）に流すと、FFmpeg が `Application provided duration in stream is invalid` (error `-22`) を吐いて即座にエンコードが異常終了します。
+- **解決策**: FFmpeg 起動オプションに **`-fix_sub_duration`** を指定します。これにより、FFmpeg が後続のパケット PTS から自動的に字幕の表示期間を計算して MP4 に正常に書き込みます。
+
+### 6.3 制御フロー（`config.yml` ⇄ `EncoderModel` ⇄ `enc_helper.js`）
+1. `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）を設定。
+2. `src/model/service/encode/EncoderModel.ts` が子プロセス起動時に環境変数 `SUBTITLE`（`'true'` または `'false'`）を伝搬。
+3. `config/enc_helper.js` が `options.subtitle` および `process.env.SUBTITLE` を評価し、有効な場合は：
+   - 入力引数に `-fix_sub_duration` を追加
+   - 字幕マッピングに `-map 0:s? -c:s mov_text -metadata:s:s:0 language=jpn` を追加
+4. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。
+

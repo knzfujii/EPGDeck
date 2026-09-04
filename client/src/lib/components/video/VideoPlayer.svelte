@@ -29,6 +29,7 @@
         title?: string;
         recordedId?: number;
         totalDuration?: number;
+        vttSrc?: string;
         onStreamEnded?: () => void;
     }
 
@@ -64,6 +65,7 @@
     let title = $derived(props.title || '');
     let recordedId = $derived(props.recordedId);
     let src = $derived(props.src);
+    let vttSrc = $derived(props.vttSrc);
 
     // 表示用の動画全体の長さ (秒)
     // 直接再生（direct / mp4）の時はブラウザの videoElement.duration（実尺）を最優先。
@@ -203,6 +205,13 @@
         subtitleManager.detach();
     }
 
+    function syncNativeTextTracks(enabled: boolean) {
+        if (!videoElement || !videoElement.textTracks) return;
+        for (let i = 0; i < videoElement.textTracks.length; i++) {
+            videoElement.textTracks[i].mode = enabled ? 'showing' : 'hidden';
+        }
+    }
+
     function toggleSubtitle() {
         const nextEnabled = !isSubtitleOn;
         isSubtitleOn = nextEnabled;
@@ -219,6 +228,7 @@
         }
 
         subtitleManager.setEnabled(nextEnabled);
+        syncNativeTextTracks(nextEnabled);
         resetHideControlsTimer();
     }
 
@@ -257,10 +267,8 @@
                 if (videoElement) videoElement.volume = playerState.volume;
                 break;
             case 'c':
-                if (isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts') {
-                    e.preventDefault();
-                    toggleSubtitle();
-                }
+                e.preventDefault();
+                toggleSubtitle();
                 break;
             case 'f':
                 e.preventDefault();
@@ -498,6 +506,7 @@
                 duration = videoElement.duration;
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
                 isLoading = false;
+                syncNativeTextTracks(isSubtitleOn);
             }
         }}
         ontimeupdate={() => {
@@ -519,7 +528,9 @@
         class="h-full w-full object-contain cursor-pointer"
         playsinline
     >
-        <track kind="captions" />
+        {#if vttSrc}
+            <track src={vttSrc} kind="subtitles" srclang="ja" label="日本語" default={isSubtitleOn} />
+        {/if}
     </video>
     <div
         bind:this={subtitleContainer}
@@ -704,8 +715,8 @@
                     </div>
                 {/if}
 
-                <!-- 字幕切り替えボタン (HLS / M2TS 配信時) -->
-                {#if isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts'}
+                <!-- 字幕切り替えボタン (HLS / M2TS 配信時、または直接再生時) -->
+                {#if isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts' || streamType === 'direct'}
                     <button
                         type="button"
                         onclick={toggleSubtitle}

@@ -109,19 +109,23 @@ encode:
     ffprobe: /usr/bin/ffprobe
   maxProcesses: 4
   concurrency: 1
+  # subtitle: false                   # 全プリセット共通の字幕保存デフォルト (省略時: false)
   presets:
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
       rate: 4.0
+      # subtitle: false               # true で MP4 内に ARIB 字幕 (mov_text) を保存 (省略時: false)
     - name: H.264-720p
       script: enc_720p.js
       suffix: .mp4
       rate: 2.5
+      # subtitle: false
     # - name: H.264-VAAPI
     #   script: enc_vaapi.js
     #   suffix: .mp4
     #   rate: 4.0
+    #   subtitle: false
     # - name: H.264-QSV
     #   script: enc_qsv.js
     #   suffix: .mp4

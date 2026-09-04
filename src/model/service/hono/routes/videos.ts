@@ -146,4 +146,24 @@ app.post('/:videoFileId/kodi', async c => {
     }
 });
 
+// GET /api/videos/:videoFileId/vtt
+app.get('/:videoFileId/vtt', async c => {
+    const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+    const videoFileId = parseInt(c.req.param('videoFileId'), 10);
+
+    try {
+        const vtt = await videoFileApiModel.getVtt(videoFileId);
+        if (vtt === null) {
+            return api.responseError(c, {
+                code: 404,
+                message: 'video file is not found',
+            });
+        }
+        c.header('Content-Type', 'text/vtt; charset=utf-8');
+        return c.body(vtt);
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
 export default app;

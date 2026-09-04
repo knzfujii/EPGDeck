@@ -12,4 +12,5 @@ export default interface IVideoApiModel {
     deleteVideoFile(videoFileId: apid.VideoFileId): Promise<void>;
     getDuration(videoFileId: apid.VideoFileId): Promise<number>;
     sendToKodi(host: string, isSecure: boolean, kodiName: string, videoFileId: apid.VideoFileId): Promise<void>;
+    getVtt(videoFileId: apid.VideoFileId): Promise<string | null>;
 }

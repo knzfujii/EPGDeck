@@ -11,5 +11,5 @@ runEncode({
     crf: 23,
     maxHeight: 720,
     dualMono: 'main',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映
 });

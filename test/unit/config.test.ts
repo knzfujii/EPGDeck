@@ -126,6 +126,23 @@ describe('Structured Config Schema', () => {
         // 個別の false 指定が優先
         expect(conf.encode.presets[1].subtitle).toBe(false);
     });
+
+    it('should throw error when checkDirectories is true and recording directory does not exist', () => {
+        expect(() => {
+            Configuration.formatAndValidateConfig(
+                {
+                    server: { port: 8888, mirakurun: 'http://localhost:40772' },
+                    database: { type: 'sqlite' },
+                    recording: {
+                        directories: [
+                            { name: 'invalid-dir', path: '/non/existent/path/that/cannot/possibly/exist/epgdeck' },
+                        ],
+                    },
+                } as any,
+                { checkDirectories: true },
+            );
+        }).toThrow(/Recording directory not found/);
+    });
 });
 
 

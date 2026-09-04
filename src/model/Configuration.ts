@@ -51,13 +51,18 @@ class Configuration implements IConfiguration {
         }
 
         const rawConfig: any = yaml.load(str) || {};
-        return Configuration.formatAndValidateConfig(rawConfig);
+        try {
+            return Configuration.formatAndValidateConfig(rawConfig, { checkDirectories: true });
+        } catch (err: any) {
+            this.log.system.fatal(`Config validation failed: ${err.message}`);
+            process.exit(1);
+        }
     }
 
     /**
      * 設定のバリデーションとデフォルト値マージ & パス整形
      */
-    public static formatAndValidateConfig(raw: any): IConfigFile {
+    public static formatAndValidateConfig(raw: any, options: { checkDirectories?: boolean } = {}): IConfigFile {
         if (!raw || typeof raw !== 'object') {
             throw new Error('Config file is empty or not a valid YAML object');
         }
@@ -132,6 +137,22 @@ class Configuration implements IConfiguration {
                 limitCmd: r.limitCmd,
             }))
             .filter((r: any) => r.name !== 'tmp');
+
+        if (options.checkDirectories) {
+            for (const dir of directories) {
+                try {
+                    const stat = fs.statSync(dir.path);
+                    if (!stat.isDirectory()) {
+                        throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
+                    }
+                } catch (e: any) {
+                    if (e.code === 'ENOENT' || !e.code) {
+                        throw new Error(`Recording directory not found: "${dir.path}" (name: "${dir.name}")`);
+                    }
+                    throw e;
+                }
+            }
+        }
 
         const thumbConf = recConf.thumbnail || {};
         const thumbnail = {

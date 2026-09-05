@@ -25,6 +25,9 @@
     let isStorageOpen = $state(false);
     let latestRecorded = $state<apid.RecordedItem[]>([]);
     let upcomingReserves = $state<DashboardReserve[]>([]);
+    let isAlertsOpen = $state(false);
+    let conflictReserves = $derived(upcomingReserves.filter(r => r.isConflict));
+    let overlapReserves = $derived(upcomingReserves.filter(r => r.isOverlap));
     let isLoading = $state(true);
 
     let unsubscribeSocket: (() => void) | null = null;
@@ -36,7 +39,7 @@
             const [recordingRes, recordedRes, reservesRes, storagesRes] = await Promise.all([
                 axios.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
                 axios.get('/api/recorded?limit=8&isHalfWidth=true').catch(() => ({ data: { records: [], total: 0 } })),
-                axios.get('/api/reserves?limit=10&isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
+                axios.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
                 axios.get('/api/storages').catch(() => ({ data: { items: [] } })),
             ]);
 
@@ -221,6 +224,165 @@
                                 </div>
                             </div>
                         {/each}
+                    </div>
+                </div>
+            {/if}
+        </div>
+        {/if}
+
+    <!-- 予約警告 (競合・重複) アコーディオン通知カード -->
+    {#if conflictReserves.length > 0 || overlapReserves.length > 0}
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden">
+            <button
+                type="button"
+                onclick={() => (isAlertsOpen = !isAlertsOpen)}
+                class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+            >
+                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <AlertTriangle size={18} class={conflictReserves.length > 0 ? 'text-rose-500' : 'text-amber-500'} />
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            予約の注意・警告
+                        </h2>
+                    </div>
+
+                    {#if conflictReserves.length > 0}
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400">
+                            <AlertTriangle size={13} />
+                            競合 {conflictReserves.length}件
+                        </span>
+                    {/if}
+
+                    {#if overlapReserves.length > 0}
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-400">
+                            <AlertCircle size={13} />
+                            重複スキップ {overlapReserves.length}件
+                        </span>
+                    {/if}
+                </div>
+
+                <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <span>{isAlertsOpen ? '閉じる' : '詳細'}</span>
+                    {#if isAlertsOpen}
+                        <ChevronDown size={16} />
+                    {:else}
+                        <ChevronRight size={16} />
+                    {/if}
+                </div>
+            </button>
+
+            {#if isAlertsOpen}
+                <div class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
+                    <div class="grid grid-cols-1 gap-4 {conflictReserves.length > 0 && overlapReserves.length > 0 ? 'lg:grid-cols-2' : ''}">
+                        <!-- 競合リスト -->
+                        {#if conflictReserves.length > 0}
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800">
+                                    <span class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                                        <AlertTriangle size={14} /> チューナー競合 ({conflictReserves.length}件)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onclick={() => router.push('/reserves')}
+                                        class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                                    >
+                                        予約一覧へ
+                                    </button>
+                                </div>
+                                <div class="space-y-1.5">
+                                    {#each conflictReserves as item}
+                                        <div class="flex items-center justify-between gap-2 rounded-xl border border-rose-100 bg-white p-3 shadow-2xs dark:border-rose-950/50 dark:bg-slate-800/60">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                        {channelStore.getChannelName(item.channelId)}
+                                                    </span>
+                                                    <span class="text-[11px] text-slate-400">
+                                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
+                                                    </span>
+                                                </div>
+                                                <h4 class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100" title={item.name}>
+                                                    {item.name}
+                                                </h4>
+                                            </div>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                {#if item.ruleId}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                        class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                    >
+                                                        ルール編集
+                                                    </button>
+                                                {/if}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => router.push('/reserves')}
+                                                    class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/60"
+                                                >
+                                                    確認 <ArrowRight size={11} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/if}
+
+                        <!-- 重複リスト -->
+                        {#if overlapReserves.length > 0}
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800">
+                                    <span class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                        <AlertCircle size={14} /> 重複スキップ ({overlapReserves.length}件)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onclick={() => router.push('/reserves')}
+                                        class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                                    >
+                                        予約一覧へ
+                                    </button>
+                                </div>
+                                <div class="space-y-1.5">
+                                    {#each overlapReserves as item}
+                                        <div class="flex items-center justify-between gap-2 rounded-xl border border-amber-100 bg-white p-3 shadow-2xs dark:border-amber-950/50 dark:bg-slate-800/60">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                        {channelStore.getChannelName(item.channelId)}
+                                                    </span>
+                                                    <span class="text-[11px] text-slate-400">
+                                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
+                                                    </span>
+                                                </div>
+                                                <h4 class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100" title={item.name}>
+                                                    {item.name}
+                                                </h4>
+                                            </div>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                {#if item.ruleId}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                        class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                    >
+                                                        ルール編集
+                                                    </button>
+                                                {/if}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => router.push('/reserves')}
+                                                    class="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                                                >
+                                                    確認 <ArrowRight size={11} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/if}
                     </div>
                 </div>
             {/if}

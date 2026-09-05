@@ -1,8 +1,10 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
+    import type * as apid from '../../../api';
     import axios from 'axios';
     import {
         Calendar,
@@ -19,7 +21,9 @@
         Lock,
         Radio,
         Compass,
-        SlidersHorizontal
+        SlidersHorizontal,
+        Ban,
+        RotateCcw
     } from '@lucide/svelte';
 
     const MAX_DAYS_AHEAD = 8; // 今日から最大8日先まで (計9日間)
@@ -81,7 +85,8 @@
     let isReserving = $state(false);
 
     // 予約マップ (programId -> reserve)
-    let reservesMap = $state<Map<number, any>>(new Map());
+    let reservesMap = $state<Map<number, apid.ReserveItem>>(new Map());
+    let unsubscribeSocket: (() => void) | null = null;
 
     // 予約オプション設定 (エンコードプリセット名 / 保存先ディレクトリ名)
     let encodeModes = $state<string[]>([]);
@@ -230,7 +235,7 @@
             schedules = scheduleRes.data || [];
 
             // 予約マップ構築
-            const map = new Map<number, any>();
+            const map = new Map<number, apid.ReserveItem>();
             for (const r of reservesRes.data.reserves || []) {
                 if (r.programId) map.set(r.programId, r);
             }
@@ -264,7 +269,7 @@
                 }
             }).catch(() => ({ data: { reserves: [] } }));
 
-            const map = new Map<number, any>();
+            const map = new Map<number, apid.ReserveItem>();
             for (const r of reservesRes.data.reserves || []) {
                 if (r.programId) map.set(r.programId, r);
             }
@@ -313,7 +318,20 @@
             })
             .catch(e => console.error('Failed to fetch config', e));
         const timer = setInterval(updateCurrentTimeLine, 30000);
-        return () => clearInterval(timer);
+
+        // Socket.IO による予約変更通知を受信してリアルタイム更新
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            refreshReservesMap();
+        });
+
+        return () => {
+            clearInterval(timer);
+            unsubscribeSocket?.();
+        };
+    });
+
+    onDestroy(() => {
+        unsubscribeSocket?.();
     });
 
     function changeDate(days: number) {
@@ -435,21 +453,42 @@
         }
     }
 
-    // 予約解除
-    async function deleteReserve(reserveId: number, name: string) {
+    // 予約解除 / スキップ
+    async function deleteReserve(reserveId: number, name: string, isRule: boolean = false) {
         if (!reserveId || isReserving) return;
         isReserving = true;
         try {
             await axios.delete(`/api/reserves/${reserveId}`);
-            snackbar.open({ text: `「${name}」の予約を解除しました`, color: 'success' });
+            const actionText = isRule ? 'この回の録画をスキップ（除外）しました' : '予約を解除しました';
+            snackbar.open({ text: `「${name}」の${actionText}`, color: 'success' });
             await refreshReservesMap();
             if (selectedProgram) {
-                selectedProgram.reserve = null;
+                selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
         } catch (e) {
             console.error('Failed to delete reserve', e);
             snackbar.open({ text: '予約解除に失敗しました', color: 'error' });
+        } finally {
+            isReserving = false;
+        }
+    }
+
+    // スキップ解除 (予約復活)
+    async function restoreSkip(reserveId: number, name: string) {
+        if (!reserveId || isReserving) return;
+        isReserving = true;
+        try {
+            await axios.delete(`/api/reserves/${reserveId}/skip`);
+            snackbar.open({ text: `「${name}」の予約を復活しました`, color: 'success' });
+            await refreshReservesMap();
+            if (selectedProgram) {
+                selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
+            }
+            isModalOpen = false;
+        } catch (e) {
+            console.error('Failed to restore skip', e);
+            snackbar.open({ text: '予約の復活に失敗しました', color: 'error' });
         } finally {
             isReserving = false;
         }
@@ -637,22 +676,36 @@
                                     {@const progEnd = Math.min(guideEndAt, prog.endAt)}
                                     {@const topPx = ((progStart - guideStartAt) / 60000) * MINUTE_HEIGHT}
                                     {@const heightPx = Math.max(14, ((progEnd - progStart) / 60000) * MINUTE_HEIGHT)}
-                                    {@const isReserved = reservesMap.has(prog.id)}
+                                    {@const reserve = reservesMap.get(prog.id)}
 
                                     {#if heightPx > 0}
                                         <button
                                             type="button"
                                             onclick={() => openProgramModal(prog, col.channel)}
                                             style="top: {topPx}px; height: {heightPx}px;"
-                                            class="group absolute inset-x-0.5 overflow-hidden rounded-md border border-slate-200/90 p-2 text-left transition hover:z-20 hover:border-blue-500 hover:shadow-lg dark:border-slate-800 {getGenreClass(prog.genre1)}"
+                                            class="group absolute inset-x-0.5 overflow-hidden rounded-md border border-slate-200/90 p-2 text-left transition hover:z-20 hover:border-blue-500 hover:shadow-lg dark:border-slate-800 {getGenreClass(prog.genre1)} {reserve?.isSkip ? 'opacity-60 border-dashed' : ''}"
                                         >
                                             <div class="flex flex-col h-full justify-start overflow-hidden">
-                                                <!-- 予約バッジ (予約時のみ右上表示) -->
-                                                {#if isReserved}
+                                                <!-- 予約バッジ (予約状態に合わせて表示) -->
+                                                {#if reserve}
                                                     <div class="flex items-center justify-end mb-1 shrink-0">
-                                                        <span class="flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs">
-                                                            ● 予約中
-                                                        </span>
+                                                        {#if reserve.isSkip}
+                                                            <span class="flex items-center gap-0.5 rounded bg-slate-500/85 px-1.5 py-0.2 text-[10px] font-bold text-white shadow-xs">
+                                                                スキップ
+                                                            </span>
+                                                        {:else if reserve.isConflict}
+                                                            <span class="flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs">
+                                                                ▲ 競合
+                                                            </span>
+                                                        {:else if reserve.isOverlap}
+                                                            <span class="flex items-center gap-0.5 rounded bg-amber-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs">
+                                                                重複
+                                                            </span>
+                                                        {:else}
+                                                            <span class="flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs">
+                                                                ● 予約中
+                                                            </span>
+                                                        {/if}
                                                     </div>
                                                 {/if}
 
@@ -663,7 +716,7 @@
 
                                                 <!-- 概要 (縦幅に合わせて優先表示) -->
                                                 {#if heightPx > 45 && prog.description}
-                                                    <p class="mt-1 text-xs leading-relaxed text-slate-600 line-clamp-3 dark:text-slate-400">
+                                                    <p class="mt-1 text-xs leading-relaxed text-slate-600 line-clamp-3 dark:text-slate-200">
                                                         {prog.description}
                                                     </p>
                                                 {/if}
@@ -705,11 +758,30 @@
                                 ジャンル: {selectedProgram.genre1}
                             </span>
                         {/if}
+                        {#if selectedProgram.reserve}
+                            {#if selectedProgram.reserve.isSkip}
+                                <span class="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                    <Ban size={12} /> スキップ中
+                                </span>
+                            {:else if selectedProgram.reserve.isConflict}
+                                <span class="flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                    <AlertTriangle size={12} /> チューナー競合
+                                </span>
+                            {:else if selectedProgram.reserve.ruleId}
+                                <span class="flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                                    <SlidersHorizontal size={12} /> ルール予約 (#{selectedProgram.reserve.ruleId})
+                                </span>
+                            {:else}
+                                <span class="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                    <CheckCircle2 size={12} /> 個別予約
+                                </span>
+                            {/if}
+                        {/if}
                     </div>
                     <h3 class="mt-2 text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 leading-snug">
                         {selectedProgram.name}
                     </h3>
-                    <p class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <p class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-300">
                         <Clock size={14} />
                         {formatDate(new Date(selectedProgram.startAt))} {formatTime(selectedProgram.startAt)} - {formatTime(selectedProgram.endAt)} ({Math.round((selectedProgram.endAt - selectedProgram.startAt) / 60000)}分間)
                     </p>
@@ -727,8 +799,8 @@
             <div class="mt-4 max-h-80 overflow-y-auto space-y-3 text-xs pr-1">
                 {#if selectedProgram.description}
                     <div>
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">番組概要</h4>
-                        <p class="leading-relaxed text-slate-600 dark:text-slate-400 text-xs">
+                        <h4 class="font-bold text-slate-700 dark:text-slate-200 mb-1">番組概要</h4>
+                        <p class="leading-relaxed text-slate-600 dark:text-slate-200 text-xs">
                             {selectedProgram.description}
                         </p>
                     </div>
@@ -736,129 +808,155 @@
 
                 {#if selectedProgram.extended}
                     <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">詳細情報・出演者</h4>
-                        <div class="whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-400 text-xs">
+                        <h4 class="font-bold text-slate-700 dark:text-slate-200 mb-1">詳細情報・出演者</h4>
+                        <div class="whitespace-pre-wrap leading-relaxed text-slate-600 dark:text-slate-200 text-xs">
                             {selectedProgram.extended}
                         </div>
                     </div>
                 {/if}
             </div>
 
-            <!-- 録画オプション設定 -->
-            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/30">
-                <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
-                    <SlidersHorizontal size={13} /> 録画オプション
-                </h4>
-
-                <!-- TS保存先 -->
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (親)</span>
-                        <select
-                            bind:value={saveParentDir}
-                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            <!-- 録画オプション設定 / ルール予約案内 -->
+            {#if selectedProgram.reserve?.ruleId}
+                <div class="mt-4 rounded-xl border border-purple-200 bg-purple-50/60 p-3.5 dark:border-purple-900/50 dark:bg-purple-950/30">
+                    <h4 class="flex items-center gap-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 mb-1.5">
+                        <SlidersHorizontal size={13} /> 自動録画ルール予約 (Rule #{selectedProgram.reserve.ruleId})
+                    </h4>
+                    <p class="text-xs leading-relaxed text-purple-700/80 dark:text-purple-300/80">
+                        この予約は自動録画ルールによって作成されています。TS保存先・エンコード設定などの録画オプションはルール側で管理されます。
+                    </p>
+                    <div class="mt-2.5 flex items-center justify-between text-xs">
+                        <span class="text-[11px] text-purple-600/75 dark:text-purple-400/75">
+                            保存先: {selectedProgram.reserve.parentDirectoryName || 'デフォルト'} {selectedProgram.reserve.directory ? `/ ${selectedProgram.reserve.directory}` : ''}
+                        </span>
+                        <button
+                            type="button"
+                            onclick={() => {
+                                isModalOpen = false;
+                                router.push(`/rule/edit?id=${selectedProgram.reserve.ruleId}`);
+                            }}
+                            class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs"
                         >
-                            <option value="">デフォルト</option>
-                            {#each storageDirs as dir}
-                                <option value={dir}>{dir}</option>
-                            {/each}
-                        </select>
-                    </div>
-                    <div>
-                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (サブ)</span>
-                        <input
-                            type="text"
-                            bind:value={saveSubDir}
-                            placeholder="サブディレクトリ (任意)"
-                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
-                        />
+                            <SlidersHorizontal size={11} /> ルールを編集
+                        </button>
                     </div>
                 </div>
+            {:else}
+                <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/30">
+                    <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+                        <SlidersHorizontal size={13} /> 録画オプション
+                    </h4>
 
-                <!-- エンコード設定 -->
-                <div class="mt-3 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">エンコード設定</span>
-                        {#if encRows.length < 3}
-                            <button
-                                type="button"
-                                onclick={addEncodeRow}
-                                class="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    <!-- TS保存先 -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (親)</span>
+                            <select
+                                bind:value={saveParentDir}
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                             >
-                                <Plus size={12} /> 追加
-                            </button>
-                        {/if}
+                                <option value="">デフォルト</option>
+                                {#each storageDirs as dir}
+                                    <option value={dir}>{dir}</option>
+                                {/each}
+                            </select>
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">TS保存先 (サブ)</span>
+                            <input
+                                type="text"
+                                bind:value={saveSubDir}
+                                placeholder="サブディレクトリ (任意)"
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                            />
+                        </div>
                     </div>
 
-                    {#each encRows as row, i}
-                        <div class="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-bold text-slate-400">#{i + 1}</span>
-                                <select
-                                    bind:value={row.mode}
-                                    class="h-8 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                    <!-- エンコード設定 -->
+                    <div class="mt-3 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">エンコード設定</span>
+                            {#if encRows.length < 3}
+                                <button
+                                    type="button"
+                                    onclick={addEncodeRow}
+                                    class="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
                                 >
-                                    <option value="">エンコードなし</option>
-                                    {#each encodeModes as mode}
-                                        <option value={mode}>{mode}</option>
-                                    {/each}
-                                </select>
-                                {#if encRows.length > 1}
-                                    <button
-                                        type="button"
-                                        onclick={() => removeEncodeRow(i)}
-                                        class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-700"
-                                        aria-label="エンコード行を削除"
-                                    >
-                                        <Trash2 size={13} />
-                                    </button>
-                                {/if}
-                            </div>
-                            <div class="mt-2 grid grid-cols-2 gap-2">
-                                <select
-                                    bind:value={row.parentDir}
-                                    class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                                >
-                                    <option value="">保存先: デフォルト</option>
-                                    {#each storageDirs as dir}
-                                        <option value={dir}>{dir}</option>
-                                    {/each}
-                                </select>
-                                <input
-                                    type="text"
-                                    bind:value={row.subDir}
-                                    placeholder="サブディレクトリ (任意)"
-                                    class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
-                                />
-                            </div>
+                                    <Plus size={12} /> 追加
+                                </button>
+                            {/if}
                         </div>
-                    {/each}
+
+                        {#each encRows as row, i}
+                            <div class="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-slate-400">#{i + 1}</span>
+                                    <select
+                                        bind:value={row.mode}
+                                        class="h-8 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                    >
+                                        <option value="">エンコードなし</option>
+                                        {#each encodeModes as mode}
+                                            <option value={mode}>{mode}</option>
+                                        {/each}
+                                    </select>
+                                    {#if encRows.length > 1}
+                                        <button
+                                            type="button"
+                                            onclick={() => removeEncodeRow(i)}
+                                            class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-700"
+                                            aria-label="エンコード行を削除"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                    {/if}
+                                </div>
+                                <div class="mt-2 grid grid-cols-2 gap-2">
+                                    <select
+                                        bind:value={row.parentDir}
+                                        class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                    >
+                                        <option value="">保存先: デフォルト</option>
+                                        {#each storageDirs as dir}
+                                            <option value={dir}>{dir}</option>
+                                        {/each}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        bind:value={row.subDir}
+                                        placeholder="サブディレクトリ (任意)"
+                                        class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                                    />
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+
+                    <!-- TSファイル削除 -->
+                    <label class="mt-3 flex cursor-pointer items-center gap-2">
+                        <input
+                            type="checkbox"
+                            bind:checked={isDeleteOriginal}
+                            class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                        />
+                        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            エンコード完了後に元のTSファイルを削除する
+                        </span>
+                    </label>
+
+                    <!-- 末尾欠け許可 -->
+                    <label class="mt-3 flex cursor-pointer items-center gap-2">
+                        <input
+                            type="checkbox"
+                            bind:checked={allowEndLack}
+                            class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
+                        />
+                        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            状況に応じて末尾が欠けることを許可する
+                        </span>
+                    </label>
                 </div>
-
-                <!-- TSファイル削除 -->
-                <label class="mt-3 flex cursor-pointer items-center gap-2">
-                    <input
-                        type="checkbox"
-                        bind:checked={isDeleteOriginal}
-                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
-                    />
-                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        エンコード完了後に元のTSファイルを削除する
-                    </span>
-                </label>
-
-                <!-- 末尾欠け許可 -->
-                <label class="mt-3 flex cursor-pointer items-center gap-2">
-                    <input
-                        type="checkbox"
-                        bind:checked={allowEndLack}
-                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
-                    />
-                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        状況に応じて末尾が欠けることを許可する
-                    </span>
-                </label>
-            </div>
+            {/if}
 
             <!-- アクションフッター (予約 / 解除 / ルール検索) -->
             <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
@@ -883,22 +981,42 @@
                     </button>
 
                     {#if selectedProgram.reserve}
-                        <button
-                            type="button"
-                            disabled={isReserving}
-                            onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            <CheckCircle2 size={14} /> 設定を更新
-                        </button>
-                        <button
-                            type="button"
-                            disabled={isReserving}
-                            onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name)}
-                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
-                        >
-                            <Trash2 size={14} /> 予約解除
-                        </button>
+                        {#if selectedProgram.reserve.isSkip}
+                            <button
+                                type="button"
+                                disabled={isReserving}
+                                onclick={() => restoreSkip(selectedProgram.reserve.id, selectedProgram.name)}
+                                class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                <RotateCcw size={14} /> 予約を復活 (スキップ解除)
+                            </button>
+                        {:else if selectedProgram.reserve.ruleId}
+                            <button
+                                type="button"
+                                disabled={isReserving}
+                                onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, true)}
+                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
+                            >
+                                <Trash2 size={14} /> この回をスキップ (除外)
+                            </button>
+                        {:else}
+                            <button
+                                type="button"
+                                disabled={isReserving}
+                                onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
+                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                <CheckCircle2 size={14} /> 設定を更新
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isReserving}
+                                onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, false)}
+                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
+                            >
+                                <Trash2 size={14} /> 予約解除
+                            </button>
+                        {/if}
                     {:else}
                         <button
                             type="button"

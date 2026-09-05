@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api';
 import DropLogFile from '../../db/entities/DropLogFile';
@@ -276,6 +276,14 @@ export default class RecordedDB implements IRecordedDB {
                 conditions.push(
                     sql`EXISTS (SELECT 1 FROM video_file WHERE video_file.recordedId = ${schema.recorded.id} AND video_file.type != 'encoded')`,
                 );
+            }
+
+            if (typeof option.startAt !== 'undefined') {
+                conditions.push(gte(schema.recorded.startAt, option.startAt));
+            }
+
+            if (typeof option.endAt !== 'undefined') {
+                conditions.push(lt(schema.recorded.startAt, option.endAt));
             }
 
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

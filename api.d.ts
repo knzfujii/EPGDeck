@@ -427,6 +427,8 @@ export interface GetRecordedOption {
     genre?: ProgramGenreLv1;
     keyword?: string;
     hasOriginalFile?: boolean;
+    startAt?: UnixtimeMS;
+    endAt?: UnixtimeMS;
 }
 
 /**

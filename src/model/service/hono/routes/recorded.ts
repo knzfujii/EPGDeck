@@ -39,6 +39,12 @@ app.get('/', async c => {
         if (typeof query.hasOriginalFile !== 'undefined') {
             option.hasOriginalFile = query.hasOriginalFile === 'true';
         }
+        if (typeof query.startAt !== 'undefined') {
+            option.startAt = parseInt(query.startAt, 10);
+        }
+        if (typeof query.endAt !== 'undefined') {
+            option.endAt = parseInt(query.endAt, 10);
+        }
 
         const result = await recordedApiModel.gets(option);
         return api.responseJSON(c, 200, result);

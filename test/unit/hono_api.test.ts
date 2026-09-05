@@ -185,6 +185,26 @@ describe('Hono REST API Integration Tests', () => {
         expect(data.records[0].name).toBe('録画済みアニメ');
     });
 
+    it('GET /api/recorded handles filter query parameters (startAt, endAt, genre, keyword)', async () => {
+        let capturedOption: any = null;
+        const mockModel = {
+            gets: async (opt: any) => {
+                capturedOption = opt;
+                return dummyRecorded;
+            },
+            get: async () => null,
+        };
+        container.rebind('IRecordedApiModel').toConstantValue(mockModel);
+
+        const res = await app.request('/api/recorded?isHalfWidth=true&genre=7&keyword=アニメ&startAt=1700000000000&endAt=1700003600000');
+        expect(res.status).toBe(200);
+        expect(capturedOption).not.toBeNull();
+        expect(capturedOption.genre).toBe(7);
+        expect(capturedOption.keyword).toBe('アニメ');
+        expect(capturedOption.startAt).toBe(1700000000000);
+        expect(capturedOption.endAt).toBe(1700003600000);
+    });
+
     it('GET /api/recording returns currently active recordings', async () => {
         const res = await app.request('/api/recording');
         expect(res.status).toBe(200);

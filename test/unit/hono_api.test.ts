@@ -128,6 +128,20 @@ describe('Hono REST API Integration Tests', () => {
         rebindOrBind('IRecordingApiModel', {
             gets: async () => ({ records: [], total: 0 }),
         });
+
+        rebindOrBind('IVideoApiModel', {
+            getFullFilePath: async (id: number) =>
+                id === 1 ? { path: '/tmp/test.mp4', mime: 'video/mp4' } : null,
+            getDuration: async (id: number) => {
+                if (id === 1) return 120;
+                throw new Error('VideoFileIsUndefined');
+            },
+            getVtt: async (id: number) => {
+                if (id === 1) return 'WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nテスト字幕';
+                if (id === 999) throw new Error('InternalVttError');
+                return null;
+            },
+        });
     });
 
     const app = createHonoApp(dummyConfig, dummyLog);
@@ -203,6 +217,59 @@ describe('Hono REST API Integration Tests', () => {
         expect(capturedOption.keyword).toBe('アニメ');
         expect(capturedOption.startAt).toBe(1700000000000);
         expect(capturedOption.endAt).toBe(1700003600000);
+        expect(capturedOption.hasOriginalFile).toBeUndefined();
+    });
+
+    it('GET /api/recorded handles hasOriginalFile query parameter', async () => {
+        let capturedOption: any = null;
+        const mockModel = {
+            gets: async (opt: any) => {
+                capturedOption = opt;
+                return dummyRecorded;
+            },
+            get: async () => null,
+        };
+        container.rebind('IRecordedApiModel').toConstantValue(mockModel);
+
+        // hasOriginalFile=true
+        const resTrue = await app.request('/api/recorded?isHalfWidth=true&hasOriginalFile=true');
+        expect(resTrue.status).toBe(200);
+        expect(capturedOption.hasOriginalFile).toBe(true);
+
+        // hasOriginalFile=false
+        const resFalse = await app.request('/api/recorded?isHalfWidth=true&hasOriginalFile=false');
+        expect(resFalse.status).toBe(200);
+        expect(capturedOption.hasOriginalFile).toBe(false);
+    });
+
+    it('GET /api/videos/:videoFileId/vtt returns WebVTT subtitle track', async () => {
+        const res = await app.request('/api/videos/1/vtt');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Content-Type')).toBe('text/vtt; charset=utf-8');
+        const text = await res.text();
+        expect(text).toContain('WEBVTT');
+        expect(text).toContain('テスト字幕');
+    });
+
+    it('GET /api/videos/:videoFileId/vtt returns 404 when video is not found', async () => {
+        const res = await app.request('/api/videos/2/vtt');
+        expect(res.status).toBe(404);
+        const data = await res.json();
+        expect(data.message).toBe('video file is not found');
+    });
+
+    it('GET /api/videos/:videoFileId/vtt returns 500 when error occurs', async () => {
+        const res = await app.request('/api/videos/999/vtt');
+        expect(res.status).toBe(500);
+        const data = await res.json();
+        expect(data.errors).toBe('InternalVttError');
+    });
+
+    it('GET /api/videos/:videoFileId/duration returns video duration', async () => {
+        const res = await app.request('/api/videos/1/duration');
+        expect(res.status).toBe(200);
+        const data = await res.json();
+        expect(data).toEqual({ duration: 120 });
     });
 
     it('GET /api/recording returns currently active recordings', async () => {

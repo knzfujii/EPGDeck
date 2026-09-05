@@ -143,6 +143,37 @@ describe('Structured Config Schema', () => {
             );
         }).toThrow(/Recording directory not found/);
     });
+
+    it('should throw error when checkDirectories is true and path is not a directory', () => {
+        expect(() => {
+            Configuration.formatAndValidateConfig(
+                {
+                    server: { port: 8888, mirakurun: 'http://localhost:40772' },
+                    database: { type: 'sqlite' },
+                    recording: {
+                        directories: [
+                            { name: 'file-dir', path: __filename },
+                        ],
+                    },
+                } as any,
+                { checkDirectories: true },
+            );
+        }).toThrow(/Path exists but is not a directory/);
+    });
+
+    it('should not throw error when checkDirectories is false or omitted even if path does not exist', () => {
+        const conf = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [
+                    { name: 'virtual-dir', path: '/non/existent/path/virtual' },
+                ],
+            },
+        } as any);
+        expect(conf.recording.directories).toHaveLength(1);
+        expect(conf.recording.directories[0].name).toBe('virtual-dir');
+    });
 });
 
 

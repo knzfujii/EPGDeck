@@ -14,6 +14,7 @@ describe('VideoApiModel - getVtt', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
+        vi.clearAllMocks();
 
         mockVideoUtil = {
             getFullFilePathFromId: vi.fn(),
@@ -103,5 +104,77 @@ describe('VideoApiModel - getVtt', () => {
         const vtt = await videoApiModel.getVtt(3);
         expect(vtt).toBe('WEBVTT\n\n');
     });
+
+    it('should re-extract WebVTT when file mtimeMs changes', async () => {
+        const filePath = '/path/to/recorded.mp4';
+        mockVideoUtil.getFullFilePathFromId.mockResolvedValue(filePath);
+        const statSpy = vi.spyOn(FileUtil, 'stat');
+        statSpy.mockResolvedValueOnce({ mtimeMs: 1000 } as any);
+
+        const mockStdout = new EventEmitter();
+        const mockChild = new EventEmitter() as any;
+        mockChild.stdout = mockStdout;
+
+        const spawnSpy = vi.spyOn(childProcess, 'spawn').mockImplementation(() => {
+            process.nextTick(() => {
+                mockStdout.emit('data', Buffer.from('WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nHello First\n'));
+                mockChild.emit('close', 0);
+            });
+            return mockChild;
+        });
+
+        const vtt1 = await videoApiModel.getVtt(10);
+        expect(vtt1).toContain('Hello First');
+        expect(spawnSpy).toHaveBeenCalledTimes(1);
+
+        // mtimeMs が更新された場合
+        statSpy.mockResolvedValueOnce({ mtimeMs: 2000 } as any);
+        const mockStdout2 = new EventEmitter();
+        const mockChild2 = new EventEmitter() as any;
+        mockChild2.stdout = mockStdout2;
+
+        spawnSpy.mockImplementation(() => {
+            process.nextTick(() => {
+                mockStdout2.emit('data', Buffer.from('WEBVTT\n\n00:00:01.000 --> 00:00:05.000\nHello Second\n'));
+                mockChild2.emit('close', 0);
+            });
+            return mockChild2;
+        });
+
+        const vtt2 = await videoApiModel.getVtt(10);
+        expect(vtt2).toContain('Hello Second');
+        expect(spawnSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should evict oldest entry when cache exceeds 100 entries', async () => {
+        mockVideoUtil.getFullFilePathFromId.mockImplementation(async (id: number) => `/path/to/${id}.mp4`);
+        vi.spyOn(FileUtil, 'stat').mockResolvedValue({ mtimeMs: 1000 } as any);
+
+        const spawnSpy = vi.spyOn(childProcess, 'spawn').mockImplementation(() => {
+            const mockStdout = new EventEmitter();
+            const mockChild = new EventEmitter() as any;
+            mockChild.stdout = mockStdout;
+            process.nextTick(() => {
+                mockStdout.emit('data', Buffer.from('WEBVTT\n\n'));
+                mockChild.emit('close', 0);
+            });
+            return mockChild;
+        });
+
+        // 102 件登録
+        for (let i = 1; i <= 102; i++) {
+            await videoApiModel.getVtt(i);
+        }
+        expect(spawnSpy).toHaveBeenCalledTimes(102);
+
+        // 最初のエントリ (id: 1) は破棄されているため再 spawn される
+        await videoApiModel.getVtt(1);
+        expect(spawnSpy).toHaveBeenCalledTimes(103);
+
+        // 直近のエントリ (id: 102) はキャッシュされているため spawn は増えない
+        await videoApiModel.getVtt(102);
+        expect(spawnSpy).toHaveBeenCalledTimes(103);
+    });
 });
+
 

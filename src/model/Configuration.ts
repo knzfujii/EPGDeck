@@ -140,16 +140,20 @@ class Configuration implements IConfiguration {
 
         if (options.checkDirectories) {
             for (const dir of directories) {
+                let stat: fs.Stats;
                 try {
-                    const stat = fs.statSync(dir.path);
-                    if (!stat.isDirectory()) {
+                    stat = fs.statSync(dir.path);
+                } catch (e: any) {
+                    if (e.code === 'ENOTDIR') {
                         throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
                     }
-                } catch (e: any) {
                     if (e.code === 'ENOENT' || !e.code) {
                         throw new Error(`Recording directory not found: "${dir.path}" (name: "${dir.name}")`);
                     }
                     throw e;
+                }
+                if (!stat.isDirectory()) {
+                    throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
                 }
             }
         }

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import http from '@/lib/httpClient';
     import { Film, CheckCircle2, Trash2, RefreshCw } from '@lucide/svelte';
@@ -47,7 +48,14 @@
     });
 
     async function cancelEncode(id: number) {
-        if (!confirm('このエンコードジョブをキャンセルしますか？')) return;
+        const ok = await confirmDialog({
+            title: 'エンコードのキャンセル',
+            message: 'このエンコードジョブをキャンセルしますか？',
+            confirmText: 'キャンセル実行',
+            cancelText: '戻る',
+            isDestructive: true,
+        });
+        if (!ok) return;
 
         try {
             await http.delete(`/api/encode/${id}`);

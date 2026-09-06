@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import http from '@/lib/httpClient';
     import {
@@ -89,7 +90,14 @@
     async function deleteRule(rule: any, event: Event) {
         event.stopPropagation();
         const kw = rule.searchOption?.keyword || `#${rule.id}`;
-        if (!confirm(`ルール「${kw}」を削除しますか？`)) return;
+        const ok = await confirmDialog({
+            title: 'ルールの削除',
+            message: `ルール「${kw}」を削除しますか？`,
+            confirmText: '削除',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
 
         try {
             await http.delete(`/api/rules/${rule.id}`);

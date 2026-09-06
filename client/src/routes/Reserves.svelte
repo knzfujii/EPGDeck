@@ -3,6 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import http from '@/lib/httpClient';
@@ -177,7 +178,14 @@
     async function cancelReserve(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
         const actionLabel = item.ruleId ? 'この回の録画をスキップ（除外）' : '予約を取り消し';
-        if (!confirm(`「${item.name}」の${actionLabel}しますか？`)) return;
+        const ok = await confirmDialog({
+            title: item.ruleId ? '録画のスキップ' : '予約の取り消し',
+            message: `「${item.name}」の${actionLabel}しますか？`,
+            confirmText: '実行',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
 
         isCanceling = true;
         try {

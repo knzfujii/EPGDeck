@@ -5,6 +5,7 @@
     import Header from './lib/components/layout/Header.svelte';
     import Navigation from './lib/components/layout/Navigation.svelte';
     import Snackbar from './lib/components/common/Snackbar.svelte';
+    import ConfirmModal from './lib/components/common/ConfirmModal.svelte';
     import { Loader2 } from '@lucide/svelte';
 
     type RouteLoader = () => Promise<{ default: any }>;
@@ -97,4 +98,5 @@
     </div>
 
     <Snackbar />
+    <ConfirmModal />
 </div>

@@ -3,6 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
@@ -125,9 +126,15 @@
     // 録画削除
     async function deleteRecorded() {
         if (!recorded) return;
-        if (!confirm(`「${recorded.name}」を削除しますか？関連する録画ファイルもすべて削除されます。`)) {
-            return;
-        }
+        const ok = await confirmDialog({
+            title: '録画番組の削除',
+            message: `「${recorded.name}」を削除しますか？\n関連する録画ファイルもすべて削除されます。`,
+            confirmText: '削除',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
+
         try {
             await http.delete(`/api/recorded/${recorded.id}`);
             snackbar.open({ text: '録画を削除しました', color: 'success' });
@@ -140,7 +147,15 @@
 
     // 個別動画ファイル削除
     async function deleteVideoFile(fileId: number, fileName: string) {
-        if (!confirm(`ファイル「${fileName}」を削除しますか？`)) return;
+        const ok = await confirmDialog({
+            title: '動画ファイルの削除',
+            message: `ファイル「${fileName}」を削除しますか？`,
+            confirmText: '削除',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
+
         try {
             await http.delete(`/api/videos/${fileId}`);
             snackbar.open({ text: '動画ファイルを削除しました', color: 'success' });

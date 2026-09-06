@@ -3,6 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
@@ -194,7 +195,14 @@
     }
 
     async function deleteRecorded(id: number, name: string) {
-        if (!confirm(`「${name}」を削除しますか？\n（録画ファイルも削除されます）`)) return;
+        const ok = await confirmDialog({
+            title: '録画番組の削除',
+            message: `「${name}」を削除しますか？\n（録画ファイルも削除されます）`,
+            confirmText: '削除',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
 
         try {
             await http.delete(`/api/recorded/${id}?isDeleteFile=true`);

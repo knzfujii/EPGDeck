@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import minimist from 'minimist';
+import { parseArgs } from 'util';
 import 'reflect-metadata';
 import DropLogFile from './db/entities/DropLogFile';
 import Recorded from './db/entities/Recorded';
@@ -54,31 +54,38 @@ class DBTools {
 
     constructor() {
         // 引数チェック
-        const args = minimist(process.argv.slice(2), {
-            alias: {
-                m: 'mode',
-                o: 'output',
+        const { values } = parseArgs({
+            args: process.argv.slice(2),
+            options: {
+                mode: {
+                    type: 'string',
+                    short: 'm',
+                },
+                output: {
+                    type: 'string',
+                    short: 'o',
+                },
             },
-            string: ['output', 'mode'],
+            strict: false,
         });
 
         if (
-            typeof args.output === 'undefined' ||
-            args.output === '' ||
-            typeof args.mode === 'undefined' ||
-            args.mode === ''
+            typeof values.output === 'undefined' ||
+            values.output === '' ||
+            typeof values.mode === 'undefined' ||
+            values.mode === ''
         ) {
             console.error('引数が足りません');
             process.exit(1);
         }
 
-        if (args.mode !== 'backup' && args.mode !== 'restore') {
+        if (values.mode !== 'backup' && values.mode !== 'restore') {
             console.error('mode の指定が間違っています');
             process.exit(1);
         }
 
-        this.filePath = args.output;
-        this.mode = args.mode;
+        this.filePath = values.output as string;
+        this.mode = values.mode as 'backup' | 'restore';
 
         const logger = container.get<ILoggerModel>('ILoggerModel');
         logger.initialize();

@@ -4,7 +4,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import urljoin from 'url-join';
+import StrUtil from '../../../util/StrUtil';
 import { OpenAPIV3 } from 'openapi-types';
 import IConfigFile from '../../IConfigFile';
 import ILogger from '../../ILogger';
@@ -57,7 +57,9 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
 
     // Helper for URL with subDirectory
     const createUrl = (urlStr: string): string => {
-        return typeof config.server.subDirectory === 'undefined' ? urlStr : urljoin(config.server.subDirectory, urlStr);
+        return typeof config.server.subDirectory === 'undefined'
+            ? urlStr
+            : StrUtil.urlJoin(config.server.subDirectory, urlStr);
     };
 
     // 3. OpenAPI Document
@@ -69,7 +71,7 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
         const doc = yaml.load(fs.readFileSync(apiYmlPath, 'utf-8')) as OpenAPIV3.Document;
         if (config.server.apiServers && config.server.apiServers.length > 0) {
             doc.servers = config.server.apiServers.map(url => ({
-                url: urljoin(url, createUrl('/api')),
+                url: StrUtil.urlJoin(url, createUrl('/api')),
             }));
         }
         try {

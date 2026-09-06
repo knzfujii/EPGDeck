@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
-import urljoin from 'url-join';
+import StrUtil from '../util/StrUtil';
 import IConfigFile, { StreamingConfig } from './IConfigFile';
 import IConfiguration from './IConfiguration';
 import ILogger from './ILogger';
@@ -72,7 +72,9 @@ class Configuration implements IConfiguration {
         const port = typeof server.port === 'number' ? server.port : 8889;
         const mirakurun = server.mirakurun || server.mirakurunPath || 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/';
         const subDirectory =
-            typeof server.subDirectory === 'string' ? urljoin('/', server.subDirectory).replace(/\/$/, '') : undefined;
+            typeof server.subDirectory === 'string'
+                ? StrUtil.urlJoin('/', server.subDirectory).replace(/\/$/, '')
+                : undefined;
 
         if (typeof server.port === 'undefined' && (!server.https || !server.https.port)) {
             throw new Error('PortSettingError: server.port is required');

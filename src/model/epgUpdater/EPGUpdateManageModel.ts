@@ -1,4 +1,3 @@
-import { EventSource } from 'eventsource';
 import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
 import { inject, injectable } from 'inversify';

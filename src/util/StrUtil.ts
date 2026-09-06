@@ -151,6 +151,43 @@ namespace StrUtil {
 
         return str;
     };
+
+    /**
+     * URL やパスを安全に結合する
+     * @param parts 結合するパス文字列
+     * @returns 結合されたURL
+     */
+    export const urlJoin = (...parts: string[]): string => {
+        const filtered = parts.filter(p => typeof p === 'string' && p.length > 0);
+        if (filtered.length === 0) {
+            return '';
+        }
+
+        const isLeadingSlash = filtered[0].startsWith('/');
+        const protocolMatch = filtered[0].match(/^([a-zA-Z][a-zA-Z\d+\-.]*:\/\/)(.*)$/);
+
+        if (protocolMatch) {
+            const protocol = protocolMatch[1];
+            const firstRest = protocolMatch[2];
+            const restParts = [firstRest, ...filtered.slice(1)];
+            const joinedRest = restParts
+                .map(part => part.replace(/^\/+|\/+$/g, ''))
+                .filter(part => part.length > 0)
+                .join('/');
+            return protocol + joinedRest;
+        }
+
+        const joined = filtered
+            .map(part => part.replace(/^\/+|\/+$/g, ''))
+            .filter(part => part.length > 0)
+            .join('/');
+
+        if (joined.length === 0) {
+            return isLeadingSlash ? '/' : '';
+        }
+
+        return isLeadingSlash ? '/' + joined : joined;
+    };
 }
 
 export default StrUtil;

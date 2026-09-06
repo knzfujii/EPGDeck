@@ -33,6 +33,11 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] サーバー側 `axios` を排除し、Kodi JSON-RPC を組み込みの `fetch` + `new URL` に移行
   - [x] `source-map-support` / `@types/source-map-support` を排除し、Node.js 標準の `--enable-source-maps` に移行
   - [x] 機能ごとに永続的な単体テスト（`file_util.test.ts`, `storage_api.test.ts`, `api_util.test.ts`）を整備・追加
+- [x] **不要・低利用率な依存パッケージの排除と Node.js 標準API移行（第2弾）**
+  - [x] `minimist` / `@types/minimist` を排除し、`DBTools.ts` のCLI引数解析を Node.js 18.3+ 標準の `node:util.parseArgs` に移行
+  - [x] `url-join` / `@types/url-join` を排除し、自作の堅牢な `StrUtil.urlJoin` に集約・移行
+  - [x] `eventsource` を排除し、Node.js 22.3+ 標準の組み込みグローバル `EventSource` に移行
+  - [x] `engines.node` を `">=22.3.0"` に更新、`db_tools.test.ts` / `str_util.test.ts` 永続テストを追加
 
 ---
 

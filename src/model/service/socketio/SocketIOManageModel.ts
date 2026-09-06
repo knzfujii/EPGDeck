@@ -1,7 +1,7 @@
 import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as SocketIO from 'socket.io';
-import urljoin from 'url-join';
+import StrUtil from '../../../util/StrUtil';
 import IConfigFile from '../../IConfigFile';
 import IConfiguration from '../../IConfiguration';
 import ILogger, { LogEntry } from '../../ILogger';
@@ -31,7 +31,7 @@ export default class SocketIOManageModel implements ISocketIOManageModel {
                 path:
                     typeof this.config.server.subDirectory === 'undefined'
                         ? '/socket.io'
-                        : urljoin(this.config.server.subDirectory, '/socket.io'),
+                        : StrUtil.urlJoin(this.config.server.subDirectory, '/socket.io'),
                 cors: {
                     origin: '*',
                 },

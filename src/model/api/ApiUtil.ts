@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import urljoin from 'url-join';
+import StrUtil from '../../util/StrUtil';
 import { KodiInfo } from '../IConfigFile';
 import IConfiguration from '../IConfiguration';
 import IApiUtil, { CreateM3U8Option } from './IApiUtil';
@@ -19,7 +19,10 @@ export default class ApiUtil implements IApiUtil {
      * @return string
      */
     public createM3U8PlayListStr(option: CreateM3U8Option): string {
-        const fullUrl = urljoin(`${option.isSecure ? 'https' : 'http'}://${this.getHost(option.host)}`, option.baseUrl);
+        const fullUrl = StrUtil.urlJoin(
+            `${option.isSecure ? 'https' : 'http'}://${this.getHost(option.host)}`,
+            option.baseUrl,
+        );
 
         return '#EXTM3U\n' + `#EXTINF: ${option.duration}, ${option.name}\n` + fullUrl;
     }

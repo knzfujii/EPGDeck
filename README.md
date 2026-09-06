@@ -41,7 +41,7 @@
 -   いずれかのデータベース
     -   [SQLite3](https://www.sqlite.org/)（設定不要、Drizzle ORM で自動管理）[標準]
     -   [MySQL](https://www.mysql.com/jp/) ([MariaDB](https://mariadb.org/))【推奨】※文字コードは utf8mb4
--   [FFmpeg](http://ffmpeg.org/)
+-   [FFmpeg](http://ffmpeg.org/)（Web 視聴や標準エンコードは通常の FFmpeg で動作。MP4 内に字幕を埋め込む場合のみ `--enable-libaribb24` 対応ビルドが必要）
 
 ---
 

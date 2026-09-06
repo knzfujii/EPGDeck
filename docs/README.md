@@ -14,6 +14,8 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
   - `config/config.yml` の各設定項目（ポート、録画先、エンコード、Mirakurun接続等）の解説。
 - **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**
   - `config/enc_helper.js` によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
+- **[FFmpeg カスタムビルドガイド](manual/ffmpeg-build.md)**
+  - ARIB 字幕（`libaribb24`）、VAAPI、高品質エンコードに対応した FFmpeg を `/opt/ffmpeg-custom` に隔離ビルドする参考手順。
 - **[録画機能マニュアル](manual/recording.md)**
   - 録画予約の種類、録画オプション（保存先・エンコード・末尾欠け許可）の設定、ルール予約と個別予約の関係、重複録画回避（二重録画防止）、チューナー競合の仕組み。
 - **[ロギングシステム仕様 & ログビューア](manual/logging.md)**

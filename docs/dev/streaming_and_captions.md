@@ -181,3 +181,13 @@ private injectDefaultCaptionManagement(): void {
    - 字幕マッピングに `-map 0:s? -c:s mov_text -metadata:s:s:0 language=jpn` を追加
 4. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。
 
+### 6.4 FFmpeg の `--enable-libaribb24` 依存性
+- **ストリーミング（HLS / M2TS-LL）との決定的な違い**:
+  - HLS 配信はサーバー側 Node.js（`arib-subtitle-timedmetadater`）が ID3 化し、ブラウザ側（`aribb24.js`）がデコードします。
+  - M2TS-LL は FFmpeg が `-c:s copy` でパススルーし、ブラウザ側（`aribb24.js`）がデコードします。
+  - したがって、**ストリーミング視聴機能には FFmpeg の libaribb24 は一切不要（libaribb24 非対応の通常 FFmpeg であっても完全動作）** です。
+- **MP4 字幕保持時の必須性**:
+  - MP4 にテキスト字幕（`mov_text`）を多重化するには、FFmpeg 自身が ARIB STD-B24 パケットをデコードしてテキスト化する必要があります。
+  - FFmpeg 内で ARIB 字幕のデコーダーは `libaribb24` のみ（標準組み込みデコーダーは存在しない）であるため、`subtitle: true` を動作させるには **`--enable-libaribb24` を有効化してビルドされた FFmpeg が必須** となります。
+  - 非対応 FFmpeg で `subtitle: true` を指定すると、`Decoder (codec arib_caption) not found for input stream` エラーでエンコードが失敗します（`subtitle: false` の場合は `-sn` となるため非対応 FFmpeg でも安全に完了します）。
+

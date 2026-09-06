@@ -205,14 +205,32 @@ runEncode({
 
 ---
 
-## 4. FFmpeg バージョン互換性
+## 4. FFmpeg バージョン・ビルド要件と互換性
 
-| 項目 | FFmpeg 4.x | FFmpeg 5.x / 6.x / 7.x (最新) | EPGDeck での対応 |
+### 4.1 FFmpeg バージョン互換性
+
+| 項目 | FFmpeg 4.x | FFmpeg 5.x 以降 | EPGDeck での対応 |
 | :--- | :--- | :--- | :--- |
 | **音声ビットレート** | `-ab 192k` / `-b:a 192k` | `-b:a 192k` | `-b:a` に統一（全バージョンで安全動作） |
 | **チャンネル分離** | `channelsplit` | `channelsplit` (Channel Layout API) | `aformat=channel_layouts=mono` により完全互換 |
 | **インターレース解除** | `yadif` / `deinterlace_vaapi` | 同左 | 標準フィルターとして全バージョン対応 |
 | **進捗パース** | `time=HH:MM:SS.ms` | 同左 | 正規表現で全バージョン共通パース |
+
+### 4.2 字幕機能 (`subtitle: true`) と `libaribb24` 要件
+
+録画エンコード時に MP4 内へ ARIB 字幕（`mov_text`）を保持したい場合（`subtitle: true`）の動作要件です：
+
+- **標準エンコード (`subtitle: false` [デフォルト])**:
+  - **`libaribb24` 非対応の通常 FFmpeg で問題なく動作します**。
+  - 字幕ストリームは自動的に除外（`-sn`）されるため、特別なデコーダーは一切不要です。
+- **字幕保持有効 (`subtitle: true`)**:
+  - ARIB STD-B24 字幕（`arib_caption`）を MP4 規格のテキスト字幕（`mov_text`）にデコード・変換するため、**`--enable-libaribb24` を有効化してビルドされた FFmpeg が必須** となります。
+  - **非対応 FFmpeg で実行した場合の挙動**:
+    - 入力 TS に字幕データが含まれる番組の場合、FFmpeg が `Decoder (codec arib_caption) not found for input stream` エラーを出力してエンコードが異常終了します。
+    - ※ただし、`enc_helper.js` の出力検証機構（`verifyDuration`）により、異常終了時でも元 TS ファイルが削除されることはありません。
+  - **対応方法**:
+    - `libaribb24` 非対応の FFmpeg をお使いの場合は、プリセットの `subtitle` 設定を `false`（または省略）のまま運用してください。
+    - 字幕を MP4 に埋め込みたい場合は、`libaribb24` 対応の FFmpeg をご用意ください。具体的なビルド手順は **[FFmpeg カスタムビルドガイド](ffmpeg-build.md)** を参照してください。
 
 ---
 

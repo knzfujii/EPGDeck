@@ -1,6 +1,13 @@
 # 字幕表示機能 / Web 低遅延視聴機能について
 
-Web 視聴での字幕機能を有効にするため、`config.yml` で幾つかのパラメータを指定する必要があります
+Web 視聴での字幕機能を有効にするため、`config.yml` で幾つかのパラメータを指定する必要があります。
+
+> [!NOTE]
+> **FFmpeg の `libaribb24`（ARIB 字幕対応）要件について**:
+> - **Web ストリーミング視聴（HLS / M2TS-LL）**:
+>   ARIB 字幕のデコード・描画はブラウザ側の JavaScript（`aribb24.js` v2）が行うため、**サーバー側の FFmpeg に `libaribb24` が組み込まれていなくても（OS標準の通常 FFmpeg であっても）問題なく字幕・文字スーパーが表示されます**。
+> - **録画エンコード（MP4 内への字幕保存: `subtitle: true`）**:
+>   ARIB 字幕ストリームを MP4 規格のテキスト字幕（`mov_text`）に変換するため、**`--enable-libaribb24` を有効化した FFmpeg が必須** となります（通常設定 `subtitle: false` の場合は不要です）。
 
 ## HLS 配信時の字幕表示機能
 
@@ -120,6 +127,11 @@ encode:
 ```
 
 ※全プリセットで一括して字幕保存を有効化したい場合は、`encode.subtitle: true` を指定することも可能です。
+
+> [!WARNING]
+> **libaribb24 非対応 FFmpeg での注意点**:
+> OS 標準パッケージ等の `libaribb24` が有効化されていない FFmpeg を使用している環境で `subtitle: true` を指定すると、字幕付き番組のエンコード開始時に `Decoder (codec arib_caption) not found for input stream` エラーが発生してエンコードが失敗します。
+> 通常の FFmpeg をご利用の場合は、`subtitle: false`（省略時のデフォルト）のままでご使用ください。
 
 ### 再生環境と互換性
 - **Web プレイヤー**: EPGDeck のプレイヤーで直接再生時、画面右下の字幕ボタンまたはキーボードの `C` キーで字幕の表示/非表示を切り替えられます。

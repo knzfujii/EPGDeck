@@ -38,6 +38,15 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `url-join` / `@types/url-join` を排除し、自作の堅牢な `StrUtil.urlJoin` に集約・移行
   - [x] `eventsource` を排除し、Node.js 22.3+ 標準の組み込みグローバル `EventSource` に移行
   - [x] `engines.node` を `">=22.3.0"` に更新、`db_tools.test.ts` / `str_util.test.ts` 永続テストを追加
+- [x] **依存パッケージ・ビルドツールの最新化と品質基盤強化（プランC）**
+  - [x] 破壊的変更リスクの低いマイナー・パッチ更新（`hono` 4.13.7, `playwright` 1.63.0, `lint-staged` 17.5.0, `@lucide/svelte` 1.41.0）
+  - [x] Mirakurun 互換性要件に準拠し、本番環境 Node.js v24 向けに `@types/node` 24.13.3 を維持
+  - [x] クライアント側 `vite` 8.2.2（Rolldown 高速バンドラ）＆ `@sveltejs/vite-plugin-svelte` 7.3.0 へのメジャー移行（ビルド時間 10.8s $\rightarrow$ 2.6s に短縮）
+  - [x] `vitest` 5.0.0 へのメジャー更新および設定最適化（`vitest.config.mts` 移行による警告解消）
+  - [x] `eslint` 10.10.0 / `@eslint/js` 10.0.1 へのメジャー更新（`@eslint/eslintrc` 追加、新ルールのポリシー整合化）
+  - [x] ルート `typescript` を 5.9.3 に更新しクライアントとバージョンを統一
+  - [x] 更新前の安全担保として Hono サーバー（CORS、404、SPA フォールバック）およびクライアント httpClient の網羅的単体テストを追加
+
 
 ---
 

@@ -85,4 +85,43 @@ describe('Hono Server Endpoints', () => {
         expect(res.status).toBe(302);
         expect(res.headers.get('location')).toBe('/api-docs/?url=/api/docs');
     });
+
+    it('OPTIONS /api/version returns CORS headers when isAllowAllCORS is true', async () => {
+        const res = await app.request('/api/version', {
+            method: 'OPTIONS',
+            headers: {
+                Origin: 'http://example.com',
+                'Access-Control-Request-Method': 'GET',
+            },
+        });
+        expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    });
+
+    it('does not return CORS headers when isAllowAllCORS is false', async () => {
+        const noCorsConfig = {
+            ...dummyConfig,
+            server: { ...dummyConfig.server, isAllowAllCORS: false },
+        };
+        const noCorsApp = createHonoApp(noCorsConfig, dummyLog);
+        const res = await noCorsApp.request('/api/version', {
+            method: 'OPTIONS',
+            headers: {
+                Origin: 'http://example.com',
+                'Access-Control-Request-Method': 'GET',
+            },
+        });
+        expect(res.headers.get('access-control-allow-origin')).toBeNull();
+    });
+
+    it('returns 404 for missing static file asset with extension', async () => {
+        const res = await app.request('/assets/nonexistent-file.js');
+        expect(res.status).toBe(404);
+    });
+
+    it('falls back to index.html for SPA page routes', async () => {
+        const res = await app.request('/reserves');
+        expect(res.status).toBe(200);
+        const html = await res.text();
+        expect(html.toLowerCase()).toContain('<!doctype html>');
+    });
 });

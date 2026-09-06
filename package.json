@@ -52,7 +52,7 @@
     "aribts": "2.1.12",
     "drizzle-orm": "0.45.2",
     "file-type": "16.5.4",
-    "hono": "4.13.5",
+    "hono": "4.13.7",
     "inversify": "6.0.2",
     "js-yaml": "4.1.0",
     "log4js": "6.9.1",
@@ -63,8 +63,9 @@
     "socket.io": "4.8.3"
   },
   "devDependencies": {
-    "@eslint/js": "9.39.5",
-    "@playwright/test": "1.62.1",
+    "@eslint/eslintrc": "3.3.7",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/file-type": "10.9.1",
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.13.3",
@@ -72,17 +73,17 @@
     "@typescript-eslint/eslint-plugin": "8.69.0",
     "@typescript-eslint/parser": "8.69.0",
     "drizzle-kit": "0.31.10",
-    "eslint": "9.39.5",
+    "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "husky": "9.1.7",
-    "lint-staged": "17.4.1",
+    "lint-staged": "17.5.0",
     "nodemon": "3.1.14",
     "npm-run-all": "4.1.5",
-    "playwright": "1.62.1",
+    "playwright": "1.63.0",
     "prettier": "3.9.6",
     "tsx": "4.23.13",
-    "typescript": "5.4.5",
-    "vitest": "4.1.11"
+    "typescript": "5.9.3",
+    "vitest": "5.0.0"
   },
   "lint-staged": {
     "src/**/*.ts": [

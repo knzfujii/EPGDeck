@@ -166,5 +166,17 @@ describe('httpClient', () => {
             expect(res.status).toBe(404);
             expect(res.data).toEqual({ error: 'Not found' });
         });
+
+        it('should send custom headers properly', async () => {
+            const res = await http.get(`${baseUrl}/json-get`, {
+                headers: { 'X-Custom-Header': 'CustomValue' },
+            });
+            expect(res.status).toBe(200);
+        });
+
+        it('should encode special characters in query params correctly', () => {
+            const url = buildUrl('/api/search', { keyword: 'アニメ & ドラマ? #1' });
+            expect(url).toContain('%E3%82%A2%E3%83%8B%E3%83%A1+%26+%E3%83%89%E3%83%A9%E3%83%9E%3F+%231');
+        });
     });
 });

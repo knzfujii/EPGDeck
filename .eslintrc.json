@@ -20,7 +20,10 @@
         "no-constant-condition": "off",
         "no-useless-escape": "off",
         "no-async-promise-executor": "off",
+        "no-useless-assignment": "off",
+        "preserve-caught-error": "off",
         "max-len": ["error", {
+
             "code": 180,
             "tabWidth": 4,
             "ignoreComments": true,

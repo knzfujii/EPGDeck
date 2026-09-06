@@ -6,11 +6,13 @@
 
 1. **Node.js, Mirakurun, FFmpeg/FFprobe** がインストール済みであることを確認する
 
-    本リポジトリには `.mise.toml` が含まれているため、[mise](https://mise.jdx.dev/) をお使いの場合は以下で推奨バージョンの Node.js を自動セットアップできます。
+    本番環境は Mirakurun の対応状況に合わせて **`Node.js v24.x`** を推奨します（開発環境では `v26.x` でのビルド・テストにも完全対応）。
+    本リポジトリには `.mise.toml` が含まれているため、[mise](https://mise.jdx.dev/) をお使いの場合は以下で Node.js を自動セットアップできます。
 
     ```bash
     $ mise install
     ```
+
 
     手動で確認する場合:
 

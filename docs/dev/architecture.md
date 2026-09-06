@@ -57,8 +57,9 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 
 ## 4. フロントエンド設計
  
-- **ビルドツール**: **Vite** (`@sveltejs/vite-plugin-svelte`)
-  - Node.js 22 〜 Node.js 26 (LTS) でのネイティブ高速ビルドおよび HMR (Hot Module Replacement) に対応。
+- **ビルドツール**: **Vite 8** (`@sveltejs/vite-plugin-svelte`)
+  - Rolldown エンジンによる高速バンドル（ビルド時間約 2.6 秒）および HMR (Hot Module Replacement) に対応。
+  - Node.js 22 〜 Node.js 26 (LTS) でのネイティブ高速ビルドに対応。
 - **フレームワーク**: **Svelte 5** (Runes `$state`, `$derived`, `$props`, `$effect` 準拠)
   - 仮想 DOM レスによる高速な描画と省メモリ設計、軽量なバンドル構成。
 - **スタイル / UI システム**: **Tailwind CSS v4** + `@tailwindcss/vite`
@@ -77,9 +78,14 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 
 ---
 
-## 5. テスト・CI 基盤
+## 5. テスト・コード品質基盤
 
-- **テストフレームワーク**: **Vitest**
-  - Node.js 環境での高速な単体テスト（設定パース、API ユーティリティ、バージョン整合性など）を実行可能。
+- **単体テスト**: **Vitest 5** (`vitest.config.mts`)
+  - Node.js 環境での高速な単体テスト（設定パース、Hono API、DB アクセス、Client HTTP クライアント、バージョン整合性など）を実行可能。
+- **E2E テスト**: **Playwright** (`test/e2e/`)
+  - Chromium ヘッドレスブラウザによる全画面・主要機能のシナリオ検証。
+- **静的解析・フォーマット**: **ESLint 10** + **Prettier**
+  - Flat Config / FlatCompat 構成による TypeScript コードの高速な構文解析およびコードスタイル統一。
 - **継続的インテグレーション (CI)**: GitHub Actions
-  - PR / Push 時に `npm test` および型チェック・Lint・全ビルドを自動実行して品質を担保。
+  - PR / Push 時に `npm run check`（型チェック・Lint・テスト・全ビルド）を自動実行して品質を担保。
+

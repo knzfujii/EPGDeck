@@ -1,0 +1,23 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    # MySQL 8.0 を使用したい場合は以下に切り替え可能:
+    # image: mysql:8.0
+    container_name: epgdeck-mariadb-test
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: epgdeck
+      MYSQL_USER: epgdeck
+      MYSQL_PASSWORD: epgdeck
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - '13306:3306'
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+

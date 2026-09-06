@@ -1,73 +1,129 @@
-name: CI (Lint & Build Check)
+name: CI (All-in-One Check)
 
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  server:
-    name: Server Check (Node ${{ matrix.node-version }})
+  ci:
+    name: Core Verification & E2E (Node 22)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22, 26]
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: epgdeck
+          MYSQL_USER: epgdeck
+          MYSQL_PASSWORD: epgdeck
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=3s --health-retries=10
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: epgdeck
+          MYSQL_USER: epgdeck
+          MYSQL_PASSWORD: epgdeck
+        ports:
+          - 3307:3306
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot" --health-interval=5s --health-timeout=3s --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js 22
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
 
-      - name: Install Dependencies
+      - name: Install Root Dependencies
         run: npm ci
 
-      - name: Lint Check
+      - name: Install Client Dependencies
+        run: npm --prefix client ci
+
+      - name: Lint Check (Server)
         run: npm run lint:check
 
-      - name: Prettier Format Check
+      - name: Prettier Format Check (Server)
         run: npm run format:check
 
-      - name: TypeScript Compile
+      - name: TypeScript Compile (Server)
         run: npm run compile
 
-      - name: Run Tests
+      - name: Svelte & TypeScript Check (Client)
+        run: npm --prefix client run check
+
+      - name: Build Check (Client)
+        run: npm --prefix client run build
+
+      - name: Security Audit (Warning only)
+        run: |
+          npm audit || true
+          npm --prefix client audit || true
+
+      - name: Run Unit Tests (SQLite)
         run: npm test
 
-  client:
-    name: Client Check (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22, 26]
-    defaults:
-      run:
-        working-directory: client
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - name: Run Integration Tests (MariaDB 10.11)
+        env:
+          TEST_MYSQL: 'true'
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_USER: epgdeck
+          MYSQL_PASSWORD: epgdeck
+          MYSQL_DATABASE: epgdeck
+        run: npm run test:mysql
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v7
+      - name: Run Integration Tests (MySQL 8.0)
+        env:
+          TEST_MYSQL: 'true'
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3307
+          MYSQL_USER: epgdeck
+          MYSQL_PASSWORD: epgdeck
+          MYSQL_DATABASE: epgdeck
+        run: npm run test:mysql
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare Config for E2E
+        run: cp config/config.yml.template config/config.yml
+
+      - name: Run Playwright E2E Tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v7
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Svelte & TypeScript Check
-        run: npm run check
-
-      - name: Build Check
-        run: npm run build
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 

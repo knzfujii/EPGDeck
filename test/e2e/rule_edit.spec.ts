@@ -25,10 +25,15 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
 
         // 2. 各セクション見出し (縦長レイアウト)
         await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /放送局/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /予約設定/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /保存先ストレージ/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
+
+        // 詳細条件アコーディオンを展開して確認
+        const detailBtn = page.getByRole('button', { name: /詳細条件 \(ジャンル・放送波\/局\)/ });
+        await expect(detailBtn).toBeVisible();
+        await detailBtn.click();
+        await expect(page.getByRole('heading', { name: /放送波・放送局/ })).toBeVisible();
 
         // 3. 検索条件フォーム
         await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
@@ -42,7 +47,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         // 5. 保存先ストレージ
         await expect(page.getByText('親保存先ストレージ')).toBeVisible();
         await expect(page.getByText('保存サブディレクトリ')).toBeVisible();
-        await expect(page.locator('#rule-filename-format')).toBeVisible();
+        await expect(page.locator('#rule-recorded-format')).toBeVisible();
 
         // 6. 自動エンコード設定 (3つ)
         await expect(page.getByText('エンコード設定 1')).toBeVisible();
@@ -81,8 +86,8 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const keywordInput = page.getByPlaceholder(/葬送のフリーレン/);
         await expect(keywordInput).toHaveValue('ニュース');
 
-        // ジャンルがプリフィルされている (ニュース = 0)
-        await expect(page.locator('#rule-genre')).toHaveValue('0');
+        // ジャンルパラメータ指定時は自動的に詳細条件が展開されジャンルコンテナが表示されている
+        await expect(page.locator('#rule-genre-container')).toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
@@ -136,6 +141,10 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
 
         await page.goto('/rule/edit');
         await page.waitForLoadState('networkidle');
+
+        // 詳細条件アコーディオンを展開
+        const detailBtn = page.getByRole('button', { name: /詳細条件 \(ジャンル・放送波\/局\)/ });
+        await detailBtn.click();
 
         // 1. 初期状態: 放送波一括指定モード
         await expect(page.getByText('放送波一括指定モード')).toBeVisible();
@@ -196,6 +205,10 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await page.goto('/rule/edit');
         await page.waitForLoadState('networkidle');
 
+        // 詳細条件アコーディオンを展開
+        const detailBtn = page.getByRole('button', { name: /詳細条件 \(ジャンル・放送波\/局\)/ });
+        await detailBtn.click();
+
         // 1. 初期状態: 未選択（すべてのジャンルが対象）
         await expect(page.getByText('※ 未選択時は「すべてのジャンル」が対象になります')).toBeVisible();
 
@@ -208,7 +221,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const movieCard = page.locator('div', { hasText: /^映画/ }).first();
         const movieAllBtn = movieCard.getByRole('button', { name: '一括選択 (すべて)' });
         await movieAllBtn.click();
-        await expect(movieAllBtn).toHaveText('ジャンル解除');
+        await expect(movieCard.getByRole('button', { name: 'ジャンル解除' })).toBeVisible();
 
         // 4. 全解除ボタンをクリック
         const clearBtn = page.getByRole('button', { name: '全解除 (すべて対象)' });

@@ -19,15 +19,18 @@ test.describe('Dashboard Page (/)', () => {
 
         await page.goto('/');
 
-        // 1. 予約中・録画済みの概要カード
+        // 1. 予約リスト・録画リストの見出し
         const main = page.locator('main');
-        await expect(main.getByRole('button', { name: /予約中/ })).toBeVisible();
-        await expect(main.getByRole('button', { name: /録画済み/ })).toBeVisible();
+        await expect(main.getByRole('heading', { name: '予約リスト' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: '録画リスト' })).toBeVisible();
 
         // 2. ダッシュボードに統合されたストレージ容量カード
-        await expect(main.getByRole('heading', { name: 'ストレージ容量' })).toBeVisible();
-        await expect(page.getByText(/全 \d+ ドライブ/)).toBeVisible();
-        await expect(page.getByText(/使用中/).first()).toBeVisible();
+        const storageCardBtn = main.getByRole('button', { name: /ストレージ容量/ });
+        await expect(storageCardBtn).toBeVisible();
+        await expect(page.getByText(/\d+ ドライブ/)).toBeVisible();
+
+        // アコーディオンを展開して詳細数値を検証
+        await storageCardBtn.click();
         await expect(page.getByText(/使用:/).first()).toBeVisible();
         await expect(page.getByText(/空き:/).first()).toBeVisible();
         await expect(page.getByText(/合計:/).first()).toBeVisible();

@@ -109,3 +109,20 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] セレクトボックスの型・バインディング処理を堅牢化
 - [ ] `/dev/shm` の利用についてドキュメント化
 - [ ] ルールの優先順位を設定できるようにする
+
+---
+
+## 5. テスト & CI/CD 基盤 (Testing & CI/CD)
+
+- [x] **MariaDB / MySQL 実機結合テスト基盤の導入**
+  - [x] ローカル検証用 `docker-compose.db.yml`（ホスト競合回避ポート `13306`）の整備
+  - [x] `test/integration/mysql.test.ts` による DDL・インデックス生成・Auto-Increment ID 取得・主要 DAO CRUD の網羅検証
+  - [x] 普段の SQLite 単体テストの超高速性を阻害しないオプトイン実行（`TEST_MYSQL=true`）ガード
+- [x] **GitHub Actions CI のコスト効率最大化と全自動検証（1 ジョブ統合）**
+  - [x] `concurrency` による同一 PR 連続プッシュ時の古いジョブ自動キャンセル
+  - [x] `paths-ignore` によるドキュメント（`docs/**`, `*.md`）変更時の無駄な CI スキップ
+  - [x] MariaDB 10.11（ポート 3306）および MySQL 8.0（ポート 3307）のデュアルサービスによる広範な DB 互換性検証
+  - [x] セキュリティ監査（`npm audit`）の CI 監視化
+  - [x] Mirakurun 未稼働の CI / テスト環境でも自律動作するスタンドアロン E2E サーバー（`test/e2e/e2e_server.ts`）と Playwright CI 統合
+  - [x] VM 起動・依存関係インストールの重複を排除した 1 ジョブ（~1〜2分）統合パイプラインの構築
+

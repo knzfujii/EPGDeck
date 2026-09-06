@@ -77,10 +77,15 @@ test.describe('Search and Rules Management Pages', () => {
 
         // 6. 各セクション見出しの確認 (縦長レイアウト)
         await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /放送局/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /予約設定/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /保存先ストレージ/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
+
+        // 詳細条件アコーディオンを展開して確認
+        const detailBtn = page.getByRole('button', { name: /詳細条件 \(ジャンル・放送波\/局\)/ });
+        await expect(detailBtn).toBeVisible();
+        await detailBtn.click();
+        await expect(page.getByRole('heading', { name: /放送波・放送局/ })).toBeVisible();
 
         // 7. キャンセルでルール一覧に戻る
         const cancelBtn = page.getByRole('button', { name: 'キャンセル' });

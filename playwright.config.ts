@@ -6,7 +6,7 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: 'list',
+    reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
     use: {
         baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8889',
         trace: 'on-first-retry',
@@ -19,4 +19,10 @@ export default defineConfig({
             use: { ...devices['Desktop Chrome'] },
         },
     ],
+    webServer: {
+        command: 'npx tsx test/e2e/e2e_server.ts',
+        url: 'http://localhost:8889',
+        reuseExistingServer: !process.env.CI,
+        timeout: 60000,
+    },
 });

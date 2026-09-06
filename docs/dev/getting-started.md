@@ -121,6 +121,18 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
   ```bash
   $ npm run check
   ```
+- **MariaDB / MySQL 実機結合テスト**:
+  ローカルの Docker コンテナ（ポート `13306`）を起動し、DDL・インデックス・主要 DAO の CRUD を検証します。
+  ```bash
+  $ docker compose -f docker-compose.db.yml up -d
+  $ npm run test:mysql
+  $ docker compose -f docker-compose.db.yml down -v
+  ```
+- **Playwright E2E テスト**:
+  テスト用スタンドアロンサーバーを自動起動し、Chromium ブラウザによる画面・操作検証を行います（事前に `npm run build-client` が必要）。
+  ```bash
+  $ npm run test:e2e
+  ```
 - **全体ビルド**:
   ```bash
   $ npm run build

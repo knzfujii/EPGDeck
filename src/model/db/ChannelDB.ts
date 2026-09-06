@@ -6,6 +6,7 @@ import Channel from '../../db/entities/Channel';
 import StrUtil from '../../util/StrUtil';
 import IConfiguration from '../IConfiguration';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IChannelDB, { ChannelUpdateValues } from './IChannelDB';
 import IDrizzleOperator from './IDrizzleOperator';
 
@@ -61,18 +62,7 @@ export default class ChannelDB implements IChannelDB {
                 if (needesDeleted) {
                     await tx.delete(schema.channels);
                 }
-                for (const value of values) {
-                    if (client.type === 'sqlite') {
-                        await tx.insert(schema.channels).values(value).onConflictDoUpdate({
-                            target: schema.channels.id,
-                            set: value,
-                        });
-                    } else {
-                        await tx.insert(schema.channels).values(value).onDuplicateKeyUpdate({
-                            set: value,
-                        });
-                    }
-                }
+                await DrizzleHelper.upsertChannels(client.type, tx, schema, values);
             });
         });
     }

@@ -85,23 +85,7 @@ export default class RecordedTagDB implements IRecordedTagDB {
 
         await this.promiseRetry.run(async () => {
             const { db, schema } = client;
-            if (client.type === 'sqlite') {
-                await (db as any)
-                    .insert(schema.recordedTagsRecordedTag)
-                    .values({
-                        recordedId,
-                        recordedTagId: tagId,
-                    })
-                    .onConflictDoNothing();
-            } else {
-                await (db as any)
-                    .insert(schema.recordedTagsRecordedTag)
-                    .values({
-                        recordedId,
-                        recordedTagId: tagId,
-                    })
-                    .onDuplicateKeyUpdate({ set: { recordedId } });
-            }
+            await DrizzleHelper.setTagRelation(client.type, db, schema, recordedId, tagId);
         });
     }
 

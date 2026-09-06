@@ -8,6 +8,7 @@ import StrUtil from '../../util/StrUtil';
 import IConfigFile from '../IConfigFile';
 import IConfiguration from '../IConfiguration';
 import IPromiseRetry from '../IPromiseRetry';
+import { DrizzleHelper } from './DrizzleHelper';
 import IChannelTypeIndex from './IChannelTypeHash';
 import IDrizzleOperator from './IDrizzleOperator';
 import IProgramDB, {
@@ -61,98 +62,7 @@ export default class ProgramDB implements IProgramDB {
                     await tx.delete(schema.programs).where(inArray(schema.programs.channelId, deleteChannelIds));
                 }
 
-                const chunkSize = 100;
-                for (let i = 0; i < rows.length; i += chunkSize) {
-                    const chunk = rows.slice(i, i + chunkSize);
-                    if (chunk.length === 0) continue;
-
-                    if (client.type === 'sqlite') {
-                        await tx
-                            .insert(schema.programs)
-                            .values(chunk)
-                            .onConflictDoUpdate({
-                                target: schema.programs.id,
-                                set: {
-                                    updateTime: sql`excluded.updateTime`,
-                                    channelId: sql`excluded.channelId`,
-                                    eventId: sql`excluded.eventId`,
-                                    serviceId: sql`excluded.serviceId`,
-                                    networkId: sql`excluded.networkId`,
-                                    startAt: sql`excluded.startAt`,
-                                    endAt: sql`excluded.endAt`,
-                                    startHour: sql`excluded.startHour`,
-                                    week: sql`excluded.week`,
-                                    duration: sql`excluded.duration`,
-                                    isFree: sql`excluded.isFree`,
-                                    name: sql`excluded.name`,
-                                    halfWidthName: sql`excluded.halfWidthName`,
-                                    shortName: sql`excluded.shortName`,
-                                    description: sql`excluded.description`,
-                                    halfWidthDescription: sql`excluded.halfWidthDescription`,
-                                    extended: sql`excluded.extended`,
-                                    halfWidthExtended: sql`excluded.halfWidthExtended`,
-                                    rawExtended: sql`excluded.rawExtended`,
-                                    rawHalfWidthExtended: sql`excluded.rawHalfWidthExtended`,
-                                    genre1: sql`excluded.genre1`,
-                                    subGenre1: sql`excluded.subGenre1`,
-                                    genre2: sql`excluded.genre2`,
-                                    subGenre2: sql`excluded.subGenre2`,
-                                    genre3: sql`excluded.genre3`,
-                                    subGenre3: sql`excluded.subGenre3`,
-                                    channelType: sql`excluded.channelType`,
-                                    channel: sql`excluded.channel`,
-                                    videoType: sql`excluded.videoType`,
-                                    videoResolution: sql`excluded.videoResolution`,
-                                    videoStreamContent: sql`excluded.videoStreamContent`,
-                                    videoComponentType: sql`excluded.videoComponentType`,
-                                    audioSamplingRate: sql`excluded.audioSamplingRate`,
-                                    audioComponentType: sql`excluded.audioComponentType`,
-                                },
-                            });
-                    } else {
-                        await tx
-                            .insert(schema.programs)
-                            .values(chunk)
-                            .onDuplicateKeyUpdate({
-                                set: {
-                                    updateTime: sql`VALUES(\`updateTime\`)`,
-                                    channelId: sql`VALUES(\`channelId\`)`,
-                                    eventId: sql`VALUES(\`eventId\`)`,
-                                    serviceId: sql`VALUES(\`serviceId\`)`,
-                                    networkId: sql`VALUES(\`networkId\`)`,
-                                    startAt: sql`VALUES(\`startAt\`)`,
-                                    endAt: sql`VALUES(\`endAt\`)`,
-                                    startHour: sql`VALUES(\`startHour\`)`,
-                                    week: sql`VALUES(\`week\`)`,
-                                    duration: sql`VALUES(\`duration\`)`,
-                                    isFree: sql`VALUES(\`isFree\`)`,
-                                    name: sql`VALUES(\`name\`)`,
-                                    halfWidthName: sql`VALUES(\`halfWidthName\`)`,
-                                    shortName: sql`VALUES(\`shortName\`)`,
-                                    description: sql`VALUES(\`description\`)`,
-                                    halfWidthDescription: sql`VALUES(\`halfWidthDescription\`)`,
-                                    extended: sql`VALUES(\`extended\`)`,
-                                    halfWidthExtended: sql`VALUES(\`halfWidthExtended\`)`,
-                                    rawExtended: sql`VALUES(\`rawExtended\`)`,
-                                    rawHalfWidthExtended: sql`VALUES(\`rawHalfWidthExtended\`)`,
-                                    genre1: sql`VALUES(\`genre1\`)`,
-                                    subGenre1: sql`VALUES(\`subGenre1\`)`,
-                                    genre2: sql`VALUES(\`genre2\`)`,
-                                    subGenre2: sql`VALUES(\`subGenre2\`)`,
-                                    genre3: sql`VALUES(\`genre3\`)`,
-                                    subGenre3: sql`VALUES(\`subGenre3\`)`,
-                                    channelType: sql`VALUES(\`channelType\`)`,
-                                    channel: sql`VALUES(\`channel\`)`,
-                                    videoType: sql`VALUES(\`videoType\`)`,
-                                    videoResolution: sql`VALUES(\`videoResolution\`)`,
-                                    videoStreamContent: sql`VALUES(\`videoStreamContent\`)`,
-                                    videoComponentType: sql`VALUES(\`videoComponentType\`)`,
-                                    audioSamplingRate: sql`VALUES(\`audioSamplingRate\`)`,
-                                    audioComponentType: sql`VALUES(\`audioComponentType\`)`,
-                                },
-                            });
-                    }
-                }
+                await DrizzleHelper.upsertPrograms(client.type, tx, schema, rows);
             });
         });
     }
@@ -181,98 +91,7 @@ export default class ProgramDB implements IProgramDB {
                     await tx.delete(schema.programs).where(inArray(schema.programs.id, values.delete));
                 }
 
-                const chunkSize = 100;
-                for (let i = 0; i < insertValues.length; i += chunkSize) {
-                    const chunk = insertValues.slice(i, i + chunkSize);
-                    if (chunk.length === 0) continue;
-
-                    if (client.type === 'sqlite') {
-                        await tx
-                            .insert(schema.programs)
-                            .values(chunk)
-                            .onConflictDoUpdate({
-                                target: schema.programs.id,
-                                set: {
-                                    updateTime: sql`excluded.updateTime`,
-                                    channelId: sql`excluded.channelId`,
-                                    eventId: sql`excluded.eventId`,
-                                    serviceId: sql`excluded.serviceId`,
-                                    networkId: sql`excluded.networkId`,
-                                    startAt: sql`excluded.startAt`,
-                                    endAt: sql`excluded.endAt`,
-                                    startHour: sql`excluded.startHour`,
-                                    week: sql`excluded.week`,
-                                    duration: sql`excluded.duration`,
-                                    isFree: sql`excluded.isFree`,
-                                    name: sql`excluded.name`,
-                                    halfWidthName: sql`excluded.halfWidthName`,
-                                    shortName: sql`excluded.shortName`,
-                                    description: sql`excluded.description`,
-                                    halfWidthDescription: sql`excluded.halfWidthDescription`,
-                                    extended: sql`excluded.extended`,
-                                    halfWidthExtended: sql`excluded.halfWidthExtended`,
-                                    rawExtended: sql`excluded.rawExtended`,
-                                    rawHalfWidthExtended: sql`excluded.rawHalfWidthExtended`,
-                                    genre1: sql`excluded.genre1`,
-                                    subGenre1: sql`excluded.subGenre1`,
-                                    genre2: sql`excluded.genre2`,
-                                    subGenre2: sql`excluded.subGenre2`,
-                                    genre3: sql`excluded.genre3`,
-                                    subGenre3: sql`excluded.subGenre3`,
-                                    channelType: sql`excluded.channelType`,
-                                    channel: sql`excluded.channel`,
-                                    videoType: sql`excluded.videoType`,
-                                    videoResolution: sql`excluded.videoResolution`,
-                                    videoStreamContent: sql`excluded.videoStreamContent`,
-                                    videoComponentType: sql`excluded.videoComponentType`,
-                                    audioSamplingRate: sql`excluded.audioSamplingRate`,
-                                    audioComponentType: sql`excluded.audioComponentType`,
-                                },
-                            });
-                    } else {
-                        await tx
-                            .insert(schema.programs)
-                            .values(chunk)
-                            .onDuplicateKeyUpdate({
-                                set: {
-                                    updateTime: sql`VALUES(\`updateTime\`)`,
-                                    channelId: sql`VALUES(\`channelId\`)`,
-                                    eventId: sql`VALUES(\`eventId\`)`,
-                                    serviceId: sql`VALUES(\`serviceId\`)`,
-                                    networkId: sql`VALUES(\`networkId\`)`,
-                                    startAt: sql`VALUES(\`startAt\`)`,
-                                    endAt: sql`VALUES(\`endAt\`)`,
-                                    startHour: sql`VALUES(\`startHour\`)`,
-                                    week: sql`VALUES(\`week\`)`,
-                                    duration: sql`VALUES(\`duration\`)`,
-                                    isFree: sql`VALUES(\`isFree\`)`,
-                                    name: sql`VALUES(\`name\`)`,
-                                    halfWidthName: sql`VALUES(\`halfWidthName\`)`,
-                                    shortName: sql`VALUES(\`shortName\`)`,
-                                    description: sql`VALUES(\`description\`)`,
-                                    halfWidthDescription: sql`VALUES(\`halfWidthDescription\`)`,
-                                    extended: sql`VALUES(\`extended\`)`,
-                                    halfWidthExtended: sql`VALUES(\`halfWidthExtended\`)`,
-                                    rawExtended: sql`VALUES(\`rawExtended\`)`,
-                                    rawHalfWidthExtended: sql`VALUES(\`rawHalfWidthExtended\`)`,
-                                    genre1: sql`VALUES(\`genre1\`)`,
-                                    subGenre1: sql`VALUES(\`subGenre1\`)`,
-                                    genre2: sql`VALUES(\`genre2\`)`,
-                                    subGenre2: sql`VALUES(\`subGenre2\`)`,
-                                    genre3: sql`VALUES(\`genre3\`)`,
-                                    subGenre3: sql`VALUES(\`subGenre3\`)`,
-                                    channelType: sql`VALUES(\`channelType\`)`,
-                                    channel: sql`VALUES(\`channel\`)`,
-                                    videoType: sql`VALUES(\`videoType\`)`,
-                                    videoResolution: sql`VALUES(\`videoResolution\`)`,
-                                    videoStreamContent: sql`VALUES(\`videoStreamContent\`)`,
-                                    videoComponentType: sql`VALUES(\`videoComponentType\`)`,
-                                    audioSamplingRate: sql`VALUES(\`audioSamplingRate\`)`,
-                                    audioComponentType: sql`VALUES(\`audioComponentType\`)`,
-                                },
-                            });
-                    }
-                }
+                await DrizzleHelper.upsertPrograms(client.type, tx, schema, insertValues);
             });
         });
     }

@@ -498,7 +498,13 @@ export default class RecordedManageModel implements IRecordedManageModel {
      * @return Promise<void>
      */
     public async historyCleanup(): Promise<void> {
-        const date = new Date().getTime() - this.config.recording.historyRetentionDays * 24 * 60 * 60 * 1000;
+        const retentionDays = this.config.recording.historyRetentionDays;
+        if (typeof retentionDays === 'number' && retentionDays <= 0) {
+            this.log.system.debug('historyRetentionDays is 0 or less, skipping historyCleanup');
+            return;
+        }
+
+        const date = new Date().getTime() - retentionDays * 24 * 60 * 60 * 1000;
         await this.recordedHistoryDB.delete(date).catch(err => {
             this.log.system.error('failed to historyCleanup');
             this.log.system.error(err);

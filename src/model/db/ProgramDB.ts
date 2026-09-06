@@ -542,28 +542,30 @@ export default class ProgramDB implements IProgramDB {
                 const shortNames = rows.map(r => r.shortName).filter(Boolean);
                 const channelIds = rows.map(r => r.channelId);
 
-                const histConditions: any[] = [
-                    inArray(schema.recordedHistory.name, shortNames),
-                    inArray(schema.recordedHistory.channelId, channelIds),
-                ];
-                if (period > 0) {
-                    histConditions.push(
-                        gte(schema.recordedHistory.endAt, now - period),
-                        lte(schema.recordedHistory.endAt, now),
-                    );
-                } else {
-                    histConditions.push(lte(schema.recordedHistory.endAt, now));
-                }
+                if (shortNames.length > 0 && channelIds.length > 0) {
+                    const histConditions: any[] = [
+                        inArray(schema.recordedHistory.name, shortNames),
+                        inArray(schema.recordedHistory.channelId, channelIds),
+                    ];
+                    if (period > 0) {
+                        histConditions.push(
+                            gte(schema.recordedHistory.endAt, now - period),
+                            lte(schema.recordedHistory.endAt, now),
+                        );
+                    } else {
+                        histConditions.push(lte(schema.recordedHistory.endAt, now));
+                    }
 
-                const histRows = await (db as any)
-                    .select({ name: schema.recordedHistory.name, channelId: schema.recordedHistory.channelId })
-                    .from(schema.recordedHistory)
-                    .where(and(...histConditions));
+                    const histRows = await (db as any)
+                        .select({ name: schema.recordedHistory.name, channelId: schema.recordedHistory.channelId })
+                        .from(schema.recordedHistory)
+                        .where(and(...histConditions));
 
-                const histKeySet = new Set(histRows.map((h: any) => `${h.name}_${h.channelId}`));
-                for (const r of rows) {
-                    if (histKeySet.has(`${r.shortName}_${r.channelId}`)) {
-                        overlapSet.add(r.id);
+                    const histKeySet = new Set(histRows.map((h: any) => `${h.name}_${h.channelId}`));
+                    for (const r of rows) {
+                        if (histKeySet.has(`${r.shortName}_${r.channelId}`)) {
+                            overlapSet.add(r.id);
+                        }
                     }
                 }
             }

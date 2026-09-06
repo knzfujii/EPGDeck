@@ -174,6 +174,38 @@ describe('Structured Config Schema', () => {
         expect(conf.recording.directories).toHaveLength(1);
         expect(conf.recording.directories[0].name).toBe('virtual-dir');
     });
+
+    it('should correctly parse historyRetentionDays including 0 (unlimited)', () => {
+        // 未指定時はデフォルト 90
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.recording.historyRetentionDays).toBe(90);
+
+        // 0 (無期限保持) を明示的に指定したときに 0 が保持されること
+        const confZero = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                historyRetentionDays: 0,
+            },
+        } as any);
+        expect(confZero.recording.historyRetentionDays).toBe(0);
+
+        // 任意の日数 (180日) の場合
+        const confCustom = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                historyRetentionDays: 180,
+            },
+        } as any);
+        expect(confCustom.recording.historyRetentionDays).toBe(180);
+    });
 });
 
 

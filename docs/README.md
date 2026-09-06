@@ -15,7 +15,7 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
 - **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**
   - `config/enc_helper.js` によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
 - **[録画機能マニュアル](manual/recording.md)**
-  - 録画予約の種類、録画オプション（保存先・エンコード・末尾欠け許可）の設定、ルール予約と個別予約の関係。
+  - 録画予約の種類、録画オプション（保存先・エンコード・末尾欠け許可）の設定、ルール予約と個別予約の関係、重複録画回避（二重録画防止）、チューナー競合の仕組み。
 - **[ロギングシステム仕様 & ログビューア](manual/logging.md)**
   - log4js 統合ログの出力設定および Web UI（`/logs`）でのリアルタイムログ確認。
 - **[データベースのバックアップ & レストア](manual/backup.md)**
@@ -47,6 +47,8 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
   - mise による環境構築、本番環境との競合回避（ポート・DB分離）、ビルド・ホットリロード開発手順。
 - **[システムアーキテクチャ解説](dev/architecture.md)**
   - プロセス設計（Operator / Service / EPGUpdater）、Hono REST API、Drizzle ORM、Svelte 5 フロントエンド構成。
+- **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation_algorithm.md)**
+  - 予約生成ライフサイクル、録画済み重複排除（二重録画防止 / `isOverlap`）の正規化ロジック、平面走査法によるチューナー競合解決（`isConflict`）。
 - **[WebAPI 仕様・利用ガイド](dev/api.md)**
   - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
 - **[データベース & マイグレーション運用ガイド](dev/database.md)**

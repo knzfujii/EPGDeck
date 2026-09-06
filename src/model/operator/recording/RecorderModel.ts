@@ -677,11 +677,10 @@ class RecorderModel implements IRecorderModel {
             // Recorded history 追加
             if (
                 this.reserve.isTimeSpecified === false &&
-                this.reserve.ruleId !== null &&
                 this.reserve.isEventRelay === false &&
                 this.isNeedDeleteReservation === true
             ) {
-                // ルール(Program Id 予約)の場合のみ記録する
+                // 番組指定予約(ルール予約および手動個別予約)の場合に記録する
                 try {
                     if (recorded !== null) {
                         this.log.system.info(`add recorded history: ${this.recordedId}`);

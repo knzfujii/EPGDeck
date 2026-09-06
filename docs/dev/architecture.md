@@ -26,7 +26,7 @@ graph TD
 
 | プロセス | 役割 | 主な責務 |
 |---|---|---|
-| **Operator** (メインプロセス) | 録画・チューナー管理 | 録画予約の競合解決、Mirakurun からのストリーム受信・録画ファイル書き込み、エンコードキューの管理 |
+| **Operator** (メインプロセス) | 録画・チューナー管理 | 録画予約の競合解決・重複排除（詳細は [録画予約・重複排除・競合解決アルゴリズム仕様書](reservation_algorithm.md) 参照）、Mirakurun からのストリーム受信・録画ファイル書き込み、エンコードキューの管理 |
 | **EPGUpdater** (子プロセス) | 番組表更新 | Mirakurun から定期的に EPG データを取得し、DB（Programs / Services テーブル）を更新 |
 | **ServiceExecutor** (子プロセス) | Web サーバー | Hono による REST API、Swagger UI、Socket.IO によるリアルタイム通知、静的ファイル配信 |
 

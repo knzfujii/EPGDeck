@@ -171,7 +171,7 @@ recording:
       path: '%ROOT%/recorded'
       limitThreshold: 107374182400 # 100GB以下になったら古い録画を自動削除(バイト)
   tempDir: '%ROOT%/recorded_tmp'   # 一時録画ディレクトリ（指定時は録画完了後に正規ディレクトリへ移動）
-  historyRetentionDays: 90         # 二重録画防止のための録画履歴保持日数
+  historyRetentionDays: 90         # 二重録画防止のための録画履歴保持日数（0で無期限保持・自動削除無効）
   storageCheckIntervalSeconds: 60  # ディスク空き容量チェック間隔(秒)
   priority:
     recording: 2                   # 通常録画時のMirakurun優先度

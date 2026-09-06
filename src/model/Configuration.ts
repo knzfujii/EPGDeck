@@ -196,7 +196,12 @@ class Configuration implements IConfiguration {
                 : raw.recordedTmp
                   ? Configuration.directoryFormatting(raw.recordedTmp)
                   : undefined,
-            historyRetentionDays: recConf.historyRetentionDays || raw.recordedHistoryRetentionPeriodDays || 90,
+            historyRetentionDays:
+                typeof recConf.historyRetentionDays === 'number'
+                    ? recConf.historyRetentionDays
+                    : typeof raw.recordedHistoryRetentionPeriodDays === 'number'
+                      ? raw.recordedHistoryRetentionPeriodDays
+                      : 90,
             storageCheckIntervalSeconds: recConf.storageCheckIntervalSeconds || raw.storageLimitCheckIntervalTime || 60,
             priority,
             timeSpecifiedStartMargin:

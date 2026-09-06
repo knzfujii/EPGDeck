@@ -73,15 +73,11 @@ describe('Hono REST API Integration Tests', () => {
     ];
 
     const dummyRecorded = {
-        records: [
-            { id: 1, name: '録画済みアニメ', startAt: 1700000000000, endAt: 1700003600000, isProtected: false },
-        ],
+        records: [{ id: 1, name: '録画済みアニメ', startAt: 1700000000000, endAt: 1700003600000, isProtected: false }],
         total: 1,
     };
 
-    const dummyStorages = [
-        { name: 'recorded', total: 1000000000000, used: 400000000000, free: 600000000000 },
-    ];
+    const dummyStorages = [{ name: 'recorded', total: 1000000000000, used: 400000000000, free: 600000000000 }];
 
     beforeEach(() => {
         // DI コンテナへモック API モデルを登録
@@ -95,7 +91,9 @@ describe('Hono REST API Integration Tests', () => {
 
         rebindOrBind('IChannelApiModel', {
             getChannels: async () => dummyChannels,
-            getLogo: async () => { throw new Error('ChannelLogoNotFound'); },
+            getLogo: async () => {
+                throw new Error('ChannelLogoNotFound');
+            },
         });
 
         rebindOrBind('IConfigApiModel', {
@@ -130,8 +128,7 @@ describe('Hono REST API Integration Tests', () => {
         });
 
         rebindOrBind('IVideoApiModel', {
-            getFullFilePath: async (id: number) =>
-                id === 1 ? { path: '/tmp/test.mp4', mime: 'video/mp4' } : null,
+            getFullFilePath: async (id: number) => (id === 1 ? { path: '/tmp/test.mp4', mime: 'video/mp4' } : null),
             getDuration: async (id: number) => {
                 if (id === 1) return 120;
                 throw new Error('VideoFileIsUndefined');
@@ -210,7 +207,9 @@ describe('Hono REST API Integration Tests', () => {
         };
         container.rebind('IRecordedApiModel').toConstantValue(mockModel);
 
-        const res = await app.request('/api/recorded?isHalfWidth=true&genre=7&keyword=アニメ&startAt=1700000000000&endAt=1700003600000');
+        const res = await app.request(
+            '/api/recorded?isHalfWidth=true&genre=7&keyword=アニメ&startAt=1700000000000&endAt=1700003600000',
+        );
         expect(res.status).toBe(200);
         expect(capturedOption).not.toBeNull();
         expect(capturedOption.genre).toBe(7);

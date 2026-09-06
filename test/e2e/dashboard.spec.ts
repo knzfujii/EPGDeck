@@ -41,4 +41,3 @@ test.describe('Dashboard Page (/)', () => {
         expect(consoleErrors, `Console errors: ${consoleErrors.join(', ')}`).toEqual([]);
     });
 });
-

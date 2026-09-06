@@ -91,11 +91,14 @@ describe('enc_helper.js', () => {
                 audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
             };
 
-            const args = buildFFmpegArgs({
-                dualMono: 'split',
-                mainAudioBitrate: '256k',
-                secondaryAudioBitrate: '96k',
-            }, mediaInfo);
+            const args = buildFFmpegArgs(
+                {
+                    dualMono: 'split',
+                    mainAudioBitrate: '256k',
+                    secondaryAudioBitrate: '96k',
+                },
+                mediaInfo,
+            );
 
             expect(args).toContain('-b:a:0');
             expect(args).toContain('256k');
@@ -134,11 +137,14 @@ describe('enc_helper.js', () => {
                 ],
             };
 
-            const args = buildFFmpegArgs({
-                audioStreamMode: 'all',
-                mainAudioBitrate: '192k',
-                secondaryAudioBitrate: '128k',
-            }, mediaInfo);
+            const args = buildFFmpegArgs(
+                {
+                    audioStreamMode: 'all',
+                    mainAudioBitrate: '192k',
+                    secondaryAudioBitrate: '128k',
+                },
+                mediaInfo,
+            );
 
             expect(args).toContain('0:a:0');
             expect(args).toContain('0:a:1');
@@ -161,7 +167,9 @@ describe('enc_helper.js', () => {
             const args = buildFFmpegArgs({ dualMono: 'split' }, mediaInfo);
 
             expect(args).toContain('-filter_complex');
-            expect(args).toContain('[0:a:0]channelsplit[FL_raw][FR_raw];[FL_raw]aformat=channel_layouts=mono[FL];[FR_raw]aformat=channel_layouts=mono[FR]');
+            expect(args).toContain(
+                '[0:a:0]channelsplit[FL_raw][FR_raw];[FL_raw]aformat=channel_layouts=mono[FL];[FR_raw]aformat=channel_layouts=mono[FR]',
+            );
             expect(args).toContain('title=Main');
             expect(args).toContain('title=Sub');
         });
@@ -179,7 +187,9 @@ describe('enc_helper.js', () => {
             const args = buildFFmpegArgs({ dualMono: 'main' }, mediaInfo);
 
             expect(args).toContain('-filter_complex');
-            expect(args).toContain('[0:a:0]channelsplit=channel_layout=stereo:channels=FL[FL];[FL]aformat=channel_layouts=mono[aout]');
+            expect(args).toContain(
+                '[0:a:0]channelsplit=channel_layout=stereo:channels=FL[FL];[FL]aformat=channel_layouts=mono[aout]',
+            );
             expect(args).toContain('title=Main');
             expect(args).not.toContain('title=Sub');
         });
@@ -192,11 +202,14 @@ describe('enc_helper.js', () => {
                 audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
             };
 
-            const args = buildFFmpegArgs({
-                codec: 'h264_vaapi',
-                vaapiDevice: '/dev/dri/renderD128',
-                videoBitrate: '4500k',
-            }, mediaInfo);
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'h264_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    videoBitrate: '4500k',
+                },
+                mediaInfo,
+            );
 
             expect(args).toContain('-vaapi_device');
             expect(args).toContain('/dev/dri/renderD128');

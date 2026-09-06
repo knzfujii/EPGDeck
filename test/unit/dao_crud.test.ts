@@ -329,18 +329,24 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             expect(allRecords).toHaveLength(2);
 
             // キーワード絞り込み検索
-            const [kwRecords, kwTotal] = await recordedDB.findAll({
-                isHalfWidth: true,
-                keyword: 'アニメ',
-            }, columnOption);
+            const [kwRecords, kwTotal] = await recordedDB.findAll(
+                {
+                    isHalfWidth: true,
+                    keyword: 'アニメ',
+                },
+                columnOption,
+            );
             expect(kwTotal).toBe(1);
             expect(kwRecords[0].name).toBe('夏休み特番アニメ');
 
             // ジャンル絞り込み検索 (genre: 7 アニメ)
-            const [animeRecords, animeTotal] = await recordedDB.findAll({
-                isHalfWidth: true,
-                genre: 7,
-            }, columnOption);
+            const [animeRecords, animeTotal] = await recordedDB.findAll(
+                {
+                    isHalfWidth: true,
+                    genre: 7,
+                },
+                columnOption,
+            );
             expect(animeTotal).toBe(1);
             expect(animeRecords[0].name).toBe('夏休み特番アニメ');
 
@@ -348,22 +354,28 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             // 2026年8月 (7月インデックス) のみ抽出
             const augStart = new Date(2026, 7, 1).getTime();
             const augEnd = new Date(2026, 8, 1).getTime();
-            const [augRecords, augTotal] = await recordedDB.findAll({
-                isHalfWidth: true,
-                startAt: augStart,
-                endAt: augEnd,
-            }, columnOption);
+            const [augRecords, augTotal] = await recordedDB.findAll(
+                {
+                    isHalfWidth: true,
+                    startAt: augStart,
+                    endAt: augEnd,
+                },
+                columnOption,
+            );
             expect(augTotal).toBe(1);
             expect(augRecords[0].name).toBe('夏休み特番アニメ');
 
             // 2026年9月 (8月インデックス) のみ抽出
             const sepStart = new Date(2026, 8, 1).getTime();
             const sepEnd = new Date(2026, 9, 1).getTime();
-            const [sepRecords, sepTotal] = await recordedDB.findAll({
-                isHalfWidth: true,
-                startAt: sepStart,
-                endAt: sepEnd,
-            }, columnOption);
+            const [sepRecords, sepTotal] = await recordedDB.findAll(
+                {
+                    isHalfWidth: true,
+                    startAt: sepStart,
+                    endAt: sepEnd,
+                },
+                columnOption,
+            );
             expect(sepTotal).toBe(1);
             expect(sepRecords[0].name).toBe('秋のドラマSP');
 

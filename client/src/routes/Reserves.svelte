@@ -5,7 +5,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
         Clock,
@@ -100,7 +100,7 @@
         if (!item || isUpdating) return;
         isUpdating = true;
         try {
-            await axios.put(`/api/reserves/${item.id}`, {
+            await http.put(`/api/reserves/${item.id}`, {
                 allowEndLack: allowEndLack,
                 saveOption: buildSaveOption(),
                 encodeOption: buildEncodeOption(),
@@ -127,7 +127,7 @@
         if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
-            const res = await axios.get('/api/reserves?limit=100&isHalfWidth=true');
+            const res = await http.get('/api/reserves?limit=100&isHalfWidth=true');
             reserves = res.data.reserves || [];
             total = res.data.total || 0;
         } catch (e) {
@@ -142,7 +142,7 @@
         fetchReserves();
 
         // エンコードプリセット名と保存先ディレクトリ名を取得
-        axios.get('/api/config')
+        http.get('/api/config')
             .then(res => {
                 encodeModes = res.data.encode || [];
                 storageDirs = res.data.recorded || [];
@@ -181,7 +181,7 @@
 
         isCanceling = true;
         try {
-            await axios.delete(`/api/reserves/${item.id}`);
+            await http.delete(`/api/reserves/${item.id}`);
             snackbar.open({ text: `${actionLabel}しました`, color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
             fetchReserves();
@@ -197,7 +197,7 @@
     async function restoreSkip(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
         try {
-            await axios.delete(`/api/reserves/${item.id}/skip`);
+            await http.delete(`/api/reserves/${item.id}/skip`);
             snackbar.open({ text: '予約を復活しました', color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
             fetchReserves();

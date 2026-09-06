@@ -6,7 +6,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
         ArrowLeft,
@@ -61,11 +61,11 @@
         try {
             const [, res] = await Promise.all([
                 channelStore.fetch(),
-                axios.get(`/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`),
+                http.get(`/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`),
             ]);
             recorded = res.data;
 
-            axios.get('/api/config').then(configRes => {
+            http.get('/api/config').then(configRes => {
                 const encList = configRes.data?.encode || [];
                 encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
                 recordedDirs = configRes.data?.recorded || [];
@@ -108,11 +108,11 @@
         if (!recorded) return;
         try {
             if (recorded.isProtected) {
-                await axios.put(`/api/recorded/${recorded.id}/unprotect`);
+                await http.put(`/api/recorded/${recorded.id}/unprotect`);
                 recorded.isProtected = false;
                 snackbar.open({ text: '保護を解除しました', color: 'success' });
             } else {
-                await axios.put(`/api/recorded/${recorded.id}/protect`);
+                await http.put(`/api/recorded/${recorded.id}/protect`);
                 recorded.isProtected = true;
                 snackbar.open({ text: '番組を保護しました', color: 'success' });
             }
@@ -129,7 +129,7 @@
             return;
         }
         try {
-            await axios.delete(`/api/recorded/${recorded.id}`);
+            await http.delete(`/api/recorded/${recorded.id}`);
             snackbar.open({ text: '録画を削除しました', color: 'success' });
             router.push('/recorded');
         } catch (e) {
@@ -142,7 +142,7 @@
     async function deleteVideoFile(fileId: number, fileName: string) {
         if (!confirm(`ファイル「${fileName}」を削除しますか？`)) return;
         try {
-            await axios.delete(`/api/videos/${fileId}`);
+            await http.delete(`/api/videos/${fileId}`);
             snackbar.open({ text: '動画ファイルを削除しました', color: 'success' });
             await fetchRecordedDetail();
         } catch (e) {
@@ -157,7 +157,7 @@
         isDropLogModalOpen = true;
         isLoadingDropLog = true;
         try {
-            const res = await axios.get(`/api/dropLogs/${recorded.id}`);
+            const res = await http.get(`/api/dropLogs/${recorded.id}`);
             dropLogData = res.data;
         } catch (e) {
             console.error('Failed to fetch drop log', e);
@@ -208,7 +208,7 @@
                         body.directory = sel.directory.trim();
                     }
                 }
-                await axios.post('/api/encode', body);
+                await http.post('/api/encode', body);
             }
             snackbar.open({ text: `${targets.length}件をエンコードキューに追加しました`, color: 'success' });
             isEncodeModalOpen = false;

@@ -114,9 +114,7 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
 
     it('detects conflict when parallel recordings exceed tuner capacity', async () => {
         const model = createModel();
-        const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' },
-        ];
+        const tuners: mapid.TunerDevice[] = [{ index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' }];
         model.setTuners(tuners);
 
         const now = Date.now();
@@ -166,9 +164,7 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
 
     it('allows simultaneous recordings on the same physical channel (subchannel) using single tuner', async () => {
         const model = createModel();
-        const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' },
-        ];
+        const tuners: mapid.TunerDevice[] = [{ index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' }];
         model.setTuners(tuners);
 
         const now = Date.now();
@@ -286,4 +282,3 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
         expect(evaluated.every((r: Reserve) => !r.isConflict)).toBe(true);
     });
 });
-

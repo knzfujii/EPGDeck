@@ -188,4 +188,3 @@ describe('EncodeFinishModel', () => {
         });
     });
 });
-

@@ -86,4 +86,3 @@ describe('Hono Server Endpoints', () => {
         expect(res.headers.get('location')).toBe('/api-docs/?url=/api/docs');
     });
 });
-

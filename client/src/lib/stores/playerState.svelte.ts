@@ -92,4 +92,3 @@ class PlayerState {
 }
 
 export const playerState = new PlayerState();
-

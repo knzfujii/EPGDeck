@@ -5,7 +5,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import type * as apid from '../../../api';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import {
         Calendar,
         ChevronLeft,
@@ -215,7 +215,7 @@
             guideEndAt = guideStartAt + DISPLAY_HOURS * 60 * 60 * 1000;
 
             const [scheduleRes, reservesRes] = await Promise.all([
-                axios.get('/api/schedules', {
+                http.get('/api/schedules', {
                     params: {
                         startAt: guideStartAt,
                         endAt: guideEndAt,
@@ -223,7 +223,7 @@
                         isHalfWidth: true,
                     }
                 }),
-                axios.get('/api/reserves', {
+                http.get('/api/reserves', {
                     params: {
                         startAt: guideStartAt,
                         endAt: guideEndAt,
@@ -261,7 +261,7 @@
     // 予約マップのみを更新 (番組表の再描画・スクロール位置のリセットを避ける)
     async function refreshReservesMap() {
         try {
-            const reservesRes = await axios.get('/api/reserves', {
+            const reservesRes = await http.get('/api/reserves', {
                 params: {
                     startAt: guideStartAt,
                     endAt: guideEndAt,
@@ -311,7 +311,7 @@
     onMount(() => {
         fetchGuide(true);
         // エンコードプリセット名と保存先ディレクトリ名を取得
-        axios.get('/api/config')
+        http.get('/api/config')
             .then(res => {
                 encodeModes = res.data.encode || [];
                 storageDirs = res.data.recorded || [];
@@ -408,7 +408,7 @@
         if (!program || isReserving) return;
         isReserving = true;
         try {
-            await axios.post('/api/reserves', {
+            await http.post('/api/reserves', {
                 programId: program.id,
                 isHalfWidth: true,
                 allowEndLack: allowEndLack,
@@ -434,7 +434,7 @@
         if (!reserveId || isReserving) return;
         isReserving = true;
         try {
-            await axios.put(`/api/reserves/${reserveId}`, {
+            await http.put(`/api/reserves/${reserveId}`, {
                 allowEndLack: allowEndLack,
                 saveOption: buildSaveOption(),
                 encodeOption: buildEncodeOption(),
@@ -458,7 +458,7 @@
         if (!reserveId || isReserving) return;
         isReserving = true;
         try {
-            await axios.delete(`/api/reserves/${reserveId}`);
+            await http.delete(`/api/reserves/${reserveId}`);
             const actionText = isRule ? 'この回の録画をスキップ（除外）しました' : '予約を解除しました';
             snackbar.open({ text: `「${name}」の${actionText}`, color: 'success' });
             await refreshReservesMap();
@@ -479,7 +479,7 @@
         if (!reserveId || isReserving) return;
         isReserving = true;
         try {
-            await axios.delete(`/api/reserves/${reserveId}/skip`);
+            await http.delete(`/api/reserves/${reserveId}/skip`);
             snackbar.open({ text: `「${name}」の予約を復活しました`, color: 'success' });
             await refreshReservesMap();
             if (selectedProgram) {

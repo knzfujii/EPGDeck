@@ -49,8 +49,12 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] 未知のパスにアクセスした際のエラー画面（`NotFound.svelte`）の実装
 - [x] **設定・テーマ管理の一本化**
   - [x] `Settings.svelte` に「自動 (OS準拠) / ライト / ダーク」選択ボタングループを新設し、`themeStore` と完全双方向同期
-- [ ] **API クライアント層の集約と型安全化 (T-5)**
-  - [ ] 各コンポーネントに散在する `axios.get/post` を `client/src/lib/api/` に集約し、`api.d.ts` の型を完全バインド
+- [x] **API クライアント層の集約と軽量化・axios 排除 (T-5)**
+  - [x] クライアント側から `axios`（1.20.0）を完全アンインストール（25パッケージ削減）
+  - [x] ブラウザ標準 `fetch` をラップした軽量・堅牢な `httpClient.ts`（URLクエリマージ、ステータス検証、エラーハンドリング対応）を新設
+  - [x] 全画面（16コンポーネント）の API 呼び出しを `httpClient` に一本化
+  - [x] `vendor-core` バンドルサイズを 92.86 kB から 41.22 kB へ 55% 削減（gzip後 31.97 kB $\rightarrow$ 12.91 kB、60% 削減）
+  - [x] `test/client/http_client.test.ts` で実通信を用いた永続的単体テスト（13テスト）を追加
 - [ ] **巨大コンポーネントの分割・リファクタリング (T-7)**
   - [ ] `VideoPlayer.svelte`（783行）をサブコンポーネントや Svelte 5 Snippet に分割
 - [ ] **番組表・ログの仮想スクロール (Virtual Scroll) 導入検討**

@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Guide Page (/guide)', () => {
-    test('should restrict past date navigation on today and allow quick date selection up to +8 days', async ({ page }) => {
+    test('should restrict past date navigation on today and allow quick date selection up to +8 days', async ({
+        page,
+    }) => {
         const consoleErrors: string[] = [];
         const pageErrors: string[] = [];
 
@@ -51,4 +53,3 @@ test.describe('Guide Page (/guide)', () => {
         expect(consoleErrors, `Console errors: ${consoleErrors.join(', ')}`).toEqual([]);
     });
 });
-

@@ -68,7 +68,7 @@ export default defineConfig({
                         if (id.includes('@lucide/svelte')) {
                             return 'vendor-icons';
                         }
-                        if (id.includes('axios') || id.includes('socket.io-client')) {
+                        if (id.includes('socket.io-client')) {
                             return 'vendor-core';
                         }
                     }

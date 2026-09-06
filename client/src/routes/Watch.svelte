@@ -4,7 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import {
         ArrowLeft,
         Radio,
@@ -53,7 +53,7 @@
             statusText = `HLS 配信を準備中... (${sec}秒)`;
             try {
                 // 1. API での isEnable チェック
-                const infoRes = await axios.get('/api/streams?isHalfWidth=true');
+                const infoRes = await http.get('/api/streams?isHalfWidth=true');
                 const items = infoRes.data?.items || [];
                 const stream = items.find((item: any) => Number(item.streamId) === Number(id));
                 const isReady = stream?.info?.isEnable ?? stream?.isEnable;
@@ -64,7 +64,7 @@
                 // 2. マニフェストファイルが直接取得できるか確認
                 if (i >= 5) {
                     try {
-                        const m3u8Res = await axios.get(`/streamfiles/stream${id}.m3u8`, {
+                        const m3u8Res = await http.get(`/streamfiles/stream${id}.m3u8`, {
                             validateStatus: status => status === 200,
                         });
                         if (m3u8Res.status === 200 && typeof m3u8Res.data === 'string' && m3u8Res.data.includes('#EXTM3U')) {
@@ -100,7 +100,7 @@
 
             // 現在の放送中番組情報を取得
             try {
-                const onAirRes = await axios.get('/api/schedules/broadcasting?isHalfWidth=true');
+                const onAirRes = await http.get('/api/schedules/broadcasting?isHalfWidth=true');
                 const channelSchedule = (onAirRes.data || []).find((s: any) => s.channel?.id === channelId);
                 if (channelSchedule?.programs?.[0]) {
                     const prog = channelSchedule.programs[0];
@@ -137,7 +137,7 @@
                 statusText = 'チューナーを確保してライブ配信を生成中...';
 
                 try {
-                    const streamRes = await axios.get(`/api/streams/live/${channelId}/hls`, {
+                    const streamRes = await http.get(`/api/streams/live/${channelId}/hls`, {
                         params: { mode }
                     });
                     const sId = Number(streamRes.data.streamId);
@@ -165,7 +165,7 @@
             isLive = false;
 
             try {
-                const recRes = await axios.get(`/api/recorded/${recordedId}?isHalfWidth=true`);
+                const recRes = await http.get(`/api/recorded/${recordedId}?isHalfWidth=true`);
                 recordedData = recRes.data;
                 programTitle = recordedData.name;
                 channelName = channelStore.getChannelName(recordedData.channelId);
@@ -200,7 +200,7 @@
                         streamType = 'hls';
                         isPreparingStream = true;
                         statusText = 'トランスコード配信を生成中...';
-                        const streamRes = await axios.get(`/api/streams/recorded/${videoFileId}/hls`, {
+                        const streamRes = await http.get(`/api/streams/recorded/${videoFileId}/hls`, {
                             params: { mode }
                         });
                         const sId = Number(streamRes.data.streamId);
@@ -227,7 +227,7 @@
                         streamType = 'hls';
                         isPreparingStream = true;
                         statusText = 'トランスコード配信を生成中...';
-                        const streamRes = await axios.get(`/api/streams/recorded/${firstFile.id}/hls`, {
+                        const streamRes = await http.get(`/api/streams/recorded/${firstFile.id}/hls`, {
                             params: { mode: 0 }
                         });
                         const sId = Number(streamRes.data.streamId);
@@ -258,7 +258,7 @@
         if (keepAliveInterval) clearInterval(keepAliveInterval);
         keepAliveInterval = setInterval(async () => {
             try {
-                await axios.put(`/api/streams/${id}/keep`);
+                await http.put(`/api/streams/${id}/keep`);
             } catch (e) {
                 console.error('KeepAlive ping failed', e);
             }
@@ -274,7 +274,7 @@
             const currentId = streamId;
             streamId = null;
             try {
-                await axios.delete(`/api/streams/${currentId}`);
+                await http.delete(`/api/streams/${currentId}`);
             } catch (e) {
                 console.error('Failed to stop stream', e);
             }

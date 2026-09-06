@@ -34,4 +34,3 @@ class SnackbarState {
 }
 
 export const snackbar = new SnackbarState();
-

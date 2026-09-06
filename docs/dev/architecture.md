@@ -57,11 +57,10 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 
 ## 4. フロントエンド設計
  
-- **ビルドツール**: **Vite 6** (`@sveltejs/vite-plugin-svelte`)
-  - Webpack / Vue CLI を完全撤廃し、Node.js 22 〜 Node.js 26 (LTS) でのネイティブ超高速ビルドおよび HMR (Hot Module Replacement) に対応。
+- **ビルドツール**: **Vite** (`@sveltejs/vite-plugin-svelte`)
+  - Node.js 22 〜 Node.js 26 (LTS) でのネイティブ高速ビルドおよび HMR (Hot Module Replacement) に対応。
 - **フレームワーク**: **Svelte 5** (Runes `$state`, `$derived`, `$props`, `$effect` 準拠)
-  - 仮想 DOM レスによる圧倒的な実行速度と省メモリ性能。
-  - バンドルサイズ・CSS サイズを大幅に削減（CSS: 約 96% 削減、JS: 約 76% 削減）。
+  - 仮想 DOM レスによる高速な描画と省メモリ設計、軽量なバンドル構成。
 - **スタイル / UI システム**: **Tailwind CSS v4** + `@tailwindcss/vite`
   - デザインシステムを `space-y-5` (20px)、`p-4 sm:p-5`、`rounded-2xl` のデザイントークンで全画面統一。
   - ダークモードとライトモードの完全対応（高輝度アクセントジャンルカラー採用）。
@@ -72,6 +71,9 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
   - `mpegts.js`: MPEG-2 TS の低遅延 HTTP ライブストリーミング
   - `hls.js`: HLS によるライブ・録画再生・トランスコード配信
   - 映像鑑賞に最適なシャープな四角（直角デザイン / `rounded-none`）プレイヤーを採用。
+- **HTTP / API クライアント**:
+  - ブラウザ標準 `fetch` をベースとした軽量な HTTP クライアント（`client/src/lib/httpClient.ts`）を採用。
+  - クエリパラメータのマージ、ステータス検証（2xx 以外の自動エラー化）、JSON レスポンスのパースを一元管理。
 
 ---
 

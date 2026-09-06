@@ -1,4 +1,4 @@
-import axios from 'axios';
+import http from '@/lib/httpClient';
 
 export interface Channel {
     id: number;
@@ -19,7 +19,7 @@ class ChannelStore {
     public async fetch() {
         if (this.isFetched && this.channels.length > 0) return;
         try {
-            const res = await axios.get('/api/channels');
+            const res = await http.get('/api/channels');
             this.channels = res.data || [];
             this.isFetched = true;
         } catch (e) {
@@ -38,4 +38,3 @@ class ChannelStore {
 }
 
 export const channelStore = new ChannelStore();
-

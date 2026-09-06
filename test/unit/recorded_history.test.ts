@@ -73,4 +73,3 @@ describe('RecordedHistory retention & cleanup tests', () => {
         expect(deleteArg).toBeLessThanOrEqual(expectedMax);
     });
 });
-

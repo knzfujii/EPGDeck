@@ -116,7 +116,9 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(consoleErrors).toEqual([]);
     });
 
-    test('should reflect priority and disable broadcast wave checkboxes when channels are selected', async ({ page }) => {
+    test('should reflect priority and disable broadcast wave checkboxes when channels are selected', async ({
+        page,
+    }) => {
         const consoleErrors: string[] = [];
         const pageErrors: string[] = [];
 

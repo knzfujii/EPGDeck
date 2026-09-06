@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { HardDrive, Server, CheckCircle2 } from '@lucide/svelte';
 
     interface StorageItem {
@@ -17,7 +17,7 @@
     async function fetchStorages() {
         isLoading = true;
         try {
-            const res = await axios.get('/api/storages');
+            const res = await http.get('/api/storages');
             storages = res.data?.items || [];
         } catch (e) {
             console.error('Failed to fetch storages', e);

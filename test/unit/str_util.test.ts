@@ -4,7 +4,9 @@ import StrUtil from '../../src/util/StrUtil';
 describe('StrUtil', () => {
     describe('urlJoin', () => {
         it('should join absolute URL with path parts', () => {
-            expect(StrUtil.urlJoin('http://localhost:8888', 'api', 'streams')).toBe('http://localhost:8888/api/streams');
+            expect(StrUtil.urlJoin('http://localhost:8888', 'api', 'streams')).toBe(
+                'http://localhost:8888/api/streams',
+            );
         });
 
         it('should deduplicate redundant slashes', () => {

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { socketStore, type LogEntry, type LogEntryLevel, type LogProcess, type LogCategory } from '../lib/stores/socket.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import {
@@ -68,7 +68,7 @@
     async function fetchLogs() {
         isLoading = true;
         try {
-            const res = await axios.get('/api/logs?limit=1000');
+            const res = await http.get('/api/logs?limit=1000');
             rawLogs = res.data.logs || [];
         } catch (e) {
             console.error('Failed to fetch logs:', e);

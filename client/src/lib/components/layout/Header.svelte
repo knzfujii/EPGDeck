@@ -2,7 +2,7 @@
     import { onMount } from 'svelte';
     import { router } from '../../router.svelte';
     import { themeStore } from '../../stores/theme.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { Moon, Sun, Menu } from '@lucide/svelte';
 
     let { title = 'EPGDeck', onToggleDrawer }: { title?: string; onToggleDrawer?: () => void } = $props();
@@ -11,7 +11,7 @@
 
     onMount(async () => {
         try {
-            const res = await axios.get('/api/version');
+            const res = await http.get('/api/version');
             if (res.data?.version) {
                 appVersion = res.data.version;
             }

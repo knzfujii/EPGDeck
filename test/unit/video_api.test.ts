@@ -176,5 +176,3 @@ describe('VideoApiModel - getVtt', () => {
         expect(spawnSpy).toHaveBeenCalledTimes(103);
     });
 });
-
-

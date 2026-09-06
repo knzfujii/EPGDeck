@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { Film, CheckCircle2, Trash2, RefreshCw } from '@lucide/svelte';
 
     let running = $state<any[]>([]);
@@ -14,7 +14,7 @@
     async function fetchEncode(isSilent = false) {
         if (!isSilent) isLoading = true;
         try {
-            const res = await axios.get('/api/encode?isHalfWidth=true');
+            const res = await http.get('/api/encode?isHalfWidth=true');
             running = res.data.runningItems || [];
             waitList = res.data.waitItems || [];
         } catch (e) {
@@ -50,7 +50,7 @@
         if (!confirm('このエンコードジョブをキャンセルしますか？')) return;
 
         try {
-            await axios.delete(`/api/encode/${id}`);
+            await http.delete(`/api/encode/${id}`);
             snackbar.open({ text: 'エンコードをキャンセルしました', color: 'success' });
             fetchEncode();
         } catch (e) {

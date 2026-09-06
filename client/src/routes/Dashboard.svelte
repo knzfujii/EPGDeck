@@ -4,7 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle } from '@lucide/svelte';
 
@@ -37,10 +37,10 @@
         try {
             await channelStore.fetch();
             const [recordingRes, recordedRes, reservesRes, storagesRes] = await Promise.all([
-                axios.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
-                axios.get('/api/recorded?limit=8&isHalfWidth=true').catch(() => ({ data: { records: [], total: 0 } })),
-                axios.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
-                axios.get('/api/storages').catch(() => ({ data: { items: [] } })),
+                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
+                http.get('/api/recorded?limit=8&isHalfWidth=true').catch(() => ({ data: { records: [], total: 0 } })),
+                http.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
+                http.get('/api/storages').catch(() => ({ data: { items: [] } })),
             ]);
 
             const recordingList = recordingRes.data.records || [];

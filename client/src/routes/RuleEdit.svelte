@@ -3,7 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import {
         ArrowLeft,
         SlidersHorizontal,
@@ -327,8 +327,8 @@
         try {
             await channelStore.fetch();
             const [storageRes, configRes] = await Promise.all([
-                axios.get('/api/storages').catch(() => ({ data: { items: [] } })),
-                axios.get('/api/config').catch(() => ({ data: {} }))
+                http.get('/api/storages').catch(() => ({ data: { items: [] } })),
+                http.get('/api/config').catch(() => ({ data: {} }))
             ]);
 
             const items = storageRes.data?.items || [];
@@ -416,7 +416,7 @@
         if (idParam) {
             ruleId = parseInt(idParam, 10);
             try {
-                const res = await axios.get(`/api/rules/${ruleId}?isHalfWidth=true`);
+                const res = await http.get(`/api/rules/${ruleId}?isHalfWidth=true`);
                 rule = res.data;
                 loadRule(rule);
             } catch (e) {
@@ -556,10 +556,10 @@
             }
 
             if (ruleId) {
-                await axios.put(`/api/rules/${ruleId}`, payload);
+                await http.put(`/api/rules/${ruleId}`, payload);
                 snackbar.open({ text: `ルール「${keyword}」を更新しました`, color: 'success' });
             } else {
-                await axios.post('/api/rules', payload);
+                await http.post('/api/rules', payload);
                 snackbar.open({ text: `新規ルール「${keyword}」を作成しました`, color: 'success' });
             }
 

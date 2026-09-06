@@ -6,7 +6,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
         Radio,
@@ -61,7 +61,7 @@
             const startAt = now - 30 * 60 * 1000;
             const endAt = now + 6 * 60 * 60 * 1000;
 
-            const res = await axios.get('/api/schedules', {
+            const res = await http.get('/api/schedules', {
                 params: {
                     startAt,
                     endAt,
@@ -145,7 +145,7 @@
         if (!program || !program.id) return;
         isReserving = true;
         try {
-            await axios.post('/api/reserves', {
+            await http.post('/api/reserves', {
                 programId: program.id,
                 allowEndLack: false,
             });

@@ -3,7 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { Search as SearchIcon, Plus, SlidersHorizontal, Check } from '@lucide/svelte';
 
     let keyword = $state(router.current.query.keyword || '');
@@ -33,7 +33,7 @@
         isLoading = true;
         try {
             await channelStore.fetch();
-            const res = await axios.post('/api/schedules/search', {
+            const res = await http.post('/api/schedules/search', {
                 option: {
                     keyword: keyword.trim(),
                     name: isName,

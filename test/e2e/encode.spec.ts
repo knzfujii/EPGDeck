@@ -77,8 +77,12 @@ test.describe('Encode Feature & Recorded Detail Encode Modal', () => {
             await expect(removeCheckbox).toBeVisible();
 
             // POST /api/encode のリクエストとレスポンスをインターセプト検証
-            const encodeRequestPromise = page.waitForRequest(req => req.url().includes('/api/encode') && req.method() === 'POST');
-            const encodeResponsePromise = page.waitForResponse(res => res.url().includes('/api/encode') && res.request().method() === 'POST');
+            const encodeRequestPromise = page.waitForRequest(
+                req => req.url().includes('/api/encode') && req.method() === 'POST',
+            );
+            const encodeResponsePromise = page.waitForResponse(
+                res => res.url().includes('/api/encode') && res.request().method() === 'POST',
+            );
 
             // 「追加する」ボタンをクリック
             const submitBtn = page.getByRole('button', { name: '追加する' });

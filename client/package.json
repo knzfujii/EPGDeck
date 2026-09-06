@@ -16,7 +16,6 @@
     "dependencies": {
         "@lucide/svelte": "1.40.0",
         "aribb24.js": "2.0.25",
-        "axios": "1.20.0",
         "hls.js": "1.7.2",
         "mpegts.js": "1.8.2",
         "socket.io-client": "4.8.3",

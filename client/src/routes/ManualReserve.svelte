@@ -3,7 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import { Clock, Plus, ArrowLeft } from '@lucide/svelte';
 
     let selectedChannelId = $state<number | null>(null);
@@ -53,7 +53,7 @@
 
         isSubmitting = true;
         try {
-            await axios.post('/api/reserves', {
+            await http.post('/api/reserves', {
                 channelId: selectedChannelId,
                 name: name.trim(),
                 description: description.trim(),

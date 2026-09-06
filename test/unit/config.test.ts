@@ -151,9 +151,7 @@ describe('Structured Config Schema', () => {
                     server: { port: 8888, mirakurun: 'http://localhost:40772' },
                     database: { type: 'sqlite' },
                     recording: {
-                        directories: [
-                            { name: 'file-dir', path: __filename },
-                        ],
+                        directories: [{ name: 'file-dir', path: __filename }],
                     },
                 } as any,
                 { checkDirectories: true },
@@ -166,9 +164,7 @@ describe('Structured Config Schema', () => {
             server: { port: 8888, mirakurun: 'http://localhost:40772' },
             database: { type: 'sqlite' },
             recording: {
-                directories: [
-                    { name: 'virtual-dir', path: '/non/existent/path/virtual' },
-                ],
+                directories: [{ name: 'virtual-dir', path: '/non/existent/path/virtual' }],
             },
         } as any);
         expect(conf.recording.directories).toHaveLength(1);
@@ -207,5 +203,3 @@ describe('Structured Config Schema', () => {
         expect(confCustom.recording.historyRetentionDays).toBe(180);
     });
 });
-
-

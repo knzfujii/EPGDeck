@@ -3,7 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import {
         SlidersHorizontal,
         Plus,
@@ -30,8 +30,8 @@
         try {
             await channelStore.fetch();
             const [rulesRes, reservesRes] = await Promise.all([
-                axios.get('/api/rules?limit=100&isHalfWidth=true'),
-                axios.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } }))
+                http.get('/api/rules?limit=100&isHalfWidth=true'),
+                http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } }))
             ]);
 
             rules = rulesRes.data.rules || [];
@@ -73,9 +73,9 @@
         const isEnable = !rule.reserveOption?.enable;
         try {
             if (isEnable) {
-                await axios.put(`/api/rules/${rule.id}/enable`);
+                await http.put(`/api/rules/${rule.id}/enable`);
             } else {
-                await axios.put(`/api/rules/${rule.id}/disable`);
+                await http.put(`/api/rules/${rule.id}/disable`);
             }
             rule.reserveOption.enable = isEnable;
             snackbar.open({ text: `ルールを${isEnable ? '有効' : '無効'}にしました`, color: 'success' });
@@ -92,7 +92,7 @@
         if (!confirm(`ルール「${kw}」を削除しますか？`)) return;
 
         try {
-            await axios.delete(`/api/rules/${rule.id}`);
+            await http.delete(`/api/rules/${rule.id}`);
             snackbar.open({ text: 'ルールを削除しました', color: 'success' });
             fetchRules();
         } catch (e) {

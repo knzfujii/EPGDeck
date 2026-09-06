@@ -34,10 +34,18 @@ describe('RecordingManageModel Lifecycle Tests', () => {
         recordingEvents = {};
 
         dummyRecordingEvent = {
-            setCancelPrepRecording: vi.fn((fn: any) => { recordingEvents.cancelPrep = fn; }),
-            setPrepRecordingFailed: vi.fn((fn: any) => { recordingEvents.prepFailed = fn; }),
-            setRecordingFailed: vi.fn((fn: any) => { recordingEvents.recordingFailed = fn; }),
-            setFinishRecording: vi.fn((fn: any) => { recordingEvents.finish = fn; }),
+            setCancelPrepRecording: vi.fn((fn: any) => {
+                recordingEvents.cancelPrep = fn;
+            }),
+            setPrepRecordingFailed: vi.fn((fn: any) => {
+                recordingEvents.prepFailed = fn;
+            }),
+            setRecordingFailed: vi.fn((fn: any) => {
+                recordingEvents.recordingFailed = fn;
+            }),
+            setFinishRecording: vi.fn((fn: any) => {
+                recordingEvents.finish = fn;
+            }),
             emitRecordingRetryOver: vi.fn(),
         };
 

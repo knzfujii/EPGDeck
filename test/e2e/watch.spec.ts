@@ -37,7 +37,11 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
             await expect(page.getByRole('heading', { name: 'ストリーム選択' })).toBeVisible();
 
             // 再生開始リンクまたはボタンをクリック
-            const streamChoice = page.locator('button:has-text("再生"), button:has-text("M2TS"), button:has-text("WebM"), button:has-text("HLS")').first();
+            const streamChoice = page
+                .locator(
+                    'button:has-text("再生"), button:has-text("M2TS"), button:has-text("WebM"), button:has-text("HLS")',
+                )
+                .first();
             if (await streamChoice.isVisible().catch(() => false)) {
                 await streamChoice.click();
                 await page.waitForURL(/\/recorded\/watch/);
@@ -58,4 +62,3 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         expect(pageErrors).toEqual([]);
     });
 });
-

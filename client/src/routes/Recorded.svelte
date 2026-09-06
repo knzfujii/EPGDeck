@@ -6,7 +6,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
-    import axios from 'axios';
+    import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
         Video,
@@ -101,7 +101,7 @@
                 params.endAt = endDate.getTime();
             }
 
-            const res = await axios.get('/api/recorded', { params });
+            const res = await http.get('/api/recorded', { params });
             recorded = res.data.records || [];
             total = res.data.total || 0;
         } catch (e) {
@@ -179,11 +179,11 @@
     async function toggleProtect(item: apid.RecordedItem) {
         try {
             if (item.isProtected) {
-                await axios.put(`/api/recorded/${item.id}/unprotect`);
+                await http.put(`/api/recorded/${item.id}/unprotect`);
                 item.isProtected = false;
                 snackbar.open({ text: '保護を解除しました', color: 'success' });
             } else {
-                await axios.put(`/api/recorded/${item.id}/protect`);
+                await http.put(`/api/recorded/${item.id}/protect`);
                 item.isProtected = true;
                 snackbar.open({ text: '番組を保護しました', color: 'success' });
             }
@@ -197,7 +197,7 @@
         if (!confirm(`「${name}」を削除しますか？\n（録画ファイルも削除されます）`)) return;
 
         try {
-            await axios.delete(`/api/recorded/${id}?isDeleteFile=true`);
+            await http.delete(`/api/recorded/${id}?isDeleteFile=true`);
             snackbar.open({ text: '録画を削除しました', color: 'success' });
             fetchRecorded();
         } catch (e) {

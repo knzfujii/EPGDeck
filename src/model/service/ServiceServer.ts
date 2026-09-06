@@ -3,7 +3,6 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { inject, injectable } from 'inversify';
-import { mkdirp } from 'mkdirp';
 import IConfigFile from '../IConfigFile';
 import IConfiguration from '../IConfiguration';
 import ILogger from '../ILogger';
@@ -49,7 +48,7 @@ class ServiceServer implements IServiceServer {
             fs.statSync(this.config.recording.uploadTempDir);
         } catch {
             this.log.system.info(`mkdirp: ${this.config.recording.uploadTempDir}`);
-            mkdirp.sync(this.config.recording.uploadTempDir);
+            fs.mkdirSync(this.config.recording.uploadTempDir, { recursive: true });
         }
     }
 

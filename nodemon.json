@@ -11,5 +11,5 @@
         "config/**"
     ],
     "delay": 1000,
-    "exec": "node dist/index.js"
+    "exec": "node --enable-source-maps dist/index.js"
 }

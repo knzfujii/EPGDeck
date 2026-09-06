@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { mkdirp } from 'mkdirp';
 import * as path from 'path';
 
 namespace FileUtil {
@@ -41,7 +40,7 @@ namespace FileUtil {
      * @param dirPath: dir path
      */
     export const mkdir = async (dirPath: string): Promise<void> => {
-        await mkdirp(dirPath);
+        await fs.promises.mkdir(dirPath, { recursive: true });
     };
 
     /**

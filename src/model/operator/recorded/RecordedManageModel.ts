@@ -1,5 +1,4 @@
 import { inject, injectable } from 'inversify';
-import { mkdirp } from 'mkdirp';
 import * as path from 'path';
 import * as apid from '../../../../api';
 import DropLogFile from '../../../db/entities/DropLogFile';
@@ -293,7 +292,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
             } catch (err: any) {
                 // mkdirp directory
                 this.log.system.info(`mkdirp: ${dirPath}`);
-                await mkdirp(dirPath);
+                await FileUtil.mkdir(dirPath);
             }
         }
 

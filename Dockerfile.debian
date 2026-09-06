@@ -36,4 +36,4 @@ COPY api.yml ./
 COPY --from=client-builder /app/client/dist ./client/dist
 RUN mkdir -p /app/data /app/logs /app/thumbnail /app/recorded
 EXPOSE 8888
-CMD ["node", "dist/index.js"]
+CMD ["node", "--enable-source-maps", "dist/index.js"]

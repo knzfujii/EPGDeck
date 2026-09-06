@@ -1,7 +1,5 @@
-import axios, { AxiosRequestConfig } from 'axios';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import * as url from 'url';
 import urljoin from 'url-join';
 import { KodiInfo } from '../IConfigFile';
 import IConfiguration from '../IConfiguration';
@@ -45,30 +43,31 @@ export default class ApiUtil implements IApiUtil {
      * @param kodiInfo: KodiInfo
      */
     public async sendToKodi(source: string, kodiInfo: KodiInfo): Promise<void> {
-        const option: AxiosRequestConfig = {
-            url: url.resolve(kodiInfo.host, '/jsonrpc'),
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+
+        if (typeof kodiInfo.user !== 'undefined' && typeof kodiInfo.password !== 'undefined') {
+            const authStr = Buffer.from(`${kodiInfo.user}:${kodiInfo.password}`).toString('base64');
+            headers['Authorization'] = `Basic ${authStr}`;
+        }
+
+        const targetUrl = new URL('/jsonrpc', kodiInfo.host).toString();
+        const response = await fetch(targetUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            responseType: 'json',
-            data: {
+            headers,
+            body: JSON.stringify({
                 jsonrpc: '2.0',
                 method: 'Player.Open',
                 params: {
                     item: { file: source },
                 },
                 id: 1,
-            },
-        };
+            }),
+        });
 
-        if (typeof kodiInfo.user !== 'undefined' && typeof kodiInfo.password !== 'undefined') {
-            option.auth = {
-                username: kodiInfo.user,
-                password: kodiInfo.password,
-            };
+        if (!response.ok) {
+            throw new Error(`Kodi request failed: ${response.status} ${response.statusText}`);
         }
-
-        await axios.request(option);
     }
 }

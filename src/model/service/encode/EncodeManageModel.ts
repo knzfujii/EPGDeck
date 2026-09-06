@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as events from 'events';
 import { inject, injectable } from 'inversify';
-import { cloneDeep } from 'lodash';
 import * as apid from '../../../../api';
 import IEncodeEvent from '../../event/IEncodeEvent';
 import IConfiguration from '../../IConfiguration';
@@ -80,7 +79,7 @@ class EncodeManageModel implements IEncodeManageModel {
      */
     private createEncodeOption(baseOption: apid.AddEncodeProgramOption): EncodeOption {
         // encoder のオプションを生成
-        const encodeOption: EncodeOption = cloneDeep(baseOption) as any;
+        const encodeOption: EncodeOption = structuredClone(baseOption) as any;
         const encodeId = this.idCnt;
         encodeOption.encodeId = encodeId;
 

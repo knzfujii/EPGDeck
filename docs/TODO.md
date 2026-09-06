@@ -26,6 +26,13 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] 実ファイル不在時の `stat` 存在確認ガードによる `ffprobe` クラッシュ防止
 - [x] **Hono ルートの共通エラーハンドリング強化**
   - [x] `createHonoApp.ts` の `app.onError` によるエラー型安全なレスポンス返却と詳細ロギングの統一
+- [x] **不要・低利用率な依存パッケージの排除と Node.js 標準API移行（第1弾）**
+  - [x] `diskusage-ng`（C++ネイティブアドオン）を排除し `fs.promises.statfs` に移行（node-gyp/コンパイラ依存を完全解消）
+  - [x] `lodash` / `@types/lodash` を排除し、1箇所の `cloneDeep` を組み込みの `structuredClone` に移行
+  - [x] `mkdirp` / `@types/mkdirp` を排除し、`fs.promises.mkdir` / `fs.mkdirSync` に移行
+  - [x] サーバー側 `axios` を排除し、Kodi JSON-RPC を組み込みの `fetch` + `new URL` に移行
+  - [x] `source-map-support` / `@types/source-map-support` を排除し、Node.js 標準の `--enable-source-maps` に移行
+  - [x] 機能ごとに永続的な単体テスト（`file_util.test.ts`, `storage_api.test.ts`, `api_util.test.ts`）を整備・追加
 
 ---
 

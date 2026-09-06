@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import minimist from 'minimist';
 import 'reflect-metadata';
-import { install } from 'source-map-support';
 import DropLogFile from './db/entities/DropLogFile';
 import Recorded from './db/entities/Recorded';
 import RecordedHistory from './db/entities/RecordedHistory';
@@ -23,7 +22,6 @@ import ILogger from './model/ILogger';
 import ILoggerModel from './model/ILoggerModel';
 import container from './model/ModelContainer';
 import * as containerSetter from './model/ModelContainerSetter';
-install();
 
 containerSetter.set(container);
 

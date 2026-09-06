@@ -50,9 +50,13 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
             return;
         }
 
-        const executor = child_process.spawn(process.argv[0], [path.join(__dirname, 'EPGUpdateExecutor.js')], {
-            stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-        });
+        const executor = child_process.spawn(
+            process.argv[0],
+            [...process.execArgv, path.join(__dirname, 'EPGUpdateExecutor.js')],
+            {
+                stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+            },
+        );
         this.currentExecutor = executor;
 
         this.log.system.info(`start epg updater pid: ${executor.pid}`);

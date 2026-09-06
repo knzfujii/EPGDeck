@@ -1,7 +1,6 @@
 import * as child_process from 'child_process';
 import * as path from 'path';
 import 'reflect-metadata';
-import { install } from 'source-map-support';
 import IEPGUpdateExecutorManageModel from './model/epgUpdater/IEPGUpdateExecutorManageModel';
 import IEventSetter from './model/event/IEventSetter';
 import IConfiguration from './model/IConfiguration';
@@ -14,7 +13,6 @@ import * as containerSetter from './model/ModelContainerSetter';
 import IRecordingManageModel from './model/operator/recording/IRecordingManageModel';
 import IReservationManageModel from './model/operator/reservation/IReservationManageModel';
 import IStorageManageModel from './model/operator/storage/IStorageManageModel';
-install();
 
 containerSetter.set(container);
 
@@ -142,7 +140,7 @@ const runService = async () => {
 
     const child = child_process.spawn(
         process.argv[0],
-        [path.join(__dirname, 'model', 'service', 'ServiceExecutor.js')],
+        [...process.execArgv, path.join(__dirname, 'model', 'service', 'ServiceExecutor.js')],
         {
             stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
         },

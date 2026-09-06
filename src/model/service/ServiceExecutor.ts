@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { install } from 'source-map-support';
 import IConfiguration from '../IConfiguration';
 import IIPCClient from '../ipc/IIPCClient';
 import ILoggerModel from '../ILoggerModel';
@@ -7,7 +6,6 @@ import container from '../ModelContainer';
 import * as containerSetter from '../ModelContainerSetter';
 import IEncodeFinishModel from './encode/IEncodeFinishModel';
 import IServiceServer from './IServiceServer';
-install();
 
 containerSetter.set(container);
 

@@ -14,8 +14,11 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `DrizzleOperator` で SQLite / MySQL の既存データを破壊しない安全な自動インデックス生成を実装
 - [x] **番組一括更新（Bulk Insert）の最適化**
   - [x] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用
-- [ ] **DBアクセス層（SQLite/MySQL）の共通クエリ集約 (T-6)**
-  - [ ] `ProgramDB.ts`, `RecordedDB.ts` 等の方言差（SQLite / MySQL）がない同一 Drizzle クエリ処理を共通化・リファクタリング
+- [x] **DBアクセス層（SQLite/MySQL）の共通クエリ集約 (T-6)**
+  - [x] `ProgramDB.ts`（`insert` / `update` 間で重複していた 100 行超の upsert chunk 処理）を `DrizzleHelper.upsertPrograms` に集約
+  - [x] `ChannelDB.ts` の方言別 upsert 処理を `DrizzleHelper.upsertChannels` に集約
+  - [x] `RecordedTagDB.ts` の tag 関連付け方言処理を `DrizzleHelper.setTagRelation` に集約
+  - [x] `test/unit/drizzle_helper.test.ts` を追加し SQLite での upsert / ignore 動作を担保
 - [x] **大容量動画アップロード時のメモリ枯渇（OOM）防止**
   - [x] `src/model/service/hono/routes/videos.ts` の `/upload` で、`file.stream()` を用いたストリーム書き込みへ変更
 - [x] **EPGUpdater のプロセスライフサイクル安定化**
@@ -69,8 +72,9 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] 全画面（16コンポーネント）の API 呼び出しを `httpClient` に一本化
   - [x] `vendor-core` バンドルサイズを 92.86 kB から 41.22 kB へ 55% 削減（gzip後 31.97 kB $\rightarrow$ 12.91 kB、60% 削減）
   - [x] `test/client/http_client.test.ts` で実通信を用いた永続的単体テスト（13テスト）を追加
-- [ ] **巨大コンポーネントの分割・リファクタリング (T-7)**
-  - [ ] `VideoPlayer.svelte`（783行）をサブコンポーネントや Svelte 5 Snippet に分割
+- [x] **巨大コンポーネントの分割・リファクタリング (T-7)**
+  - [x] `VideoPlayer.svelte` から下部コントロールバー全体（シークバー、再生制御、音量、LIVEバッジ、倍速、字幕、全画面等）を `VideoControls.svelte` に切り出し
+  - [x] `VideoPlayer.svelte` 本体の責務をプレイヤーライフサイクル、字幕同期、キーボードショートカット制御に特化させ可読性を向上
 - [ ] **番組表・ログの仮想スクロール (Virtual Scroll) 導入検討**
   - [ ] 大量ノード表示時の描画負荷軽減
 
@@ -109,7 +113,10 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] セレクトボックスの型・バインディング処理を堅牢化
 - [ ] `/dev/shm` の利用についてドキュメント化
 - [ ] ルールの優先順位を設定できるようにする
-- [ ] ブラウザデフォのconfirmをUIで
+- [x] **ブラウザデフォのconfirmをUIで**
+  - [x] Svelte 5 `$state` を活用した非同期 Promise ベースのダイアログ管理ストア `confirm.svelte.ts`（`confirmDialog`）を新設
+  - [x] ダークモード・キーボード（ESC/Enter）・Tailwind トランジション対応の共通モーダル `ConfirmModal.svelte` を実装し `App.svelte` にグローバルマウント
+  - [x] `Encode`, `Rule`, `Reserves`, `Recorded`, `RecordedDetail` の全ブラウザネイティブ `confirm()` 呼び出しを置き換え
 
 ---
 

@@ -1,8 +1,9 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
+    import { socketStore } from '../lib/stores/socket.svelte';
     import http from '@/lib/httpClient';
     import {
         ArrowLeft,
@@ -16,7 +17,12 @@
         Save,
         Info,
         ChevronDown,
-        ChevronUp
+        ChevronUp,
+        Calendar,
+        Clock,
+        Ban,
+        RotateCcw,
+        AlertTriangle
     } from '@lucide/svelte';
 
     // 編集対象のルールID (?id=<ruleId>)。未指定なら新規作成
@@ -59,11 +65,61 @@
     let durationMin = $state<number | null>(null);
     let durationMax = $state<number | null>(null);
 
+    // 期間指定 (searchPeriods: startAt, endAt)
+    let periodStart = $state<string>(''); // YYYY-MM-DDTHH:mm
+    let periodEnd = $state<string>('');   // YYYY-MM-DDTHH:mm
+
+    // 時刻・曜日指定 (times: week, start, range)
+    // week: 0x01(日), 0x02(月), 0x04(火), 0x08(水), 0x10(木), 0x20(金), 0x40(土)
+    let daysOfWeek = $state<number[]>([0, 1, 2, 3, 4, 5, 6]);
+    let timeStartHour = $state<number | null>(null); // 0〜23
+    let timeRangeHour = $state<number | null>(null); // 1〜24 (時間幅)
+
+    const weekDayOptions = [
+        { label: '日', value: 0, bit: 0x01, isWeekend: true },
+        { label: '月', value: 1, bit: 0x02, isWeekend: false },
+        { label: '火', value: 2, bit: 0x04, isWeekend: false },
+        { label: '水', value: 3, bit: 0x08, isWeekend: false },
+        { label: '木', value: 4, bit: 0x10, isWeekend: false },
+        { label: '金', value: 5, bit: 0x20, isWeekend: false },
+        { label: '土', value: 6, bit: 0x40, isWeekend: true },
+    ];
+
+    function toggleDayOfWeek(day: number) {
+        if (daysOfWeek.includes(day)) {
+            daysOfWeek = daysOfWeek.filter(d => d !== day);
+        } else {
+            daysOfWeek = [...daysOfWeek, day].sort();
+        }
+    }
+
+    function setAllWeekDays() {
+        daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
+    }
+
+    function setWeekdaysOnly() {
+        daysOfWeek = [1, 2, 3, 4, 5];
+    }
+
+    function setWeekendsOnly() {
+        daysOfWeek = [0, 6];
+    }
+
+    // プレビュー検索 & スキップ管理状態
+    let isPreviewSearching = $state(false);
+    let previewPrograms = $state<any[] | null>(null);
+    let previewReservesMap = $state<Map<number, any>>(new Map());
+    let isProcessingSkipProgramId = $state<number | null>(null);
+
+    // 録画ファイル名フォーマット
+    let recordedFormat = $state<string>('');
+
     // 詳細条件の開閉状態
     let showAdvancedSearch = $state(false);
     let advancedActiveCount = $derived(
         (selectedGenreKeys.length > 0 ? 1 : 0) +
-        (isGR || isBS || isCS || isSKY || selectedChannelIds.length > 0 ? 1 : 0)
+        (isGR || isBS || isCS || isSKY || selectedChannelIds.length > 0 ? 1 : 0) +
+        (recordedFormat.trim() ? 1 : 0)
     );
 
     // 2. 予約設定 (reserveOption)
@@ -75,7 +131,6 @@
     // 3. 保存先設定 (saveOption)
     let parentDirectoryName = $state<string>('');
     let directory = $state<string>('');
-    let recordedFormat = $state<string>('');
 
     // 4. エンコード設定 (encodeOption)
     let encodeMode1 = $state<string>('');
@@ -340,6 +395,31 @@
         }
     }
 
+    function toDatetimeLocalString(timestamp: number): string {
+        const d = new Date(timestamp);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function formatTime(timestamp: number): string {
+        const d = new Date(timestamp);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    function formatDate(timestamp: number): string {
+        const d = new Date(timestamp);
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${days[d.getDay()]})`;
+    }
+
+    function formatDuration(ms: number): string {
+        const min = Math.round(ms / 60000);
+        if (min < 60) return `${min}分`;
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        return m > 0 ? `${h}時間${m}分` : `${h}時間`;
+    }
+
     function loadRule(r: any) {
         const s = r.searchOption || {};
         keyword = s.keyword || '';
@@ -374,15 +454,34 @@
         durationMin = s.durationMin || null;
         durationMax = s.durationMax || null;
 
-        if (
-            selectedGenreKeys.length > 0 ||
-            isGR ||
-            isBS ||
-            isCS ||
-            isSKY ||
-            selectedChannelIds.length > 0
-        ) {
-            showAdvancedSearch = true;
+        // 期間 (searchPeriods)
+        if (Array.isArray(s.searchPeriods) && s.searchPeriods.length > 0) {
+            const sp = s.searchPeriods[0];
+            periodStart = sp.startAt ? toDatetimeLocalString(sp.startAt) : '';
+            periodEnd = sp.endAt ? toDatetimeLocalString(sp.endAt) : '';
+        } else {
+            periodStart = '';
+            periodEnd = '';
+        }
+
+        // 時刻・曜日 (times)
+        if (Array.isArray(s.times) && s.times.length > 0) {
+            const t = s.times[0];
+            const days: number[] = [];
+            if ((t.week & 0x01) !== 0) days.push(0); // 日
+            if ((t.week & 0x02) !== 0) days.push(1); // 月
+            if ((t.week & 0x04) !== 0) days.push(2); // 火
+            if ((t.week & 0x08) !== 0) days.push(3); // 水
+            if ((t.week & 0x10) !== 0) days.push(4); // 木
+            if ((t.week & 0x20) !== 0) days.push(5); // 金
+            if ((t.week & 0x40) !== 0) days.push(6); // 土
+            daysOfWeek = days;
+            timeStartHour = typeof t.start === 'number' ? t.start : null;
+            timeRangeHour = typeof t.range === 'number' ? t.range : null;
+        } else {
+            daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
+            timeStartHour = null;
+            timeRangeHour = null;
         }
 
         const rOpt = r.reserveOption || {};
@@ -396,6 +495,18 @@
         directory = save.directory || '';
         recordedFormat = save.recordedFormat || '';
 
+        if (
+            selectedGenreKeys.length > 0 ||
+            isGR ||
+            isBS ||
+            isCS ||
+            isSKY ||
+            selectedChannelIds.length > 0 ||
+            recordedFormat.trim() !== ''
+        ) {
+            showAdvancedSearch = true;
+        }
+
         const enc = r.encodeOption || {};
         encodeMode1 = enc.mode1 || '';
         encodeParentDir1 = enc.encodeParentDirectoryName1 || '';
@@ -407,6 +518,24 @@
         encodeParentDir3 = enc.encodeParentDirectoryName3 || '';
         encodeDir3 = enc.directory3 || '';
         isDeleteOriginalAfterEncode = !!enc.isDeleteOriginalAfterEncode;
+    }
+
+    let unsubscribeSocket: (() => void) | null = null;
+
+    async function refreshReservesSilently() {
+        if (previewPrograms === null) return;
+        try {
+            const res = await http.get('/api/reserves?limit=1000&isHalfWidth=true');
+            const map = new Map<number, any>();
+            for (const r of (res.data?.reserves || [])) {
+                if (r.programId) {
+                    map.set(r.programId, r);
+                }
+            }
+            previewReservesMap = map;
+        } catch (e) {
+            console.error('Failed to silently refresh reserves', e);
+        }
     }
 
     onMount(async () => {
@@ -439,6 +568,15 @@
             }
         }
         isLoading = false;
+
+        // Socket.IO による予約変更通知を受信してリアルタイム更新
+        unsubscribeSocket = socketStore.on('updateStatus', () => {
+            refreshReservesSilently();
+        });
+    });
+
+    onDestroy(() => {
+        unsubscribeSocket?.();
     });
 
     function toggleChannel(chId: number) {
@@ -463,29 +601,151 @@
         selectedChannelIds = Array.from(set);
     }
 
-    async function handleSave() {
-        if (!keyword.trim()) {
-            snackbar.open({ text: '検索キーワードを入力してください', color: 'error' });
-            return;
+    function buildSearchOptionPayload() {
+        const trimmedKeyword = keyword.trim();
+        const opt: any = {
+            GR: isGR,
+            BS: isBS,
+            CS: isCS,
+            SKY: isSKY,
+            isFree,
+        };
+
+        if (trimmedKeyword) {
+            // キーワードが入っていてチェックが入っていない場合は番組名と概要を有効化
+            if (!isName && !isDescription && !isExtended) {
+                isName = true;
+                isDescription = true;
+            }
+            opt.keyword = trimmedKeyword;
+            opt.keyCS = keyCS;
+            opt.keyRegExp = keyRegExp;
+            opt.name = isName;
+            opt.description = isDescription;
+            opt.extended = isExtended;
         }
 
+        if (selectedChannelIds.length > 0) {
+            opt.channelIds = selectedChannelIds;
+        }
+
+        const trimmedIgnoreKeyword = ignoreKeyword.trim();
+        if (trimmedIgnoreKeyword) {
+            if (!isIgnoreName && !isIgnoreDescription && !isIgnoreExtended) {
+                isIgnoreName = true;
+                isIgnoreDescription = true;
+            }
+            opt.ignoreKeyword = trimmedIgnoreKeyword;
+            opt.ignoreKeyCS = ignoreKeyCS;
+            opt.ignoreKeyRegExp = ignoreKeyRegExp;
+            opt.ignoreName = isIgnoreName;
+            opt.ignoreDescription = isIgnoreDescription;
+            opt.ignoreExtended = isIgnoreExtended;
+        }
+
+        if (selectedGenreKeys.length > 0) {
+            opt.genres = selectedGenreKeys.map(key => {
+                const parts = key.split(':');
+                const genre = parseInt(parts[0], 10);
+                const item: any = { genre };
+                if (parts.length > 1) {
+                    item.subGenre = parseInt(parts[1], 10);
+                }
+                return item;
+            });
+        }
+
+        if (durationMin !== null && durationMin > 0) opt.durationMin = durationMin;
+        if (durationMax !== null && durationMax > 0) opt.durationMax = durationMax;
+
+        // 検索対象期間
+        if (periodStart || periodEnd) {
+            const startAt = periodStart ? new Date(periodStart).getTime() : 0;
+            const endAt = periodEnd ? new Date(periodEnd).getTime() : 253402268399000;
+            opt.searchPeriods = [{ startAt, endAt }];
+        }
+
+        // 時刻・曜日
+        if (daysOfWeek.length < 7 || timeStartHour !== null || timeRangeHour !== null) {
+            let weekBitmask = 0;
+            for (const d of daysOfWeek) {
+                weekBitmask |= (1 << d);
+            }
+            const timeObj: any = { week: weekBitmask };
+            if (timeStartHour !== null) timeObj.start = timeStartHour;
+            if (timeRangeHour !== null) timeObj.range = timeRangeHour;
+            opt.times = [timeObj];
+        }
+
+        return opt;
+    }
+
+    async function handlePreviewSearch() {
+        isPreviewSearching = true;
+        try {
+            await channelStore.fetch();
+            const searchOpt = buildSearchOptionPayload();
+
+            const [searchRes, reservesRes] = await Promise.all([
+                http.post('/api/schedules/search', {
+                    option: searchOpt,
+                    isHalfWidth: true,
+                    limit: 100,
+                }),
+                http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } })),
+            ]);
+
+            previewPrograms = searchRes.data || [];
+
+            const map = new Map<number, any>();
+            for (const r of (reservesRes.data?.reserves || [])) {
+                if (r.programId) {
+                    map.set(r.programId, r);
+                }
+            }
+            previewReservesMap = map;
+        } catch (e) {
+            console.error('Failed to preview search', e);
+            snackbar.open({ text: 'プレビュー検索に失敗しました', color: 'error' });
+        } finally {
+            isPreviewSearching = false;
+        }
+    }
+
+    async function handleToggleSkip(program: any, reserve: any) {
+        if (!reserve || isProcessingSkipProgramId !== null) return;
+        isProcessingSkipProgramId = program.id;
+
+        const willSkip = !reserve.isSkip;
+        try {
+            if (willSkip) {
+                await http.delete(`/api/reserves/${reserve.id}`);
+                snackbar.open({ text: `「${program.name}」をスキップ設定しました`, color: 'success' });
+            } else {
+                await http.delete(`/api/reserves/${reserve.id}/skip`);
+                snackbar.open({ text: `「${program.name}」のスキップを解除しました`, color: 'success' });
+            }
+            // 新しいオブジェクト参照で Map を即座に更新（Svelte 5 のリアクティブ反映を保証）
+            const nextMap = new Map(previewReservesMap);
+            nextMap.set(program.id, { ...reserve, isSkip: willSkip });
+            previewReservesMap = nextMap;
+
+            // サーバー側の最新状態（重複・競合等の再計算結果）をサイレント再同期
+            refreshReservesSilently();
+        } catch (e) {
+            console.error('Failed to toggle skip', e);
+            snackbar.open({ text: 'スキップ操作に失敗しました', color: 'error' });
+        } finally {
+            isProcessingSkipProgramId = null;
+        }
+    }
+
+    async function handleSave() {
         isSaving = true;
         try {
             const payload: any = {
                 isTimeSpecification: false,
-                searchOption: {
-                    keyword: keyword.trim(),
-                    keyCS,
-                    keyRegExp,
-                    name: isName,
-                    description: isDescription,
-                    extended: isExtended,
-                    GR: isGR,
-                    BS: isBS,
-                    CS: isCS,
-                    SKY: isSKY,
-                    isFree,
-                },
+                searchOption: buildSearchOptionPayload(),
                 reserveOption: {
                     enable: isEnable,
                     allowEndLack,
@@ -493,34 +753,6 @@
                 },
             };
 
-            // 放送局個別指定
-            if (selectedChannelIds.length > 0) {
-                payload.searchOption.channelIds = selectedChannelIds;
-            }
-
-            if (ignoreKeyword.trim()) {
-                payload.searchOption.ignoreKeyword = ignoreKeyword.trim();
-                payload.searchOption.ignoreKeyCS = ignoreKeyCS;
-                payload.searchOption.ignoreKeyRegExp = ignoreKeyRegExp;
-                payload.searchOption.ignoreName = isIgnoreName;
-                payload.searchOption.ignoreDescription = isIgnoreDescription;
-                payload.searchOption.ignoreExtended = isIgnoreExtended;
-            }
-
-            if (selectedGenreKeys.length > 0) {
-                payload.searchOption.genres = selectedGenreKeys.map(key => {
-                    const parts = key.split(':');
-                    const genre = parseInt(parts[0], 10);
-                    const item: any = { genre };
-                    if (parts.length > 1) {
-                        item.subGenre = parseInt(parts[1], 10);
-                    }
-                    return item;
-                });
-            }
-
-            if (durationMin !== null && durationMin > 0) payload.searchOption.durationMin = durationMin;
-            if (durationMax !== null && durationMax > 0) payload.searchOption.durationMax = durationMax;
             if (periodToAvoidDuplicate !== null && periodToAvoidDuplicate > 0) {
                 payload.reserveOption.periodToAvoidDuplicate = periodToAvoidDuplicate;
             }
@@ -609,12 +841,12 @@
             </h2>
             <div class="space-y-4">
                 <div>
-                    <label for="rule-keyword" class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">検索キーワード *</label>
+                    <label for="rule-keyword" class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">検索キーワード</label>
                     <input
                         id="rule-keyword"
                         type="text"
                         bind:value={keyword}
-                        placeholder="例: 葬送のフリーレン"
+                        placeholder="例: 葬送のフリーレン (未指定の場合は全番組)"
                         class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     />
                     <div class="mt-2 flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-600 dark:text-slate-400">
@@ -660,25 +892,165 @@
                     </div>
                 </div>
 
-                <!-- 番組の長さ (分) -->
-                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
-                    <span class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">番組の長さ (分)</span>
-                    <div class="flex items-center gap-2 max-w-sm">
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={durationMin}
-                            placeholder="最小 (分)"
-                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                        />
-                        <span class="text-slate-400 font-bold">~</span>
-                        <input
-                            type="number"
-                            min="0"
-                            bind:value={durationMax}
-                            placeholder="最大 (分)"
-                            class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                        />
+                <!-- 曜日・時間帯の指定 (times) -->
+                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Clock size={15} class="text-blue-600 dark:text-blue-400" /> 曜日・時間帯の指定
+                        </span>
+                        {#if daysOfWeek.length < 7 || timeStartHour !== null || timeRangeHour !== null}
+                            <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                                条件適用中
+                            </span>
+                        {/if}
+                    </div>
+
+                    <!-- 曜日指定 -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300">対象曜日</span>
+                            <div class="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onclick={setAllWeekDays}
+                                    class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                    全曜日
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick={setWeekdaysOnly}
+                                    class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                    平日のみ
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick={setWeekendsOnly}
+                                    class="rounded-md border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                                >
+                                    土日のみ
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            {#each weekDayOptions as day}
+                                {@const isSelected = daysOfWeek.includes(day.value)}
+                                <button
+                                    type="button"
+                                    onclick={() => toggleDayOfWeek(day.value)}
+                                    class="h-8 w-11 rounded-lg border text-xs font-bold transition cursor-pointer {isSelected
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/70 dark:text-blue-200'
+                                        : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-600 hover:dark:bg-slate-900/60 hover:dark:text-slate-400'}"
+                                >
+                                    {day.label}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- 時間帯指定 -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300">時間帯 (開始時刻 & 時間幅)</span>
+                            {#if timeStartHour !== null || timeRangeHour !== null}
+                                <button
+                                    type="button"
+                                    onclick={() => { timeStartHour = null; timeRangeHour = null; }}
+                                    class="text-[11px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                                >
+                                    全時間帯 (クリア)
+                                </button>
+                            {/if}
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md">
+                            <div>
+                                <label for="rule-time-start" class="block text-[10px] text-slate-400 mb-1">開始時刻</label>
+                                <select
+                                    id="rule-time-start"
+                                    bind:value={timeStartHour}
+                                    class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                >
+                                    <option value={null}>指定なし (0時〜)</option>
+                                    {#each Array.from({ length: 24 }, (_, i) => i) as h}
+                                        <option value={h}>{h}:00</option>
+                                    {/each}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="rule-time-range" class="block text-[10px] text-slate-400 mb-1">時間の長さ (時間幅)</label>
+                                <select
+                                    id="rule-time-range"
+                                    bind:value={timeRangeHour}
+                                    class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                >
+                                    <option value={null}>指定なし (終日)</option>
+                                    {#each Array.from({ length: 24 }, (_, i) => i + 1) as r}
+                                        <option value={r}>{r} 時間</option>
+                                    {/each}
+                                </select>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">※ 指定した開始時刻から時間幅の間に開始する番組のみが対象になります</p>
+                    </div>
+                </div>
+
+                <!-- 番組の長さ (分) & 検索対象期間 -->
+                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 番組の長さ (分) -->
+                    <div>
+                        <span class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">番組の長さ (分)</span>
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={durationMin}
+                                placeholder="最小 (分)"
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            />
+                            <span class="text-slate-400 font-bold">~</span>
+                            <input
+                                type="number"
+                                min="0"
+                                bind:value={durationMax}
+                                placeholder="最大 (分)"
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- 検索対象期間 (searchPeriods) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <Calendar size={14} class="text-blue-600 dark:text-blue-400" />
+                                検索対象期間 (任意)
+                            </span>
+                            {#if periodStart || periodEnd}
+                                <button
+                                    type="button"
+                                    onclick={() => { periodStart = ''; periodEnd = ''; }}
+                                    class="text-[11px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                                >
+                                    クリア
+                                </button>
+                            {/if}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="datetime-local"
+                                bind:value={periodStart}
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                title="開始日時"
+                            />
+                            <span class="text-slate-400 font-bold">~</span>
+                            <input
+                                type="datetime-local"
+                                bind:value={periodEnd}
+                                class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                title="終了日時"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -694,7 +1066,7 @@
                 <div class="flex items-center gap-2">
                     <SlidersHorizontal size={16} class="text-blue-600 dark:text-blue-400" />
                     <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">
-                        詳細条件 (ジャンル・放送波/局)
+                        詳細条件 (ジャンル・放送波/局・ファイル名)
                     </h2>
                     {#if advancedActiveCount > 0}
                         <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -947,12 +1319,193 @@
                                 {/each}
                             </div>
                         </div>
+
+
+                        <!-- 録画ファイル名フォーマット -->
+                        <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="rule-recorded-format" class="block font-bold text-xs text-slate-700 dark:text-slate-300">
+                                    録画ファイル名フォーマット (recordedFormat)
+                                </label>
+                                {#if recordedFormat.trim()}
+                                    <button
+                                        type="button"
+                                        onclick={() => (recordedFormat = '')}
+                                        class="text-[11px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                                    >
+                                        デフォルトに戻す
+                                    </button>
+                                {/if}
+                            </div>
+                            <input
+                                id="rule-recorded-format"
+                                type="text"
+                                bind:value={recordedFormat}
+                                placeholder="例: %YEAR%-%MONTH%-%DAY%_%TITLE%_%EPISODE%"
+                                class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            />
+                            <p class="mt-1 text-[11px] text-slate-400">
+                                空欄の場合は config.yml のデフォルトファイル名フォーマットが使用されます（利用可能変数: %TITLE%, %YEAR%, %MONTH%, %DAY%, %EPISODE% 等）
+                            </p>
+                        </div>
                     </div>
                 </div>
             {/if}
         </section>
 
-        <!-- 3. 予約設定 -->
+        <!-- 3. 番組検索 & 録画予定プレビュー (スキップ設定) -->
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100">
+                        <Search size={16} class="text-blue-600 dark:text-blue-400" />
+                        未来の録画予定プレビュー & スキップ管理
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        現在の検索条件に一致する未来の放送番組を検索し、録画予約の確認やスキップ（除外）を行えます
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onclick={handlePreviewSearch}
+                    disabled={isPreviewSearching}
+                    class="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer shrink-0"
+                >
+                    {#if isPreviewSearching}
+                        <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <span>検索中...</span>
+                    {:else}
+                        <Search size={14} />
+                        <span>録画予定を検索する</span>
+                    {/if}
+                </button>
+            </div>
+
+            <!-- 検索結果表示エリア -->
+            {#if previewPrograms === null}
+                <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center dark:border-slate-800">
+                    <p class="text-xs text-slate-400">
+                        上の「録画予定を検索する」ボタンを押すと、現在の設定条件に合致する未来の番組一覧が表示されます
+                    </p>
+                </div>
+            {:else if previewPrograms.length === 0}
+                <div class="rounded-xl border border-slate-100 bg-slate-50/50 p-8 text-center dark:border-slate-800 dark:bg-slate-850/40">
+                    <p class="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        現在の条件に一致する未来の番組は見つかりませんでした
+                    </p>
+                    <p class="text-[11px] text-slate-400 mt-1">キーワードや放送局、ジャンルなどの条件をご確認ください</p>
+                </div>
+            {:else}
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">
+                            該当する番組: <span class="text-blue-600 dark:text-blue-400 font-black">{previewPrograms.length}</span> 件
+                        </span>
+                        <span class="text-[11px] text-slate-400">※ ルール予約済みの番組はスキップ（除外）操作が可能です</span>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                        <table class="w-full text-left text-xs">
+                            <thead class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                                <tr>
+                                    <th class="px-3.5 py-2.5">放送日時</th>
+                                    <th class="px-3.5 py-2.5">放送局</th>
+                                    <th class="px-3.5 py-2.5">番組名 / 概要</th>
+                                    <th class="px-3.5 py-2.5">状態</th>
+                                    <th class="px-3.5 py-2.5 text-right">スキップ操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                {#each previewPrograms as p}
+                                    {@const reserve = previewReservesMap.get(p.id)}
+                                    {@const isProcessing = isProcessingSkipProgramId === p.id}
+                                    <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 {reserve?.isSkip ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40' : ''}">
+                                        <!-- 放送日時 -->
+                                        <td class="whitespace-nowrap px-3.5 py-3 font-medium text-slate-600 dark:text-slate-400">
+                                            <div>{formatDate(p.startAt)}</div>
+                                            <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                                {formatTime(p.startAt)} ~ {formatTime(p.endAt)} ({formatDuration(p.endAt - p.startAt)})
+                                            </div>
+                                        </td>
+
+                                        <!-- 放送局 -->
+                                        <td class="whitespace-nowrap px-3.5 py-3">
+                                            <span class="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                                                {channelStore.getChannelName(p.channelId)}
+                                            </span>
+                                        </td>
+
+                                        <!-- 番組名 / 概要 -->
+                                        <td class="px-3.5 py-3 min-w-[200px]">
+                                            <div class="font-bold text-slate-900 dark:text-slate-100">
+                                                {p.name}
+                                            </div>
+                                            {#if p.description}
+                                                <p class="mt-0.5 line-clamp-1 text-[11px] text-slate-400">{p.description}</p>
+                                            {/if}
+                                        </td>
+
+                                        <!-- 状態バッジ -->
+                                        <td class="whitespace-nowrap px-3.5 py-3">
+                                            {#if !reserve}
+                                                <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                                    未予約 (保存後反映)
+                                                </span>
+                                            {:else if reserve.isSkip}
+                                                <span class="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                                    <Ban size={11} /> スキップ中
+                                                </span>
+                                            {:else if reserve.isConflict}
+                                                <span class="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                                    <AlertTriangle size={11} /> 競合中
+                                                </span>
+                                            {:else if reserve.isOverlap}
+                                                <span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                                                    重複
+                                                </span>
+                                            {:else}
+                                                <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                                    <CheckCircle2 size={11} /> 録画予約中
+                                                </span>
+                                            {/if}
+                                        </td>
+
+                                        <!-- 操作ボタン -->
+                                        <td class="whitespace-nowrap px-3.5 py-3 text-right">
+                                            {#if reserve}
+                                                {#if reserve.isSkip}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => handleToggleSkip(p, reserve)}
+                                                        disabled={isProcessing}
+                                                        class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300 cursor-pointer"
+                                                    >
+                                                        <RotateCcw size={12} /> スキップ解除
+                                                    </button>
+                                                {:else}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => handleToggleSkip(p, reserve)}
+                                                        disabled={isProcessing}
+                                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
+                                                    >
+                                                        <Ban size={12} /> スキップ
+                                                    </button>
+                                                {/if}
+                                            {:else}
+                                                <span class="text-[11px] text-slate-400">-</span>
+                                            {/if}
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {/if}
+        </section>
+
+        <!-- 4. 予約設定 -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
                 <CheckCircle2 size={16} class="text-blue-600 dark:text-blue-400" /> 予約設定
@@ -974,6 +1527,23 @@
                     </div>
                 </label>
 
+                {#if avoidDuplicate}
+                    <div class="ml-6 pt-1">
+                        <label for="rule-period-avoid-dup" class="block font-bold text-xs text-slate-700 dark:text-slate-300 mb-1">
+                            重複確認期間 (日) (任意)
+                        </label>
+                        <input
+                            id="rule-period-avoid-dup"
+                            type="number"
+                            min="1"
+                            bind:value={periodToAvoidDuplicate}
+                            placeholder="空欄で無期限（デフォルト）"
+                            class="h-9 w-48 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                        <p class="mt-0.5 text-[11px] text-slate-400">指定日数以内の録画履歴のみ重複チェック対象にします（例: 90日、空欄で全期間）</p>
+                    </div>
+                {/if}
+
                 <label class="flex items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" bind:checked={allowEndLack} class="h-4 w-4 rounded border-slate-300 text-blue-600" />
                     <div>
@@ -992,7 +1562,7 @@
             </div>
         </section>
 
-        <!-- 4. 保存先ストレージ -->
+        <!-- 5. 保存先ストレージ -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
                 <HardDrive size={16} class="text-blue-600 dark:text-blue-400" /> 保存先ストレージ
@@ -1028,24 +1598,10 @@
                     />
                     <p class="mt-1 text-[11px] text-slate-400">親保存先の下に作成するサブフォルダのパスを指定します</p>
                 </div>
-
-                <div>
-                    <label for="rule-recorded-format" class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        録画ファイル名フォーマット (recordedFormat)
-                    </label>
-                    <input
-                        id="rule-recorded-format"
-                        type="text"
-                        bind:value={recordedFormat}
-                        placeholder="例: %YEAR%-%MONTH%-%DAY%_%TITLE%_%EPISODE%"
-                        class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                    />
-                    <p class="mt-1 text-[11px] text-slate-400">空欄の場合は config.yml のデフォルトファイル名フォーマットが使用されます</p>
-                </div>
             </div>
         </section>
 
-        <!-- 5. 自動エンコード設定 -->
+        <!-- 6. 自動エンコード設定 -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
                 <Sparkles size={16} class="text-blue-600 dark:text-blue-400" /> 自動エンコード設定

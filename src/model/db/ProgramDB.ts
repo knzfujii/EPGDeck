@@ -511,10 +511,10 @@ export default class ProgramDB implements IProgramDB {
             }
 
             if (typeof searchOption.durationMin !== 'undefined') {
-                conditions.push(gte(client.schema.programs.duration, searchOption.durationMin * 1000));
+                conditions.push(gte(client.schema.programs.duration, searchOption.durationMin * 60 * 1000));
             }
             if (typeof searchOption.durationMax !== 'undefined') {
-                conditions.push(lte(client.schema.programs.duration, searchOption.durationMax * 1000));
+                conditions.push(lte(client.schema.programs.duration, searchOption.durationMax * 60 * 1000));
             }
 
             const whereClause = and(...conditions);

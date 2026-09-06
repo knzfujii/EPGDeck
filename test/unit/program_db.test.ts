@@ -343,4 +343,78 @@ describe('ProgramDB findRule Tests', () => {
         const updatedA = await programDB.findId(100);
         expect(updatedA?.name).toBe('一括更新番組A-改');
     });
+
+    it('matches programs within searchPeriods', async () => {
+        // beforeEach で登録された futureTime (id: 1, 日曜ニュース7) と futureTime + 86400000 (id: 2, 月曜ドラマ)
+        const p1 = await programDB.findId(1);
+        const p2 = await programDB.findId(2);
+        expect(p1).not.toBeNull();
+        expect(p2).not.toBeNull();
+
+        // p1 の放送開始時刻を含む期間で検索
+        const results = await programDB.findRule({
+            searchOption: {
+                searchPeriods: [
+                    {
+                        startAt: p1!.startAt - 1000,
+                        endAt: p1!.startAt + 1000,
+                    },
+                ],
+            },
+        });
+        expect(results).toHaveLength(1);
+        expect(results[0].name).toBe('日曜ニュース7');
+    });
+
+    it('filters out programs outside searchPeriods', async () => {
+        const p1 = await programDB.findId(1);
+
+        // p1 より過去の期間で検索
+        const results = await programDB.findRule({
+            searchOption: {
+                searchPeriods: [
+                    {
+                        startAt: p1!.startAt - 100000,
+                        endAt: p1!.startAt - 50000,
+                    },
+                ],
+            },
+        });
+        expect(results).toHaveLength(0);
+    });
+
+    it('combines searchPeriods with durationMin and durationMax', async () => {
+        const p1 = await programDB.findId(1);
+        const p2 = await programDB.findId(2);
+
+        // p1 と p2 の両方を含む期間 (duration は共に 3600000 ms = 60分)
+        const resultsMatchingDuration = await programDB.findRule({
+            searchOption: {
+                searchPeriods: [
+                    {
+                        startAt: p1!.startAt - 1000,
+                        endAt: p2!.startAt + 1000,
+                    },
+                ],
+                durationMin: 50, // 50分以上
+                durationMax: 70, // 70分以下
+            },
+        });
+        expect(resultsMatchingDuration).toHaveLength(2);
+
+        // durationMin が長すぎる場合 (90分以上) は除外される
+        const resultsTooLong = await programDB.findRule({
+            searchOption: {
+                searchPeriods: [
+                    {
+                        startAt: p1!.startAt - 1000,
+                        endAt: p2!.startAt + 1000,
+                    },
+                ],
+                durationMin: 90,
+            },
+        });
+        expect(resultsTooLong).toHaveLength(0);
+    });
 });
+

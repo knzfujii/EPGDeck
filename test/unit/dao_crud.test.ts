@@ -466,6 +466,61 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             await ruleDB.enableOnce(ruleId);
             const enabledRule = await ruleDB.findId(ruleId, true);
             expect(enabledRule?.reserveOption.enable).toBe(true);
+
+            // searchPeriods, times, recordedFormat を含んだルールの保存と取得
+            const advancedRuleOption: any = {
+                isTimeSpecification: false,
+                searchOption: {
+                    keyword: 'アニメ特集',
+                    GR: true,
+                    times: [
+                        {
+                            week: 127,
+                            start: 20,
+                            range: 4,
+                        },
+                    ],
+                    searchPeriods: [
+                        {
+                            startAt: 1725148800000,
+                            endAt: 1727740799000,
+                        },
+                    ],
+                },
+                reserveOption: {
+                    enable: true,
+                    avoidDuplicate: true,
+                    allowEndLack: false,
+                    periodToAvoidDuplicate: 90,
+                },
+                saveOption: {
+                    recordedFormat: '%YEAR%-%MONTH%-%DAY%_%TITLE%',
+                },
+                encodeOption: {},
+            };
+
+            const advRuleId = await ruleDB.insertOnce(advancedRuleOption);
+            expect(advRuleId).toBeGreaterThan(0);
+
+            const advRule = await ruleDB.findId(advRuleId, true);
+            expect(advRule).not.toBeNull();
+            expect(advRule?.searchOption.keyword).toBe('アニメ特集');
+            expect(advRule?.searchOption.times).toEqual([
+                {
+                    week: 127,
+                    start: 20,
+                    range: 4,
+                },
+            ]);
+            expect(advRule?.searchOption.searchPeriods).toEqual([
+                {
+                    startAt: 1725148800000,
+                    endAt: 1727740799000,
+                },
+            ]);
+            expect(advRule?.reserveOption.periodToAvoidDuplicate).toBe(90);
+            expect(advRule?.saveOption?.recordedFormat).toBe('%YEAR%-%MONTH%-%DAY%_%TITLE%');
         });
     });
 });
+

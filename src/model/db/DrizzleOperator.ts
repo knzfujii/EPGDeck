@@ -25,6 +25,9 @@ export default class DrizzleOperator implements IDrizzleOperator {
         if (client.type === 'sqlite') {
             // EPGStation v2.10.0 完全互換の SQLite テーブル定義およびインデックスの安全な自動作成
             const queries = [
+                'PRAGMA journal_mode = WAL;',
+                'PRAGMA synchronous = NORMAL;',
+                'PRAGMA busy_timeout = 10000;',
                 `CREATE TABLE IF NOT EXISTS channel (
                     id INTEGER PRIMARY KEY,
                     serviceId INTEGER NOT NULL,

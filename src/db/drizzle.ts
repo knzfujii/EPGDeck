@@ -30,7 +30,10 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
     if (config.database.type === 'sqlite') {
         const appRootPath = path.join(__dirname, '..', '..');
         const dbPath = customDbPath || path.join(appRootPath, 'data', 'database.db');
-        const client = createClient({ url: `file:${dbPath}` });
+        const client = createClient({
+            url: `file:${dbPath}`,
+            timeout: 10000,
+        });
 
         const db = drizzleLibSql(client, { schema: sqliteSchema });
         return {

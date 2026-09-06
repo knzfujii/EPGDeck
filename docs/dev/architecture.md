@@ -46,12 +46,17 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - アプリケーション定義: `src/model/service/hono/createHonoApp.ts`
 - Swagger UI / OpenAPI ドキュメント: `@hono/swagger-ui` により `/api-docs` および `/api/docs` で提供
 - 各エンドポイントは DI コンテナから各種 `*ApiModel` を呼び出し、型安全かつ低レイテンシでレスポンスを返却します。
+- **予約・競合エラーハンドリングの適正化**:
+  - `POST /api/reserves` において、二重予約やチューナー競合時に 500 ではなく適切な HTTP ステータス（`409 Conflict`、`404 Not Found`、`400 Bad Request`）と日本語メッセージを返却し、画面側（Snackbar）で失敗理由を明確にフィードバックします。
 
 ### ORM: Drizzle ORM
 データベースアクセスには **Drizzle ORM**（および `@libsql/client` / `mysql2`）を採用し、軽量・高速かつ型安全なクエリ実行を行っています。
 - Schema 定義: `src/db/schema/**/*.ts` (SQLite / MySQL)
 - DTO 定義: `src/db/entities/**/*.ts`
 - **EPGStation (v2.10.0) 互換性**: データベーステーブル・カラム構造は EPGStation v2.10.0 と 100% 同一であり、既存の `database.db` / MySQL からの直接移行および新規初期化に完全対応しています。
+- **マルチプロセス接続最適化 (SQLite)**:
+  - 3プロセス（Operator / Service / EPGUpdater）が同時に SQLite を読み書きする構成に対応するため、接続オプションで `timeout: 10000`（`PRAGMA busy_timeout = 10000;`）を設定し、`PRAGMA journal_mode = WAL;` および `PRAGMA synchronous = NORMAL;` を自動適用しています。
+  - EPG 更新のトランザクションと予約登録・参照クエリが同一ミリ秒で衝突しても `SQLITE_BUSY: database is locked` にならず、最大10秒間自動リトライ待機して安全に並行処理されます。
 
 ---
 

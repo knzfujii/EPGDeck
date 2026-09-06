@@ -186,6 +186,60 @@ describe('Hono REST API Integration Tests', () => {
         expect(data.reserves).toHaveLength(1);
     });
 
+    it('POST /api/reserves returns 201 on success', async () => {
+        const mockModel = {
+            add: async () => 102,
+        };
+        container.rebind('IReserveApiModel').toConstantValue(mockModel);
+
+        const res = await app.request('/api/reserves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ programId: 12345 }),
+        });
+        expect(res.status).toBe(201);
+        const data = await res.json();
+        expect(data.reserveId).toBe(102);
+    });
+
+    it('POST /api/reserves returns 409 Conflict with message when program is already reserved', async () => {
+        const mockModel = {
+            add: async () => {
+                throw new Error('ReservationManageModelReservedError');
+            },
+        };
+        container.rebind('IReserveApiModel').toConstantValue(mockModel);
+
+        const res = await app.request('/api/reserves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ programId: 12345 }),
+        });
+        expect(res.status).toBe(409);
+        const data = await res.json();
+        expect(data.message).toBe('この番組はすでに予約されています');
+        expect(data.code).toBe(409);
+    });
+
+    it('POST /api/reserves returns 409 Conflict when reservation conflicts', async () => {
+        const mockModel = {
+            add: async () => {
+                throw new Error('ReservationManageModelAddReserveConflict');
+            },
+        };
+        container.rebind('IReserveApiModel').toConstantValue(mockModel);
+
+        const res = await app.request('/api/reserves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ programId: 12345 }),
+        });
+        expect(res.status).toBe(409);
+        const data = await res.json();
+        expect(data.message).toBe('予約が他の録画と重複・競合しています');
+        expect(data.code).toBe(409);
+    });
+
     it('GET /api/recorded returns recorded programs archive with pagination', async () => {
         const res = await app.request('/api/recorded?isHalfWidth=true&limit=10&offset=0');
         expect(res.status).toBe(200);

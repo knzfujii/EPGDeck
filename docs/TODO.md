@@ -46,6 +46,11 @@ EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守
   - [x] `eslint` 10.10.0 / `@eslint/js` 10.0.1 へのメジャー更新（`@eslint/eslintrc` 追加、新ルールのポリシー整合化）
   - [x] ルート `typescript` を 5.9.3 に更新しクライアントとバージョンを統一
   - [x] 更新前の安全担保として Hono サーバー（CORS、404、SPA フォールバック）およびクライアント httpClient の網羅的単体テストを追加
+- [x] **SQLite マルチプロセス競合耐性と予約エラーハンドリングの改善**
+  - [x] SQLite 接続初期化時に `timeout: 10000`（`PRAGMA busy_timeout = 10000;`）、`PRAGMA journal_mode = WAL;`、`PRAGMA synchronous = NORMAL;` を設定し、プロセス間の書き込み競合による `SQLITE_BUSY` ロックを根本防止
+  - [x] 二重予約時の例外（`ReservationManageModelReservedError`）のマスキングを解消し、`POST /api/reserves` で 409 Conflict と日本語エラーメッセージを返却
+  - [x] 番組表（`Guide.svelte`）の各予約操作において、サーバー提供のエラーメッセージを Snackbar に具体的に表示するよう改善
+  - [x] `test/unit/hono_api.test.ts` に予約追加成功（201）および二重予約・競合エラー（409）の単体テストを追加
 
 
 ---

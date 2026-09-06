@@ -44,6 +44,37 @@ app.post('/', async c => {
         const reserveId = await reserveApiModel.add(body);
         return api.responseJSON(c, 201, { reserveId });
     } catch (err: any) {
+        if (err.message === 'ReservationManageModelReservedError') {
+            return api.responseJSON(c, 409, {
+                code: 409,
+                message: 'この番組はすでに予約されています',
+                errors: 'ReservationManageModelReservedError',
+            });
+        }
+        if (
+            err.message === 'ReservationManageModelAddReserveConflict' ||
+            err.message === 'AddReservationConflictError'
+        ) {
+            return api.responseJSON(c, 409, {
+                code: 409,
+                message: '予約が他の録画と重複・競合しています',
+                errors: err.message,
+            });
+        }
+        if (err.message === 'ProgramIsNotFound') {
+            return api.responseJSON(c, 404, {
+                code: 404,
+                message: '指定された番組が見つかりません',
+                errors: 'ProgramIsNotFound',
+            });
+        }
+        if (err.message === 'ProgramIsAlreadyEnded') {
+            return api.responseJSON(c, 400, {
+                code: 400,
+                message: 'すでに放送終了した番組です',
+                errors: 'ProgramIsAlreadyEnded',
+            });
+        }
         return api.responseServerError(c, err.message);
     }
 });

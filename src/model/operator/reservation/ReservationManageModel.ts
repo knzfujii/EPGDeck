@@ -240,7 +240,11 @@ class ReservationManageModel implements IReservationManageModel {
                 throw new Error('ReservationManageModelReservedError');
             }
         } catch (err: any) {
+            if (err.message === 'ReservationManageModelReservedError') {
+                throw err;
+            }
             this.log.system.error('check reserved programs error');
+            this.log.system.error(err);
             throw new Error('ReservationManageModelCheckReservedProgramError');
         }
 

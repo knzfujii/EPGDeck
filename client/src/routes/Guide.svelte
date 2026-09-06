@@ -421,9 +421,10 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to add reserve', e);
-            snackbar.open({ text: '録画予約の追加に失敗しました', color: 'error' });
+            const errorMsg = e.response?.data?.message || '録画予約の追加に失敗しました';
+            snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
         }
@@ -445,9 +446,10 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to update reserve', e);
-            snackbar.open({ text: '予約設定の更新に失敗しました', color: 'error' });
+            const errorMsg = e.response?.data?.message || '予約設定の更新に失敗しました';
+            snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
         }
@@ -466,9 +468,10 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to delete reserve', e);
-            snackbar.open({ text: '予約解除に失敗しました', color: 'error' });
+            const errorMsg = e.response?.data?.message || '予約解除に失敗しました';
+            snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
         }
@@ -486,9 +489,10 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to restore skip', e);
-            snackbar.open({ text: '予約の復活に失敗しました', color: 'error' });
+            const errorMsg = e.response?.data?.message || '予約の復活に失敗しました';
+            snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
         }

@@ -49,8 +49,12 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
   - mise による環境構築、本番環境との競合回避（ポート・DB分離）、ビルド・ホットリロード開発手順。
 - **[システムアーキテクチャ解説](dev/architecture.md)**
   - プロセス設計（Operator / Service / EPGUpdater）、Hono REST API、Drizzle ORM、Svelte 5 フロントエンド構成。
-- **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation_algorithm.md)**
+- **[テスト & CI/CD アーキテクチャ仕様書](dev/testing.md)**
+  - Vitest 単体テスト、MariaDB/MySQL 実機結合テスト、Playwright E2E（先行シード・スタンドアロンサーバー）、GitHub Actions 最適化。
+- **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation-algorithm.md)**
   - 予約生成ライフサイクル、録画済み重複排除（二重録画防止 / `isOverlap`）の正規化ロジック、平面走査法によるチューナー競合解決（`isConflict`）。
+- **[ストリーミング配信・ARIB 字幕アーキテクチャ](dev/streaming-and-captions.md)**
+  - M2TS-LL / HLS / WebM 配信パイプライン、aribb24.js v2 / ID3 Timed Metadata による字幕処理の技術仕様。
 - **[WebAPI 仕様・利用ガイド](dev/api.md)**
   - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
 - **[データベース & マイグレーション運用ガイド](dev/database.md)**
@@ -59,6 +63,6 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
   - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、新機能（次番組予約・スキップ復活・ルール詳細編集・ダークモードジャンル色等）の変更設計書。
 - **[オリジナル EPGStation 画面仕様書](dev/epgstation_ui_spec.md)**
   - フォーク元である EPGStation の全画面仕様・画面遷移・機能対比の参考資料。
-- **[改善 TODO リスト](TODO.md)**
-  - 今後の機能改善・リファクタリング・パフォーマンス最適化タスク一覧。
+- **[改善 TODO リスト（タスク管理ボード）](TODO.md)**
+  - 今後の機能改善・UX 向上・仕様検討タスク一覧。
 

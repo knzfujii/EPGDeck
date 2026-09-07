@@ -129,7 +129,7 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
   $ docker compose -f docker-compose.db.yml down -v
   ```
 - **Playwright E2E テスト**:
-  テスト用スタンドアロンサーバーを自動起動し、Chromium ブラウザによる画面・操作検証を行います（事前に `npm run build-client` が必要）。
+  テスト用スタンドアロンサーバーを自動起動し、Chromium ブラウザによる画面・操作検証を行います（未ビルド時は自動でクライアントビルドが実行されます）。
   ```bash
   $ npm run test:e2e
   ```
@@ -137,4 +137,10 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
   ```bash
   $ npm run build
   ```
+
+---
+
+## 6. テスト・CI/CD アーキテクチャの詳細
+
+テスト環境の分離構造、スタンドアロンサーバーのモック機構、Playwright のライフサイクル仕様、GitHub Actions の最適化などについては、**[テスト & CI/CD アーキテクチャ仕様書](testing.md)** をご参照ください。
 

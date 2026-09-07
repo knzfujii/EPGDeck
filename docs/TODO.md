@@ -1,136 +1,39 @@
-# EPGDeck 改善 TODO リスト
+# EPGDeck 改善 TODO リスト（タスク管理ボード）
 
-EPGDeck の機能改善、パフォーマンス最適化、品質向上、保守性向上のためのタスク一覧です。
-今後の機能追加やリファクタリングのロードマップとして随時更新・追記可能です。
+EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、および仕様検討のためのタスク一覧です。
 
----
-
-## 1. データベース & バックエンド (Database & Backend)
-
-- [x] **DBインデックス（INDEX）の最適化**
-  - [x] `program` テーブルに `(channelId, startAt, endAt)`, `(startAt, endAt)` 複合インデックスを追加
-  - [x] `recorded` テーブルに `(channelId, startAt)`, `(startAt, endAt)`, `(ruleId)` インデックスを追加
-  - [x] `reserve` テーブルに `(startAt, endAt)`, `(ruleId)`, `(channelId, startAt)` インデックスを追加
-  - [x] `DrizzleOperator` で SQLite / MySQL の既存データを破壊しない安全な自動インデックス生成を実装
-- [x] **番組一括更新（Bulk Insert）の最適化**
-  - [x] `ProgramDB.ts` の `insert` / `update` メソッドで Drizzle ORM の複数行一括 `values(chunk)` 挿入を活用
-- [x] **DBアクセス層（SQLite/MySQL）の共通クエリ集約 (T-6)**
-  - [x] `ProgramDB.ts`（`insert` / `update` 間で重複していた 100 行超の upsert chunk 処理）を `DrizzleHelper.upsertPrograms` に集約
-  - [x] `ChannelDB.ts` の方言別 upsert 処理を `DrizzleHelper.upsertChannels` に集約
-  - [x] `RecordedTagDB.ts` の tag 関連付け方言処理を `DrizzleHelper.setTagRelation` に集約
-  - [x] `test/unit/drizzle_helper.test.ts` を追加し SQLite での upsert / ignore 動作を担保
-- [x] **大容量動画アップロード時のメモリ枯渇（OOM）防止**
-  - [x] `src/model/service/hono/routes/videos.ts` の `/upload` で、`file.stream()` を用いたストリーム書き込みへ変更
-- [x] **EPGUpdater のプロセスライフサイクル安定化**
-  - [x] `ModelContainer.ts` および `EPGUpdateExecutor.ts` への `reflect-metadata` 永続化による起動クラッシュ防止
-  - [x] `EPGUpdateExecutorManageModel.ts` での子プロセス終了ハンドラ一本化と 3秒バックオフ待機による増殖ループ防止
-- [x] **ストリーミング例外および 500 エラー防止**
-  - [x] 終了済みストリームに対するキープタイマー競合（`StreamIsUndefined`）の安全ガード化
-  - [x] 実ファイル不在時の `stat` 存在確認ガードによる `ffprobe` クラッシュ防止
-- [x] **Hono ルートの共通エラーハンドリング強化**
-  - [x] `createHonoApp.ts` の `app.onError` によるエラー型安全なレスポンス返却と詳細ロギングの統一
-- [x] **不要・低利用率な依存パッケージの排除と Node.js 標準API移行（第1弾）**
-  - [x] `diskusage-ng`（C++ネイティブアドオン）を排除し `fs.promises.statfs` に移行（node-gyp/コンパイラ依存を完全解消）
-  - [x] `lodash` / `@types/lodash` を排除し、1箇所の `cloneDeep` を組み込みの `structuredClone` に移行
-  - [x] `mkdirp` / `@types/mkdirp` を排除し、`fs.promises.mkdir` / `fs.mkdirSync` に移行
-  - [x] サーバー側 `axios` を排除し、Kodi JSON-RPC を組み込みの `fetch` + `new URL` に移行
-  - [x] `source-map-support` / `@types/source-map-support` を排除し、Node.js 標準の `--enable-source-maps` に移行
-  - [x] 機能ごとに永続的な単体テスト（`file_util.test.ts`, `storage_api.test.ts`, `api_util.test.ts`）を整備・追加
-- [x] **不要・低利用率な依存パッケージの排除と Node.js 標準API移行（第2弾）**
-  - [x] `minimist` / `@types/minimist` を排除し、`DBTools.ts` のCLI引数解析を Node.js 18.3+ 標準の `node:util.parseArgs` に移行
-  - [x] `url-join` / `@types/url-join` を排除し、自作の堅牢な `StrUtil.urlJoin` に集約・移行
-  - [x] `eventsource` を排除し、Node.js 22.3+ 標準の組み込みグローバル `EventSource` に移行
-  - [x] `engines.node` を `">=22.3.0"` に更新、`db_tools.test.ts` / `str_util.test.ts` 永続テストを追加
-- [x] **依存パッケージ・ビルドツールの最新化と品質基盤強化（プランC）**
-  - [x] 破壊的変更リスクの低いマイナー・パッチ更新（`hono` 4.13.7, `playwright` 1.63.0, `lint-staged` 17.5.0, `@lucide/svelte` 1.41.0）
-  - [x] Mirakurun 互換性要件に準拠し、本番環境 Node.js v24 向けに `@types/node` 24.13.3 を維持
-  - [x] クライアント側 `vite` 8.2.2（Rolldown 高速バンドラ）＆ `@sveltejs/vite-plugin-svelte` 7.3.0 へのメジャー移行（ビルド時間 10.8s $\rightarrow$ 2.6s に短縮）
-  - [x] `vitest` 5.0.0 へのメジャー更新および設定最適化（`vitest.config.mts` 移行による警告解消）
-  - [x] `eslint` 10.10.0 / `@eslint/js` 10.0.1 へのメジャー更新（`@eslint/eslintrc` 追加、新ルールのポリシー整合化）
-  - [x] ルート `typescript` を 5.9.3 に更新しクライアントとバージョンを統一
-  - [x] 更新前の安全担保として Hono サーバー（CORS、404、SPA フォールバック）およびクライアント httpClient の網羅的単体テストを追加
-- [x] **SQLite マルチプロセス競合耐性と予約エラーハンドリングの改善**
-  - [x] SQLite 接続初期化時に `timeout: 10000`（`PRAGMA busy_timeout = 10000;`）、`PRAGMA journal_mode = WAL;`、`PRAGMA synchronous = NORMAL;` を設定し、プロセス間の書き込み競合による `SQLITE_BUSY` ロックを根本防止
-  - [x] 二重予約時の例外（`ReservationManageModelReservedError`）のマスキングを解消し、`POST /api/reserves` で 409 Conflict と日本語エラーメッセージを返却
-  - [x] 番組表（`Guide.svelte`）の各予約操作において、サーバー提供のエラーメッセージを Snackbar に具体的に表示するよう改善
-  - [x] `test/unit/hono_api.test.ts` に予約追加成功（201）および二重予約・競合エラー（409）の単体テストを追加
-
+> [!NOTE]
+> 本リストは **未来のタスク管理** を目的としています。完了したリファクタリング、機能仕様、テスト基盤等の技術ナレッジは、各種開発者ドキュメント（[システムアーキテクチャ](dev/architecture.md)、[テスト&CI/CD仕様書](dev/testing.md)、[画面変更仕様書](dev/epgdeck_change_spec.md) 等）に体系的に記録されています。
 
 ---
 
-## 2. フロントエンド & UI/UX (Frontend & UI/UX)
-
-- [x] **ルートレベルの動的コード分割 (Lazy Loading)**
-  - [x] `App.svelte` で全画面コンポーネントを動的 `import()` 化し、初期 JS ロードを大幅に軽量化
-- [x] **404 Not Found ルートの実装**
-  - [x] 未知のパスにアクセスした際のエラー画面（`NotFound.svelte`）の実装
-- [x] **設定・テーマ管理の一本化**
-  - [x] `Settings.svelte` に「自動 (OS準拠) / ライト / ダーク」選択ボタングループを新設し、`themeStore` と完全双方向同期
-- [x] **API クライアント層の集約と軽量化・axios 排除 (T-5)**
-  - [x] クライアント側から `axios`（1.20.0）を完全アンインストール（25パッケージ削減）
-  - [x] ブラウザ標準 `fetch` をラップした軽量・堅牢な `httpClient.ts`（URLクエリマージ、ステータス検証、エラーハンドリング対応）を新設
-  - [x] 全画面（16コンポーネント）の API 呼び出しを `httpClient` に一本化
-  - [x] `vendor-core` バンドルサイズを 92.86 kB から 41.22 kB へ 55% 削減（gzip後 31.97 kB $\rightarrow$ 12.91 kB、60% 削減）
-  - [x] `test/client/http_client.test.ts` で実通信を用いた永続的単体テスト（13テスト）を追加
-- [x] **巨大コンポーネントの分割・リファクタリング (T-7)**
-  - [x] `VideoPlayer.svelte` から下部コントロールバー全体（シークバー、再生制御、音量、LIVEバッジ、倍速、字幕、全画面等）を `VideoControls.svelte` に切り出し
-  - [x] `VideoPlayer.svelte` 本体の責務をプレイヤーライフサイクル、字幕同期、キーボードショートカット制御に特化させ可読性を向上
-- [ ] **番組表・ログの仮想スクロール (Virtual Scroll) 導入検討**
-  - [ ] 大量ノード表示時の描画負荷軽減
-
----
-
-## 3. エンコード & ストリーミング (Encode & Streaming)
-
-- [x] **エンコード設定の `script` 指定方式の導入**
-  - [x] `config.yml` 内の presets で `script: enc_1080p.js` のようにスクリプト名のみを指定可能に改善
-  - [x] 従来の `cmd` 指定とも完全な後方互換性を保持
-- [x] **エンコード完了時の `FileIsNotFound` エラー解消**
-  - [x] `config/enc_1080p.js` / `enc_720p.js` をテンプレートから実体化し、CLI エントリポイントを適正化
-- [x] **ファイル整合性検証時のフェイルセーフ強化**
-  - [x] 検証例外時に `process.exit(1)` で確実に異常終了させ、元 TS ファイルの誤削除を完全防止
-- [x] **WebM (VP9) ストリーミング設定の復元とビットレート修正**
-- [x] **HLS および M2TS-LL 再生時の ARIB 字幕（B24）表示の復元と SubtitleManager への責務分離**
-  - [x] `Hls.Events.FRAG_PARSING_METADATA` による ID3 字幕データの直接フィード
-  - [x] `mpegts.Events.PES_PRIVATE_DATA_ARRIVED` による 通常字幕（Caption）および文字スーパー（Superimpose）フィード
-  - [x] M2TS-LL / M2TS 再生時における字幕切り替えボタンおよびキーボードショートカット ('C') の解放
-  - [x] `aribb24.js` の初期化・破棄・描画ライフサイクルを `VideoPlayer` から独立した `SubtitleManager` クラスに集約
-
----
-
-## 4. ユーザー追加機能 & 仕様検討事項 (User Features & Decisions)
+## 1. 録画管理 & 運用安全 (Recording & Operations)
 
 - [ ] **録画一覧での複数選択一括削除機能**
-- [ ] **録画中の番組の途中完了（正常完了扱い）・削除（取り消し）**
-- [ ] **録画ファイルの削除を表示させない設定（config グローバル設定 / 画面デバイス単位）**
-- [x] **エンコード一覧が正常に動作していない**
-- [x] **ダークモードでボタンをマウスオーバーしたときに背景が白になりボタンの文字が読みづらいものがある**
-  - [x] ホバー時の背景色と文字色のコントラストを統一
-  - [x] ダークモードで白寄りの hover が発生しないよう修正
-- [x] **録画済み一覧のカードサイズ最適化とフィルタ機能修正**
-  - [x] カードサイズをコンパクト化し、画面幅に応じた可変カラム（auto-fill minmax 230px）に対応
-  - [x] 年月指定（startAt/endAt）を API および DB クエリ条件に実装しフィルタを修正
-  - [x] セレクトボックスの型・バインディング処理を堅牢化
-- [ ] `/dev/shm` の利用についてドキュメント化
-- [ ] ルールの優先順位を設定できるようにする
-- [x] **ブラウザデフォのconfirmをUIで**
-  - [x] Svelte 5 `$state` を活用した非同期 Promise ベースのダイアログ管理ストア `confirm.svelte.ts`（`confirmDialog`）を新設
-  - [x] ダークモード・キーボード（ESC/Enter）・Tailwind トランジション対応の共通モーダル `ConfirmModal.svelte` を実装し `App.svelte` にグローバルマウント
-  - [x] `Encode`, `Rule`, `Reserves`, `Recorded`, `RecordedDetail` の全ブラウザネイティブ `confirm()` 呼び出しを置き換え
+  - カード/テーブル表示においてチェックボックスによる複数選択モードを新設
+  - 一括削除実行時の確認モーダル表示と進捗フィードバック
+- [ ] **録画中番組の途中完了・取り消し機能**
+  - 録画進行中の番組に対し、「ここで正常完了として打ち切る（保存）」または「取り消し（ファイル破棄）」を選択可能にする
+  - 放送時間延長や不要な部分の早期終了に対応
+- [ ] **録画ファイル削除の非表示設定**
+  - 誤操作防止（ファミリー利用・閲覧専用端末等）のため、UI 上から「削除」操作を非表示にするオプション
+  - `config.yml` でのグローバル設定およびブラウザ単位（ローカルストレージ設定）での制御を検討
+- [ ] **ルールの優先順位設定**
+  - チューナー数不足による競合発生時、どの自動録画ルールを優先するか順位（Priority）を指定可能にする
+  - 競合調停アルゴリズム（`ReservationManageModel`）への優先度重み付けの導入
 
 ---
 
-## 5. テスト & CI/CD 基盤 (Testing & CI/CD)
+## 2. パフォーマンス & フロントエンド (Performance & Frontend)
 
-- [x] **MariaDB / MySQL 実機結合テスト基盤の導入**
-  - [x] ローカル検証用 `docker-compose.db.yml`（ホスト競合回避ポート `13306`）の整備
-  - [x] `test/integration/mysql.test.ts` による DDL・インデックス生成・Auto-Increment ID 取得・主要 DAO CRUD の網羅検証
-  - [x] 普段の SQLite 単体テストの超高速性を阻害しないオプトイン実行（`TEST_MYSQL=true`）ガード
-- [x] **GitHub Actions CI のコスト効率最大化と全自動検証（1 ジョブ統合）**
-  - [x] `concurrency` による同一 PR 連続プッシュ時の古いジョブ自動キャンセル
-  - [x] `paths-ignore` によるドキュメント（`docs/**`, `*.md`）変更時の無駄な CI スキップ
-  - [x] MariaDB 10.11（ポート 3306）および MySQL 8.0（ポート 3307）のデュアルサービスによる広範な DB 互換性検証
-  - [x] セキュリティ監査（`npm audit`）の CI 監視化
-  - [x] Mirakurun 未稼働の CI / テスト環境でも自律動作するスタンドアロン E2E サーバー（`test/e2e/e2e_server.ts`）と Playwright CI 統合
-  - [x] VM 起動・依存関係インストールの重複を排除した 1 ジョブ（~1〜2分）統合パイプラインの構築
+- [ ] **番組表・ログの仮想スクロール (Virtual Scroll) 導入検討**
+  - 番組表（1週間分）やシステムログ（数万行）表示時の DOM ノード数肥大化を抑え、描画負荷とメモリ消費を削減
+  - スクロール追従性と既存 CSS グリッドレイアウトとの両立検証
 
+---
+
+## 3. ドキュメント & ガイド (Documentation)
+
+- [ ] **`/dev/shm`（RAM ディスク）活用ガイドの作成**
+  - ストリーミング一時バッファ（HLS セグメント等）やトランスコード一時領域へのメモリファイルシステム適用手順
+  - SSD/HDD の書き込み寿命保護とディスク I/O 負荷軽減のためのベストプラクティスを `docs/manual/` に整備

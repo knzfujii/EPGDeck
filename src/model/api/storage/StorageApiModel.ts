@@ -36,7 +36,17 @@ export default class StorageApiModel implements IStorageApiModel {
      * @param dirPath ディスクディレクトリ
      */
     private async getDiskInfo(dirPath: string): Promise<apid.DiskUsage> {
-        const stats = await fs.promises.statfs(dirPath);
+        let stats: fs.StatsFs;
+        try {
+            stats = await fs.promises.statfs(dirPath);
+        } catch (err: any) {
+            if (err.code === 'ENOENT') {
+                await fs.promises.mkdir(dirPath, { recursive: true });
+                stats = await fs.promises.statfs(dirPath);
+            } else {
+                throw err;
+            }
+        }
         const total = stats.blocks * stats.bsize;
         const available = stats.bavail * stats.bsize;
         const free = stats.bfree * stats.bsize;

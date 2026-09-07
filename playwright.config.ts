@@ -8,7 +8,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
     use: {
-        baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8889',
+        baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:18889',
         trace: 'on-first-retry',
         headless: true,
         screenshot: 'only-on-failure',
@@ -21,8 +21,11 @@ export default defineConfig({
     ],
     webServer: {
         command: 'npx tsx test/e2e/e2e_server.ts',
-        url: 'http://localhost:8889',
+        url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:18889',
         reuseExistingServer: !process.env.CI,
         timeout: 60000,
+        env: {
+            NODE_ENV: 'test',
+        },
     },
 });

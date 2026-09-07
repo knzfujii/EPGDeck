@@ -113,9 +113,6 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Prepare Config for E2E
-        run: cp config/config.yml.template config/config.yml
-
       - name: Run Playwright E2E Tests
         run: npm run test:e2e
 

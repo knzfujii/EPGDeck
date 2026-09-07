@@ -14,6 +14,7 @@ data/streamfiles/*
 config/*
 !config/*.template
 !config/*.sample.yml
+!config/config.test.yml
 !config/enc_helper.js
 data/*.json
 data/upload/*

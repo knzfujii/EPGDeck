@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as http from 'http';
 import { getRequestListener } from '@hono/node-server';
 import { Server as SocketIOServer } from 'socket.io';
@@ -9,31 +10,46 @@ if (typeof process.send === 'undefined') {
     (process as any).send = (msg: any) => {
         process.nextTick(() => {
             if (msg && typeof msg.id !== 'undefined') {
-                process.emit('message' as any, {
-                    id: msg.id,
-                    result: [],
-                } as any);
+                process.emit(
+                    'message' as any,
+                    {
+                        id: msg.id,
+                        result: [],
+                    } as any,
+                );
             }
         });
         return true;
     };
 }
 
-import * as path from 'path';
+// ==============================================================================
+// E2E テスト専用の完全隔離環境（既存 config.yml / database.db には絶対に触らない）
+// ==============================================================================
+process.env.NODE_ENV = 'test';
 
-// 設定ファイル（config.yml）が存在しないテスト環境（CI等）向けのフォールバック作成
-const configDir = path.join(__dirname, '..', '..', 'config');
-const configPath = path.join(configDir, 'config.yml');
-const templatePath = path.join(configDir, 'config.yml.template');
-let createdTempConfig = false;
+const appRootPath = path.join(__dirname, '..', '..');
+const testDbPath = path.join(appRootPath, 'data', 'test_e2e.db');
+const e2eDataDir = path.join(appRootPath, 'data', 'test_e2e_env');
 
-if (!fs.existsSync(configPath) && fs.existsSync(templatePath)) {
-    let template = fs.readFileSync(templatePath, 'utf-8');
-    // E2E 用ポート 8889 に変更
-    template = template.replace(/port:\s*\d+/, 'port: 8889');
-    fs.writeFileSync(configPath, template);
-    createdTempConfig = true;
-}
+const cleanupTestArtifacts = () => {
+    const files = [testDbPath, `${testDbPath}-wal`, `${testDbPath}-shm`];
+    for (const file of files) {
+        if (fs.existsSync(file)) {
+            try {
+                fs.unlinkSync(file);
+            } catch (_) {}
+        }
+    }
+    if (fs.existsSync(e2eDataDir)) {
+        try {
+            fs.rmSync(e2eDataDir, { recursive: true, force: true });
+        } catch (_) {}
+    }
+};
+
+// 起動前に前回のテスト残骸があれば確実にクリーンアップ
+cleanupTestArtifacts();
 
 import container from '../../src/model/ModelContainer';
 import * as containerSetter from '../../src/model/ModelContainerSetter';
@@ -52,16 +68,6 @@ const config = configModel.getConfig();
 const loggerModel = container.get<ILoggerModel>('ILoggerModel');
 loggerModel.initialize('Service', config.log);
 const log = loggerModel.getLogger();
-
-// ディレクトリの事前作成
-for (const dir of config.recording.directories) {
-    if (!fs.existsSync(dir.path)) {
-        fs.mkdirSync(dir.path, { recursive: true });
-    }
-}
-if (config.recording.uploadTempDir && !fs.existsSync(config.recording.uploadTempDir)) {
-    fs.mkdirSync(config.recording.uploadTempDir, { recursive: true });
-}
 
 // DB テーブルの初期化
 const drizzleOp = container.get<IDrizzleOperator>('IDrizzleOperator');
@@ -112,21 +118,16 @@ async function main() {
         // クライアント接続を受け入れ
     });
 
-    const port = 8889;
-    config.server.port = port;
+    const port = config.server.port || 18889;
     server.listen(port, () => {
-        console.log(`[E2E Server] Listening on http://localhost:${port}`);
+        console.log(`[E2E Server] Listening on http://localhost:${port} (NODE_ENV=test, DB: ${testDbPath})`);
     });
 
     const cleanupAndExit = async () => {
         io.close();
         server.close();
         await drizzleOp.closeConnection();
-        if (createdTempConfig && fs.existsSync(configPath)) {
-            try {
-                fs.unlinkSync(configPath);
-            } catch (_) {}
-        }
+        cleanupTestArtifacts();
         process.exit(0);
     };
 

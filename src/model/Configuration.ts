@@ -20,13 +20,14 @@ class Configuration implements IConfiguration {
     constructor(@inject('ILoggerModel') logger: ILoggerModel) {
         this.log = logger.getLogger();
 
-        this.config = this.readConfig(Configuration.CONFIG_FILE_PATH);
-        this.log.system.info('config.yml read success');
+        const configFilePath = Configuration.getConfigFilePath();
+        this.config = this.readConfig(configFilePath);
+        this.log.system.info(`${path.basename(configFilePath)} read success`);
 
-        fs.watchFile(Configuration.CONFIG_FILE_PATH, async () => {
+        fs.watchFile(configFilePath, async () => {
             this.log.system.info('updated config file');
             try {
-                const newConfig = <any>yaml.load(await fs.promises.readFile(Configuration.CONFIG_FILE_PATH, 'utf-8'));
+                const newConfig = <any>yaml.load(await fs.promises.readFile(configFilePath, 'utf-8'));
                 this.config = Configuration.formatAndValidateConfig(newConfig);
             } catch (err: any) {
                 this.log.system.error('read config error');
@@ -150,9 +151,17 @@ class Configuration implements IConfiguration {
                         throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
                     }
                     if (e.code === 'ENOENT' || !e.code) {
-                        throw new Error(`Recording directory not found: "${dir.path}" (name: "${dir.name}")`);
+                        try {
+                            fs.mkdirSync(dir.path, { recursive: true });
+                            stat = fs.statSync(dir.path);
+                        } catch (mkdirErr: any) {
+                            throw new Error(
+                                `Recording directory not found: "${dir.path}" (name: "${dir.name}", failed to create: ${mkdirErr.message})`,
+                            );
+                        }
+                    } else {
+                        throw e;
                     }
-                    throw e;
                 }
                 if (!stat.isDirectory()) {
                     throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
@@ -334,7 +343,19 @@ class Configuration implements IConfiguration {
 }
 
 namespace Configuration {
-    export const CONFIG_FILE_PATH = path.join(__dirname, '..', '..', 'config', 'config.yml');
+    export const getConfigFilePath = (): string => {
+        if (process.env.EPGDECK_CONFIG_PATH) {
+            return process.env.EPGDECK_CONFIG_PATH;
+        }
+        if (process.env.NODE_ENV === 'test') {
+            const testConfigPath = path.join(__dirname, '..', '..', 'config', 'config.test.yml');
+            if (fs.existsSync(testConfigPath)) {
+                return testConfigPath;
+            }
+        }
+        return path.join(__dirname, '..', '..', 'config', 'config.yml');
+    };
+    export const CONFIG_FILE_PATH = getConfigFilePath();
     export const CONFIG_TEMPLATE_FILE_PATH = path.join(__dirname, '..', '..', 'config', 'config.yml.template');
     export const ROOT_PATH = path.join(__dirname, '..', '..').replace(new RegExp(`\\${path.sep}$`), '');
 

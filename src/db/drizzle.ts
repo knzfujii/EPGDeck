@@ -29,7 +29,11 @@ let drizzleInstance: DrizzleDB | null = null;
 export function createDrizzleClient(config: IConfigFile, customDbPath?: string): DrizzleDB {
     if (config.database.type === 'sqlite') {
         const appRootPath = path.join(__dirname, '..', '..');
-        const dbPath = customDbPath || path.join(appRootPath, 'data', 'database.db');
+        const defaultDbPath =
+            process.env.NODE_ENV === 'test'
+                ? path.join(appRootPath, 'data', 'test_e2e.db')
+                : path.join(appRootPath, 'data', 'database.db');
+        const dbPath = customDbPath || process.env.EPGDECK_DB_PATH || defaultDbPath;
         const client = createClient({
             url: `file:${dbPath}`,
             timeout: 10000,

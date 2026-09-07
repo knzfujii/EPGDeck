@@ -10,7 +10,7 @@ export default defineConfig({
     reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
     use: {
         baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:18889',
-        trace: 'on-first-retry',
+        trace: 'retain-on-failure',
         headless: true,
         screenshot: 'only-on-failure',
     },

@@ -132,11 +132,13 @@ jobs:
       - name: Run Playwright E2E Tests
         run: npm run test:e2e
 
-      - name: Upload Playwright Report
+      - name: Upload E2E Test Artifacts (Report & Server Logs)
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: e2e-artifacts
+          path: |
+            playwright-report/
+            logs/test_e2e.log
           retention-days: 7
 

@@ -12,10 +12,10 @@ database:
 
 log:
     level: info
-    console: false
+    console: true
     file:
-        enabled: false
-        path: '%ROOT%/logs/test_epgdeck.log'
+        enabled: true
+        path: '%ROOT%/logs/test_e2e.log'
     bufferSize: 1000
 
 epg:

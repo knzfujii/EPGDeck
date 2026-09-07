@@ -141,34 +141,6 @@ class Configuration implements IConfiguration {
             }))
             .filter((r: any) => r.name !== 'tmp');
 
-        if (options.checkDirectories) {
-            for (const dir of directories) {
-                let stat: fs.Stats;
-                try {
-                    stat = fs.statSync(dir.path);
-                } catch (e: any) {
-                    if (e.code === 'ENOTDIR') {
-                        throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
-                    }
-                    if (e.code === 'ENOENT' || !e.code) {
-                        try {
-                            fs.mkdirSync(dir.path, { recursive: true });
-                            stat = fs.statSync(dir.path);
-                        } catch (mkdirErr: any) {
-                            throw new Error(
-                                `Recording directory not found: "${dir.path}" (name: "${dir.name}", failed to create: ${mkdirErr.message})`,
-                            );
-                        }
-                    } else {
-                        throw e;
-                    }
-                }
-                if (!stat.isDirectory()) {
-                    throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
-                }
-            }
-        }
-
         const thumbConf = recConf.thumbnail || {};
         const thumbnail = {
             path: Configuration.directoryFormatting(
@@ -229,6 +201,43 @@ class Configuration implements IConfiguration {
                 recConf.uploadTempDir || raw.uploadTempDir || path.join(Configuration.ROOT_PATH, 'data', 'upload'),
             ),
         };
+
+        if (options.checkDirectories) {
+            const dirsToCheck: { path: string; name: string }[] = [
+                ...directories,
+                { path: thumbnail.path, name: 'thumbnail' },
+                { path: recording.uploadTempDir, name: 'uploadTempDir' },
+            ];
+            if (dropLog.enabled || dropLog.path) {
+                dirsToCheck.push({ path: dropLog.path, name: 'dropLog' });
+            }
+
+            for (const dir of dirsToCheck) {
+                let stat: fs.Stats;
+                try {
+                    stat = fs.statSync(dir.path);
+                } catch (e: any) {
+                    if (e.code === 'ENOTDIR') {
+                        throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
+                    }
+                    if (e.code === 'ENOENT' || !e.code) {
+                        try {
+                            fs.mkdirSync(dir.path, { recursive: true });
+                            stat = fs.statSync(dir.path);
+                        } catch (mkdirErr: any) {
+                            throw new Error(
+                                `Recording directory not found: "${dir.path}" (name: "${dir.name}", failed to create: ${mkdirErr.message})`,
+                            );
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
+                if (!stat.isDirectory()) {
+                    throw new Error(`Path exists but is not a directory: "${dir.path}" (name: "${dir.name}")`);
+                }
+            }
+        }
 
         // 6. エンコード設定
         const encConf = raw.encode || {};
@@ -352,6 +361,7 @@ namespace Configuration {
             if (fs.existsSync(testConfigPath)) {
                 return testConfigPath;
             }
+            throw new Error(`Test configuration file not found: ${testConfigPath}`);
         }
         return path.join(__dirname, '..', '..', 'config', 'config.yml');
     };

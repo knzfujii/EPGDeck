@@ -23,10 +23,6 @@ export default async function globalSetup(): Promise<void> {
             fs.rmSync(e2eDataDir, { recursive: true, force: true });
         } catch (_) {}
     }
-    fs.mkdirSync(path.join(e2eDataDir, 'recorded'), { recursive: true });
-    fs.mkdirSync(path.join(e2eDataDir, 'thumbnail'), { recursive: true });
-    fs.mkdirSync(path.join(e2eDataDir, 'drop'), { recursive: true });
-    fs.mkdirSync(path.join(e2eDataDir, 'upload'), { recursive: true });
 
     // 初期シードデータを投入
     await seedTestData();

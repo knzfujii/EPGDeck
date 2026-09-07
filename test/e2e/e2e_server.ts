@@ -14,14 +14,17 @@ import IConfiguration from '../../src/model/IConfiguration';
 import ILoggerModel from '../../src/model/ILoggerModel';
 import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
 import IIPCClient from '../../src/model/ipc/IIPCClient';
+import IMirakurunClientModel from '../../src/model/IMirakurunClientModel';
 import MockIPCClient from './MockIPCClient';
+import MockMirakurunClientModel from './MockMirakurunClientModel';
 import { createHonoApp } from '../../src/model/service/hono/createHonoApp';
 
 // DI コンテナの初期化
 containerSetter.set(container);
 
-// IPC クライアントを安全なモックにリバインド（Inversify DI ネイティブ）
+// IPC クライアントおよび Mirakurun クライアントを安全なモックにリバインド（完全密閉 E2E テスト環境）
 container.rebind<IIPCClient>('IIPCClient').to(MockIPCClient).inSingletonScope();
+container.rebind<IMirakurunClientModel>('IMirakurunClientModel').to(MockMirakurunClientModel).inSingletonScope();
 
 const configModel = container.get<IConfiguration>('IConfiguration');
 const config = configModel.getConfig();

@@ -82,7 +82,7 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
 
         // 詳細条件アコーディオンを展開して確認
-        const detailBtn = page.getByRole('button', { name: /詳細条件 \(ジャンル・放送波\/局\)/ });
+        const detailBtn = page.getByRole('button', { name: /詳細条件/ });
         await expect(detailBtn).toBeVisible();
         await detailBtn.click();
         await expect(page.getByRole('heading', { name: /放送波・放送局/ })).toBeVisible();

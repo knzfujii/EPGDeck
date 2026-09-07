@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+    globalSetup: './test/e2e/globalSetup.ts',
     testDir: './test/e2e',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
@@ -24,8 +25,5 @@ export default defineConfig({
         url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:18889',
         reuseExistingServer: !process.env.CI,
         timeout: 60000,
-        env: {
-            NODE_ENV: 'test',
-        },
     },
 });

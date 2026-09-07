@@ -158,6 +158,9 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(bsCheckbox).toBeEnabled();
         await expect(csCheckbox).toBeEnabled();
 
+        // 放送局リストがロードされていることを確認
+        await expect(page.getByText('NHK総合1')).toBeVisible();
+
         // 2. 全選択ボタンをクリックして局を個別指定する
         const selectAllBtn = page.getByRole('button', { name: '全選択' });
         await selectAllBtn.click();

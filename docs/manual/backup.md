@@ -10,10 +10,12 @@ EPGDeck に保存されているデータベース情報（予約、録画済み
 
 - **含まれるデータ**:
   - 予約情報（`reserves`）
-  - 録画済み番組情報（`recorded` / `videoFiles` / `recordedTags`）
+  - 録画済み番組情報（`recorded` / `videoFiles` / `thumbnails` / `dropLogFiles` / `recordedTags` の各メタデータ）
   - 録画履歴（`recordedHistory`）
   - 自動録画ルール（`rules`）
-  - チャンネル情報（`channels`）
+
+> [!NOTE]
+> チャンネル情報（`channels`）は Mirakurun との接続時に自動的に取得・同期されるため、バックアップ対象外となっています。
 
 - **含まれないデータ（別途手動でバックアップが必要）**:
   - 録画ファイル（`recorded/` 等の実動画ファイル）

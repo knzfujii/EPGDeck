@@ -30,14 +30,18 @@ export default class DropLogFileDB implements IDropLogFileDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.dropLogFiles);
-                for (const item of items) {
-                    await tx.insert(schema.dropLogFiles).values({
+                const CHUNK_SIZE = 500;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
                         id: item.id,
                         errorCnt: item.errorCnt,
                         dropCnt: item.dropCnt,
                         scramblingCnt: item.scramblingCnt,
                         filePath: item.filePath,
-                    });
+                    }));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.dropLogFiles).values(chunk);
+                    }
                 }
             });
         });

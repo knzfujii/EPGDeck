@@ -31,13 +31,17 @@ export default class RecordedTagDB implements IRecordedTagDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.recordedTags);
-                for (const item of items) {
-                    await tx.insert(schema.recordedTags).values({
+                const CHUNK_SIZE = 500;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
                         id: item.id,
                         name: item.name,
                         halfWidthName: item.halfWidthName,
                         color: item.color,
-                    });
+                    }));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.recordedTags).values(chunk);
+                    }
                 }
             });
         });

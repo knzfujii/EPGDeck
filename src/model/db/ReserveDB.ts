@@ -37,8 +37,12 @@ export default class ReserveDB implements IReserveDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.reserves);
-                for (const item of items) {
-                    await tx.insert(schema.reserves).values(this.toRow(item));
+                const CHUNK_SIZE = 100;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => this.toRow(item));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.reserves).values(chunk);
+                    }
                 }
             });
         });

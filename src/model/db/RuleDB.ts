@@ -30,8 +30,12 @@ export default class RuleDB implements IRuleDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.rules);
-                for (const item of items) {
-                    await tx.insert(schema.rules).values(this.convertRuleToDBRow(item));
+                const CHUNK_SIZE = 100;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => this.convertRuleToDBRow(item));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.rules).values(chunk);
+                    }
                 }
             });
         });

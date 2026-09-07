@@ -30,12 +30,16 @@ export default class ThumbnailDB implements IThumbnailDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.thumbnails);
-                for (const item of items) {
-                    await tx.insert(schema.thumbnails).values({
+                const CHUNK_SIZE = 500;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
                         id: item.id,
                         filePath: item.filePath,
                         recordedId: item.recordedId,
-                    });
+                    }));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.thumbnails).values(chunk);
+                    }
                 }
             });
         });

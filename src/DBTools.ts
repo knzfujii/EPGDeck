@@ -52,36 +52,48 @@ class DBTools {
     private thumbnailDB: IThumbnailDB;
     private videoFileDB: IVideoFileDB;
 
+    private static showUsageAndExit(message?: string): never {
+        if (message) {
+            console.error(`エラー: ${message}\n`);
+        }
+        console.error('使い方:');
+        console.error('  バックアップ: npm run backup <出力JSONファイル名>');
+        console.error('  レストア:     npm run restore <入力JSONファイル名>');
+        console.error('\nオプション:');
+        console.error('  -m, --mode <mode>      動作モード (backup | restore)');
+        console.error('  -o, --output <file>    対象ファイルパス');
+        process.exit(1);
+    }
+
     constructor() {
         // 引数チェック
-        const { values } = parseArgs({
-            args: process.argv.slice(2),
-            options: {
-                mode: {
-                    type: 'string',
-                    short: 'm',
+        let values: any;
+        try {
+            const parsed = parseArgs({
+                args: process.argv.slice(2),
+                options: {
+                    mode: {
+                        type: 'string',
+                        short: 'm',
+                    },
+                    output: {
+                        type: 'string',
+                        short: 'o',
+                    },
                 },
-                output: {
-                    type: 'string',
-                    short: 'o',
-                },
-            },
-            strict: false,
-        });
+                strict: true,
+            });
+            values = parsed.values;
+        } catch (err: any) {
+            DBTools.showUsageAndExit(err.message);
+        }
 
-        if (
-            typeof values.output === 'undefined' ||
-            values.output === '' ||
-            typeof values.mode === 'undefined' ||
-            values.mode === ''
-        ) {
-            console.error('引数が足りません');
-            process.exit(1);
+        if (typeof values.output !== 'string' || values.output.trim() === '') {
+            DBTools.showUsageAndExit('ファイル名が指定されていません。');
         }
 
         if (values.mode !== 'backup' && values.mode !== 'restore') {
-            console.error('mode の指定が間違っています');
-            process.exit(1);
+            DBTools.showUsageAndExit('mode には backup または restore を指定してください。');
         }
 
         this.filePath = values.output as string;

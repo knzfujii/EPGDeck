@@ -30,13 +30,17 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.recordedHistory);
-                for (const item of items) {
-                    await tx.insert(schema.recordedHistory).values({
+                const CHUNK_SIZE = 500;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
                         id: item.id,
                         name: item.name,
                         channelId: item.channelId,
                         endAt: item.endAt,
-                    });
+                    }));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.recordedHistory).values(chunk);
+                    }
                 }
             });
         });

@@ -30,8 +30,9 @@ export default class VideoFileDB implements IVideoFileDB {
             const { db, schema } = client;
             await (db as any).transaction(async (tx: any) => {
                 await tx.delete(schema.videoFiles);
-                for (const item of items) {
-                    await tx.insert(schema.videoFiles).values({
+                const CHUNK_SIZE = 300;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
                         id: item.id,
                         recordedId: item.recordedId,
                         parentDirectoryName: item.parentDirectoryName,
@@ -39,7 +40,10 @@ export default class VideoFileDB implements IVideoFileDB {
                         type: item.type,
                         name: item.name,
                         size: item.size,
-                    });
+                    }));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.videoFiles).values(chunk);
+                    }
                 }
             });
         });

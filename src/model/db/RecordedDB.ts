@@ -38,8 +38,12 @@ export default class RecordedDB implements IRecordedDB {
                 await tx.delete(schema.videoFiles);
                 await tx.delete(schema.recorded);
 
-                for (const item of items) {
-                    await tx.insert(schema.recorded).values(this.toRow(item));
+                const CHUNK_SIZE = 200;
+                for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+                    const chunk = items.slice(i, i + CHUNK_SIZE).map(item => this.toRow(item));
+                    if (chunk.length > 0) {
+                        await tx.insert(schema.recorded).values(chunk);
+                    }
                 }
             });
         });

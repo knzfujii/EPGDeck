@@ -6,6 +6,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
+    import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -162,16 +163,12 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // スマート再生トリガー
+    // スマート再生トリガー（最上位MP4があれば即座に直接再生、なければ再生方法選択モーダル）
     function handlePlayClick(item: apid.RecordedItem) {
-        const files = item.videoFiles || [];
-        const encoded = files.filter((f: any) => f.type === 'encoded' || f.name.toLowerCase().includes('mp4'));
-
-        if (encoded.length === 1 && (files.length === 1 || !readOnlyStore.canRecordedStream)) {
-            // 直接再生可能ファイルが1つの場合（またはトランスコード制限時）は即座に直接再生
-            router.push(`/recorded/watch?recordedId=${item.id}&videoId=${encoded[0].id}`);
+        const watchUrl = getSmartWatchUrl(item.id, item.videoFiles);
+        if (watchUrl) {
+            router.push(watchUrl);
         } else {
-            // 複数ファイルまたはTSの場合はモーダルを開く
             selectedItemForStream = item;
             isStreamModalOpen = true;
         }

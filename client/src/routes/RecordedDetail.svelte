@@ -6,6 +6,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
+    import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -33,6 +34,7 @@
     let recorded = $state<apid.RecordedItem | null>(null);
     let isLoading = $state(true);
     let isStreamModalOpen = $state(false);
+    let streamModalVideoFileId = $state<number | undefined>(undefined);
 
     // エンコード追加モーダル
     interface EncodePresetSelection {
@@ -233,6 +235,35 @@
             snackbar.open({ text: 'エンコード追加に失敗しました', color: 'error' });
         }
     }
+
+    // サムネイル再生: 最上位MP4があれば直接再生、なければ再生方法選択モーダル
+    function handleThumbnailPlay() {
+        if (!recorded) return;
+        const watchUrl = getSmartWatchUrl(recorded.id, recorded.videoFiles);
+        if (watchUrl) {
+            router.push(watchUrl);
+        } else {
+            streamModalVideoFileId = undefined;
+            isStreamModalOpen = true;
+        }
+    }
+
+    // 詳細再生ボタン: 常に再生方法選択モーダルを開く
+    function handleDetailPlay() {
+        streamModalVideoFileId = undefined;
+        isStreamModalOpen = true;
+    }
+
+    // 生成ファイル一覧の再生ボタン: MP4は直接再生、非MP4は対象ファイルを初期選択してモーダル表示
+    function handleFilePlay(file: apid.VideoFile) {
+        if (!recorded) return;
+        if (isMp4VideoFile(file)) {
+            router.push(getWatchUrl({ recordedId: recorded.id, videoId: file.id }));
+        } else {
+            streamModalVideoFileId = file.id;
+            isStreamModalOpen = true;
+        }
+    }
 </script>
 
 <div class="w-full max-w-5xl min-w-0 space-y-5">
@@ -318,9 +349,10 @@
                     <div class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-2xs transition hover:bg-black/20">
                         <button
                             type="button"
-                            onclick={() => isStreamModalOpen = true}
-                            class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl transition hover:scale-110 hover:bg-blue-500"
+                            onclick={handleThumbnailPlay}
+                            class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl transition hover:scale-110 hover:bg-blue-500 cursor-pointer"
                             aria-label="動画を再生"
+                            title="最上位の動画を再生"
                         >
                             <Play size={24} fill="currentColor" class="translate-x-0.5" />
                         </button>
@@ -362,10 +394,11 @@
                         {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
                             <button
                                 type="button"
-                                onclick={() => isStreamModalOpen = true}
+                                onclick={handleDetailPlay}
                                 class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                                title="再生方法や画質を選択して再生"
                             >
-                                <Play size={14} fill="currentColor" /> 再生する
+                                <Play size={14} fill="currentColor" /> 詳細再生
                             </button>
                         {/if}
 
@@ -439,18 +472,10 @@
                         <!-- ファイルアクション -->
                         <div class="flex items-center gap-2 shrink-0">
                             <!-- 直接再生 / トランスコード再生 -->
-                            {#if file.type === 'encoded' || file.name.toLowerCase().includes('mp4') || readOnlyStore.canRecordedStream}
+                            {#if isMp4VideoFile(file) || readOnlyStore.canRecordedStream}
                                 <button
                                     type="button"
-                                    onclick={() => {
-                                        if (recorded) {
-                                            if (file.type === 'encoded' || file.name.toLowerCase().includes('mp4')) {
-                                                router.push(`/recorded/watch?recordedId=${recorded.id}&videoId=${file.id}`);
-                                            } else {
-                                                router.push(`/recorded/watch?recordedId=${recorded.id}&videoFileId=${file.id}&type=hls&mode=0`);
-                                            }
-                                        }
-                                    }}
+                                    onclick={() => handleFilePlay(file)}
                                     class="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 cursor-pointer"
                                 >
                                     <Play size={13} fill="currentColor" /> 再生
@@ -508,7 +533,11 @@
         channelName={channelStore.getChannelName(recorded.channelId)}
         recordedId={recorded.id}
         videoFiles={recorded.videoFiles || []}
-        onClose={() => isStreamModalOpen = false}
+        defaultVideoFileId={streamModalVideoFileId}
+        onClose={() => {
+            isStreamModalOpen = false;
+            streamModalVideoFileId = undefined;
+        }}
     />
 {/if}
 

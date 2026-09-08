@@ -15,13 +15,8 @@
         Lock
     } from '@lucide/svelte';
 
-    interface VideoFileItem {
-        id: number;
-        name: string;
-        filename: string;
-        type: 'ts' | 'encoded';
-        size: number;
-    }
+    import type * as apid from '../../../../../api';
+    import { isMp4VideoFile, getTopMp4File, getWatchUrl } from '../../utils/video';
 
     interface Props {
         isOpen: boolean;
@@ -29,7 +24,8 @@
         channelId?: number;
         channelName?: string;
         recordedId?: number;
-        videoFiles?: VideoFileItem[];
+        videoFiles?: apid.VideoFile[];
+        defaultVideoFileId?: number;
         onClose: () => void;
     }
 
@@ -40,6 +36,7 @@
         channelName,
         recordedId,
         videoFiles = [],
+        defaultVideoFileId,
         onClose
     }: Props = $props();
 
@@ -52,18 +49,20 @@
     $effect(() => {
         if (isOpen) {
             if (videoFiles.length > 0) {
-                // 録画ファイルの場合: MP4などのエンコード済みファイルがあれば直接再生
-                const encoded = videoFiles.find(f => f.type === 'encoded' || f.name.toLowerCase().includes('mp4') || f.name.toLowerCase().includes('h.264'));
-                if (encoded) {
-                    selectedFileId = encoded.id;
-                    selectedStreamType = 'direct';
-                } else if (readOnlyStore.canRecordedStream) {
-                    selectedFileId = videoFiles[0].id;
-                    selectedStreamType = 'hls';
-                } else {
-                    selectedFileId = videoFiles[0].id;
-                    // トランスコード禁止時は direct (MP4等なし)
-                    selectedStreamType = 'direct';
+                // 指定された defaultVideoFileId -> 最上位MP4 -> 先頭ファイルの順で選択
+                const targetFile = (defaultVideoFileId ? videoFiles.find(f => f.id === defaultVideoFileId) : null)
+                    ?? getTopMp4File(videoFiles)
+                    ?? videoFiles[0];
+
+                if (targetFile) {
+                    selectedFileId = targetFile.id;
+                    if (isMp4VideoFile(targetFile)) {
+                        selectedStreamType = 'direct';
+                    } else if (readOnlyStore.canRecordedStream) {
+                        selectedStreamType = 'hls';
+                    } else {
+                        selectedStreamType = 'direct';
+                    }
                 }
             } else if (channelId) {
                 // ライブ配信の場合: 最速の m2tsll をデフォルトに
@@ -96,13 +95,18 @@
         if (channelId) {
             // ライブ視聴
             router.push(`/onair/watch?channelId=${channelId}&type=${selectedStreamType}&mode=${selectedMode}`);
-        } else if (recordedId) {
-            if (selectedStreamType === 'direct' && selectedFileId) {
+        } else if (recordedId && selectedFileId) {
+            if (selectedStreamType === 'direct') {
                 // 直接再生
-                router.push(`/recorded/watch?recordedId=${recordedId}&videoId=${selectedFileId}`);
-            } else if (selectedFileId) {
+                router.push(getWatchUrl({ recordedId, videoId: selectedFileId }));
+            } else {
                 // 録画ストリーミング
-                router.push(`/recorded/watch?recordedId=${recordedId}&videoFileId=${selectedFileId}&type=${selectedStreamType}&mode=${selectedMode}`);
+                router.push(getWatchUrl({
+                    recordedId,
+                    videoFileId: selectedFileId,
+                    type: selectedStreamType,
+                    mode: selectedMode
+                }));
             }
         }
         onClose();

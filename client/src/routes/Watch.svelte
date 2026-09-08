@@ -4,6 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { getTopMp4File } from '../lib/utils/video';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
     import http from '@/lib/httpClient';
     import {
@@ -47,6 +48,12 @@
         }
         return 0;
     });
+
+    function withAuthToken(url: string): string {
+        if (!readOnlyStore.token) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}token=${encodeURIComponent(readOnlyStore.token)}`;
+    }
 
     async function waitForStreamReady(id: number): Promise<boolean> {
         for (let i = 1; i <= 100; i++) {
@@ -123,13 +130,13 @@
                 // 🚀 M2TS-LL (最速・超低遅延): 待ち時間 0 秒で即座に再生
                 streamType = reqType;
                 isHls = false;
-                videoSrc = `/api/streams/live/${channelId}/${reqType}?mode=${mode}`;
+                videoSrc = withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
                 isLoadingInfo = false;
             } else if (reqType === 'webm' || reqType === 'mp4') {
                 // ⚡ WebM / MP4 (高速): 待ち時間 0 秒で即座に再生
                 streamType = reqType;
                 isHls = false;
-                videoSrc = `/api/streams/live/${channelId}/${reqType}?mode=${mode}`;
+                videoSrc = withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
                 isLoadingInfo = false;
             } else {
                 // 📱 HLS 配信
@@ -186,15 +193,15 @@
                 if (videoId !== null && !isNaN(videoId)) {
                     // 直接再生 (MP4 / WebM)
                     streamType = 'direct';
-                    videoSrc = `/api/videos/${videoId}`;
-                    vttSrc = `/api/videos/${videoId}/vtt`;
+                    videoSrc = withAuthToken(`/api/videos/${videoId}`);
+                    vttSrc = withAuthToken(`/api/videos/${videoId}/vtt`);
                     isHls = false;
                 } else if (videoFileId !== null && !isNaN(videoFileId)) {
                     vttSrc = undefined;
                     if (reqType === 'mp4' || reqType === 'webm') {
                         // トランスコード MP4/WebM 直接ストリーム
                         streamType = reqType;
-                        videoSrc = `/api/streams/recorded/${videoFileId}/${reqType}?mode=${mode}`;
+                        videoSrc = withAuthToken(`/api/streams/recorded/${videoFileId}/${reqType}?mode=${mode}`);
                         isHls = false;
                     } else {
                         // トランスコード HLS ストリーミング
@@ -217,12 +224,12 @@
                         }
                     }
                 } else if (recordedData.videoFiles?.[0]) {
-                    // デフォルト: MP4/エンコード済みファイルを最優先して直接再生
-                    const encodedFile = recordedData.videoFiles.find((f: any) => f.type === 'encoded' || (f.name && f.name.toLowerCase().includes('mp4')));
-                    if (encodedFile) {
+                    // デフォルト: 最上位MP4ファイルを最優先して直接再生
+                    const topMp4 = getTopMp4File(recordedData.videoFiles);
+                    if (topMp4) {
                         streamType = 'direct';
-                        videoSrc = `/api/videos/${encodedFile.id}`;
-                        vttSrc = `/api/videos/${encodedFile.id}/vtt`;
+                        videoSrc = withAuthToken(`/api/videos/${topMp4.id}`);
+                        vttSrc = withAuthToken(`/api/videos/${topMp4.id}/vtt`);
                         isHls = false;
                     } else if (readOnlyStore.canRecordedStream) {
                         const firstFile = recordedData.videoFiles[0];

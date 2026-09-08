@@ -5,6 +5,8 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
+    import { getSmartWatchUrl } from '../lib/utils/video';
+    import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Lock } from '@lucide/svelte';
@@ -30,6 +32,10 @@
     let conflictReserves = $derived(upcomingReserves.filter(r => r.isConflict));
     let overlapReserves = $derived(upcomingReserves.filter(r => r.isOverlap));
     let isLoading = $state(true);
+
+    // 再生モーダル状態
+    let isStreamModalOpen = $state(false);
+    let selectedItemForStream = $state<apid.RecordedItem | null>(null);
 
     let unsubscribeSocket: (() => void) | null = null;
 
@@ -158,13 +164,14 @@
         }
     });
 
+    // スマート再生トリガー（最上位MP4があれば即座に直接再生、なければ再生方法選択モーダル）
     function handleRecordedPlay(item: apid.RecordedItem) {
-        const files = item.videoFiles || [];
-        const encoded = files.filter((f: any) => f.type === 'encoded' || (f.name && f.name.toLowerCase().includes('mp4')));
-        if (encoded.length === 1 && (files.length === 1 || !readOnlyStore.canRecordedStream)) {
-            router.push(`/recorded/watch?recordedId=${item.id}&videoId=${encoded[0].id}`);
+        const watchUrl = getSmartWatchUrl(item.id, item.videoFiles);
+        if (watchUrl) {
+            router.push(watchUrl);
         } else {
-            router.push(`/recorded/watch?recordedId=${item.id}`);
+            selectedItemForStream = item;
+            isStreamModalOpen = true;
         }
     }
 </script>
@@ -587,4 +594,19 @@
         </div>
     </div>
 </div>
+{/if}
+
+<!-- ストリーム選択モーダル -->
+{#if selectedItemForStream}
+    <StreamSelectModal
+        isOpen={isStreamModalOpen}
+        title={selectedItemForStream.name}
+        channelName={channelStore.getChannelName(selectedItemForStream.channelId)}
+        recordedId={selectedItemForStream.id}
+        videoFiles={selectedItemForStream.videoFiles || []}
+        onClose={() => {
+            isStreamModalOpen = false;
+            selectedItemForStream = null;
+        }}
+    />
 {/if}

@@ -1,6 +1,8 @@
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
     import http from '@/lib/httpClient';
+    import { router } from '../lib/router.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { socketStore, type LogEntry, type LogEntryLevel, type LogProcess, type LogCategory } from '../lib/stores/socket.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import {
@@ -14,7 +16,8 @@
         Check,
         Filter,
         Pause,
-        Play
+        Play,
+        Lock
     } from '@lucide/svelte';
     let rawLogs = $state<LogEntry[]>([]);
     let isLoading = $state(true);
@@ -25,7 +28,7 @@
     let selectedCategory = $state<'all' | LogCategory>('all');
     let isCopied = $state(false);
 
-    let logContainer: HTMLDivElement | null = null;
+    let logContainer = $state<HTMLDivElement | null>(null);
     let unsubscribeSocket: (() => void) | null = null;
 
     const LEVEL_PRIORITY: Record<LogEntryLevel, number> = {
@@ -190,7 +193,18 @@
         return `${h}:${m}:${s}.${ms}`;
     }
 
+    $effect(() => {
+        if (readOnlyStore.isReadOnly) {
+            snackbar.open({ text: '閲覧専用モードのため、システムログは表示できません', color: 'warning' });
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (readOnlyStore.isReadOnly) {
+            router.replace('/recorded');
+            return;
+        }
         fetchLogs();
 
         // リアルタイムログ受信リスナー
@@ -211,6 +225,20 @@
     });
 </script>
 
+{#if readOnlyStore.isReadOnly}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">システムログの閲覧は管理者のみ許可されています。</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
 <div class="space-y-4">
     <!-- ヘッダーエリア -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -457,3 +485,4 @@
         {/if}
     </div>
 </div>
+{/if}

@@ -3,8 +3,9 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
-    import { Clock, Plus, ArrowLeft } from '@lucide/svelte';
+    import { Clock, Plus, ArrowLeft, Lock } from '@lucide/svelte';
 
     let selectedChannelId = $state<number | null>(null);
     let name = $state('');
@@ -19,7 +20,17 @@
         return localISOTime;
     }
 
+    $effect(() => {
+        if (readOnlyStore.isReadOnly) {
+            router.replace('/recorded');
+        }
+    });
+
     onMount(async () => {
+        if (readOnlyStore.isReadOnly) {
+            router.replace('/recorded');
+            return;
+        }
         await channelStore.fetch();
         if (channelStore.channels.length > 0) {
             selectedChannelId = channelStore.channels[0].id;
@@ -72,7 +83,21 @@
     }
 </script>
 
-<div class="w-full max-w-3xl min-w-0 space-y-5">
+{#if readOnlyStore.isReadOnly}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">手動予約の作成は制限されています。録画済み一覧へリダイレクトします...</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
+    <div class="w-full max-w-3xl min-w-0 space-y-5">
     <div class="flex items-center gap-3">
         <button
             type="button"
@@ -155,18 +180,25 @@
             <button
                 type="button"
                 onclick={() => router.push('/reserves')}
-                class="rounded-xl px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                class="rounded-xl px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
             >
                 キャンセル
             </button>
-            <button
-                type="submit"
-                disabled={isSubmitting}
-                class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
-            >
-                <Plus size={16} /> 予約を追加
-            </button>
+            {#if !readOnlyStore.isReadOnly}
+                <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                >
+                    <Plus size={16} /> 予約を追加
+                </button>
+            {:else}
+                <p class="text-xs text-amber-600 dark:text-amber-400 font-bold self-center">
+                    ※閲覧専用モードのため予約は作成できません
+                </p>
+            {/if}
         </div>
     </form>
 </div>
+{/if}
 

@@ -4,6 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import type * as apid from '../../../api';
     import http from '@/lib/httpClient';
     import {
@@ -833,19 +834,21 @@
                         <span class="text-[11px] text-purple-600/75 dark:text-purple-400/75">
                             保存先: {selectedProgram.reserve.parentDirectoryName || 'デフォルト'} {selectedProgram.reserve.directory ? `/ ${selectedProgram.reserve.directory}` : ''}
                         </span>
-                        <button
-                            type="button"
-                            onclick={() => {
-                                isModalOpen = false;
-                                router.push(`/rule/edit?id=${selectedProgram.reserve.ruleId}`);
-                            }}
-                            class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs"
-                        >
-                            <SlidersHorizontal size={11} /> ルールを編集
-                        </button>
+                        {#if !readOnlyStore.isReadOnly}
+                            <button
+                                type="button"
+                                onclick={() => {
+                                    isModalOpen = false;
+                                    router.push(`/rule/edit?id=${selectedProgram.reserve.ruleId}`);
+                                }}
+                                class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
+                            >
+                                <SlidersHorizontal size={11} /> ルールを編集
+                            </button>
+                        {/if}
                     </div>
                 </div>
-            {:else}
+            {:else if !readOnlyStore.isReadOnly}
                 <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-800/30">
                     <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
                         <SlidersHorizontal size={13} /> 録画オプション
@@ -984,52 +987,54 @@
                         閉じる
                     </button>
 
-                    {#if selectedProgram.reserve}
-                        {#if selectedProgram.reserve.isSkip}
-                            <button
-                                type="button"
-                                disabled={isReserving}
-                                onclick={() => restoreSkip(selectedProgram.reserve.id, selectedProgram.name)}
-                                class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50"
-                            >
-                                <RotateCcw size={14} /> 予約を復活 (スキップ解除)
-                            </button>
-                        {:else if selectedProgram.reserve.ruleId}
-                            <button
-                                type="button"
-                                disabled={isReserving}
-                                onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, true)}
-                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
-                            >
-                                <Trash2 size={14} /> この回をスキップ (除外)
-                            </button>
+                    {#if !readOnlyStore.isReadOnly}
+                        {#if selectedProgram.reserve}
+                            {#if selectedProgram.reserve.isSkip}
+                                <button
+                                    type="button"
+                                    disabled={isReserving}
+                                    onclick={() => restoreSkip(selectedProgram.reserve.id, selectedProgram.name)}
+                                    class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <RotateCcw size={14} /> 予約を復活 (スキップ解除)
+                                </button>
+                            {:else if selectedProgram.reserve.ruleId}
+                                <button
+                                    type="button"
+                                    disabled={isReserving}
+                                    onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, true)}
+                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <Trash2 size={14} /> この回をスキップ (除外)
+                                </button>
+                            {:else}
+                                <button
+                                    type="button"
+                                    disabled={isReserving}
+                                    onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
+                                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <CheckCircle2 size={14} /> 設定を更新
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isReserving}
+                                    onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, false)}
+                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <Trash2 size={14} /> 予約解除
+                                </button>
+                            {/if}
                         {:else}
                             <button
                                 type="button"
                                 disabled={isReserving}
-                                onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
-                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
+                                onclick={() => addReserve(selectedProgram)}
+                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
                             >
-                                <CheckCircle2 size={14} /> 設定を更新
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isReserving}
-                                onclick={() => deleteReserve(selectedProgram.reserve.id, selectedProgram.name, false)}
-                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50"
-                            >
-                                <Trash2 size={14} /> 予約解除
+                                <Plus size={14} /> 録画予約する
                             </button>
                         {/if}
-                    {:else}
-                        <button
-                            type="button"
-                            disabled={isReserving}
-                            onclick={() => addReserve(selectedProgram)}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            <Plus size={14} /> 録画予約する
-                        </button>
                     {/if}
                 </div>
             </div>

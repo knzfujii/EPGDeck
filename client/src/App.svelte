@@ -2,10 +2,12 @@
     import { onMount, onDestroy, type Component as SvelteComponent } from 'svelte';
     import { router } from './lib/router.svelte';
     import { socketStore } from './lib/stores/socket.svelte';
+    import { readOnlyStore } from './lib/stores/readOnly.svelte';
     import Header from './lib/components/layout/Header.svelte';
     import Navigation from './lib/components/layout/Navigation.svelte';
     import Snackbar from './lib/components/common/Snackbar.svelte';
     import ConfirmModal from './lib/components/common/ConfirmModal.svelte';
+    import UnlockModal from './lib/components/common/UnlockModal.svelte';
     import { Loader2 } from '@lucide/svelte';
 
     type RouteLoader = () => Promise<{ default: any }>;
@@ -37,7 +39,18 @@
     let isPageLoading = $state(true);
 
     $effect(() => {
+        if (!readOnlyStore.isInitialized) {
+            return;
+        }
+
         const path = router.pathname;
+
+        // トップページでダッシュボード閲覧権限がない場合は即座に /recorded へ転送
+        if ((path === '/' || path === '/dashboard') && !readOnlyStore.canViewDashboard) {
+            router.replace('/recorded');
+            return;
+        }
+
         const loader = routeLoaders[path];
 
         isPageLoading = true;
@@ -73,6 +86,7 @@
 
     onMount(() => {
         socketStore.init();
+        readOnlyStore.init();
     });
 
     onDestroy(() => {
@@ -87,7 +101,7 @@
         <Header onToggleDrawer={toggleDrawer} />
 
         <main class="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
-            {#if isPageLoading && !CurrentComponent}
+            {#if !readOnlyStore.isInitialized || (isPageLoading && !CurrentComponent)}
                 <div class="flex h-64 items-center justify-center">
                     <Loader2 size={32} class="animate-spin text-blue-600 dark:text-blue-400" />
                 </div>
@@ -99,4 +113,5 @@
 
     <Snackbar />
     <ConfirmModal />
+    <UnlockModal />
 </div>

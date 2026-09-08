@@ -4,6 +4,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import {
         ArrowLeft,
@@ -22,7 +23,8 @@
         Clock,
         Ban,
         RotateCcw,
-        AlertTriangle
+        AlertTriangle,
+        Lock
     } from '@lucide/svelte';
 
     // 編集対象のルールID (?id=<ruleId>)。未指定なら新規作成
@@ -538,7 +540,18 @@
         }
     }
 
+    $effect(() => {
+        if (readOnlyStore.isReadOnly) {
+            snackbar.open({ text: '閲覧専用モードのため、ルールの編集・作成は行えません', color: 'warning' });
+            router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded');
+        }
+    });
+
     onMount(async () => {
+        if (readOnlyStore.isReadOnly) {
+            router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded');
+            return;
+        }
         await initOptions();
 
         const idParam = router.query['id'];
@@ -741,6 +754,10 @@
     }
 
     async function handleSave() {
+        if (readOnlyStore.isReadOnly) {
+            snackbar.open({ text: '閲覧専用モードのためルールを保存できません', color: 'warning' });
+            return;
+        }
         isSaving = true;
         try {
             const payload: any = {
@@ -825,7 +842,20 @@
         </div>
     </div>
 
-    {#if isLoading}
+    {#if readOnlyStore.isReadOnly}
+        <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+            <Lock size={32} class="text-amber-500 mb-2" />
+            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ルールの編集および新規作成は管理者のみ許可されています。</p>
+            <button
+                type="button"
+                onclick={() => router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded')}
+                class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+            >
+                {readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画済み一覧へ'}
+            </button>
+        </div>
+    {:else if isLoading}
         <div class="flex justify-center py-16">
             <div class="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"></div>
         </div>
@@ -1755,14 +1785,20 @@
             >
                 キャンセル
             </button>
-            <button
-                type="submit"
-                disabled={isSaving}
-                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-6 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-            >
-                <Save size={15} />
-                {ruleId ? 'ルールを更新する' : '新規ルールを作成する'}
-            </button>
+            {#if !readOnlyStore.isReadOnly}
+                <button
+                    type="submit"
+                    disabled={isSaving}
+                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-6 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                >
+                    <Save size={15} />
+                    {ruleId ? 'ルールを更新する' : '新規ルールを作成する'}
+                </button>
+            {:else}
+                <p class="text-xs font-bold text-amber-600 dark:text-amber-400">
+                    ※閲覧専用モードのためルールの変更・作成はできません
+                </p>
+            {/if}
         </div>
     </form>
     {/if}

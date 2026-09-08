@@ -7,6 +7,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
@@ -166,8 +167,8 @@
         const files = item.videoFiles || [];
         const encoded = files.filter((f: any) => f.type === 'encoded' || f.name.toLowerCase().includes('mp4'));
 
-        if (encoded.length === 1 && files.length === 1) {
-            // 直接再生可能ファイルが1つの場合は即座に再生
+        if (encoded.length === 1 && (files.length === 1 || !readOnlyStore.canRecordedStream)) {
+            // 直接再生可能ファイルが1つの場合（またはトランスコード制限時）は即座に直接再生
             router.push(`/recorded/watch?recordedId=${item.id}&videoId=${encoded[0].id}`);
         } else {
             // 複数ファイルまたはTSの場合はモーダルを開く
@@ -240,7 +241,7 @@
                         type="text"
                         bind:value={keyword}
                         placeholder="録画を検索..."
-                        class="h-9 w-48 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-64 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        class="h-9 w-48 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-64 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
                     />
                     <Search size={14} class="absolute left-2.5 text-slate-400" />
                 </form>
@@ -414,38 +415,44 @@
                                 <td class="whitespace-nowrap px-4 py-3.5 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         <!-- 目立つ青色の再生ボタン -->
-                                        <button
-                                            type="button"
-                                            onclick={() => handlePlayClick(item)}
-                                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
-                                            title="今すぐ再生"
-                                        >
-                                            <Play size={13} fill="currentColor" /> 再生
-                                        </button>
+                                        {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                                            <button
+                                                type="button"
+                                                onclick={() => handlePlayClick(item)}
+                                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                                                title="今すぐ再生"
+                                            >
+                                                <Play size={13} fill="currentColor" /> 再生
+                                            </button>
+                                        {/if}
 
                                         <!-- 保護トグルボタン -->
-                                        <button
-                                            type="button"
-                                            onclick={() => toggleProtect(item)}
-                                            class="rounded-lg p-1.5 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
-                                            title={item.isProtected ? '保護解除' : '番組を保護'}
-                                        >
-                                            {#if item.isProtected}
-                                                <Lock size={15} />
-                                            {:else}
-                                                <Unlock size={15} />
-                                            {/if}
-                                        </button>
+                                        {#if !readOnlyStore.isReadOnly}
+                                            <button
+                                                type="button"
+                                                onclick={() => toggleProtect(item)}
+                                                class="rounded-lg p-1.5 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                                title={item.isProtected ? '保護解除' : '番組を保護'}
+                                            >
+                                                {#if item.isProtected}
+                                                    <Lock size={15} />
+                                                {:else}
+                                                    <Unlock size={15} />
+                                                {/if}
+                                            </button>
 
-                                        <!-- 削除ボタン -->
-                                        <button
-                                            type="button"
-                                            onclick={() => deleteRecorded(item.id, item.name)}
-                                            class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
-                                            title="削除"
-                                        >
-                                            <Trash2 size={15} />
-                                        </button>
+                                            <!-- 削除ボタン (保護中は非表示) -->
+                                            {#if !item.isProtected}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => deleteRecorded(item.id, item.name)}
+                                                    class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            {/if}
+                                        {/if}
                                     </div>
                                 </td>
                             </tr>
@@ -480,16 +487,18 @@
                         {/if}
 
                         <!-- 再生ボタンオーバーレイ (丸ボタンクリック時のみ再生) -->
-                        <div class="absolute inset-0 flex items-center justify-center bg-black/25 opacity-90 transition group-hover:bg-black/15">
-                            <button
-                                type="button"
-                                onclick={(e) => { e.stopPropagation(); handlePlayClick(item); }}
-                                class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition duration-150 hover:scale-110 hover:bg-blue-500 cursor-pointer"
-                                title="今すぐ動画を再生"
-                            >
-                                <Play size={15} fill="currentColor" class="translate-x-0.5" />
-                            </button>
-                        </div>
+                        {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/25 opacity-90 transition group-hover:bg-black/15">
+                                <button
+                                    type="button"
+                                    onclick={(e) => { e.stopPropagation(); handlePlayClick(item); }}
+                                    class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition duration-150 hover:scale-110 hover:bg-blue-500 cursor-pointer"
+                                    title="今すぐ動画を再生"
+                                >
+                                    <Play size={15} fill="currentColor" class="translate-x-0.5" />
+                                </button>
+                            </div>
+                        {/if}
 
                         <span class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none">
                             {formatDuration(item.endAt - item.startAt)}
@@ -527,26 +536,30 @@
                         <div class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-slate-800">
                             <span class="font-medium text-[10px]">{formatDate(item.startAt)} {formatTime(item.startAt)}</span>
                             <div class="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onclick={(e) => { e.stopPropagation(); toggleProtect(item); }}
-                                    class="rounded p-1 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
-                                    title={item.isProtected ? '保護解除' : '番組を保護'}
-                                >
-                                    {#if item.isProtected}
-                                        <Lock size={13} />
-                                    {:else}
-                                        <Unlock size={13} />
+                                {#if !readOnlyStore.isReadOnly}
+                                    <button
+                                        type="button"
+                                        onclick={(e) => { e.stopPropagation(); toggleProtect(item); }}
+                                        class="rounded p-1 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                        title={item.isProtected ? '保護解除' : '番組を保護'}
+                                    >
+                                        {#if item.isProtected}
+                                            <Lock size={13} />
+                                        {:else}
+                                            <Unlock size={13} />
+                                        {/if}
+                                    </button>
+                                    {#if !item.isProtected}
+                                        <button
+                                            type="button"
+                                            onclick={(e) => { e.stopPropagation(); deleteRecorded(item.id, item.name); }}
+                                            class="rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                            title="削除"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
                                     {/if}
-                                </button>
-                                <button
-                                    type="button"
-                                    onclick={(e) => { e.stopPropagation(); deleteRecorded(item.id, item.name); }}
-                                    class="rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
-                                    title="削除"
-                                >
-                                    <Trash2 size={13} />
-                                </button>
+                                {/if}
                             </div>
                         </div>
                     </div>

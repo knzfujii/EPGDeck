@@ -4,6 +4,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import {
         SlidersHorizontal,
@@ -18,7 +19,8 @@
         Power,
         Layers,
         AlertCircle,
-        Tv
+        Tv,
+        Lock
     } from '@lucide/svelte';
 
     let rules = $state<any[]>([]);
@@ -29,7 +31,6 @@
     async function fetchRules() {
         isLoading = true;
         try {
-            await channelStore.fetch();
             const [rulesRes, reservesRes] = await Promise.all([
                 http.get('/api/rules?limit=100&isHalfWidth=true'),
                 http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } }))
@@ -54,7 +55,17 @@
         }
     }
 
+    $effect(() => {
+        if (!readOnlyStore.canViewRules) {
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (!readOnlyStore.canViewRules) {
+            router.replace('/recorded');
+            return;
+        }
         fetchRules();
     });
 
@@ -124,7 +135,21 @@
     }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+{#if !readOnlyStore.canViewRules}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ルール管理の閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
+    <div class="space-y-5 w-full max-w-full min-w-0">
     <!-- ヘッダーツールバー -->
     <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div>
@@ -135,13 +160,15 @@
             <p class="text-xs text-slate-500 dark:text-slate-400">登録済みルール: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span> 件</p>
         </div>
 
-        <button
-            type="button"
-            onclick={goCreateRule}
-            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
-        >
-            <Plus size={16} /> 新規ルール作成
-        </button>
+        {#if !readOnlyStore.isReadOnly}
+            <button
+                type="button"
+                onclick={goCreateRule}
+                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+            >
+                <Plus size={16} /> 新規ルール作成
+            </button>
+        {/if}
     </div>
 
     <!-- ルール一覧テーブル -->
@@ -188,16 +215,26 @@
                             >
                                 <!-- 有効/無効スイッチ -->
                                 <td class="px-4 py-3.5 text-center">
-                                    <button
-                                        type="button"
-                                        onclick={(e) => toggleRuleEnable(r, e)}
-                                        class="inline-flex items-center justify-center rounded-full p-1.5 transition {isEnabled
-                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
-                                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400'}"
-                                        title={isEnabled ? 'クリックして無効化' : 'クリックして有効化'}
-                                    >
-                                        <Power size={14} />
-                                    </button>
+                                    {#if !readOnlyStore.isReadOnly}
+                                        <button
+                                            type="button"
+                                            onclick={(e) => toggleRuleEnable(r, e)}
+                                            class="inline-flex items-center justify-center rounded-full p-1.5 transition cursor-pointer {isEnabled
+                                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
+                                                : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400'}"
+                                            title={isEnabled ? 'クリックして無効化' : 'クリックして有効化'}
+                                        >
+                                            <Power size={14} />
+                                        </button>
+                                    {:else}
+                                        <span
+                                            class="inline-flex items-center justify-center rounded-full p-1.5 {isEnabled
+                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                                : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}"
+                                        >
+                                            <Power size={14} />
+                                        </span>
+                                    {/if}
                                 </td>
 
                                 <!-- キーワード / 検索条件 -->
@@ -322,24 +359,26 @@
                                         </button>
 
                                         <!-- 編集ボタン -->
-                                        <button
-                                            type="button"
-                                            onclick={(e) => { e.stopPropagation(); goEditRule(r); }}
-                                            class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-600 shadow-2xs hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-400"
-                                            title="ルールを編集"
-                                        >
-                                            <Edit3 size={13} /> 編集
-                                        </button>
+                                        {#if !readOnlyStore.isReadOnly}
+                                            <button
+                                                type="button"
+                                                onclick={(e) => { e.stopPropagation(); goEditRule(r); }}
+                                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-600 shadow-2xs hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-400 cursor-pointer"
+                                                title="ルールを編集"
+                                            >
+                                                <Edit3 size={13} /> 編集
+                                            </button>
 
-                                        <!-- 削除ボタン -->
-                                        <button
-                                            type="button"
-                                            onclick={(e) => deleteRule(r, e)}
-                                            class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
-                                            title="削除"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                            <!-- 削除ボタン -->
+                                            <button
+                                                type="button"
+                                                onclick={(e) => deleteRule(r, e)}
+                                                class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                                title="削除"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        {/if}
                                     </div>
                                 </td>
                             </tr>
@@ -350,3 +389,4 @@
         </div>
     {/if}
 </div>
+{/if}

@@ -166,6 +166,13 @@ export default class ConfigApiModel implements IConfigApiModel {
             });
         }
 
+        if (typeof config.readOnly !== 'undefined' && config.readOnly.enabled === true) {
+            result.readOnly = {
+                enabled: true,
+                allowedOperations: config.readOnly.allowedOperations || [],
+            };
+        }
+
         return result;
     }
 }

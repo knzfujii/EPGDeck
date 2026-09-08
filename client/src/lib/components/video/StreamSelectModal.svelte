@@ -1,5 +1,6 @@
 <script lang="ts">
     import { router } from '../../router.svelte';
+    import { readOnlyStore } from '../../stores/readOnly.svelte';
     import {
         Play,
         Tv,
@@ -10,7 +11,8 @@
         Download,
         X,
         Zap,
-        CheckCircle2
+        CheckCircle2,
+        Lock
     } from '@lucide/svelte';
 
     interface VideoFileItem {
@@ -55,9 +57,13 @@
                 if (encoded) {
                     selectedFileId = encoded.id;
                     selectedStreamType = 'direct';
-                } else {
+                } else if (readOnlyStore.canRecordedStream) {
                     selectedFileId = videoFiles[0].id;
                     selectedStreamType = 'hls';
+                } else {
+                    selectedFileId = videoFiles[0].id;
+                    // トランスコード禁止時は direct (MP4等なし)
+                    selectedStreamType = 'direct';
                 }
             } else if (channelId) {
                 // ライブ配信の場合: 最速の m2tsll をデフォルトに
@@ -72,7 +78,21 @@
         { id: 2, label: '1080p', desc: '最高画質 (無変換/高ビットレート)' },
     ];
 
+    const canStartPlayback = $derived.by(() => {
+        if (channelId) {
+            return readOnlyStore.canLiveStream;
+        }
+        if (recordedId) {
+            if (selectedStreamType === 'direct') {
+                return !!selectedFileId;
+            }
+            return readOnlyStore.canRecordedStream && !!selectedFileId;
+        }
+        return false;
+    });
+
     function startPlayback() {
+        if (!canStartPlayback) return;
         if (channelId) {
             // ライブ視聴
             router.push(`/onair/watch?channelId=${channelId}&type=${selectedStreamType}&mode=${selectedMode}`);
@@ -229,25 +249,43 @@
                             {/if}
                             <button
                                 type="button"
+                                disabled={!readOnlyStore.canRecordedStream}
                                 onclick={() => selectedStreamType = 'hls'}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition {selectedStreamType === 'hls'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition {!readOnlyStore.canRecordedStream
+                                    ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
+                                    : selectedStreamType === 'hls'
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="flex items-center gap-1 font-black">
                                     HLS 配信 <span class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">字幕対応</span>
                                 </span>
-                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">📺 字幕・安定トランスコード</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    {#if !readOnlyStore.canRecordedStream}
+                                        🔒 トランスコード制限中
+                                    {:else}
+                                        📺 字幕・安定トランスコード
+                                    {/if}
+                                </span>
                             </button>
                             <button
                                 type="button"
+                                disabled={!readOnlyStore.canRecordedStream}
                                 onclick={() => selectedStreamType = 'webm'}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition {selectedStreamType === 'webm'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition {!readOnlyStore.canRecordedStream
+                                    ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
+                                    : selectedStreamType === 'webm'
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="font-black">WebM</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">トランスコード</span>
+                                <span class="text-[10px] text-slate-400 mt-0.5">
+                                    {#if !readOnlyStore.canRecordedStream}
+                                        🔒 トランスコード制限中
+                                    {:else}
+                                        トランスコード
+                                    {/if}
+                                </span>
                             </button>
                         {/if}
                     </div>
@@ -275,14 +313,14 @@
                 {/if}
 
                 <!-- 外部アプリ連携導線 -->
-                {#if recordedId && selectedFileId}
+                {#if recordedId && selectedFileId && readOnlyStore.canDownload}
                     <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
                         <div>
                             <span class="font-bold text-slate-800 dark:text-slate-200">外部プレーヤーで開く</span>
                             <p class="text-[10px] text-slate-400">VLC / Infuse 向けの M3U プレイリスト</p>
                         </div>
                         <a
-                            href={`/api/videos/${selectedFileId}/playlist`}
+                            href={`/api/videos/${selectedFileId}/playlist${readOnlyStore.token ? `?token=${readOnlyStore.token}` : ''}`}
                             download
                             class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                         >
@@ -303,10 +341,17 @@
                 </button>
                 <button
                     type="button"
+                    disabled={!canStartPlayback}
                     onclick={startPlayback}
-                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md transition hover:bg-blue-700"
+                    class="flex items-center gap-1.5 rounded-xl px-5 py-2 text-xs font-bold text-white shadow-md transition {!canStartPlayback
+                        ? 'bg-slate-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'}"
                 >
-                    <Play size={14} fill="currentColor" /> 再生開始
+                    {#if !canStartPlayback}
+                        <Lock size={14} /> 閲覧制限中
+                    {:else}
+                        <Play size={14} fill="currentColor" /> 再生開始
+                    {/if}
                 </button>
             </div>
         </div>

@@ -3,7 +3,10 @@
     import { router } from '../../router.svelte';
     import { themeStore } from '../../stores/theme.svelte';
     import http from '@/lib/httpClient';
-    import { Moon, Sun, Menu } from '@lucide/svelte';
+    import { readOnlyStore } from '../../stores/readOnly.svelte';
+    import { confirmDialog } from '../../stores/confirm.svelte';
+    import { snackbar } from '../../stores/snackbar.svelte';
+    import { Moon, Sun, Menu, Lock, Unlock } from '@lucide/svelte';
 
     let { title = 'EPGDeck', onToggleDrawer }: { title?: string; onToggleDrawer?: () => void } = $props();
 
@@ -19,6 +22,19 @@
             // ignore
         }
     });
+
+    async function handleLock() {
+        const ok = await confirmDialog({
+            title: '閲覧専用モードに戻す',
+            message: '管理者モードを終了し、閲覧専用モード（ロック状態）に戻しますか？',
+            confirmText: 'ロックする',
+            cancelText: 'キャンセル',
+        });
+        if (ok) {
+            await readOnlyStore.lock();
+            snackbar.open({ text: '閲覧専用モードに戻しました', color: 'info' });
+        }
+    }
 </script>
 
 <header class="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
@@ -46,7 +62,32 @@
         </button>
     </div>
 
-    <div class="flex items-center gap-1.5">
+    <div class="flex items-center gap-2">
+        {#if readOnlyStore.enabled}
+            {#if readOnlyStore.isReadOnly}
+                <button
+                    type="button"
+                    onclick={() => readOnlyStore.openUnlockModal()}
+                    class="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 transition cursor-pointer"
+                    title="パスワードを入力して管理者モードへ切り替える"
+                >
+                    <Lock size={13} class="text-amber-600 dark:text-amber-400" />
+                    <span>閲覧専用</span>
+                </button>
+            {:else}
+                <button
+                    type="button"
+                    onclick={handleLock}
+                    class="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer"
+                    title="クリックして閲覧専用モード（ロック）に戻す"
+                >
+                    <Unlock size={13} class="text-emerald-600 dark:text-emerald-400" />
+                    <span class="hidden sm:inline">管理者モード</span>
+                    <span class="sm:hidden">管理者</span>
+                </button>
+            {/if}
+        {/if}
+
         <button
             type="button"
             onclick={() => themeStore.toggle()}

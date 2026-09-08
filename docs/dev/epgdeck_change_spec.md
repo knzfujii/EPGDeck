@@ -117,3 +117,53 @@
   - `snackbar.svelte.ts`: グローバルトースト通知
   - `theme.svelte.ts`: ダーク/ライトテーマ切り替え
   - `router.svelte.ts`: Svelte 5 Native Reactive SPA Router（HTML5 History モード完全連動）
+  - `readOnly.svelte.ts`: リードオンリー状態管理（サーバー設定取得・アンロック状態・操作権限判定）
+
+---
+
+## 5. リードオンリーモード（閲覧専用モード）仕様
+
+### 5.1 導入の背景と目的
+- 家族や同居人、ゲスト等と共有する環境において、「うっかり録画ファイルを削除してしまう」「予約やルールを変更してしまう」といったトラブルを防止する。
+- デフォルトまたは設定により未認証アクセスを閲覧専用とし、ストリーミングやダウンロードなど許可された閲覧操作のみを提供しつつ、変更・破壊的操作は管理者パスワードによる一時アンロック制とする。
+
+### 5.2 UI/UX 仕様
+- **ヘッダーバッジ (`Header.svelte`)**:
+  - リードオンリーモード有効時、ヘッダー右上にバッジを表示。
+  - **閲覧専用状態**: 「🔒 閲覧専用」（クリックするとアンロックモーダル表示）。
+  - **管理者モード状態**: 「🔓 管理者モード」（クリックすると再ロック・閲覧専用に戻すメニューやトグル）。
+- **パスワード解除モーダル (`UnlockModal.svelte`)**:
+  - 管理者パスワードを入力してアンロック。認証トークンはブラウザの `localStorage` に保持され、以降のリクエストに自動付与。
+- **画面単位の閲覧・表示制御（`allowedOperations` による許可制）**:
+  - **常時表示画面**:
+    - **番組表 (`/guide`)**: 常に閲覧可能（予約追加・変更などのボタンのみ非表示）。
+    - **録画済み一覧 (`/recorded`)**: 常に閲覧可能（削除・保護ボタンのみ非表示）。
+    - **予約一覧 (`/reserves`, `/reserves/manual`)**: 常に閲覧可能（予約追加・削除・スキップ解除等の操作ボタンのみ非表示）。
+  - **放映中 (`/onair`)**: `liveStream` 権限と連動。許可時のみメニュー表示＆閲覧可能。非許可時はメニューから非表示化され、直接アクセス時は `/recorded` へ自動リダイレクト。
+  - **許可制画面 (`dashboard`, `search`, `rules`, `encode`)**:
+    - **ダッシュボード (`/`)**: `dashboard` 許可時のみ表示。非許可時はメニューから非表示化され、トップページアクセス時は「録画済み（`/recorded`）」へ自動リダイレクト。
+    - **番組検索 (`/search`)**: `search` 許可時のみ表示。非許可時は非表示＆`/recorded` へリダイレクト。
+    - **ルール管理 (`/rule`)**: `rules` 許可時のみ表示。非許可時は非表示＆`/recorded` へリダイレクト。
+    - **エンコード管理 (`/encode`)**: `encode` 許可時のみ表示。非許可時は非表示＆`/recorded` へリダイレクト。
+  - **管理者専用画面**:
+    - **ルール編集 (`/rule/edit`)**: 管理者アンロック時のみアクセス可能。未認証時は `/rule`（または `/recorded`）へリダイレクト。
+    - **システムログ (`/logs`)**: 管理者アンロック時のみアクセス可能。未認証時はメニュー非表示＆`/recorded` へリダイレクト。
+    - **設定画面 (`/settings`)**: 管理者アンロック時のみアクセス可能。未認証時はメニュー非表示＆`/recorded` へリダイレクト。
+- **再生選択モーダル (`StreamSelectModal.svelte`)**: MP4 の直接再生は常時選択可能とし、HLS/WebM トランスコード配信は `recordedStream` 許可時のみ選択可能に制御。
+
+### 5.3 バックエンド保護との連携
+- フロントエンドでのボタン非表示だけでなく、Hono の `readOnlyMiddleware` により API レベルで未認証リクエストを `403 Forbidden` (`error: 'readOnlyMode'`) で確実に遮断。
+- **API ごとのアクセス遮断**:
+  - `dashboard` 非許可: `GET /api/recording` を 403 遮断
+  - `search` 非許可: `POST /api/schedules/search` を 403 遮断
+  - `rules` 非許可: `GET /api/rules` を 403 遮断
+  - `encode` 非許可: `GET /api/encode` を 403 遮断
+  - `liveStream` 非許可: `/api/streams/live/...`, `/api/iptv/...` を 403 遮断
+  - `recordedStream` 非許可: `/api/streams/recorded/...` を 403 遮断
+  - 予約情報（`GET /api/reserves*`）: 常時閲覧可能（`POST`, `DELETE` 等の変更 API は 403 遮断）。
+  - ストリーミング視聴セッションの維持（`PUT /api/streams/:id/keep`）および個別停止（`DELETE /api/streams/:id`）は、`liveStream` または `recordedStream` が許可されている場合は未認証時でも実行可能（一括停止 `DELETE /api/streams` は管理者専用として 403 保護）。
+  - `download` 非許可: `GET /api/videos/...` のダウンロードクエリおよび M3U プレイリストを 403 遮断
+  - 個別ルール詳細 API（`GET /api/rules/:id`）およびシステムログ API（`GET /api/logs`）は管理者専用のため閲覧専用時は常時 403 遮断。
+- エンコード済み MP4 ファイル等の直接再生（`GET /api/videos/:id`）はサーバー負荷が低いため常時許可。
+- 更新系リクエスト（POST, PUT, DELETE, PATCH 等）は未認証時は原則全面禁止（ストリーム維持・個別停止を除く）。
+

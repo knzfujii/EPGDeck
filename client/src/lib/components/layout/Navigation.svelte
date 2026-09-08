@@ -1,5 +1,6 @@
 <script lang="ts">
     import { router } from '../../router.svelte';
+    import { readOnlyStore } from '../../stores/readOnly.svelte';
     import {
         LayoutDashboard,
         Tv,
@@ -9,7 +10,6 @@
         Search,
         SlidersHorizontal,
         Film,
-        HardDrive,
         Settings,
         Terminal,
         X
@@ -21,18 +21,38 @@
         onCloseMobile?: () => void;
     } = $props();
 
-    const navItems = [
-        { label: 'ダッシュボード', path: '/', icon: LayoutDashboard },
-        { label: '放映中', path: '/onair', icon: Tv },
-        { label: '番組表', path: '/guide', icon: Calendar },
-        { label: '録画済み', path: '/recorded', icon: Video },
-        { label: '予約一覧', path: '/reserves', icon: Clock },
-        { label: '番組検索', path: '/search', icon: Search },
-        { label: 'ルール管理', path: '/rule', icon: SlidersHorizontal },
-        { label: 'エンコード', path: '/encode', icon: Film },
-        { label: 'システムログ', path: '/logs', icon: Terminal },
-        { label: '設定', path: '/settings', icon: Settings },
-    ];
+    const navItems = $derived.by(() => {
+        const items: Array<{ label: string; path: string; icon: any }> = [];
+
+        if (readOnlyStore.canViewDashboard) {
+            items.push({ label: 'ダッシュボード', path: '/', icon: LayoutDashboard });
+        }
+        if (readOnlyStore.canLiveStream) {
+            items.push({ label: '放映中', path: '/onair', icon: Tv });
+        }
+        // 番組表・録画済み・予約一覧は常時表示
+        items.push(
+            { label: '番組表', path: '/guide', icon: Calendar },
+            { label: '録画済み', path: '/recorded', icon: Video },
+            { label: '予約一覧', path: '/reserves', icon: Clock },
+        );
+        if (readOnlyStore.canViewSearch) {
+            items.push({ label: '番組検索', path: '/search', icon: Search });
+        }
+        if (readOnlyStore.canViewRules) {
+            items.push({ label: 'ルール管理', path: '/rule', icon: SlidersHorizontal });
+        }
+        if (readOnlyStore.canViewEncode) {
+            items.push({ label: 'エンコード', path: '/encode', icon: Film });
+        }
+        if (!readOnlyStore.isReadOnly) {
+            items.push(
+                { label: 'システムログ', path: '/logs', icon: Terminal },
+                { label: '設定', path: '/settings', icon: Settings },
+            );
+        }
+        return items;
+    });
 
     function navigate(path: string) {
         router.push(path);

@@ -3,7 +3,7 @@ import { inject, injectable } from 'inversify';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import StrUtil from '../util/StrUtil';
-import IConfigFile, { StreamingConfig } from './IConfigFile';
+import IConfigFile, { ReadOnlyOperation, StreamingConfig } from './IConfigFile';
 import IConfiguration from './IConfiguration';
 import ILogger from './ILogger';
 import ILoggerModel from './ILoggerModel';
@@ -332,6 +332,36 @@ class Configuration implements IConfiguration {
             streaming,
             kodi: raw.kodi || raw.kodiHosts,
         };
+
+        // 11. リードオンリー設定 (ReadOnly)
+        if (raw.readOnly) {
+            const envPassword = process.env.EPGDECK_ADMIN_PASSWORD || process.env.EPGDECK_READONLY_PASSWORD;
+            const password = typeof raw.readOnly.password === 'string' ? raw.readOnly.password : envPassword;
+            const validOps: ReadOnlyOperation[] = [
+                'liveStream',
+                'recordedStream',
+                'download',
+                'dashboard',
+                'search',
+                'rules',
+                'encode',
+            ];
+            const allowedOperations = Array.isArray(raw.readOnly.allowedOperations)
+                ? (raw.readOnly.allowedOperations.filter((op: any) => validOps.includes(op)) as ReadOnlyOperation[])
+                : [];
+
+            config.readOnly = {
+                enabled: raw.readOnly.enabled === true,
+                password: password || undefined,
+                allowedOperations,
+            };
+        } else if (process.env.EPGDECK_ADMIN_PASSWORD || process.env.EPGDECK_READONLY_PASSWORD) {
+            config.readOnly = {
+                enabled: true,
+                password: process.env.EPGDECK_ADMIN_PASSWORD || process.env.EPGDECK_READONLY_PASSWORD,
+                allowedOperations: [],
+            };
+        }
 
         return config;
     }

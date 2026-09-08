@@ -3,6 +3,7 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
     import http from '@/lib/httpClient';
     import {
@@ -216,14 +217,15 @@
                         }
                     }
                 } else if (recordedData.videoFiles?.[0]) {
-                    // デフォルト: 最初のファイル
-                    const firstFile = recordedData.videoFiles[0];
-                    if (firstFile.type === 'encoded') {
+                    // デフォルト: MP4/エンコード済みファイルを最優先して直接再生
+                    const encodedFile = recordedData.videoFiles.find((f: any) => f.type === 'encoded' || (f.name && f.name.toLowerCase().includes('mp4')));
+                    if (encodedFile) {
                         streamType = 'direct';
-                        videoSrc = `/api/videos/${firstFile.id}`;
-                        vttSrc = `/api/videos/${firstFile.id}/vtt`;
+                        videoSrc = `/api/videos/${encodedFile.id}`;
+                        vttSrc = `/api/videos/${encodedFile.id}/vtt`;
                         isHls = false;
-                    } else {
+                    } else if (readOnlyStore.canRecordedStream) {
+                        const firstFile = recordedData.videoFiles[0];
                         streamType = 'hls';
                         isPreparingStream = true;
                         statusText = 'トランスコード配信を生成中...';
@@ -241,6 +243,9 @@
                         } else {
                             throw new Error('Stream timed out waiting for manifest');
                         }
+                    } else {
+                        statusText = '閲覧専用モードのため、トランスコード配信は制限されています。';
+                        snackbar.open({ text: statusText, color: 'error' });
                     }
                 }
             } catch (e) {

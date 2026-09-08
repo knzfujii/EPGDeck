@@ -6,6 +6,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
@@ -21,7 +22,8 @@
         Calendar,
         CheckCircle2,
         Bookmark,
-        ArrowRight
+        ArrowRight,
+        Lock
     } from '@lucide/svelte';
 
     interface OnAirItem {
@@ -101,7 +103,17 @@
         }
     }
 
+    $effect(() => {
+        if (!readOnlyStore.canLiveStream) {
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (!readOnlyStore.canLiveStream) {
+            router.replace('/recorded');
+            return;
+        }
         fetchOnAir();
         const interval = setInterval(() => fetchOnAir(true), 30000); // 30秒毎に自動更新
 
@@ -160,7 +172,21 @@
     }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+{#if !readOnlyStore.canLiveStream}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">オンエアー（放映中）画面の閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
+    <div class="space-y-5 w-full max-w-full min-w-0">
     <!-- ヘッダー & 放送波タブ -->
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div>
@@ -232,14 +258,18 @@
 
                                 <!-- 2. 視聴ボタン -->
                                 <td class="whitespace-nowrap px-3 py-3.5 align-top text-center">
-                                    <button
-                                        type="button"
-                                        onclick={(e) => { e.stopPropagation(); openStreamModal(item.channel); }}
-                                        class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
-                                        title="ライブ視聴"
-                                    >
-                                        <Play size={12} fill="currentColor" /> 視聴
-                                    </button>
+                                    {#if readOnlyStore.canLiveStream}
+                                        <button
+                                            type="button"
+                                            onclick={(e) => { e.stopPropagation(); openStreamModal(item.channel); }}
+                                            class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                                            title="ライブ視聴"
+                                        >
+                                            <Play size={12} fill="currentColor" /> 視聴
+                                        </button>
+                                    {:else}
+                                        <span class="text-xs text-slate-400">-</span>
+                                    {/if}
                                 </td>
 
                                 <!-- 3. 現在の番組 (番組名 / 概要) -->
@@ -271,14 +301,16 @@
                                             <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                                                 {formatTime(next.startAt)} - {formatTime(next.endAt)}
                                             </span>
-                                            <button
-                                                type="button"
-                                                onclick={(e) => { e.stopPropagation(); reserveProgram(next); }}
-                                                class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
-                                                title="ワンクリック予約"
-                                            >
-                                                <Bookmark size={11} /> 予約
-                                            </button>
+                                            {#if !readOnlyStore.isReadOnly}
+                                                <button
+                                                    type="button"
+                                                    onclick={(e) => { e.stopPropagation(); reserveProgram(next); }}
+                                                    class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
+                                                    title="ワンクリック予約"
+                                                >
+                                                    <Bookmark size={11} /> 予約
+                                                </button>
+                                            {/if}
                                         </div>
                                         <p class="mt-1 line-clamp-2 text-xs font-bold text-slate-800 group-hover/next:text-blue-600 dark:text-slate-200 dark:group-hover/next:text-blue-400 transition-colors">
                                             {next.name}
@@ -295,6 +327,7 @@
         </div>
     {/if}
 </div>
+{/if}
 
 <!-- 番組詳細ポップアップモーダル (現在 / 次の番組 共通) -->
 {#if isDetailModalOpen && selectedDetailItem}
@@ -400,29 +433,35 @@
 
             <!-- モーダルフッター (予約 / 視聴 / ルール作成) -->
             <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 dark:border-slate-800">
-                <button
-                    type="button"
-                    onclick={() => {
-                        isDetailModalOpen = false;
-                        router.push(`/search?keyword=${encodeURIComponent(p.name)}`);
-                    }}
-                    class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
-                >
-                    <Search size={14} /> この番組でルール作成
-                </button>
-
-                <div class="flex items-center gap-2">
-                    <!-- 番組予約ボタン (次番組はもちろん、放映中番組の録画も可能) -->
+                {#if !readOnlyStore.isReadOnly}
                     <button
                         type="button"
-                        disabled={isReserving}
-                        onclick={() => reserveProgram(p)}
-                        class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                        onclick={() => {
+                            isDetailModalOpen = false;
+                            router.push(`/search?keyword=${encodeURIComponent(p.name)}`);
+                        }}
+                        class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >
-                        <Bookmark size={14} /> {isNext ? 'この番組を予約' : '録画予約'}
+                        <Search size={14} /> この番組でルール作成
                     </button>
+                {:else}
+                    <div></div>
+                {/if}
 
-                    {#if !isNext}
+                <div class="flex items-center gap-2">
+                    {#if !readOnlyStore.isReadOnly}
+                        <!-- 番組予約ボタン (次番組はもちろん、放映中番組の録画も可能) -->
+                        <button
+                            type="button"
+                            disabled={isReserving}
+                            onclick={() => reserveProgram(p)}
+                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                        >
+                            <Bookmark size={14} /> {isNext ? 'この番組を予約' : '録画予約'}
+                        </button>
+                    {/if}
+
+                    {#if !isNext && readOnlyStore.canLiveStream}
                         <button
                             type="button"
                             onclick={() => {

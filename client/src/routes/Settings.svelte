@@ -1,8 +1,10 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { themeStore, type ThemeMode } from '../lib/stores/theme.svelte';
-    import { Settings as SettingsIcon, Moon, Sun, Monitor, HardDrive, Check, Save } from '@lucide/svelte';
+    import { Settings as SettingsIcon, Moon, Sun, Monitor, HardDrive, Check, Save, Lock } from '@lucide/svelte';
 
     let isHalfWidth = $state(true);
     let themeMode = $state<ThemeMode>('auto');
@@ -10,7 +12,18 @@
     let isSubdirCopy = $state(true);
     let isAvoidDuplicate = $state(true);
 
+    $effect(() => {
+        if (readOnlyStore.isReadOnly) {
+            snackbar.open({ text: '閲覧専用モードのため、設定画面は表示できません', color: 'warning' });
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (readOnlyStore.isReadOnly) {
+            router.replace('/recorded');
+            return;
+        }
         themeMode = themeStore.mode;
         const saved = localStorage.getItem('epgdeck_settings');
         if (saved) {
@@ -43,6 +56,20 @@
     }
 </script>
 
+{#if readOnlyStore.isReadOnly}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20 max-w-4xl">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">アプリケーション設定の変更は管理者のみ許可されています。</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
 <div class="w-full max-w-4xl min-w-0 space-y-5">
     <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div>
@@ -137,3 +164,4 @@
         </div>
     </div>
 </div>
+{/if}

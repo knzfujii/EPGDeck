@@ -5,6 +5,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
@@ -19,8 +20,7 @@
         Search,
         SlidersHorizontal,
         Ban,
-        RotateCcw,
-        Calendar
+        RotateCcw
     } from '@lucide/svelte';
 
     let reserves = $state<apid.ReserveItem[]>([]);
@@ -139,7 +139,17 @@
         }
     }
 
+    $effect(() => {
+        if (!readOnlyStore.canViewReserves) {
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (!readOnlyStore.canViewReserves) {
+            router.replace('/recorded');
+            return;
+        }
         fetchReserves();
 
         // エンコードプリセット名と保存先ディレクトリ名を取得
@@ -277,13 +287,15 @@
             </div>
 
             <!-- 手動予約ボタン -->
-            <button
-                type="button"
-                onclick={() => router.push('/reserves/manual')}
-                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 transition cursor-pointer"
-            >
-                <Plus size={15} /> 手動予約を追加
-            </button>
+            {#if !readOnlyStore.isReadOnly}
+                <button
+                    type="button"
+                    onclick={() => router.push('/reserves/manual')}
+                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 transition cursor-pointer"
+                >
+                    <Plus size={15} /> 手動予約を追加
+                </button>
+            {/if}
         </div>
     </div>
 
@@ -391,24 +403,28 @@
 
                                 <!-- キャンセル / 操作ボタン -->
                                 <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                    {#if item.isSkip}
-                                        <button
-                                            type="button"
-                                            onclick={(e) => restoreSkip(item, e)}
-                                            class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
-                                            title="スキップを解除して予約を復活"
-                                        >
-                                            <RotateCcw size={12} /> 復活
-                                        </button>
+                                    {#if !readOnlyStore.isReadOnly}
+                                        {#if item.isSkip}
+                                            <button
+                                                type="button"
+                                                onclick={(e) => restoreSkip(item, e)}
+                                                class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                                title="スキップを解除して予約を復活"
+                                            >
+                                                <RotateCcw size={12} /> 復活
+                                            </button>
+                                        {:else}
+                                            <button
+                                                type="button"
+                                                onclick={(e) => cancelReserve(item, e)}
+                                                class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                                title={item.ruleId ? 'この回の録画をスキップ' : '予約を取り消し'}
+                                            >
+                                                <Trash2 size={12} /> キャンセル
+                                            </button>
+                                        {/if}
                                     {:else}
-                                        <button
-                                            type="button"
-                                            onclick={(e) => cancelReserve(item, e)}
-                                            class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                                            title={item.ruleId ? 'この回の録画をスキップ' : '予約を取り消し'}
-                                        >
-                                            <Trash2 size={12} /> キャンセル
-                                        </button>
+                                        <span class="text-xs text-slate-400">-</span>
                                     {/if}
                                 </td>
                             </tr>
@@ -548,13 +564,15 @@
                                 </span>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onclick={() => goToRuleEdit(item)}
-                            class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-purple-700 cursor-pointer"
-                        >
-                            <SlidersHorizontal size={14} /> ルールを編集する
-                        </button>
+                        {#if !readOnlyStore.isReadOnly}
+                            <button
+                                type="button"
+                                onclick={() => goToRuleEdit(item)}
+                                class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-purple-700 cursor-pointer"
+                            >
+                                <SlidersHorizontal size={14} /> ルールを編集する
+                            </button>
+                        {/if}
                     </div>
                 {:else}
                 <!-- 個別予約: 予約自体を編集可能 -->
@@ -691,33 +709,35 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    {#if !item.ruleId}
-                        <button
-                            type="button"
-                            disabled={isUpdating}
-                            onclick={() => updateReserve(item)}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                        >
-                            <CheckCircle2 size={14} /> 設定を更新
-                        </button>
-                    {/if}
-                    {#if item.isSkip}
-                        <button
-                            type="button"
-                            onclick={() => restoreSkip(item)}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 cursor-pointer"
-                        >
-                            <RotateCcw size={14} /> 予約を復活する
-                        </button>
-                    {:else}
-                        <button
-                            type="button"
-                            disabled={isCanceling}
-                            onclick={() => cancelReserve(item)}
-                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
-                        >
-                            <Trash2 size={14} /> {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
-                        </button>
+                    {#if !readOnlyStore.isReadOnly}
+                        {#if !item.ruleId}
+                            <button
+                                type="button"
+                                disabled={isUpdating}
+                                onclick={() => updateReserve(item)}
+                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                            >
+                                <CheckCircle2 size={14} /> 設定を更新
+                            </button>
+                        {/if}
+                        {#if item.isSkip}
+                            <button
+                                type="button"
+                                onclick={() => restoreSkip(item)}
+                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 cursor-pointer"
+                            >
+                                <RotateCcw size={14} /> 予約を復活する
+                            </button>
+                        {:else}
+                            <button
+                                type="button"
+                                disabled={isCanceling}
+                                onclick={() => cancelReserve(item)}
+                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                            >
+                                <Trash2 size={14} /> {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
+                            </button>
+                        {/if}
                     {/if}
                 </div>
             </div>

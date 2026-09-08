@@ -192,6 +192,15 @@ export interface StreamingConfig {
     };
 }
 
+export type ReadOnlyOperation =
+    'liveStream' | 'recordedStream' | 'download' | 'dashboard' | 'search' | 'rules' | 'encode';
+
+export interface ReadOnlyConfig {
+    enabled?: boolean;
+    password?: string;
+    allowedOperations?: ReadOnlyOperation[];
+}
+
 /**
  * 新 EPGDeck 構造化 config ファイル形式
  */
@@ -206,4 +215,5 @@ export default interface IConfigFile {
     urlscheme?: URLSchemeConfig;
     streaming?: StreamingConfig;
     kodi?: KodiInfo[];
+    readOnly?: ReadOnlyConfig;
 }

@@ -3,10 +3,11 @@
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
-    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle } from '@lucide/svelte';
+    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Lock } from '@lucide/svelte';
 
     interface DashboardReserve extends apid.ReserveItem {
         isRecording?: boolean;
@@ -66,7 +67,17 @@
         }
     }
 
+    $effect(() => {
+        if (!readOnlyStore.canViewDashboard) {
+            router.replace('/recorded');
+        }
+    });
+
     onMount(() => {
+        if (!readOnlyStore.canViewDashboard) {
+            router.replace('/recorded');
+            return;
+        }
         fetchDashboard();
         // 30秒タイマーポーリングと Socket.IO リアルタイム通知のハイブリッド
         const interval = setInterval(() => fetchDashboard(true), 30000);
@@ -146,9 +157,33 @@
             };
         }
     });
+
+    function handleRecordedPlay(item: apid.RecordedItem) {
+        const files = item.videoFiles || [];
+        const encoded = files.filter((f: any) => f.type === 'encoded' || (f.name && f.name.toLowerCase().includes('mp4')));
+        if (encoded.length === 1 && (files.length === 1 || !readOnlyStore.canRecordedStream)) {
+            router.push(`/recorded/watch?recordedId=${item.id}&videoId=${encoded[0].id}`);
+        } else {
+            router.push(`/recorded/watch?recordedId=${item.id}`);
+        }
+    }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+{#if !readOnlyStore.canViewDashboard}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ダッシュボードの閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
+    <div class="space-y-5 w-full max-w-full min-w-0">
     <!-- ストレージ使用状況カード (最上部に配置 / デフォルト折りたたみ) -->
     {#if storages.length > 0}
         <div class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden">
@@ -448,7 +483,7 @@
                                 </div>
 
                                 <div class="shrink-0 text-right">
-                                    {#if item.isRecording}
+                                    {#if item.isRecording && readOnlyStore.canLiveStream}
                                         <button
                                             type="button"
                                             onclick={() => router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`)}
@@ -456,6 +491,8 @@
                                         >
                                             <Play size={12} fill="currentColor" /> 視聴
                                         </button>
+                                    {:else if item.isRecording}
+                                        <span class="text-[11px] font-bold text-rose-500">録画中</span>
                                     {:else}
                                         <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                             {formatDate(item.startAt)} {formatTime(item.startAt)}
@@ -533,14 +570,16 @@
                             </div>
 
                             <!-- 再生ボタン (目立つ青色ボタン) -->
-                            <button
-                                type="button"
-                                onclick={(e) => { e.stopPropagation(); router.push(`/recorded/watch?recordedId=${item.id}`); }}
-                                class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
-                                title="今すぐ再生"
-                            >
-                                <Play size={13} fill="currentColor" /> 再生
-                            </button>
+                            {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                                <button
+                                    type="button"
+                                    onclick={(e) => { e.stopPropagation(); handleRecordedPlay(item); }}
+                                    class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
+                                    title="今すぐ再生"
+                                >
+                                    <Play size={13} fill="currentColor" /> 再生
+                                </button>
+                            {/if}
                         </div>
                     {/each}
                 </div>
@@ -548,3 +587,4 @@
         </div>
     </div>
 </div>
+{/if}

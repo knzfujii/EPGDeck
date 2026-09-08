@@ -54,9 +54,25 @@ export function buildUrl(url: string, params?: Record<string, any> | URLSearchPa
     return hash !== undefined ? `${finalPath}#${hash}` : finalPath;
 }
 
+export function getAuthToken(): string | null {
+    if (typeof window !== 'undefined') {
+        try {
+            return localStorage.getItem('epgdeck_auth_token');
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
 export async function request<T = any>(url: string, config: RequestConfig & { method?: string } = {}): Promise<ApiResponse<T>> {
     const finalUrl = buildUrl(url, config.params);
     const headers = new Headers(config.headers);
+
+    const token = getAuthToken();
+    if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
 
     let body = config.body !== undefined ? config.body : config.data;
 

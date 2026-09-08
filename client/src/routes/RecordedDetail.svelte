@@ -7,6 +7,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
@@ -247,31 +248,35 @@
 
         {#if recorded}
             <div class="flex items-center gap-2">
-                <!-- 保護トグルボタン -->
-                <button
-                    type="button"
-                    onclick={toggleProtect}
-                    class="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition {recorded.isProtected
-                        ? 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                    title={recorded.isProtected ? '保護を解除' : '誤削除から保護'}
-                >
-                    {#if recorded.isProtected}
-                        <Lock size={14} class="text-amber-500" /> 保護中
-                    {:else}
-                        <Unlock size={14} /> 保護する
-                    {/if}
-                </button>
+                {#if !readOnlyStore.isReadOnly}
+                    <!-- 保護トグルボタン -->
+                    <button
+                        type="button"
+                        onclick={toggleProtect}
+                        class="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition {recorded.isProtected
+                            ? 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                        title={recorded.isProtected ? '保護を解除' : '誤削除から保護'}
+                    >
+                        {#if recorded.isProtected}
+                            <Lock size={14} class="text-amber-500" /> 保護中
+                        {:else}
+                            <Unlock size={14} /> 保護する
+                        {/if}
+                    </button>
 
-                <!-- 削除ボタン -->
-                <button
-                    type="button"
-                    onclick={deleteRecorded}
-                    class="flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-xs transition hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400"
-                    title="録画を削除"
-                >
-                    <Trash2 size={14} /> 削除
-                </button>
+                    <!-- 削除ボタン -->
+                    {#if !recorded.isProtected}
+                        <button
+                            type="button"
+                            onclick={deleteRecorded}
+                            class="flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-xs transition hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 cursor-pointer"
+                            title="録画を削除"
+                        >
+                            <Trash2 size={14} /> 削除
+                        </button>
+                    {/if}
+                {/if}
             </div>
         {/if}
     </div>
@@ -354,27 +359,31 @@
 
                     <!-- 再生 & アクションボタン列 -->
                     <div class="flex items-center gap-2.5 flex-wrap pt-2">
-                        <button
-                            type="button"
-                            onclick={() => isStreamModalOpen = true}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
-                        >
-                            <Play size={14} fill="currentColor" /> 再生する
-                        </button>
+                        {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
+                            <button
+                                type="button"
+                                onclick={() => isStreamModalOpen = true}
+                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                            >
+                                <Play size={14} fill="currentColor" /> 再生する
+                            </button>
+                        {/if}
 
-                        <button
-                            type="button"
-                            onclick={() => isEncodeModalOpen = true}
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                        >
-                            <Sparkles size={14} class="text-amber-500" /> エンコード追加
-                        </button>
+                        {#if !readOnlyStore.isReadOnly}
+                            <button
+                                type="button"
+                                onclick={() => isEncodeModalOpen = true}
+                                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
+                            >
+                                <Sparkles size={14} class="text-amber-500" /> エンコード追加
+                            </button>
+                        {/if}
 
                         {#if recorded.dropLogFile}
                             <button
                                 type="button"
                                 onclick={openDropLog}
-                                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                             >
                                 <FileText size={14} /> ドロップログ
                             </button>
@@ -430,48 +439,59 @@
                         <!-- ファイルアクション -->
                         <div class="flex items-center gap-2 shrink-0">
                             <!-- 直接再生 / トランスコード再生 -->
-                            <button
-                                type="button"
-                                onclick={() => {
-                                    if (file.type === 'encoded' && recorded) {
-                                        router.push(`/recorded/watch?recordedId=${recorded.id}&videoId=${file.id}`);
-                                    } else {
-                                    }
-                                }}
-                                class="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700"
-                            >
-                                <Play size={13} fill="currentColor" /> 再生
-                            </button>
+                            {#if file.type === 'encoded' || file.name.toLowerCase().includes('mp4') || readOnlyStore.canRecordedStream}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        if (recorded) {
+                                            if (file.type === 'encoded' || file.name.toLowerCase().includes('mp4')) {
+                                                router.push(`/recorded/watch?recordedId=${recorded.id}&videoId=${file.id}`);
+                                            } else {
+                                                router.push(`/recorded/watch?recordedId=${recorded.id}&videoFileId=${file.id}&type=hls&mode=0`);
+                                            }
+                                        }
+                                    }}
+                                    class="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 cursor-pointer"
+                                >
+                                    <Play size={13} fill="currentColor" /> 再生
+                                </button>
+                            {/if}
 
                             <!-- ダウンロード -->
-                            <a
-                                href={`/api/videos/${file.id}`}
-                                download
-                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                title="ファイルをダウンロード"
-                            >
-                                <Download size={13} />
-                            </a>
+                            {#if readOnlyStore.canDownload}
+                                <a
+                                    href={`/api/videos/${file.id}?isDownload=true${readOnlyStore.token ? `&token=${readOnlyStore.token}` : ''}`}
+                                    download
+                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    title="ファイルをダウンロード"
+                                >
+                                    <Download size={13} />
+                                </a>
+                            {/if}
 
                             <!-- M3U プレイリスト -->
-                            <a
-                                href={`/api/videos/${file.id}/playlist`}
-                                download
-                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                title="VLC/Infuse 向け M3U プレイリスト"
-                            >
-                                <Share2 size={13} /> M3U
-                            </a>
+                            {#if readOnlyStore.canDownload}
+                                <a
+                                    href={`/api/videos/${file.id}/playlist${readOnlyStore.token ? `?token=${readOnlyStore.token}` : ''}`}
+                                    download
+                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    title="VLC/Infuse 向け M3U プレイリスト"
+                                >
+                                    <Share2 size={13} /> M3U
+                                </a>
+                            {/if}
 
                             <!-- ファイル削除 -->
-                            <button
-                                type="button"
-                                onclick={() => deleteVideoFile(file.id, file.filename)}
-                                class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50"
-                                title="この動画ファイルのみ削除"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {#if !readOnlyStore.isReadOnly && !recorded.isProtected}
+                                <button
+                                    type="button"
+                                    onclick={() => deleteVideoFile(file.id, file.filename)}
+                                    class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 cursor-pointer"
+                                    title="この動画ファイルのみ削除"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            {/if}
                         </div>
                     </div>
                 {/each}

@@ -86,6 +86,12 @@ app.delete('/:videoFileId', async c => {
         await videoFileApiModel.deleteVideoFile(videoFileId);
         return api.responseJSON(c, 200, { code: 200 });
     } catch (err: any) {
+        if (err.message === 'RecordedIsProtected') {
+            return api.responseError(c, {
+                code: 409,
+                message: 'Recorded is protected',
+            });
+        }
         return api.responseServerError(c, err.message);
     }
 });

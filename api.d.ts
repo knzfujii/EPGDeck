@@ -520,7 +520,20 @@ export interface Config {
         };
     };
     kodiHosts?: string[];
+    readOnly?: {
+        enabled: boolean;
+        allowedOperations: ReadOnlyOperation[];
+    };
 }
+
+export type ReadOnlyOperation =
+    | 'liveStream'
+    | 'recordedStream'
+    | 'download'
+    | 'dashboard'
+    | 'search'
+    | 'rules'
+    | 'encode';
 
 /**
  * 放送波指定の番組表情報取得オプション

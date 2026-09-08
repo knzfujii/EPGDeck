@@ -1,14 +1,22 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
+    import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
-    import { Film, CheckCircle2, Trash2, RefreshCw } from '@lucide/svelte';
+    import { Film, CheckCircle2, Trash2, RefreshCw, Lock } from '@lucide/svelte';
 
     let running = $state<any[]>([]);
     let waitList = $state<any[]>([]);
     let isLoading = $state(true);
+
+    $effect(() => {
+        if (!readOnlyStore.canViewEncode) {
+            router.replace('/recorded');
+        }
+    });
 
     let unsubscribeSockets: (() => void)[] = [];
 
@@ -27,6 +35,10 @@
     }
 
     onMount(() => {
+        if (!readOnlyStore.canViewEncode) {
+            router.replace('/recorded');
+            return;
+        }
         fetchEncode();
 
         // Socket.IO によるエンコード進捗通知およびステータス更新を受信
@@ -68,7 +80,21 @@
     }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+{#if !readOnlyStore.canViewEncode}
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+        <Lock size={32} class="text-amber-500 mb-2" />
+        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">エンコード管理の閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <button
+            type="button"
+            onclick={() => router.replace('/recorded')}
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+        >
+            録画済み一覧へ
+        </button>
+    </div>
+{:else}
+    <div class="space-y-5 w-full max-w-full min-w-0">
     <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div>
             <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -102,14 +128,16 @@
                                 </span>
                                 <h3 class="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">{item.recorded?.name}</h3>
                             </div>
-                            <button
-                                type="button"
-                                onclick={() => cancelEncode(item.id)}
-                                class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
-                                title="キャンセル"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            {#if !readOnlyStore.isReadOnly}
+                                <button
+                                    type="button"
+                                    onclick={() => cancelEncode(item.id)}
+                                    class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                    title="キャンセル"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            {/if}
                         </div>
 
                         {#if typeof item.percent === 'number'}
@@ -142,17 +170,20 @@
                 {#each waitList as item}
                     <div class="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40">
                         <span class="font-bold text-slate-800 dark:text-slate-200">{item.recorded?.name}</span>
-                        <button
-                            type="button"
-                            onclick={() => cancelEncode(item.id)}
-                            class="rounded-lg p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
-                        >
-                            <Trash2 size={14} />
-                        </button>
+                        {#if !readOnlyStore.isReadOnly}
+                            <button
+                                type="button"
+                                onclick={() => cancelEncode(item.id)}
+                                class="rounded-lg p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        {/if}
                     </div>
                 {/each}
             </div>
         {/if}
     </div>
 </div>
+{/if}
 

@@ -26,6 +26,8 @@ import tagsRoute from './routes/tags';
 import thumbnailsRoute from './routes/thumbnails';
 import versionRoute from './routes/version';
 import videosRoute from './routes/videos';
+import authRoute from './routes/auth';
+import { readOnlyMiddleware } from './readOnlyMiddleware';
 import * as api from './HonoApiUtil';
 import ProcessUtil from '../../../util/ProcessUtil';
 
@@ -115,6 +117,9 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     const apiPrefix = createUrl('/api');
     const apiApp = new Hono();
 
+    apiApp.use('*', readOnlyMiddleware);
+
+    apiApp.route('/auth', authRoute);
     apiApp.route('/version', versionRoute);
     apiApp.route('/config', configRoute);
     apiApp.route('/channels', channelsRoute);

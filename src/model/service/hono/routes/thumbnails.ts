@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { Hono } from 'hono';
 import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel';
 import container from '../../../ModelContainer';
@@ -55,7 +56,9 @@ app.get('/:thumbnailId', async c => {
                 message: 'thumbnail is not Found',
             });
         }
-        return await api.responseFile(c, filePath, 'image/jpeg', false);
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeType = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
+        return await api.responseFile(c, filePath, mimeType, false);
     } catch (err: any) {
         return api.responseServerError(c, err.message);
     }

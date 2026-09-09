@@ -184,6 +184,7 @@ recording:
     path: '%ROOT%/thumbnail'
     size: 480x270
     positionSeconds: 5
+    format: webp                   # サムネイル画像形式 ('jpeg' または 'webp'、デフォルト: 'jpeg')
   dropLog:
     enabled: true
     path: '%ROOT%/drop'

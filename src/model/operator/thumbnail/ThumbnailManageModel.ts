@@ -95,10 +95,14 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         const fileName = await this.getSaveFileName(videoFile.recordedId);
         const output = path.join(this.config.recording.thumbnail.path, fileName);
         await FileUtil.mkdir(path.dirname(output));
-        const cmdStr = (
-            this.config.recording.thumbnail.cmd ||
-            '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%'
-        ).replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg);
+        const defaultCmd =
+            this.config.recording.thumbnail.format === 'webp'
+                ? '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -c:v libwebp -s %THUMBNAIL_SIZE% %OUTPUT%'
+                : '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%';
+        const cmdStr = (this.config.recording.thumbnail.cmd || defaultCmd).replace(
+            /%FFMPEG%/g,
+            this.config.encode.binaries.ffmpeg,
+        );
         const cmds = ProcessUtil.parseCmdStr(cmdStr);
 
         // コマンドの引数準備
@@ -199,7 +203,8 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     private async getSaveFileName(recordedId: apid.RecordedId, conflict: number = 0): Promise<string> {
         const subDir = ThumbnailManageModel.getSubDir(recordedId);
         const conflictStr = conflict === 0 ? '' : `(${conflict})`;
-        const fileName = `${recordedId}${conflictStr}.jpg`;
+        const ext = this.config.recording.thumbnail.format === 'webp' ? '.webp' : '.jpg';
+        const fileName = `${recordedId}${conflictStr}${ext}`;
         const relativePath = path.posix.join(subDir, fileName);
         const filePath = path.join(this.config.recording.thumbnail.path, relativePath);
 

@@ -202,4 +202,46 @@ describe('Structured Config Schema', () => {
         } as any);
         expect(confCustom.recording.historyRetentionDays).toBe(180);
     });
+
+    it('should configure thumbnail format and default cmd correctly', () => {
+        // デフォルト (未指定時) は jpeg
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.recording.thumbnail.format).toBe('jpeg');
+        expect(confDefault.recording.thumbnail.cmd).toContain('-f image2');
+
+        // 明示的に webp を指定した場合
+        const confWebp = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                thumbnail: {
+                    format: 'webp',
+                },
+            },
+        } as any);
+        expect(confWebp.recording.thumbnail.format).toBe('webp');
+        expect(confWebp.recording.thumbnail.cmd).toContain('-c:v libwebp');
+
+        // カスタム cmd が指定された場合はそれが優先される
+        const customCmd = '%FFMPEG% -ss 1 -i %INPUT% %OUTPUT%';
+        const confCustomCmd = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                thumbnail: {
+                    format: 'webp',
+                    cmd: customCmd,
+                },
+            },
+        } as any);
+        expect(confCustomCmd.recording.thumbnail.format).toBe('webp');
+        expect(confCustomCmd.recording.thumbnail.cmd).toBe(customCmd);
+    });
 });
+

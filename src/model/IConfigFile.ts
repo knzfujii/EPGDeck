@@ -105,6 +105,7 @@ export interface ThumbnailConfig {
     cmd?: string;
     size: string;
     positionSeconds: number;
+    format?: 'jpeg' | 'webp';
 }
 
 export interface DropLogConfig {

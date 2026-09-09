@@ -142,17 +142,21 @@ class Configuration implements IConfiguration {
             .filter((r: any) => r.name !== 'tmp');
 
         const thumbConf = recConf.thumbnail || {};
+        const thumbFormat: 'jpeg' | 'webp' = thumbConf.format === 'webp' ? 'webp' : 'jpeg';
+        const defaultCmd =
+            thumbFormat === 'webp'
+                ? '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -c:v libwebp -s %THUMBNAIL_SIZE% %OUTPUT%'
+                : '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%';
+
         const thumbnail = {
             path: Configuration.directoryFormatting(
                 thumbConf.path || raw.thumbnail || path.join(Configuration.ROOT_PATH, 'thumbnail'),
             ),
-            cmd:
-                thumbConf.cmd ||
-                raw.thumbnailCmd ||
-                '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%',
+            cmd: thumbConf.cmd || raw.thumbnailCmd || defaultCmd,
             size: thumbConf.size || raw.thumbnailSize || '480x270',
             positionSeconds:
                 typeof thumbConf.positionSeconds === 'number' ? thumbConf.positionSeconds : raw.thumbnailPosition || 5,
+            format: thumbFormat,
         };
 
         const dropLogConf = recConf.dropLog || {};

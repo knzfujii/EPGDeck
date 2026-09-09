@@ -122,4 +122,18 @@ describe('Thumbnail Management & Sharding Tests', () => {
             expect(fs.existsSync(testBaseDir)).toBe(true);
         });
     });
+
+    describe('WebP Format & MIME Types', () => {
+        it('should choose correct MIME type based on extension', () => {
+            const getMimeType = (filePath: string) => {
+                const ext = path.extname(filePath).toLowerCase();
+                return ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
+            };
+
+            expect(getMimeType('45/12345.webp')).toBe('image/webp');
+            expect(getMimeType('45/12345.jpg')).toBe('image/jpeg');
+            expect(getMimeType('45/12345.jpeg')).toBe('image/jpeg');
+            expect(getMimeType('45/12345.png')).toBe('image/png');
+        });
+    });
 });

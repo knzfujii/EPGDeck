@@ -475,6 +475,8 @@
                             <img
                                 src={`/api/thumbnails/${item.thumbnails[0]}`}
                                 alt={item.name}
+                                loading="lazy"
+                                decoding="async"
                                 class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                             />
                         {:else}

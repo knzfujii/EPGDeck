@@ -110,17 +110,45 @@ class MigrateThumbnails {
                     exists = false;
                 }
 
+                const subDir = ThumbnailManageModel.getSubDir(thumbnail.recordedId);
+                const newRelativePath = path.posix.join(subDir, path.basename(currentFilePath));
+                const newFullPath = path.join(baseDir, newRelativePath);
+
                 if (!exists) {
+                    // 自己修復: 移動先（newFullPath）に既にファイルが存在しているかチェック
+                    let newExists = false;
+                    try {
+                        await FileUtil.stat(newFullPath);
+                        newExists = true;
+                    } catch (err) {
+                        newExists = false;
+                    }
+
+                    if (newExists) {
+                        // 前回移動までは成功したが DB 更新前に中断されたケース
+                        try {
+                            if (!this.isDryRun) {
+                                await this.thumbnailDB.updateFilePath(thumbnail.id, newRelativePath);
+                            }
+                            this.log.system.info(
+                                `[Self-Heal] Updated DB path (id: ${thumbnail.id}): ${currentFilePath} -> ${newRelativePath}`,
+                            );
+                            migratedCount++;
+                        } catch (err: any) {
+                            this.log.system.error(
+                                `Failed to update DB during self-healing (id: ${thumbnail.id}): ${err.message}`,
+                            );
+                            errorCount++;
+                        }
+                        continue;
+                    }
+
                     this.log.system.warn(
                         `Thumbnail file not found on disk (id: ${thumbnail.id}, recordedId: ${thumbnail.recordedId}): ${oldFullPath}`,
                     );
                     missingFileCount++;
                     continue;
                 }
-
-                const subDir = ThumbnailManageModel.getSubDir(thumbnail.recordedId);
-                const newRelativePath = path.posix.join(subDir, path.basename(currentFilePath));
-                const newFullPath = path.join(baseDir, newRelativePath);
 
                 try {
                     if (this.isDryRun) {
@@ -130,7 +158,13 @@ class MigrateThumbnails {
                     } else {
                         await FileUtil.mkdir(path.dirname(newFullPath));
                         await FileUtil.move(oldFullPath, newFullPath);
-                        await this.thumbnailDB.updateFilePath(thumbnail.id, newRelativePath);
+                        try {
+                            await this.thumbnailDB.updateFilePath(thumbnail.id, newRelativePath);
+                        } catch (dbErr: any) {
+                            // ロールバック: DB更新失敗時はファイルを元の場所に戻す
+                            await FileUtil.move(newFullPath, oldFullPath).catch(() => {});
+                            throw dbErr;
+                        }
                         this.log.system.info(
                             `Migrated (id: ${thumbnail.id}): ${currentFilePath} -> ${newRelativePath}`,
                         );

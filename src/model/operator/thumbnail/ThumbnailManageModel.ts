@@ -159,13 +159,21 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
             return true;
         };
 
-        return new Promise<void>(async (resolve: () => void, reject: (err: Error) => void) => {
-            child.on('exit', async code => {
-                if ((await endProcessing(code)) === true) {
-                    resolve();
-                } else {
-                    reject(new Error('CreateThumbnailExitError'));
+        return new Promise<void>((resolve: () => void, reject: (err: Error) => void) => {
+            const handleExit = async (code: number | null) => {
+                try {
+                    if ((await endProcessing(code)) === true) {
+                        resolve();
+                    } else {
+                        reject(new Error('CreateThumbnailExitError'));
+                    }
+                } catch (err: any) {
+                    reject(err);
                 }
+            };
+
+            child.on('exit', code => {
+                void handleExit(code);
             });
 
             child.on('error', err => {
@@ -176,11 +184,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
             // プロセスの即時終了対応
             if (ProcessUtil.isExited(child) === true) {
                 child.removeAllListeners();
-                if ((await endProcessing(child.exitCode)) === true) {
-                    resolve();
-                } else {
-                    reject(new Error('CreateThumbnailExitError'));
-                }
+                void handleExit(child.exitCode);
             }
         });
     }

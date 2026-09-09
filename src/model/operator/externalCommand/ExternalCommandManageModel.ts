@@ -266,8 +266,12 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
         const cmds = ProcessUtil.parseCmdStr(cmd);
 
         const channel = await this.channelDB.findId(recorded.channelId);
+        const videoFilePath =
+            typeof recorded.videoFiles === 'undefined' || recorded.videoFiles.length < 0
+                ? null
+                : await this.videoUtil.getFullFilePathFromId(recorded.videoFiles[0].id);
 
-        return new Promise<void>(async resolve => {
+        return new Promise<void>(resolve => {
             const child = spawn(cmds.bin, cmds.args, {
                 stdio: 'ignore',
                 env: {
@@ -287,10 +291,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
                     HALF_WIDTH_DESCRIPTION: recorded.halfWidthDescription,
                     EXTENDED: recorded.extended,
                     HALF_WIDTH_EXTENDED: recorded.halfWidthExtended,
-                    RECPATH:
-                        typeof recorded.videoFiles === 'undefined' || recorded.videoFiles.length < 0
-                            ? null
-                            : await this.videoUtil.getFullFilePathFromId(recorded.videoFiles[0].id),
+                    RECPATH: videoFilePath,
                     LOGPATH:
                         typeof recorded.dropLogFile === 'undefined' || recorded.dropLogFile === null
                             ? null
@@ -351,15 +352,17 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
             throw new Error('ChannelIsNotFound');
         }
 
-        return new Promise<void>(async resolve => {
+        const outputFilePath =
+            info.videoFileId === null ? null : await this.videoUtil.getFullFilePathFromId(info.videoFileId);
+
+        return new Promise<void>(resolve => {
             const child = spawn(cmds.bin, cmds.args, {
                 stdio: 'ignore',
                 env: {
                     PATH: process.env['PATH'],
                     RECORDEDID: info.recordedId,
                     VIDEOFILEID: info.videoFileId === null ? '' : info.videoFileId,
-                    OUTPUTPATH:
-                        info.videoFileId === null ? null : await this.videoUtil.getFullFilePathFromId(info.videoFileId),
+                    OUTPUTPATH: outputFilePath,
                     MODE: info.mode,
                     NAME: recorded.name,
                     HALF_WIDTH_NAME: recorded.halfWidthName,

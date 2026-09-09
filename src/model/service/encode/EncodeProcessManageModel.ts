@@ -31,42 +31,34 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
      * @param option: CreateProcessOption
      * @return Promise<ChildProcess>
      */
-    public create(option: CreateProcessOption): Promise<ChildProcess> {
-        return new Promise<ChildProcess>(async (resolve, reject) => {
-            if (this.childs.length >= this.maxEncode) {
-                // プロセス数が上限に達しているとき
-                // kill 可能な child を探す
-                for (let i = 0; i < this.childs.length; i++) {
-                    // priority が低いプロセスが見つかった
-                    if (option.priority > this.childs[i].priority) {
-                        // kill & create process
-                        try {
-                            const child = await this.killAndCreateProcess(this.childs[i].processId, option);
-                            resolve(child);
-                        } catch (err: any) {
-                            reject(err);
-                        }
-
-                        return;
-                    }
-                }
-
-                // 殺せるプロセスが無くプロセスの生成ができなかった
-                reject(new Error('EncodeProcessManageModelCreateError'));
-            } else {
-                // create process
-                try {
-                    const child = this.buildProcess(option);
-                    this.childs.unshift(child);
-                    resolve(child.child);
-                    this.log.encode.info(`create new encode process: ${child.processId}`);
-                } catch (err: any) {
-                    this.log.encode.error('create encode process failed');
-                    this.log.encode.error(err);
-                    reject(err);
+    public async create(option: CreateProcessOption): Promise<ChildProcess> {
+        if (this.childs.length >= this.maxEncode) {
+            // プロセス数が上限に達しているとき
+            // kill 可能な child を探す
+            for (let i = 0; i < this.childs.length; i++) {
+                // priority が低いプロセスが見つかった
+                if (option.priority > this.childs[i].priority) {
+                    // kill & create process
+                    return await this.killAndCreateProcess(this.childs[i].processId, option);
                 }
             }
-        });
+
+            // 殺せるプロセスが無くプロセスの生成ができなかった
+            throw new Error('EncodeProcessManageModelCreateError');
+        } else {
+            // create process
+            try {
+                const child = this.buildProcess(option);
+                this.childs.unshift(child);
+                this.log.encode.info(`create new encode process: ${child.processId}`);
+
+                return child.child;
+            } catch (err: any) {
+                this.log.encode.error('create encode process failed');
+                this.log.encode.error(err);
+                throw err;
+            }
+        }
     }
 
     /**
@@ -75,10 +67,14 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
      * @param option: CreateProcessOption
      * @return Promise<ChildProcess>
      */
-    private killAndCreateProcess(planToKillProcessId: number, option: CreateProcessOption): Promise<ChildProcess> {
-        return new Promise<ChildProcess>(async (resolve, reject) => {
-            let timeoutId: NodeJS.Timeout | null = null;
+    private async killAndCreateProcess(
+        planToKillProcessId: number,
+        option: CreateProcessOption,
+    ): Promise<ChildProcess> {
+        let timeoutId: NodeJS.Timeout | null = null;
+        let createChildListener: ((killedProcessId: number) => void) | null = null;
 
+        const processKilledPromise = new Promise<ChildProcess>((resolve, reject) => {
             /**
              * プロセスを生成
              *  プロセスが殺されたら呼ばされる
@@ -96,17 +92,18 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
                 try {
                     const child = this.buildProcess(option);
                     this.childs.unshift(child);
-                    resolve(child.child);
                     if (timeoutId !== null) {
-                        clearInterval(timeoutId); // timeout クリア
+                        clearTimeout(timeoutId); // timeout クリア
                     }
                     this.log.encode.info(`kill & create new encode process: ${child.processId}`);
+                    resolve(child.child);
                 } catch (err: any) {
                     this.log.encode.error('kill & create new encode process failed');
                     this.log.encode.error(err);
                     reject(err);
                 }
             };
+            createChildListener = createChild;
 
             /**
              * timeout 設定
@@ -120,17 +117,24 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
 
             // プロセスが死んだら呼び出されるようにリスナーに追加
             this.addListener(createChild);
-
-            // kill
-            try {
-                await this.killChild(planToKillProcessId);
-            } catch (err: any) {
-                this.log.encode.error(`kill process failed: ${planToKillProcessId}`);
-                this.log.encode.error(err);
-                this.removeListener(createChild);
-                reject(err);
-            }
         });
+
+        // kill
+        try {
+            await this.killChild(planToKillProcessId);
+        } catch (err: any) {
+            this.log.encode.error(`kill process failed: ${planToKillProcessId}`);
+            this.log.encode.error(err);
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
+            if (createChildListener !== null) {
+                this.removeListener(createChildListener);
+            }
+            throw err;
+        }
+
+        return await processKilledPromise;
     }
 
     /**

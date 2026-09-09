@@ -36,7 +36,7 @@ export default [
             '@typescript-eslint/no-floating-promises': 'error',
             'no-constant-condition': 'off',
             'no-useless-escape': 'off',
-            'no-async-promise-executor': 'off',
+            'no-async-promise-executor': 'error',
             'no-useless-assignment': 'off',
             'preserve-caught-error': 'off',
         },

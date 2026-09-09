@@ -29,7 +29,14 @@ export default [
             '@typescript-eslint/no-inferrable-types': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-empty-function': 'off',
-            '@typescript-eslint/no-unused-vars': 'off',
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrors: 'none',
+                },
+            ],
             '@typescript-eslint/no-namespace': 'off',
             '@typescript-eslint/no-require-imports': 'error',
             '@typescript-eslint/ban-ts-comment': 'error',

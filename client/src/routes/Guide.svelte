@@ -155,6 +155,7 @@
     const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // 3px
     const DISPLAY_HOURS = 24; // 24時間
     const GRID_HEIGHT = DISPLAY_HOURS * HOUR_HEIGHT; // 4320px
+    const HEADER_HEIGHT = 48; // 局名・時刻ヘッダーの高さ (h-12 = 48px)
 
     const channelTypes = [
         { id: 'GR', name: '地デジ' },
@@ -681,6 +682,16 @@
                                 {hour.label}
                             </div>
                         {/each}
+
+                        <!-- 現在時刻の補助線 (目盛り側) -->
+                        {#if currentTimeTop !== null}
+                            <div
+                                class="pointer-events-none absolute left-0 right-0 z-30 flex items-center -translate-y-1/2"
+                                style="top: {currentTimeTop}px;"
+                            >
+                                <div class="h-0.5 w-full bg-rose-500 shadow-sm"></div>
+                            </div>
+                        {/if}
                     </div>
                 </div>
 
@@ -689,8 +700,8 @@
                     <!-- 現在時刻の赤い水平線 -->
                     {#if currentTimeTop !== null}
                         <div
-                            class="pointer-events-none absolute left-0 right-0 z-20 flex items-center"
-                            style="top: {currentTimeTop}px;"
+                            class="pointer-events-none absolute left-0 right-0 z-20 flex items-center -translate-y-1/2"
+                            style="top: {currentTimeTop + HEADER_HEIGHT}px;"
                         >
                             <span
                                 class="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-md animate-pulse"

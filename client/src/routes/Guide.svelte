@@ -173,13 +173,13 @@
 
     // 「現在」ボタンのクリック処理 (今日以外なら今日に復帰して現在時刻へスクロール)
     function jumpToNow() {
-        const base = getBaseDate();
-        const isToday = base.toDateString() === selectedDate.toDateString();
-        if (!isToday) {
-            selectedDate = base;
+        const now = Date.now();
+        const isCurrentGuide = now >= guideStartAt && now < guideEndAt;
+        if (!isCurrentGuide) {
+            selectedDate = getBaseDate();
             fetchGuide(true);
         } else {
-            scrollToCurrentOrPreset('now');
+            scrollToCurrentOrPreset('now', true);
         }
     }
 
@@ -297,15 +297,15 @@
     }
 
     // 指定時間または現在時刻へスクロール
-    function scrollToCurrentOrPreset(target: string | number) {
+    function scrollToCurrentOrPreset(target: string | number, smooth = false) {
         if (!scrollContainer) return;
 
         let targetMinutes = 0;
         if (target === 'now') {
-            const now = new Date();
-            const isToday = now.toDateString() === selectedDate.toDateString();
-            if (isToday) {
-                const diffMs = now.getTime() - guideStartAt;
+            const now = Date.now();
+            const isCurrentGuide = now >= guideStartAt && now < guideEndAt;
+            if (isCurrentGuide) {
+                const diffMs = now - guideStartAt;
                 targetMinutes = Math.max(0, diffMs / 60000 - 30); // 現在時刻の30分前を表示
             } else {
                 targetMinutes = (19 - 4) * 60; // 他の日は夜19時を初期表示
@@ -318,11 +318,14 @@
         }
 
         const targetScrollTop = targetMinutes * MINUTE_HEIGHT;
-        scrollContainer.scrollTop = targetScrollTop;
-        scrollContainer.scrollTo({
-            top: targetScrollTop,
-            behavior: 'smooth',
-        });
+        if (smooth) {
+            scrollContainer.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth',
+            });
+        } else {
+            scrollContainer.scrollTop = targetScrollTop;
+        }
     }
 
     onMount(() => {
@@ -609,7 +612,7 @@
             {#each timeJumps as jump}
                 <button
                     type="button"
-                    onclick={() => scrollToCurrentOrPreset(jump.hour)}
+                    onclick={() => scrollToCurrentOrPreset(jump.hour, true)}
                     class="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                     {jump.name}

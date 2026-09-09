@@ -27,16 +27,18 @@
         RotateCcw,
     } from '@lucide/svelte';
 
-    const MAX_DAYS_AHEAD = 8; // 今日から最大8日先まで (計9日間)
-
-    function getBaseDate(): Date {
-        const now = new Date();
-        if (now.getHours() < 4) {
-            now.setDate(now.getDate() - 1);
-        }
-        now.setHours(4, 0, 0, 0);
-        return now;
-    }
+    import {
+        getBaseDate,
+        isGuideTimeRange,
+        calculateTargetMinutes,
+        calculateCurrentTimeTop,
+        HOUR_HEIGHT,
+        MINUTE_HEIGHT,
+        DISPLAY_HOURS,
+        GRID_HEIGHT,
+        HEADER_HEIGHT,
+        MAX_DAYS_AHEAD,
+    } from '../lib/utils/guide';
 
     let schedules = $state<any[]>([]);
     let isLoading = $state(true);
@@ -150,13 +152,6 @@
     // グリッドスクロールコンテナ参照
     let scrollContainer = $state<HTMLDivElement | null>(null);
 
-    // タイムスケール定数 (1時間 = 180px, 1分 = 3px)
-    const HOUR_HEIGHT = 180;
-    const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // 3px
-    const DISPLAY_HOURS = 24; // 24時間
-    const GRID_HEIGHT = DISPLAY_HOURS * HOUR_HEIGHT; // 4320px
-    const HEADER_HEIGHT = 48; // 局名・時刻ヘッダーの高さ (h-12 = 48px)
-
     const channelTypes = [
         { id: 'GR', name: '地デジ' },
         { id: 'BS', name: 'BS' },
@@ -175,8 +170,7 @@
     // 「現在」ボタンのクリック処理 (今日以外なら今日に復帰して現在時刻へスクロール)
     function jumpToNow() {
         const now = Date.now();
-        const isCurrentGuide = now >= guideStartAt && now < guideEndAt;
-        if (!isCurrentGuide) {
+        if (!isGuideTimeRange(now, guideStartAt, guideEndAt)) {
             selectedDate = getBaseDate();
             fetchGuide(true);
         } else {
@@ -209,12 +203,7 @@
     let currentTimeTop = $state<number | null>(null);
 
     function updateCurrentTimeLine() {
-        const now = Date.now();
-        if (now >= guideStartAt && now <= guideEndAt) {
-            currentTimeTop = ((now - guideStartAt) / 60000) * MINUTE_HEIGHT;
-        } else {
-            currentTimeTop = null;
-        }
+        currentTimeTop = calculateCurrentTimeTop(Date.now(), guideStartAt, guideEndAt);
     }
 
     async function fetchGuide(autoScroll = false) {
@@ -301,23 +290,7 @@
     function scrollToCurrentOrPreset(target: string | number, smooth = false) {
         if (!scrollContainer) return;
 
-        let targetMinutes = 0;
-        if (target === 'now') {
-            const now = Date.now();
-            const isCurrentGuide = now >= guideStartAt && now < guideEndAt;
-            if (isCurrentGuide) {
-                const diffMs = now - guideStartAt;
-                targetMinutes = Math.max(0, diffMs / 60000 - 30); // 現在時刻の30分前を表示
-            } else {
-                targetMinutes = (19 - 4) * 60; // 他の日は夜19時を初期表示
-            }
-        } else {
-            const h = typeof target === 'number' ? target : parseInt(target, 10);
-            const baseHour = new Date(guideStartAt).getHours();
-            const diffHours = h >= baseHour ? h - baseHour : h + 24 - baseHour;
-            targetMinutes = diffHours * 60;
-        }
-
+        const targetMinutes = calculateTargetMinutes(target, Date.now(), guideStartAt, guideEndAt);
         const targetScrollTop = targetMinutes * MINUTE_HEIGHT;
         if (smooth) {
             scrollContainer.scrollTo({

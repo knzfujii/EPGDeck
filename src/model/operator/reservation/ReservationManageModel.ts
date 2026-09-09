@@ -457,19 +457,22 @@ class ReservationManageModel implements IReservationManageModel {
      * @return 正しくセットされていれば true を返す
      */
     private checkManualReserveOption(option: apid.ManualReserveOption, isEdit: boolean = false): boolean {
-        let isFail = false;
-
         // エンコードオプションチェック
-        isFail =
+        if (
             typeof option.encodeOption !== 'undefined' &&
-            this.optionChecker.checkEncodeOption(option.encodeOption) === false;
+            this.optionChecker.checkEncodeOption(option.encodeOption) === false
+        ) {
+            return false;
+        }
 
         // 時刻指定予約なのに timeSpecifiedOption が設定されていない
         if (isEdit === false) {
-            isFail = typeof option.programId === 'undefined' && typeof option.timeSpecifiedOption === 'undefined';
+            if (typeof option.programId === 'undefined' && typeof option.timeSpecifiedOption === 'undefined') {
+                return false;
+            }
         }
 
-        return !isFail;
+        return true;
     }
 
     /**

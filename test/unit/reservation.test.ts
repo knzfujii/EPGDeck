@@ -18,6 +18,7 @@ describe('ReservationManageModel', () => {
     };
     const dummyOptionChecker: any = {
         checkRuleOption: vi.fn().mockReturnValue(true),
+        checkEncodeOption: vi.fn().mockReturnValue(true),
     };
     const dummyReserveDB: any = {
         findProgramId: vi.fn().mockResolvedValue([]),
@@ -126,5 +127,33 @@ describe('ReservationManageModel', () => {
         } as any);
 
         expect(reserveId).toBe(100);
+    });
+
+    it('should reject manual reservation if encodeOption is invalid even when programId is set', async () => {
+        const optionCheckerWithInvalidEncode: any = {
+            ...dummyOptionChecker,
+            checkEncodeOption: vi.fn().mockReturnValue(false),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            optionCheckerWithInvalidEncode,
+            dummyReserveDB,
+            dummyChannelDB,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(
+            reservationModel.add({
+                programId: 12345,
+                encodeOption: {
+                    mode1: 'invalid',
+                } as any,
+            } as any),
+        ).rejects.toThrow('AddReservationOptionError');
     });
 });

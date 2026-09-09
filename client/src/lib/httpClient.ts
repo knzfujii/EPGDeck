@@ -65,7 +65,10 @@ export function getAuthToken(): string | null {
     return null;
 }
 
-export async function request<T = any>(url: string, config: RequestConfig & { method?: string } = {}): Promise<ApiResponse<T>> {
+export async function request<T = any>(
+    url: string,
+    config: RequestConfig & { method?: string } = {},
+): Promise<ApiResponse<T>> {
     const finalUrl = buildUrl(url, config.params);
     const headers = new Headers(config.headers);
 

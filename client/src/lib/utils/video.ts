@@ -25,7 +25,10 @@ export function isMp4VideoFile(
 
     // type が encoded で TS 形式でない場合
     if (file.type === 'encoded') {
-        if (file.filename && (file.filename.toLowerCase().endsWith('.ts') || file.filename.toLowerCase().endsWith('.m2ts'))) {
+        if (
+            file.filename &&
+            (file.filename.toLowerCase().endsWith('.ts') || file.filename.toLowerCase().endsWith('.m2ts'))
+        ) {
             return false;
         }
         return true;

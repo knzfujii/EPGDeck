@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import * as sqliteSchema from '../../src/db/schema/sqlite';
 import Recorded from '../../src/db/entities/Recorded';
 import Reserve from '../../src/db/entities/Reserve';
-import Channel from '../../src/db/entities/Channel';
 import RecordedDB from '../../src/model/db/RecordedDB';
 import ReserveDB from '../../src/model/db/ReserveDB';
 import RuleDB from '../../src/model/db/RuleDB';
@@ -381,11 +380,11 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
 
             // 保護フラグのトグル
             await recordedDB.changeProtect(id1, true);
-            const protectedItem = await recordedDB.findId(id1, true);
+            const protectedItem = await recordedDB.findId(id1);
             expect(protectedItem?.isProtected).toBe(true);
 
             await recordedDB.changeProtect(id1, false);
-            const unprotectedItem = await recordedDB.findId(id1, true);
+            const unprotectedItem = await recordedDB.findId(id1);
             expect(unprotectedItem?.isProtected).toBe(false);
 
             // 削除
@@ -523,4 +522,3 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
         });
     });
 });
-

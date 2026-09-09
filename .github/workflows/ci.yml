@@ -70,14 +70,20 @@ jobs:
       - name: Install Client Dependencies
         run: npm --prefix client ci
 
-      - name: Lint Check (Server)
+      - name: Lint Check (Server & Test)
         run: npm run lint:check
 
-      - name: Prettier Format Check (Server)
+      - name: Prettier Format Check (Server & Test)
         run: npm run format:check
+
+      - name: TypeScript Type Check (Server & Test)
+        run: npm run typecheck
 
       - name: TypeScript Compile (Server)
         run: npm run compile
+
+      - name: Prettier Format Check (Client)
+        run: npm --prefix client run format:check
 
       - name: Svelte & TypeScript Check (Client)
         run: npm --prefix client run check

@@ -11,7 +11,7 @@
         Minimize,
         PictureInPicture,
         FastForward,
-        Subtitles
+        Subtitles,
     } from '@lucide/svelte';
 
     interface Props {
@@ -55,7 +55,7 @@
         onSetPlaybackRate,
         onToggleSubtitle,
         onTogglePiP,
-        onToggleFullscreen
+        onToggleFullscreen,
     }: Props = $props();
 
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -63,7 +63,9 @@
 
 <!-- コントロールバー (下部オーバーレイ) -->
 <div
-    class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
+    class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
+        ? 'opacity-100'
+        : 'opacity-0 pointer-events-none'}"
 >
     <!-- シークバー (シーク可能時のみ表示) -->
     {#if canSeek}
@@ -76,8 +78,8 @@
                 step="1"
                 value={currentTime}
                 oninput={onSeekChange}
-                onchange={(e) => (e.currentTarget as HTMLElement)?.blur()}
-                onpointerup={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                onchange={e => (e.currentTarget as HTMLElement)?.blur()}
+                onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
                 tabindex="-1"
                 class="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2"
             />
@@ -144,15 +146,17 @@
                     step="0.05"
                     value={playerState.isMuted ? 0 : playerState.volume}
                     oninput={onVolumeChange}
-                    onchange={(e) => (e.currentTarget as HTMLElement)?.blur()}
-                    onpointerup={(e) => (e.currentTarget as HTMLElement)?.blur()}
+                    onchange={e => (e.currentTarget as HTMLElement)?.blur()}
+                    onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
                     tabindex="-1"
                     class="hidden sm:block h-1 w-16 cursor-pointer appearance-none rounded-full bg-slate-600 accent-white"
                 />
             </div>
 
             {#if isLive}
-                <span class="flex items-center gap-1 rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">
+                <span
+                    class="flex items-center gap-1 rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider animate-pulse"
+                >
                     LIVE ({streamType.toUpperCase()})
                 </span>
             {/if}
@@ -166,7 +170,9 @@
                         <button
                             type="button"
                             onclick={() => onSetPlaybackRate(rate)}
-                            class="rounded px-1.5 py-0.5 transition {playerState.playbackRate === rate ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}"
+                            class="rounded px-1.5 py-0.5 transition {playerState.playbackRate === rate
+                                ? 'bg-blue-600 text-white'
+                                : 'text-slate-300 hover:text-white'}"
                         >
                             {rate}x
                         </button>
@@ -179,7 +185,9 @@
                 <button
                     type="button"
                     onclick={onToggleSubtitle}
-                    class="rounded-lg p-1.5 transition {isSubtitleOn ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-300 hover:text-white hover:bg-white/20'}"
+                    class="rounded-lg p-1.5 transition {isSubtitleOn
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-300 hover:text-white hover:bg-white/20'}"
                     title={isSubtitleOn ? '字幕を非表示 (C)' : '字幕を表示 (C)'}
                     aria-label="字幕切り替え"
                 >
@@ -211,4 +219,3 @@
         </div>
     </div>
 </div>
-

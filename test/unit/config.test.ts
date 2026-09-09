@@ -244,4 +244,3 @@ describe('Structured Config Schema', () => {
         expect(confCustomCmd.recording.thumbnail.cmd).toBe(customCmd);
     });
 });
-

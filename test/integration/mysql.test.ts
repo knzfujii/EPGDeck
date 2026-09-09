@@ -1,11 +1,9 @@
 import 'reflect-metadata';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import Channel from '../../src/db/entities/Channel';
 import Recorded from '../../src/db/entities/Recorded';
 import Reserve from '../../src/db/entities/Reserve';
 import ChannelDB from '../../src/model/db/ChannelDB';
 import DrizzleOperator from '../../src/model/db/DrizzleOperator';
-import ProgramDB from '../../src/model/db/ProgramDB';
 import RecordedDB from '../../src/model/db/RecordedDB';
 import ReserveDB from '../../src/model/db/ReserveDB';
 import RuleDB from '../../src/model/db/RuleDB';
@@ -21,7 +19,6 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
     let recordedDB: RecordedDB;
     let reserveDB: ReserveDB;
     let ruleDB: RuleDB;
-    let programDB: ProgramDB;
 
     const host = process.env.MYSQL_HOST || '127.0.0.1';
     const port = Number(process.env.MYSQL_PORT || 13306);
@@ -69,7 +66,6 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
         recordedDB = new RecordedDB(operator, dummyRetry);
         reserveDB = new ReserveDB(operator, dummyRetry);
         ruleDB = new RuleDB(operator, dummyRetry);
-        programDB = new ProgramDB(mockConfiguration, operator, dummyRetry);
 
         // テスト前クリーンアップ
         const dbInstance = operator.getDB();
@@ -190,14 +186,14 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
         expect(id).toBeGreaterThan(0);
 
         // findId による検索
-        const item = await recordedDB.findId(id, true);
+        const item = await recordedDB.findId(id);
         expect(item).not.toBeNull();
         expect(item?.name).toBe('日曜特番アーカイブ');
         expect(item?.isProtected).toBe(false);
 
         // 保護状態のトグル
         await recordedDB.changeProtect(id, true);
-        const protectedItem = await recordedDB.findId(id, true);
+        const protectedItem = await recordedDB.findId(id);
         expect(protectedItem?.isProtected).toBe(true);
 
         // キーワード検索
@@ -210,7 +206,7 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
 
         // 削除
         await recordedDB.deleteOnce(id);
-        const afterDelete = await recordedDB.findId(id, true);
+        const afterDelete = await recordedDB.findId(id);
         expect(afterDelete).toBeNull();
     });
 
@@ -270,4 +266,3 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
         expect(enabled?.reserveOption.enable).toBe(true);
     });
 });
-

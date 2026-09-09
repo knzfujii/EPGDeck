@@ -23,7 +23,7 @@
         CheckCircle2,
         Bookmark,
         ArrowRight,
-        Lock
+        Lock,
     } from '@lucide/svelte';
 
     interface OnAirItem {
@@ -42,7 +42,11 @@
 
     // 番組詳細ポップアップモーダル状態
     let isDetailModalOpen = $state(false);
-    let selectedDetailItem = $state<{ program: apid.ScheduleProgramItem; channel: apid.ChannelItem; isNext?: boolean } | null>(null);
+    let selectedDetailItem = $state<{
+        program: apid.ScheduleProgramItem;
+        channel: apid.ChannelItem;
+        isNext?: boolean;
+    } | null>(null);
     let isReserving = $state(false);
 
     let unsubscribeSocket: (() => void) | null = null;
@@ -72,7 +76,7 @@
                     BS: true,
                     CS: true,
                     SKY: true,
-                }
+                },
             });
 
             const schedules = res.data || [];
@@ -173,10 +177,14 @@
 </script>
 
 {#if !readOnlyStore.canLiveStream}
-    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+    <div
+        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
+    >
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">オンエアー（放映中）画面の閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            オンエアー（放映中）画面の閲覧は制限されています。録画済み一覧へリダイレクトします...
+        </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
@@ -187,146 +195,182 @@
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
-    <!-- ヘッダー & 放送波タブ -->
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-        <div>
-            <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-                <Radio size={20} class="text-blue-600 dark:text-blue-400" />
-                放映中の番組
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400">現在放送中の番組 ＆ 次の番組一覧（クリックで番組詳細・予約）</p>
-        </div>
+        <!-- ヘッダー & 放送波タブ -->
+        <div
+            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
+            <div>
+                <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                    <Radio size={20} class="text-blue-600 dark:text-blue-400" />
+                    放映中の番組
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    現在放送中の番組 ＆ 次の番組一覧（クリックで番組詳細・予約）
+                </p>
+            </div>
 
-        <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-            {#each channelTypes as type}
-                <button
-                    type="button"
-                    onclick={() => selectedType = type.id}
-                    class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedType === type.id
-                        ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
-                >
-                    {type.name}
-                </button>
-            {/each}
-        </div>
-    </div>
-
-    <!-- 一覧テーブル -->
-    {#if isLoading}
-        <div class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-sm font-medium text-slate-400">放映中データを取得中...</p>
-        </div>
-    {:else if filteredList.length === 0}
-        <div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
-            <Tv size={36} class="text-slate-300 dark:text-slate-600" />
-            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">放映中の番組が見つかりません</p>
-        </div>
-    {:else}
-        <div class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
-                        <tr>
-                            <th class="px-4 py-3.5 w-44">放送局 / 時間</th>
-                            <th class="px-3 py-3.5 w-20 text-center">視聴</th>
-                            <th class="px-4 py-3.5">現在の番組</th>
-                            <th class="px-4 py-3.5 w-72 lg:w-80 border-l border-slate-100 dark:border-slate-800">次の番組</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                        {#each filteredList as item}
-                            {@const current = item.current}
-                            {@const next = item.next}
-                            {@const progress = current ? getProgress(current.startAt, current.endAt) : 0}
-                            <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                <!-- 1. 放送局 & 放送時間 (時間の下にプログレスバー、%表記なし) -->
-                                <td class="whitespace-nowrap px-4 py-3.5 align-top">
-                                    <span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                                        {item.channel?.name || ''}
-                                    </span>
-                                    {#if current}
-                                        <div class="mt-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            {formatTime(current.startAt)} - {formatTime(current.endAt)}
-                                        </div>
-                                        <!-- 時間の下の経過時間プログレスバー (%表記なし) -->
-                                        <div class="mt-1.5 h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                                            <div class="h-full bg-blue-500 transition-all duration-500" style="width: {progress}%"></div>
-                                        </div>
-                                    {/if}
-                                </td>
-
-                                <!-- 2. 視聴ボタン -->
-                                <td class="whitespace-nowrap px-3 py-3.5 align-top text-center">
-                                    {#if readOnlyStore.canLiveStream}
-                                        <button
-                                            type="button"
-                                            onclick={(e) => { e.stopPropagation(); openStreamModal(item.channel); }}
-                                            class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
-                                            title="ライブ視聴"
-                                        >
-                                            <Play size={12} fill="currentColor" /> 視聴
-                                        </button>
-                                    {:else}
-                                        <span class="text-xs text-slate-400">-</span>
-                                    {/if}
-                                </td>
-
-                                <!-- 3. 現在の番組 (番組名 / 概要) -->
-                                <td
-                                    onclick={() => openProgramDetail(current, item.channel, false)}
-                                    class="px-4 py-3.5 align-top cursor-pointer group"
-                                >
-                                    {#if current}
-                                        <div class="font-bold text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 transition-colors">
-                                            {current.name}
-                                        </div>
-                                        {#if current.description}
-                                            <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
-                                                {current.description}
-                                            </p>
-                                        {/if}
-                                    {:else}
-                                        <span class="text-slate-400 text-xs">番組情報なし</span>
-                                    {/if}
-                                </td>
-
-                                <!-- 4. 最終カラム: 次の番組 (時間、タイトル & 予約導線) -->
-                                <td
-                                    onclick={() => next && openProgramDetail(next, item.channel, true)}
-                                    class="px-4 py-3.5 align-top border-l border-slate-100 dark:border-slate-800 {next ? 'cursor-pointer group/next bg-slate-50/30 dark:bg-slate-900/20 hover:bg-blue-50/40 dark:hover:bg-blue-950/20' : ''} transition-colors"
-                                >
-                                    {#if next}
-                                        <div class="flex items-center justify-between gap-1">
-                                            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                                {formatTime(next.startAt)} - {formatTime(next.endAt)}
-                                            </span>
-                                            {#if !readOnlyStore.isReadOnly}
-                                                <button
-                                                    type="button"
-                                                    onclick={(e) => { e.stopPropagation(); reserveProgram(next); }}
-                                                    class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
-                                                    title="ワンクリック予約"
-                                                >
-                                                    <Bookmark size={11} /> 予約
-                                                </button>
-                                            {/if}
-                                        </div>
-                                        <p class="mt-1 line-clamp-2 text-xs font-bold text-slate-800 group-hover/next:text-blue-600 dark:text-slate-200 dark:group-hover/next:text-blue-400 transition-colors">
-                                            {next.name}
-                                        </p>
-                                    {:else}
-                                        <span class="text-slate-400 text-xs">-</span>
-                                    {/if}
-                                </td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+                {#each channelTypes as type}
+                    <button
+                        type="button"
+                        onclick={() => (selectedType = type.id)}
+                        class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedType ===
+                        type.id
+                            ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                    >
+                        {type.name}
+                    </button>
+                {/each}
             </div>
         </div>
-    {/if}
-</div>
+
+        <!-- 一覧テーブル -->
+        {#if isLoading}
+            <div
+                class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            >
+                <p class="text-sm font-medium text-slate-400">放映中データを取得中...</p>
+            </div>
+        {:else if filteredList.length === 0}
+            <div
+                class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+            >
+                <Tv size={36} class="text-slate-300 dark:text-slate-600" />
+                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">放映中の番組が見つかりません</p>
+            </div>
+        {:else}
+            <div
+                class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead
+                            class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
+                        >
+                            <tr>
+                                <th class="px-4 py-3.5 w-44">放送局 / 時間</th>
+                                <th class="px-3 py-3.5 w-20 text-center">視聴</th>
+                                <th class="px-4 py-3.5">現在の番組</th>
+                                <th class="px-4 py-3.5 w-72 lg:w-80 border-l border-slate-100 dark:border-slate-800">
+                                    次の番組
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            {#each filteredList as item}
+                                {@const current = item.current}
+                                {@const next = item.next}
+                                {@const progress = current ? getProgress(current.startAt, current.endAt) : 0}
+                                <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                    <!-- 1. 放送局 & 放送時間 (時間の下にプログレスバー、%表記なし) -->
+                                    <td class="whitespace-nowrap px-4 py-3.5 align-top">
+                                        <span
+                                            class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                        >
+                                            {item.channel?.name || ''}
+                                        </span>
+                                        {#if current}
+                                            <div
+                                                class="mt-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                            >
+                                                {formatTime(current.startAt)} - {formatTime(current.endAt)}
+                                            </div>
+                                            <!-- 時間の下の経過時間プログレスバー (%表記なし) -->
+                                            <div
+                                                class="mt-1.5 h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                                            >
+                                                <div
+                                                    class="h-full bg-blue-500 transition-all duration-500"
+                                                    style="width: {progress}%"
+                                                ></div>
+                                            </div>
+                                        {/if}
+                                    </td>
+
+                                    <!-- 2. 視聴ボタン -->
+                                    <td class="whitespace-nowrap px-3 py-3.5 align-top text-center">
+                                        {#if readOnlyStore.canLiveStream}
+                                            <button
+                                                type="button"
+                                                onclick={e => {
+                                                    e.stopPropagation();
+                                                    openStreamModal(item.channel);
+                                                }}
+                                                class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                                                title="ライブ視聴"
+                                            >
+                                                <Play size={12} fill="currentColor" /> 視聴
+                                            </button>
+                                        {:else}
+                                            <span class="text-xs text-slate-400">-</span>
+                                        {/if}
+                                    </td>
+
+                                    <!-- 3. 現在の番組 (番組名 / 概要) -->
+                                    <td
+                                        onclick={() => openProgramDetail(current, item.channel, false)}
+                                        class="px-4 py-3.5 align-top cursor-pointer group"
+                                    >
+                                        {#if current}
+                                            <div
+                                                class="font-bold text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 transition-colors"
+                                            >
+                                                {current.name}
+                                            </div>
+                                            {#if current.description}
+                                                <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                                    {current.description}
+                                                </p>
+                                            {/if}
+                                        {:else}
+                                            <span class="text-slate-400 text-xs">番組情報なし</span>
+                                        {/if}
+                                    </td>
+
+                                    <!-- 4. 最終カラム: 次の番組 (時間、タイトル & 予約導線) -->
+                                    <td
+                                        onclick={() => next && openProgramDetail(next, item.channel, true)}
+                                        class="px-4 py-3.5 align-top border-l border-slate-100 dark:border-slate-800 {next
+                                            ? 'cursor-pointer group/next bg-slate-50/30 dark:bg-slate-900/20 hover:bg-blue-50/40 dark:hover:bg-blue-950/20'
+                                            : ''} transition-colors"
+                                    >
+                                        {#if next}
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                                    {formatTime(next.startAt)} - {formatTime(next.endAt)}
+                                                </span>
+                                                {#if !readOnlyStore.isReadOnly}
+                                                    <button
+                                                        type="button"
+                                                        onclick={e => {
+                                                            e.stopPropagation();
+                                                            reserveProgram(next);
+                                                        }}
+                                                        class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
+                                                        title="ワンクリック予約"
+                                                    >
+                                                        <Bookmark size={11} /> 予約
+                                                    </button>
+                                                {/if}
+                                            </div>
+                                            <p
+                                                class="mt-1 line-clamp-2 text-xs font-bold text-slate-800 group-hover/next:text-blue-600 dark:text-slate-200 dark:group-hover/next:text-blue-400 transition-colors"
+                                            >
+                                                {next.name}
+                                            </p>
+                                        {:else}
+                                            <span class="text-slate-400 text-xs">-</span>
+                                        {/if}
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {/if}
+    </div>
 {/if}
 
 <!-- 番組詳細ポップアップモーダル (現在 / 次の番組 共通) -->
@@ -340,25 +384,33 @@
         <button
             type="button"
             class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
-            onclick={() => isDetailModalOpen = false}
+            onclick={() => (isDetailModalOpen = false)}
             aria-label="背景をクリックして閉じる"
         ></button>
 
         <!-- モーダル本体 -->
-        <div class="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+        <div
+            class="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
+        >
             <!-- モーダルヘッダー -->
             <div class="flex items-start justify-between border-b border-slate-100 p-4 dark:border-slate-800">
                 <div>
                     <div class="flex items-center gap-2">
-                        <span class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                        <span
+                            class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
                             [{ch?.channelType}] {ch?.name}
                         </span>
                         {#if isNext}
-                            <span class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                            <span
+                                class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                            >
                                 次の番組
                             </span>
                         {:else}
-                            <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            <span
+                                class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            >
                                 現在放映中
                             </span>
                         {/if}
@@ -369,7 +421,7 @@
                 </div>
                 <button
                     type="button"
-                    onclick={() => isDetailModalOpen = false}
+                    onclick={() => (isDetailModalOpen = false)}
                     class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
                     aria-label="モーダルを閉じる"
                 >
@@ -380,11 +432,14 @@
             <!-- モーダルコンテンツ -->
             <div class="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
                 <!-- 時間・進行状況 -->
-                <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40 space-y-2">
+                <div
+                    class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40 space-y-2"
+                >
                     <div class="flex items-center justify-between text-slate-600 dark:text-slate-400 font-semibold">
                         <span class="flex items-center gap-1.5">
                             <Clock size={14} />
-                            {formatDate(p.startAt)} {formatTime(p.startAt)} - {formatTime(p.endAt)}
+                            {formatDate(p.startAt)}
+                            {formatTime(p.startAt)} - {formatTime(p.endAt)}
                         </span>
                         {#if !isNext}
                             <span class="text-blue-600 dark:text-blue-400 font-bold">{prog}% 経過</span>
@@ -401,7 +456,9 @@
                 {#if p.description}
                     <div>
                         <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">番組概要</h4>
-                        <p class="leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20">
+                        <p
+                            class="leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20"
+                        >
                             {p.description}
                         </p>
                     </div>
@@ -411,12 +468,16 @@
                 {#if p.extended}
                     <div>
                         <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">詳細情報・出演者</h4>
-                        <div class="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20 max-h-60 overflow-y-auto">
+                        <div
+                            class="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20 max-h-60 overflow-y-auto"
+                        >
                             {#if typeof p.extended === 'object'}
                                 {#each Object.entries(p.extended) as [key, value]}
                                     <div>
                                         <span class="font-bold text-blue-600 dark:text-blue-400">{key}:</span>
-                                        <p class="mt-0.5 text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                        <p
+                                            class="mt-0.5 text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed"
+                                        >
                                             {value}
                                         </p>
                                     </div>
@@ -432,7 +493,9 @@
             </div>
 
             <!-- モーダルフッター (予約 / 視聴 / ルール作成) -->
-            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 dark:border-slate-800">
+            <div
+                class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 dark:border-slate-800"
+            >
                 {#if !readOnlyStore.isReadOnly}
                     <button
                         type="button"
@@ -457,7 +520,8 @@
                             onclick={() => reserveProgram(p)}
                             class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                         >
-                            <Bookmark size={14} /> {isNext ? 'この番組を予約' : '録画予約'}
+                            <Bookmark size={14} />
+                            {isNext ? 'この番組を予約' : '録画予約'}
                         </button>
                     {/if}
 

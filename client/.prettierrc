@@ -1,6 +1,6 @@
 {
     "singleQuote": true,
-    "printWidth": 180,
+    "printWidth": 120,
     "arrowParens": "avoid",
     "proseWrap": "always",
     "tabWidth": 4,
@@ -9,5 +9,7 @@
     "bracketSpacing": true,
     "bracketSameLine": false,
     "semi": true,
-    "htmlWhitespaceSensitivity": "ignore"
+    "htmlWhitespaceSensitivity": "ignore",
+    "plugins": ["prettier-plugin-svelte"],
+    "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }]
 }

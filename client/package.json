@@ -11,7 +11,9 @@
         "dev": "vite",
         "watch": "vite build --watch --mode development",
         "check": "svelte-check --tsconfig ./tsconfig.json",
-        "lint": "svelte-check --tsconfig ./tsconfig.json"
+        "lint": "svelte-check --tsconfig ./tsconfig.json",
+        "format": "prettier --write 'src/**/*.{js,ts,svelte}'",
+        "format:check": "prettier --check 'src/**/*.{js,ts,svelte}'"
     },
     "dependencies": {
         "@lucide/svelte": "1.41.0",
@@ -24,10 +26,11 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "7.3.0",
         "@tailwindcss/vite": "^4.0.0",
+        "prettier": "3.9.6",
+        "prettier-plugin-svelte": "4.1.1",
         "svelte-check": "^4.0.0",
         "tailwindcss": "^4.0.0",
         "typescript": "^5.0.0",
         "vite": "8.2.2"
     }
-
 }

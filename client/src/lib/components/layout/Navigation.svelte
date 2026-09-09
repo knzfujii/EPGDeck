@@ -12,10 +12,14 @@
         Film,
         Settings,
         Terminal,
-        X
+        X,
     } from '@lucide/svelte';
 
-    let { isMobileOpen = false, isDesktopCollapsed = false, onCloseMobile }: {
+    let {
+        isMobileOpen = false,
+        isDesktopCollapsed = false,
+        onCloseMobile,
+    }: {
         isMobileOpen?: boolean;
         isDesktopCollapsed?: boolean;
         onCloseMobile?: () => void;
@@ -62,13 +66,17 @@
 
 <!-- PC サイドバー (デスクトップ) -->
 {#if !isDesktopCollapsed}
-    <aside class="hidden md:flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <aside
+        class="hidden md:flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+    >
         <div class="mb-4 px-3 py-2">
             <span class="text-xs font-black tracking-widest text-slate-400 uppercase">Menu</span>
         </div>
         <nav class="space-y-1">
             {#each navItems as item}
-                {@const isActive = router.current.pathname === item.path || (item.path !== '/' && router.current.pathname.startsWith(item.path))}
+                {@const isActive =
+                    router.current.pathname === item.path ||
+                    (item.path !== '/' && router.current.pathname.startsWith(item.path))}
                 <button
                     type="button"
                     onclick={() => navigate(item.path)}
@@ -110,7 +118,9 @@
             </div>
             <nav class="mt-4 space-y-1.5 overflow-y-auto">
                 {#each navItems as item}
-                    {@const isActive = router.current.pathname === item.path || (item.path !== '/' && router.current.pathname.startsWith(item.path))}
+                    {@const isActive =
+                        router.current.pathname === item.path ||
+                        (item.path !== '/' && router.current.pathname.startsWith(item.path))}
                     <button
                         type="button"
                         onclick={() => navigate(item.path)}

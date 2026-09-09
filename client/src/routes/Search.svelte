@@ -88,15 +88,19 @@
 
     function formatDate(timestamp: number): string {
         const d = new Date(timestamp);
-        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日','月','火','水','木','金','土'][d.getDay()]}) ${formatTime(timestamp)}`;
+        return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日', '月', '火', '水', '木', '金', '土'][d.getDay()]}) ${formatTime(timestamp)}`;
     }
 </script>
 
 {#if !readOnlyStore.canViewSearch}
-    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+    <div
+        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
+    >
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">番組検索の利用は制限されています。録画済み一覧へリダイレクトします...</p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            番組検索の利用は制限されています。録画済み一覧へリダイレクトします...
+        </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
@@ -107,98 +111,120 @@
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
-    <!-- 検索バー & 条件フォーム -->
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-        <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-            <SearchIcon size={20} class="text-blue-600 dark:text-blue-400" />
-            番組検索
-        </h1>
+        <!-- 検索バー & 条件フォーム -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                <SearchIcon size={20} class="text-blue-600 dark:text-blue-400" />
+                番組検索
+            </h1>
 
-        <form onsubmit={(e) => { e.preventDefault(); executeSearch(); }} class="mt-4 space-y-4">
-            <div class="flex gap-2">
-                <input
-                    type="text"
-                    bind:value={keyword}
-                    placeholder="番組名やキーワードを入力..."
-                    class="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                />
-                <button
-                    type="submit"
-                    class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
-                >
-                    <SearchIcon size={16} /> 検索
-                </button>
-            </div>
-
-            <!-- オプション行 -->
-            <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" bind:checked={isName} class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                    番組名
-                </label>
-                <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox" bind:checked={isDescription} class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                    番組概要
-                </label>
-
-                <div class="flex items-center gap-2">
-                    <span>ジャンル:</span>
-                    <select
-                        bind:value={selectedGenre}
-                        class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            <form
+                onsubmit={e => {
+                    e.preventDefault();
+                    executeSearch();
+                }}
+                class="mt-4 space-y-4"
+            >
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        bind:value={keyword}
+                        placeholder="番組名やキーワードを入力..."
+                        class="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                    <button
+                        type="submit"
+                        class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
                     >
-                        {#each genres as g}
-                            <option value={g.id}>{g.name}</option>
-                        {/each}
-                    </select>
+                        <SearchIcon size={16} /> 検索
+                    </button>
                 </div>
 
-                {#if keyword.trim() && !readOnlyStore.isReadOnly}
-                    <button
-                        type="button"
-                        onclick={openCreateRuleModal}
-                        class="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3.5 py-1.5 font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
-                    >
-                        <Plus size={14} /> この条件でルール作成
-                    </button>
-                {/if}
-            </div>
-        </form>
-    </div>
+                <!-- オプション行 -->
+                <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            bind:checked={isName}
+                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        番組名
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            bind:checked={isDescription}
+                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        番組概要
+                    </label>
 
-    <!-- 検索結果一覧 -->
-    {#if isLoading}
-        <div class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <p class="text-sm font-medium text-slate-400">検索中...</p>
-        </div>
-    {:else if searchResults.length > 0}
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div class="mb-3 text-xs font-bold text-slate-500 dark:text-slate-400">
-                検索結果: {searchResults.length} 件
-            </div>
-            <div class="space-y-3">
-                {#each searchResults as p}
-                    <div class="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="rounded bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                                {channelStore.getChannelName(p.channelId)}
-                            </span>
-                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                                {formatDate(p.startAt)} - {formatTime(p.endAt)}
-                            </span>
-                        </div>
-                        <h3 class="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">
-                            {p.name}
-                        </h3>
-                        {#if p.description}
-                            <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
-                                {p.description}
-                            </p>
-                        {/if}
+                    <div class="flex items-center gap-2">
+                        <span>ジャンル:</span>
+                        <select
+                            bind:value={selectedGenre}
+                            class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                            {#each genres as g}
+                                <option value={g.id}>{g.name}</option>
+                            {/each}
+                        </select>
                     </div>
-                {/each}
-            </div>
+
+                    {#if keyword.trim() && !readOnlyStore.isReadOnly}
+                        <button
+                            type="button"
+                            onclick={openCreateRuleModal}
+                            class="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3.5 py-1.5 font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
+                        >
+                            <Plus size={14} /> この条件でルール作成
+                        </button>
+                    {/if}
+                </div>
+            </form>
         </div>
-    {/if}
-</div>
+
+        <!-- 検索結果一覧 -->
+        {#if isLoading}
+            <div
+                class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            >
+                <p class="text-sm font-medium text-slate-400">検索中...</p>
+            </div>
+        {:else if searchResults.length > 0}
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <div class="mb-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+                    検索結果: {searchResults.length} 件
+                </div>
+                <div class="space-y-3">
+                    {#each searchResults as p}
+                        <div
+                            class="flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span
+                                    class="rounded bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                >
+                                    {channelStore.getChannelName(p.channelId)}
+                                </span>
+                                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    {formatDate(p.startAt)} - {formatTime(p.endAt)}
+                                </span>
+                            </div>
+                            <h3 class="mt-2 text-sm font-bold text-slate-900 dark:text-slate-100">
+                                {p.name}
+                            </h3>
+                            {#if p.description}
+                                <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                    {p.description}
+                                </p>
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+    </div>
 {/if}

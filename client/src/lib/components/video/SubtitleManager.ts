@@ -205,7 +205,8 @@ export class SubtitleManager {
                 if (ptsSec > 100000) {
                     ptsSec = ptsSec / 90000;
                 }
-                const dtsSec = sample.dts !== undefined ? (sample.dts > 100000 ? sample.dts / 90000 : sample.dts) : ptsSec;
+                const dtsSec =
+                    sample.dts !== undefined ? (sample.dts > 100000 ? sample.dts / 90000 : sample.dts) : ptsSec;
 
                 this.captionFeeder?.feedID3(sample.data, ptsSec, dtsSec);
                 this.superimposeFeeder?.feedID3(sample.data, ptsSec, dtsSec);
@@ -220,7 +221,14 @@ export class SubtitleManager {
     /**
      * MPEG-TS (M2TS-LL) から届いた PES プライベートデータをフィード
      */
-    public feedMpegtsPesData(data: { stream_id: number; pid: number; pts?: number; nearest_pts?: number; dts?: number; data: Uint8Array }): void {
+    public feedMpegtsPesData(data: {
+        stream_id: number;
+        pid: number;
+        pts?: number;
+        nearest_pts?: number;
+        dts?: number;
+        data: Uint8Array;
+    }): void {
         if (!data?.data || data.data.length === 0) return;
 
         const pts = data.pts ?? data.nearest_pts;

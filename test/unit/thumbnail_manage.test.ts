@@ -49,7 +49,7 @@ describe('Thumbnail Management & Sharding Tests', () => {
             `);
 
             const mockOperator: IDrizzleOperator = {
-                getDB: () => ({ db, schema: sqliteSchema, type: 'sqlite' } as any),
+                getDB: () => ({ db, schema: sqliteSchema, type: 'sqlite' }) as any,
             } as any;
 
             thumbnailDB = new ThumbnailDB(mockOperator, dummyRetry);

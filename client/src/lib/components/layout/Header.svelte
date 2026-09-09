@@ -37,7 +37,9 @@
     }
 </script>
 
-<header class="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+<header
+    class="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90"
+>
     <div class="flex items-center gap-2 sm:gap-3">
         <button
             type="button"
@@ -55,7 +57,9 @@
         >
             <span>{title}</span>
             {#if appVersion}
-                <span class="rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                <span
+                    class="rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                >
                     v{appVersion}
                 </span>
             {/if}

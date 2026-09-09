@@ -112,7 +112,7 @@ describe('RecordingManageModel Lifecycle Tests', () => {
     });
 
     it('retries recording up to 3 times on recording failure', async () => {
-        const model = createModel();
+        createModel();
 
         const reserve = new Reserve();
         reserve.id = 201;
@@ -128,7 +128,7 @@ describe('RecordingManageModel Lifecycle Tests', () => {
     });
 
     it('emits recording retry over when failure exceeds 3 attempts', async () => {
-        const model = createModel();
+        createModel();
 
         const reserve = new Reserve();
         reserve.id = 202;

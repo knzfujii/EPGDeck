@@ -27,7 +27,7 @@
         ChevronLeft,
         ChevronRight,
         AlertTriangle,
-        Sparkles
+        Sparkles,
     } from '@lucide/svelte';
 
     let recorded = $state<apid.RecordedItem[]>([]);
@@ -50,7 +50,9 @@
 
     // 検索・絞り込み状態
     let keyword = $state(router.current.query.keyword || '');
-    let selectedGenre = $state<number | null>(router.current.query.genre ? parseInt(router.current.query.genre, 10) : null);
+    let selectedGenre = $state<number | null>(
+        router.current.query.genre ? parseInt(router.current.query.genre, 10) : null,
+    );
     let selectedYear = $state<number | null>(null);
     let selectedMonth = $state<number | null>(null);
     let currentPage = $state(router.current.query.page ? parseInt(router.current.query.page, 10) : 1);
@@ -219,7 +221,9 @@
 
 <div class="space-y-5 w-full max-w-full min-w-0">
     <!-- ヘッダーツールバー -->
-    <div class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+    <div
+        class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+    >
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -227,13 +231,20 @@
                     録画済み一覧
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400">
-                    全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span> 件中 {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件
+                    全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>
+                    件中 {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件
                 </p>
             </div>
 
             <!-- 表示切り替え & 検索 -->
             <div class="flex items-center gap-2">
-                <form onsubmit={(e) => { e.preventDefault(); handleSearch(); }} class="relative flex items-center">
+                <form
+                    onsubmit={e => {
+                        e.preventDefault();
+                        handleSearch();
+                    }}
+                    class="relative flex items-center"
+                >
                     <input
                         type="text"
                         bind:value={keyword}
@@ -247,7 +258,9 @@
                     <button
                         type="button"
                         onclick={() => setViewMode('card')}
-                        class="rounded-lg p-1.5 {viewMode === 'card' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
+                        class="rounded-lg p-1.5 {viewMode === 'card'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="カード表示"
                         aria-label="カード表示"
                     >
@@ -256,7 +269,9 @@
                     <button
                         type="button"
                         onclick={() => setViewMode('table')}
-                        class="rounded-lg p-1.5 {viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
+                        class="rounded-lg p-1.5 {viewMode === 'table'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="テーブル表示"
                         aria-label="テーブル表示"
                     >
@@ -273,7 +288,7 @@
             </span>
             <select
                 value={selectedYear ?? ''}
-                onchange={(e) => {
+                onchange={e => {
                     const val = e.currentTarget.value;
                     handleDateJump(val === '' ? null : parseInt(val, 10), selectedMonth);
                 }}
@@ -288,7 +303,7 @@
             {#if selectedYear !== null}
                 <select
                     value={selectedMonth ?? ''}
-                    onchange={(e) => {
+                    onchange={e => {
                         const val = e.currentTarget.value;
                         handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
                     }}
@@ -318,7 +333,8 @@
                 <button
                     type="button"
                     onclick={() => selectGenre(g.id)}
-                    class="rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {selectedGenre === g.id
+                    class="rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {selectedGenre ===
+                    g.id
                         ? 'bg-blue-600 text-white font-bold'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                 >
@@ -330,21 +346,29 @@
 
     <!-- コンテンツ表示 (テーブル or カード) -->
     {#if isLoading}
-        <div class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+        >
             <p class="text-sm font-medium text-slate-400">録画データを読み込み中...</p>
         </div>
     {:else if recorded.length === 0}
-        <div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+        >
             <Video size={36} class="text-slate-300 dark:text-slate-600" />
             <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">該当する録画が見つかりません</p>
             <p class="text-xs text-slate-400">検索条件やフィルターを変更してお試しください</p>
         </div>
     {:else if viewMode === 'table'}
         <!-- テーブル表示 (再生ボタンを目立たせる) -->
-        <div class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
-                    <thead class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                    <thead
+                        class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
+                    >
                         <tr>
                             <th class="px-4 py-3">放送日時</th>
                             <th class="px-4 py-3">放送局</th>
@@ -357,11 +381,15 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each recorded as item}
                             <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                <td class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-500 dark:text-slate-400">
+                                <td
+                                    class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-500 dark:text-slate-400"
+                                >
                                     {formatDate(item.startAt)}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    <span class="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                                    <span
+                                        class="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                    >
                                         {channelStore.getChannelName(item.channelId)}
                                     </span>
                                 </td>
@@ -384,7 +412,10 @@
                                             onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
                                             role="button"
                                             tabindex="0"
-                                            onkeydown={(e) => { if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`); }}
+                                            onkeydown={e => {
+                                                if (e.key === 'Enter')
+                                                    router.push(`/recorded/detail?recordedId=${item.id}`);
+                                            }}
                                             class="mt-0.5 line-clamp-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                                             title="番組詳細を見る"
                                         >
@@ -398,11 +429,16 @@
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     {#if item.dropLogFile && (item.dropLogFile.dropCnt > 0 || item.dropLogFile.errorCnt > 0)}
-                                        <span class="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300" title={`Drop: ${item.dropLogFile.dropCnt}, Error: ${item.dropLogFile.errorCnt}, Scramble: ${item.dropLogFile.scramblingCnt}`}>
+                                        <span
+                                            class="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                            title={`Drop: ${item.dropLogFile.dropCnt}, Error: ${item.dropLogFile.errorCnt}, Scramble: ${item.dropLogFile.scramblingCnt}`}
+                                        >
                                             <AlertTriangle size={11} /> Drop: {item.dropLogFile.dropCnt}
                                         </span>
                                     {:else if item.dropLogFile}
-                                        <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                                        <span
+                                            class="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                        >
                                             なし (0)
                                         </span>
                                     {:else}
@@ -428,7 +464,9 @@
                                             <button
                                                 type="button"
                                                 onclick={() => toggleProtect(item)}
-                                                class="rounded-lg p-1.5 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                                class="rounded-lg p-1.5 {item.isProtected
+                                                    ? 'text-amber-500 hover:bg-amber-50'
+                                                    : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
                                                 title={item.isProtected ? '保護解除' : '番組を保護'}
                                             >
                                                 {#if item.isProtected}
@@ -467,7 +505,9 @@
                     class="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition hover:border-blue-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 cursor-pointer"
                     role="button"
                     tabindex="0"
-                    onkeydown={(e) => { if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`); }}
+                    onkeydown={e => {
+                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
+                    }}
                 >
                     <!-- サムネイルエリア (カードの一部として機能、中央ボタンのみ即座再生) -->
                     <div class="relative aspect-video w-full bg-slate-900 overflow-hidden">
@@ -487,10 +527,15 @@
 
                         <!-- 再生ボタンオーバーレイ (丸ボタンクリック時のみ再生) -->
                         {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
-                            <div class="absolute inset-0 flex items-center justify-center bg-black/25 opacity-90 transition group-hover:bg-black/15">
+                            <div
+                                class="absolute inset-0 flex items-center justify-center bg-black/25 opacity-90 transition group-hover:bg-black/15"
+                            >
                                 <button
                                     type="button"
-                                    onclick={(e) => { e.stopPropagation(); handlePlayClick(item); }}
+                                    onclick={e => {
+                                        e.stopPropagation();
+                                        handlePlayClick(item);
+                                    }}
                                     class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition duration-150 hover:scale-110 hover:bg-blue-500 cursor-pointer"
                                     title="今すぐ動画を再生"
                                 >
@@ -499,12 +544,16 @@
                             </div>
                         {/if}
 
-                        <span class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none">
+                        <span
+                            class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none"
+                        >
                             {formatDuration(item.endAt - item.startAt)}
                         </span>
 
                         {#if item.isProtected}
-                            <span class="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[9px] font-bold text-white shadow-2xs leading-none">
+                            <span
+                                class="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[9px] font-bold text-white shadow-2xs leading-none"
+                            >
                                 <Lock size={9} /> 保護中
                             </span>
                         {/if}
@@ -514,14 +563,19 @@
                     <div class="flex flex-1 flex-col justify-between p-2.5 sm:p-3">
                         <div>
                             <div class="flex items-center justify-between gap-1.5">
-                                <span class="truncate rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 max-w-[65%]">
+                                <span
+                                    class="truncate rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 max-w-[65%]"
+                                >
                                     {channelStore.getChannelName(item.channelId)}
                                 </span>
                                 <span class="text-[10px] font-medium text-slate-400 shrink-0">
                                     {formatSize(item.videoFiles?.[0]?.size)}
                                 </span>
                             </div>
-                            <h3 class="mt-1.5 line-clamp-2 text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 leading-snug" title={item.name}>
+                            <h3
+                                class="mt-1.5 line-clamp-2 text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 leading-snug"
+                                title={item.name}
+                            >
                                 {item.name}
                             </h3>
                             {#if item.description}
@@ -532,14 +586,24 @@
                         </div>
 
                         <!-- 下部メタ & アクションボタン -->
-                        <div class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-slate-800">
-                            <span class="font-medium text-[10px]">{formatDate(item.startAt)} {formatTime(item.startAt)}</span>
+                        <div
+                            class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-slate-800"
+                        >
+                            <span class="font-medium text-[10px]">
+                                {formatDate(item.startAt)}
+                                {formatTime(item.startAt)}
+                            </span>
                             <div class="flex items-center gap-1">
                                 {#if !readOnlyStore.isReadOnly}
                                     <button
                                         type="button"
-                                        onclick={(e) => { e.stopPropagation(); toggleProtect(item); }}
-                                        class="rounded p-1 {item.isProtected ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                        onclick={e => {
+                                            e.stopPropagation();
+                                            toggleProtect(item);
+                                        }}
+                                        class="rounded p-1 {item.isProtected
+                                            ? 'text-amber-500 hover:bg-amber-50'
+                                            : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
                                         title={item.isProtected ? '保護解除' : '番組を保護'}
                                     >
                                         {#if item.isProtected}
@@ -551,7 +615,10 @@
                                     {#if !item.isProtected}
                                         <button
                                             type="button"
-                                            onclick={(e) => { e.stopPropagation(); deleteRecorded(item.id, item.name); }}
+                                            onclick={e => {
+                                                e.stopPropagation();
+                                                deleteRecorded(item.id, item.name);
+                                            }}
                                             class="rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
                                             title="削除"
                                         >

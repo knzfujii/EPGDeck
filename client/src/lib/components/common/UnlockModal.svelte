@@ -85,10 +85,7 @@
                 </div>
 
                 <div class="flex-1 min-w-0">
-                    <h3
-                        id="unlock-dialog-title"
-                        class="text-base font-bold text-slate-900 dark:text-slate-100"
-                    >
+                    <h3 id="unlock-dialog-title" class="text-base font-bold text-slate-900 dark:text-slate-100">
                         管理者モードへの切り替え
                     </h3>
                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -108,7 +105,10 @@
 
             <form onsubmit={handleSubmit} class="mt-4 space-y-4">
                 <div>
-                    <label for="admin-password" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    <label
+                        for="admin-password"
+                        class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+                    >
                         管理者パスワード
                     </label>
                     <input

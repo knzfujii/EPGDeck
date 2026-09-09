@@ -20,7 +20,9 @@
 {#if snackbar.isOpen}
     {@const Icon = icons[snackbar.color] || Info}
     <div
-        class="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-xl transition-all duration-300 transform translate-y-0 text-sm font-medium animate-in fade-in slide-in-from-bottom-5 {colorClasses[snackbar.color]}"
+        class="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-xl transition-all duration-300 transform translate-y-0 text-sm font-medium animate-in fade-in slide-in-from-bottom-5 {colorClasses[
+            snackbar.color
+        ]}"
         role="alert"
     >
         <Icon class="w-5 h-5 shrink-0" />

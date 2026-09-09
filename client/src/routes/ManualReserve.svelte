@@ -16,7 +16,7 @@
 
     function toLocalISOString(date: Date): string {
         const offset = date.getTimezoneOffset() * 60000;
-        const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+        const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
         return localISOTime;
     }
 
@@ -84,10 +84,14 @@
 </script>
 
 {#if readOnlyStore.isReadOnly}
-    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+    <div
+        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
+    >
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">手動予約の作成は制限されています。録画済み一覧へリダイレクトします...</p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            手動予約の作成は制限されています。録画済み一覧へリダイレクトします...
+        </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
@@ -98,107 +102,121 @@
     </div>
 {:else}
     <div class="w-full max-w-3xl min-w-0 space-y-5">
-    <div class="flex items-center gap-3">
-        <button
-            type="button"
-            onclick={() => router.push('/reserves')}
-            class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-            aria-label="戻る"
-        >
-            <ArrowLeft size={18} />
-        </button>
-        <div>
-            <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-                <Clock size={20} class="text-blue-600 dark:text-blue-400" />
-                時間指定手動予約
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400">日時と放送局を指定して直接録画予約を作成します</p>
-        </div>
-    </div>
-
-    <form onsubmit={(e) => { e.preventDefault(); submitManualReserve(); }} class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-        <div>
-            <label for="manual-channel-select" class="block text-xs font-bold text-slate-700 dark:text-slate-300">放送局</label>
-            <select
-                id="manual-channel-select"
-                bind:value={selectedChannelId}
-                class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
-            >
-                {#each channelStore.channels as ch}
-                    <option value={ch.id}>[{ch.channelType}] {ch.name}</option>
-                {/each}
-            </select>
-        </div>
-
-        <div>
-            <label for="manual-program-name" class="block text-xs font-bold text-slate-700 dark:text-slate-300">番組名 *</label>
-            <input
-                id="manual-program-name"
-                type="text"
-                bind:value={name}
-                placeholder="例: 深夜アニメ 第1話"
-                required
-                class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
-            />
-        </div>
-
-        <div>
-            <label for="manual-program-desc" class="block text-xs font-bold text-slate-700 dark:text-slate-300">番組概要 (任意)</label>
-            <textarea
-                id="manual-program-desc"
-                bind:value={description}
-                rows={3}
-                placeholder="番組の詳細やメモ"
-                class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
-            ></textarea>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-                <label for="manual-start-time" class="block text-xs font-bold text-slate-700 dark:text-slate-300">開始日時 *</label>
-                <input
-                    id="manual-start-time"
-                    type="datetime-local"
-                    bind:value={startAtStr}
-                    required
-                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
-                />
-            </div>
-            <div>
-                <label for="manual-end-time" class="block text-xs font-bold text-slate-700 dark:text-slate-300">終了日時 *</label>
-                <input
-                    id="manual-end-time"
-                    type="datetime-local"
-                    bind:value={endAtStr}
-                    required
-                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
-                />
-            </div>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-4">
+        <div class="flex items-center gap-3">
             <button
                 type="button"
                 onclick={() => router.push('/reserves')}
-                class="rounded-xl px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                aria-label="戻る"
             >
-                キャンセル
+                <ArrowLeft size={18} />
             </button>
-            {#if !readOnlyStore.isReadOnly}
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                >
-                    <Plus size={16} /> 予約を追加
-                </button>
-            {:else}
-                <p class="text-xs text-amber-600 dark:text-amber-400 font-bold self-center">
-                    ※閲覧専用モードのため予約は作成できません
-                </p>
-            {/if}
+            <div>
+                <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                    <Clock size={20} class="text-blue-600 dark:text-blue-400" />
+                    時間指定手動予約
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">日時と放送局を指定して直接録画予約を作成します</p>
+            </div>
         </div>
-    </form>
-</div>
-{/if}
 
+        <form
+            onsubmit={e => {
+                e.preventDefault();
+                submitManualReserve();
+            }}
+            class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
+            <div>
+                <label for="manual-channel-select" class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    放送局
+                </label>
+                <select
+                    id="manual-channel-select"
+                    bind:value={selectedChannelId}
+                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
+                >
+                    {#each channelStore.channels as ch}
+                        <option value={ch.id}>[{ch.channelType}] {ch.name}</option>
+                    {/each}
+                </select>
+            </div>
+
+            <div>
+                <label for="manual-program-name" class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    番組名 *
+                </label>
+                <input
+                    id="manual-program-name"
+                    type="text"
+                    bind:value={name}
+                    placeholder="例: 深夜アニメ 第1話"
+                    required
+                    class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
+                />
+            </div>
+
+            <div>
+                <label for="manual-program-desc" class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    番組概要 (任意)
+                </label>
+                <textarea
+                    id="manual-program-desc"
+                    bind:value={description}
+                    rows={3}
+                    placeholder="番組の詳細やメモ"
+                    class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="manual-start-time" class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        開始日時 *
+                    </label>
+                    <input
+                        id="manual-start-time"
+                        type="datetime-local"
+                        bind:value={startAtStr}
+                        required
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
+                    />
+                </div>
+                <div>
+                    <label for="manual-end-time" class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        終了日時 *
+                    </label>
+                    <input
+                        id="manual-end-time"
+                        type="datetime-local"
+                        bind:value={endAtStr}
+                        required
+                        class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-800"
+                    />
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button
+                    type="button"
+                    onclick={() => router.push('/reserves')}
+                    class="rounded-xl px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                    キャンセル
+                </button>
+                {#if !readOnlyStore.isReadOnly}
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        class="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                    >
+                        <Plus size={16} /> 予約を追加
+                    </button>
+                {:else}
+                    <p class="text-xs text-amber-600 dark:text-amber-400 font-bold self-center">
+                        ※閲覧専用モードのため予約は作成できません
+                    </p>
+                {/if}
+            </div>
+        </form>
+    </div>
+{/if}

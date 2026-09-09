@@ -12,7 +12,7 @@
         X,
         Zap,
         CheckCircle2,
-        Lock
+        Lock,
     } from '@lucide/svelte';
 
     import type * as apid from '../../../../../api';
@@ -37,7 +37,7 @@
         recordedId,
         videoFiles = [],
         defaultVideoFileId,
-        onClose
+        onClose,
     }: Props = $props();
 
     // 選択状態
@@ -50,9 +50,10 @@
         if (isOpen) {
             if (videoFiles.length > 0) {
                 // 指定された defaultVideoFileId -> 最上位MP4 -> 先頭ファイルの順で選択
-                const targetFile = (defaultVideoFileId ? videoFiles.find(f => f.id === defaultVideoFileId) : null)
-                    ?? getTopMp4File(videoFiles)
-                    ?? videoFiles[0];
+                const targetFile =
+                    (defaultVideoFileId ? videoFiles.find(f => f.id === defaultVideoFileId) : null) ??
+                    getTopMp4File(videoFiles) ??
+                    videoFiles[0];
 
                 if (targetFile) {
                     selectedFileId = targetFile.id;
@@ -101,12 +102,14 @@
                 router.push(getWatchUrl({ recordedId, videoId: selectedFileId }));
             } else {
                 // 録画ストリーミング
-                router.push(getWatchUrl({
-                    recordedId,
-                    videoFileId: selectedFileId,
-                    type: selectedStreamType,
-                    mode: selectedMode
-                }));
+                router.push(
+                    getWatchUrl({
+                        recordedId,
+                        videoFileId: selectedFileId,
+                        type: selectedStreamType,
+                        mode: selectedMode,
+                    }),
+                );
             }
         }
         onClose();
@@ -130,11 +133,15 @@
         ></button>
 
         <!-- モーダルコンテンツ -->
-        <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
+        >
             <!-- ヘッダー -->
             <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
                 <div>
-                    <span class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                    >
                         {#if channelId}
                             <Radio size={14} /> ライブ配信設定
                         {:else}
@@ -174,15 +181,23 @@
                                             selectedStreamType = 'hls';
                                         }
                                     }}
-                                    class="flex items-center justify-between rounded-xl border p-3 text-left transition {selectedFileId === file.id
+                                    class="flex items-center justify-between rounded-xl border p-3 text-left transition {selectedFileId ===
+                                    file.id
                                         ? 'border-blue-500 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/40'
                                         : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50'}"
                                 >
                                     <div class="flex items-center gap-2.5">
-                                        <span class="rounded px-2 py-0.5 text-[11px] font-black uppercase {file.type === 'encoded' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}">
+                                        <span
+                                            class="rounded px-2 py-0.5 text-[11px] font-black uppercase {file.type ===
+                                            'encoded'
+                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                                : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}"
+                                        >
                                             {file.name}
                                         </span>
-                                        <span class="font-medium text-slate-900 dark:text-slate-100">{file.filename}</span>
+                                        <span class="font-medium text-slate-900 dark:text-slate-100">
+                                            {file.filename}
+                                        </span>
                                     </div>
                                     <span class="font-semibold text-slate-400">{formatSize(file.size)}</span>
                                 </button>
@@ -201,68 +216,88 @@
                             <!-- M2TS-LL (最速・超低遅延) -->
                             <button
                                 type="button"
-                                onclick={() => selectedStreamType = 'm2tsll'}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType === 'm2tsll'
+                                onclick={() => (selectedStreamType = 'm2tsll')}
+                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType ===
+                                'm2tsll'
                                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="flex items-center gap-1 font-black">
                                     <Zap size={13} class="text-amber-500" /> M2TS-LL
                                 </span>
-                                <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">🚀 最速 1-2秒 (PC/Android)</span>
+                                <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                                    🚀 最速 1-2秒 (PC/Android)
+                                </span>
                             </button>
 
                             <!-- WebM (高速) -->
                             <button
                                 type="button"
-                                onclick={() => selectedStreamType = 'webm'}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType === 'webm'
+                                onclick={() => (selectedStreamType = 'webm')}
+                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType ===
+                                'webm'
                                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="font-black">WebM</span>
-                                <span class="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">⚡ 高速 3-5秒 (ブラウザ)</span>
+                                <span class="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">
+                                    ⚡ 高速 3-5秒 (ブラウザ)
+                                </span>
                             </button>
 
                             <!-- HLS (高互換・字幕対応) -->
                             <button
                                 type="button"
-                                onclick={() => selectedStreamType = 'hls'}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType === 'hls'
+                                onclick={() => (selectedStreamType = 'hls')}
+                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition {selectedStreamType ===
+                                'hls'
                                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="flex items-center gap-1 font-black">
-                                    HLS <span class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">字幕対応</span>
+                                    HLS <span
+                                        class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                    >
+                                        字幕対応
+                                    </span>
                                 </span>
-                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">📺 字幕 / iOS・全環境対応</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    📺 字幕 / iOS・全環境対応
+                                </span>
                             </button>
                         {:else}
                             <!-- 録画再生の場合 -->
                             {#if videoFiles.length > 0 && selectedFileId && videoFiles.find(f => f.id === selectedFileId)?.type === 'encoded'}
                                 <button
                                     type="button"
-                                    onclick={() => selectedStreamType = 'direct'}
-                                    class="flex flex-col items-center justify-center rounded-xl border p-3 transition {selectedStreamType === 'direct'
+                                    onclick={() => (selectedStreamType = 'direct')}
+                                    class="flex flex-col items-center justify-center rounded-xl border p-3 transition {selectedStreamType ===
+                                    'direct'
                                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                                 >
                                     <span class="font-black">直接再生 (MP4)</span>
-                                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">🚀 即時再生</span>
+                                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                        🚀 即時再生
+                                    </span>
                                 </button>
                             {/if}
                             <button
                                 type="button"
                                 disabled={!readOnlyStore.canRecordedStream}
-                                onclick={() => selectedStreamType = 'hls'}
+                                onclick={() => (selectedStreamType = 'hls')}
                                 class="flex flex-col items-center justify-center rounded-xl border p-3 transition {!readOnlyStore.canRecordedStream
                                     ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
                                     : selectedStreamType === 'hls'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="flex items-center gap-1 font-black">
-                                    HLS 配信 <span class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">字幕対応</span>
+                                    HLS 配信 <span
+                                        class="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                    >
+                                        字幕対応
+                                    </span>
                                 </span>
                                 <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                                     {#if !readOnlyStore.canRecordedStream}
@@ -275,12 +310,12 @@
                             <button
                                 type="button"
                                 disabled={!readOnlyStore.canRecordedStream}
-                                onclick={() => selectedStreamType = 'webm'}
+                                onclick={() => (selectedStreamType = 'webm')}
                                 class="flex flex-col items-center justify-center rounded-xl border p-3 transition {!readOnlyStore.canRecordedStream
                                     ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
                                     : selectedStreamType === 'webm'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                             >
                                 <span class="font-black">WebM</span>
                                 <span class="text-[10px] text-slate-400 mt-0.5">
@@ -303,8 +338,9 @@
                             {#each streamModes as mode}
                                 <button
                                     type="button"
-                                    onclick={() => selectedMode = mode.id}
-                                    class="flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition {selectedMode === mode.id
+                                    onclick={() => (selectedMode = mode.id)}
+                                    class="flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition {selectedMode ===
+                                    mode.id
                                         ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
                                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                                 >

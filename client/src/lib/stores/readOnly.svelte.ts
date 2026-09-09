@@ -156,4 +156,3 @@ class ReadOnlyStore {
 }
 
 export const readOnlyStore = new ReadOnlyStore();
-

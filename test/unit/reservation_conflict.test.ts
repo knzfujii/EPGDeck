@@ -65,12 +65,16 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
         );
     };
 
+    const mockTuner = (index: number, name: string, types: ('GR' | 'BS' | 'CS' | 'SKY')[]): mapid.TunerDevice => {
+        return { index, name, types, command: '' } as unknown as mapid.TunerDevice;
+    };
+
     it('sets broadcast status correctly based on tuners', () => {
         const model = createModel();
         const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' },
-            { index: 1, name: 'GR_Tuner_1', types: ['GR'], command: '' },
-            { index: 2, name: 'BSCS_Tuner_0', types: ['BS', 'CS'], command: '' },
+            mockTuner(0, 'GR_Tuner_0', ['GR']),
+            mockTuner(1, 'GR_Tuner_1', ['GR']),
+            mockTuner(2, 'BSCS_Tuner_0', ['BS', 'CS']),
         ];
         model.setTuners(tuners);
 
@@ -83,10 +87,7 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
 
     it('handles multiple parallel reservations under tuner capacity (2 GR tuners, 2 parallel recordings)', async () => {
         const model = createModel();
-        const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' },
-            { index: 1, name: 'GR_Tuner_1', types: ['GR'], command: '' },
-        ];
+        const tuners: mapid.TunerDevice[] = [mockTuner(0, 'GR_Tuner_0', ['GR']), mockTuner(1, 'GR_Tuner_1', ['GR'])];
         model.setTuners(tuners);
 
         const now = Date.now();
@@ -107,14 +108,14 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
 
         vi.spyOn(model as any, 'checkSingleReserveConflict').mockResolvedValue(undefined);
 
-        const reserveId = await model.add({ programId: 1001 });
+        const reserveId = await model.add({ programId: 1001, allowEndLack: true });
         expect(reserveId).toBe(100);
         expect(dummyReserveDB.insertOnce).toHaveBeenCalled();
     });
 
     it('detects conflict when parallel recordings exceed tuner capacity', async () => {
         const model = createModel();
-        const tuners: mapid.TunerDevice[] = [{ index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' }];
+        const tuners: mapid.TunerDevice[] = [mockTuner(0, 'GR_Tuner_0', ['GR'])];
         model.setTuners(tuners);
 
         const now = Date.now();
@@ -164,7 +165,7 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
 
     it('allows simultaneous recordings on the same physical channel (subchannel) using single tuner', async () => {
         const model = createModel();
-        const tuners: mapid.TunerDevice[] = [{ index: 0, name: 'GR_Tuner_0', types: ['GR'], command: '' }];
+        const tuners: mapid.TunerDevice[] = [mockTuner(0, 'GR_Tuner_0', ['GR'])];
         model.setTuners(tuners);
 
         const now = Date.now();
@@ -198,10 +199,10 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
     it('scales to 4 concurrent GR tuners without conflicts', () => {
         const model = createModel();
         const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_0', types: ['GR'], command: '' },
-            { index: 1, name: 'GR_1', types: ['GR'], command: '' },
-            { index: 2, name: 'GR_2', types: ['GR'], command: '' },
-            { index: 3, name: 'GR_3', types: ['GR'], command: '' },
+            mockTuner(0, 'GR_0', ['GR']),
+            mockTuner(1, 'GR_1', ['GR']),
+            mockTuner(2, 'GR_2', ['GR']),
+            mockTuner(3, 'GR_3', ['GR']),
         ];
         model.setTuners(tuners);
 
@@ -241,14 +242,14 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
     it('handles mixed 8-tuner concurrent recordings (4 GR + 4 BS/CS)', () => {
         const model = createModel();
         const tuners: mapid.TunerDevice[] = [
-            { index: 0, name: 'GR_0', types: ['GR'], command: '' },
-            { index: 1, name: 'GR_1', types: ['GR'], command: '' },
-            { index: 2, name: 'GR_2', types: ['GR'], command: '' },
-            { index: 3, name: 'GR_3', types: ['GR'], command: '' },
-            { index: 4, name: 'BSCS_0', types: ['BS', 'CS'], command: '' },
-            { index: 5, name: 'BSCS_1', types: ['BS', 'CS'], command: '' },
-            { index: 6, name: 'BSCS_2', types: ['BS', 'CS'], command: '' },
-            { index: 7, name: 'BSCS_3', types: ['BS', 'CS'], command: '' },
+            mockTuner(0, 'GR_0', ['GR']),
+            mockTuner(1, 'GR_1', ['GR']),
+            mockTuner(2, 'GR_2', ['GR']),
+            mockTuner(3, 'GR_3', ['GR']),
+            mockTuner(4, 'BSCS_0', ['BS', 'CS']),
+            mockTuner(5, 'BSCS_1', ['BS', 'CS']),
+            mockTuner(6, 'BSCS_2', ['BS', 'CS']),
+            mockTuner(7, 'BSCS_3', ['BS', 'CS']),
         ];
         model.setTuners(tuners);
 

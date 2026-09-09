@@ -16,7 +16,7 @@
         Download,
         Share2,
         Loader2,
-        AlertTriangle
+        AlertTriangle,
     } from '@lucide/svelte';
 
     let videoSrc = $state<string>('');
@@ -75,7 +75,11 @@
                         const m3u8Res = await http.get(`/streamfiles/stream${id}.m3u8`, {
                             validateStatus: status => status === 200,
                         });
-                        if (m3u8Res.status === 200 && typeof m3u8Res.data === 'string' && m3u8Res.data.includes('#EXTM3U')) {
+                        if (
+                            m3u8Res.status === 200 &&
+                            typeof m3u8Res.data === 'string' &&
+                            m3u8Res.data.includes('#EXTM3U')
+                        ) {
                             return true;
                         }
                     } catch {
@@ -146,7 +150,7 @@
 
                 try {
                     const streamRes = await http.get(`/api/streams/live/${channelId}/hls`, {
-                        params: { mode }
+                        params: { mode },
                     });
                     const sId = Number(streamRes.data.streamId);
                     streamId = sId;
@@ -209,7 +213,7 @@
                         isPreparingStream = true;
                         statusText = 'トランスコード配信を生成中...';
                         const streamRes = await http.get(`/api/streams/recorded/${videoFileId}/hls`, {
-                            params: { mode }
+                            params: { mode },
                         });
                         const sId = Number(streamRes.data.streamId);
                         streamId = sId;
@@ -237,7 +241,7 @@
                         isPreparingStream = true;
                         statusText = 'トランスコード配信を生成中...';
                         const streamRes = await http.get(`/api/streams/recorded/${firstFile.id}/hls`, {
-                            params: { mode: 0 }
+                            params: { mode: 0 },
                         });
                         const sId = Number(streamRes.data.streamId);
                         streamId = sId;
@@ -329,7 +333,9 @@
         </button>
 
         {#if channelName}
-            <span class="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            <span
+                class="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+            >
                 {#if isLive}
                     <Radio size={14} />
                 {:else}
@@ -350,12 +356,14 @@
                 {isLive}
                 title={programTitle}
                 recordedId={recordedData?.id}
-                totalDuration={totalDuration}
+                {totalDuration}
                 {vttSrc}
                 onStreamEnded={stopStream}
             />
         {:else}
-            <div class="flex aspect-video w-full flex-col items-center justify-center rounded-none bg-slate-900 text-xs text-slate-300 p-6 text-center shadow-xl">
+            <div
+                class="flex aspect-video w-full flex-col items-center justify-center rounded-none bg-slate-900 text-xs text-slate-300 p-6 text-center shadow-xl"
+            >
                 <Loader2 size={36} class="animate-spin text-blue-500 mb-3" />
                 <p class="font-bold">{statusText}</p>
                 <p class="text-[11px] text-slate-500 mt-1">数秒お待ちください...</p>
@@ -373,10 +381,13 @@
             {#if timeRange}
                 <div class="flex items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
                     <span class="flex items-center gap-1">
-                        <Clock size={13} /> {timeRange}
+                        <Clock size={13} />
+                        {timeRange}
                     </span>
                     {#if recordedData?.videoFiles?.[0]}
-                        <span class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        <span
+                            class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                        >
                             {recordedData.videoFiles[0].name}
                         </span>
                     {/if}
@@ -390,7 +401,9 @@
             {/if}
 
             {#if extended}
-                <div class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500 whitespace-pre-wrap leading-relaxed dark:border-slate-800 dark:text-slate-400">
+                <div
+                    class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500 whitespace-pre-wrap leading-relaxed dark:border-slate-800 dark:text-slate-400"
+                >
                     {extended}
                 </div>
             {/if}

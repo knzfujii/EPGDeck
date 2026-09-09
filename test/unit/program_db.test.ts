@@ -417,4 +417,3 @@ describe('ProgramDB findRule Tests', () => {
         expect(resultsTooLong).toHaveLength(0);
     });
 });
-

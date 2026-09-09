@@ -8,51 +8,52 @@ import { AuthManager } from '../../src/model/service/hono/AuthManager';
 import IConfiguration from '../../src/model/IConfiguration';
 
 describe('Read-Only Mode & Auth Integration Tests', () => {
-    const createConfig = (readOnly?: IConfigFile['readOnly']): IConfigFile => ({
-        server: {
-            port: 8888,
-            mirakurun: 'http://localhost:40772',
-            apiServers: [],
-            isAllowAllCORS: true,
-        },
-        database: {
-            type: 'sqlite',
-        },
-        log: {
-            level: 'info',
-            console: true,
-            bufferSize: 1000,
-        },
-        epg: {
-            intervalMinutes: 10,
-            replaceEnclosingCharacters: true,
-        },
-        recording: {
-            filenameFormat: '%YEAR%_%MONTH%_%DAY%_%HOUR%%MIN%-%TITLE%',
-            fileExtension: '.m2ts',
-            directories: [{ name: 'recorded', path: '/tmp/recorded' }],
-            historyRetentionDays: 90,
-            storageCheckIntervalSeconds: 60,
-            priority: { conflict: 1, recording: 2, streaming: 0 },
-            timeSpecifiedStartMargin: 1,
-            timeSpecifiedEndMargin: 2,
-            thumbnail: { path: '/tmp/thumbnail', size: '480x270', positionSeconds: 5 },
-            dropLog: { path: '/tmp/drop', enabled: true },
-            uploadTempDir: '/tmp/upload',
-        },
-        encode: {
-            binaries: { ffmpeg: '/usr/bin/ffmpeg', ffprobe: '/usr/bin/ffprobe' },
-            maxProcesses: 4,
-            concurrency: 1,
-            presets: [],
-        },
-        streaming: {
-            tempDir: '/tmp/streamfiles',
-            live: {} as any,
-            recorded: {} as any,
-        },
-        readOnly,
-    } as any);
+    const createConfig = (readOnly?: IConfigFile['readOnly']): IConfigFile =>
+        ({
+            server: {
+                port: 8888,
+                mirakurun: 'http://localhost:40772',
+                apiServers: [],
+                isAllowAllCORS: true,
+            },
+            database: {
+                type: 'sqlite',
+            },
+            log: {
+                level: 'info',
+                console: true,
+                bufferSize: 1000,
+            },
+            epg: {
+                intervalMinutes: 10,
+                replaceEnclosingCharacters: true,
+            },
+            recording: {
+                filenameFormat: '%YEAR%_%MONTH%_%DAY%_%HOUR%%MIN%-%TITLE%',
+                fileExtension: '.m2ts',
+                directories: [{ name: 'recorded', path: '/tmp/recorded' }],
+                historyRetentionDays: 90,
+                storageCheckIntervalSeconds: 60,
+                priority: { conflict: 1, recording: 2, streaming: 0 },
+                timeSpecifiedStartMargin: 1,
+                timeSpecifiedEndMargin: 2,
+                thumbnail: { path: '/tmp/thumbnail', size: '480x270', positionSeconds: 5 },
+                dropLog: { path: '/tmp/drop', enabled: true },
+                uploadTempDir: '/tmp/upload',
+            },
+            encode: {
+                binaries: { ffmpeg: '/usr/bin/ffmpeg', ffprobe: '/usr/bin/ffprobe' },
+                maxProcesses: 4,
+                concurrency: 1,
+                presets: [],
+            },
+            streaming: {
+                tempDir: '/tmp/streamfiles',
+                live: {} as any,
+                recorded: {} as any,
+            },
+            readOnly,
+        }) as any;
 
     const dummyLog: ILogger = {
         system: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
@@ -278,12 +279,7 @@ describe('Read-Only Mode & Auth Integration Tests', () => {
         });
 
         it('should permit screen GET requests when allowed in allowedOperations', async () => {
-            currentConfig.readOnly!.allowedOperations = [
-                'dashboard',
-                'search',
-                'rules',
-                'encode',
-            ];
+            currentConfig.readOnly!.allowedOperations = ['dashboard', 'search', 'rules', 'encode'];
             const app = createHonoApp(currentConfig, dummyLog);
 
             // When allowed, should pass readOnlyMiddleware (may 200 or 500 depending on mocks, but NOT 403)
@@ -313,4 +309,3 @@ describe('Read-Only Mode & Auth Integration Tests', () => {
         });
     });
 });
-

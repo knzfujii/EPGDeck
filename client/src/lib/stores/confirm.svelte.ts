@@ -30,7 +30,7 @@ class ConfirmState {
         this.isDestructive = opts.isDestructive ?? true;
         this.isOpen = true;
 
-        return new Promise<boolean>((resolve) => {
+        return new Promise<boolean>(resolve => {
             this.resolvePromise = resolve;
         });
     }
@@ -54,4 +54,3 @@ class ConfirmState {
 
 export const confirmStore = new ConfirmState();
 export const confirmDialog = (options: ConfirmOptions | string) => confirmStore.confirm(options);
-

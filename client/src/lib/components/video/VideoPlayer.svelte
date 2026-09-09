@@ -6,11 +6,7 @@
     import VideoControls from './VideoControls.svelte';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
-    import {
-        Play,
-        Loader2,
-        AlertCircle
-    } from '@lucide/svelte';
+    import { Play, Loader2, AlertCircle } from '@lucide/svelte';
 
     interface Props {
         src: string;
@@ -163,13 +159,19 @@
     function toggleFullscreen() {
         if (!containerElement) return;
         if (!document.fullscreenElement) {
-            containerElement.requestFullscreen().then(() => {
-                isFullscreen = true;
-            }).catch(err => console.error('Fullscreen request failed:', err));
+            containerElement
+                .requestFullscreen()
+                .then(() => {
+                    isFullscreen = true;
+                })
+                .catch(err => console.error('Fullscreen request failed:', err));
         } else {
-            document.exitFullscreen().then(() => {
-                isFullscreen = false;
-            }).catch(err => console.error('Exit fullscreen failed:', err));
+            document
+                .exitFullscreen()
+                .then(() => {
+                    isFullscreen = false;
+                })
+                .catch(err => console.error('Exit fullscreen failed:', err));
         }
     }
 
@@ -321,7 +323,9 @@
                 initSubtitleRenderer();
                 Mpegts.LoggingControl.enableVerbose = false;
                 // WebWorker 内での fetch に対応するため絶対 URL に変換
-                const absoluteUrl = src.startsWith('http') ? src : `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}`;
+                const absoluteUrl = src.startsWith('http')
+                    ? src
+                    : `${window.location.origin}${src.startsWith('/') ? '' : '/'}${src}`;
 
                 mpegtsInstance = Mpegts.createPlayer(
                     {
@@ -466,7 +470,9 @@
 <div
     bind:this={containerElement}
     onmousemove={resetHideControlsTimer}
-    onmouseleave={() => { if (isPlaying) showControls = false; }}
+    onmouseleave={() => {
+        if (isPlaying) showControls = false;
+    }}
     class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none"
     role="region"
     aria-label="動画プレーヤー"
@@ -482,8 +488,11 @@
             }
             resetHideControlsTimer();
         }}
-        onpause={() => { isPlaying = false; showControls = true; }}
-        onwaiting={() => isLoading = true}
+        onpause={() => {
+            isPlaying = false;
+            showControls = true;
+        }}
+        onwaiting={() => (isLoading = true)}
         onplaying={() => {
             isLoading = false;
             if (videoElement) {
@@ -529,7 +538,9 @@
 
     <!-- ローディングスピナー -->
     {#if isLoading && !errorMessage}
-        <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-2xs">
+        <div
+            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-2xs"
+        >
             <Loader2 size={48} class="animate-spin text-blue-500" />
         </div>
     {/if}
@@ -551,8 +562,13 @@
 
     <!-- レジューム再開トースト通知 -->
     {#if resumeNotice?.visible && !isLive}
-        <div class="absolute top-4 left-4 right-4 z-30 flex items-center justify-between rounded-xl bg-slate-900/90 p-3 text-xs text-white shadow-xl backdrop-blur sm:left-auto sm:right-4 sm:w-80">
-            <span>前回 <strong>{formatPlayerTime(resumeNotice.position)}</strong> まで視聴しました</span>
+        <div
+            class="absolute top-4 left-4 right-4 z-30 flex items-center justify-between rounded-xl bg-slate-900/90 p-3 text-xs text-white shadow-xl backdrop-blur sm:left-auto sm:right-4 sm:w-80"
+        >
+            <span>
+                前回 <strong>{formatPlayerTime(resumeNotice.position)}</strong>
+                まで視聴しました
+            </span>
             <div class="flex items-center gap-2">
                 <button
                     type="button"
@@ -574,7 +590,9 @@
 
     <!-- タイトルバー (上部オーバーレイ) -->
     {#if title && showControls}
-        <div class="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300">
+        <div
+            class="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
+        >
             <h2 class="truncate text-sm font-bold text-white drop-shadow-md">{title}</h2>
         </div>
     {/if}

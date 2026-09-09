@@ -36,7 +36,9 @@
         >
             <div class="flex items-start gap-4">
                 <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {confirmStore.isDestructive ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'}"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {confirmStore.isDestructive
+                        ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
+                        : 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'}"
                 >
                     {#if confirmStore.isDestructive}
                         <AlertTriangle size={20} />
@@ -47,15 +49,14 @@
 
                 <div class="flex-1 min-w-0">
                     {#if confirmStore.title}
-                        <h3
-                            id="confirm-dialog-title"
-                            class="text-base font-bold text-slate-900 dark:text-slate-100"
-                        >
+                        <h3 id="confirm-dialog-title" class="text-base font-bold text-slate-900 dark:text-slate-100">
                             {confirmStore.title}
                         </h3>
                     {/if}
                     <p
-                        class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap {confirmStore.title ? 'mt-2' : ''}"
+                        class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap {confirmStore.title
+                            ? 'mt-2'
+                            : ''}"
                     >
                         {confirmStore.message}
                     </p>
@@ -83,7 +84,9 @@
                 <button
                     type="button"
                     onclick={() => confirmStore.handleConfirm()}
-                    class="rounded-xl px-4 py-2 text-xs font-bold text-white transition cursor-pointer shadow-sm {confirmStore.isDestructive ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-950/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-950/20'}"
+                    class="rounded-xl px-4 py-2 text-xs font-bold text-white transition cursor-pointer shadow-sm {confirmStore.isDestructive
+                        ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-950/20'
+                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-950/20'}"
                 >
                     {confirmStore.confirmText}
                 </button>
@@ -91,4 +94,3 @@
         </div>
     </div>
 {/if}
-

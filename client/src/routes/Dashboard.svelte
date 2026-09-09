@@ -9,7 +9,20 @@
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
-    import { Video, Clock, ArrowRight, AlertTriangle, Play, HardDrive, Server, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Lock } from '@lucide/svelte';
+    import {
+        Video,
+        Clock,
+        ArrowRight,
+        AlertTriangle,
+        Play,
+        HardDrive,
+        Server,
+        ChevronDown,
+        ChevronRight,
+        CheckCircle2,
+        AlertCircle,
+        Lock,
+    } from '@lucide/svelte';
 
     interface DashboardReserve extends apid.ReserveItem {
         isRecording?: boolean;
@@ -59,10 +72,12 @@
             const now = Date.now();
             const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
             upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
-                const isCurrentlyRecording = recordingList.some((rec: any) => rec.programId === r.programId || rec.id === r.id) || (r.startAt <= now && now < r.endAt);
+                const isCurrentlyRecording =
+                    recordingList.some((rec: any) => rec.programId === r.programId || rec.id === r.id) ||
+                    (r.startAt <= now && now < r.endAt);
                 return {
                     ...r,
-                    isRecording: isCurrentlyRecording
+                    isRecording: isCurrentlyRecording,
                 };
             });
             reservesTotal = reservesRes.data.total || 0;
@@ -140,8 +155,9 @@
                 maxPercent,
                 worstDriveName,
                 label: `容量逼迫 (${maxPercent}%)`,
-                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-900',
-                iconColor: 'text-rose-600 dark:text-rose-400'
+                badgeClass:
+                    'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-900',
+                iconColor: 'text-rose-600 dark:text-rose-400',
             };
         } else if (maxPercent >= 75) {
             return {
@@ -149,8 +165,9 @@
                 maxPercent,
                 worstDriveName,
                 label: `注意 (${maxPercent}%)`,
-                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900',
-                iconColor: 'text-amber-600 dark:text-amber-400'
+                badgeClass:
+                    'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900',
+                iconColor: 'text-amber-600 dark:text-amber-400',
             };
         } else {
             return {
@@ -158,8 +175,9 @@
                 maxPercent,
                 worstDriveName,
                 label: `健全 (最大 ${maxPercent}%)`,
-                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900',
-                iconColor: 'text-emerald-600 dark:text-emerald-400'
+                badgeClass:
+                    'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900',
+                iconColor: 'text-emerald-600 dark:text-emerald-400',
             };
         }
     });
@@ -177,10 +195,14 @@
 </script>
 
 {#if !readOnlyStore.canViewDashboard}
-    <div class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20">
+    <div
+        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
+    >
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ダッシュボードの閲覧は制限されています。録画済み一覧へリダイレクトします...</p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            ダッシュボードの閲覧は制限されています。録画済み一覧へリダイレクトします...
+        </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
@@ -191,409 +213,523 @@
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
-    <!-- ストレージ使用状況カード (最上部に配置 / デフォルト折りたたみ) -->
-    {#if storages.length > 0}
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden">
-            <button
-                type="button"
-                onclick={() => (isStorageOpen = !isStorageOpen)}
-                class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+        <!-- ストレージ使用状況カード (最上部に配置 / デフォルト折りたたみ) -->
+        {#if storages.length > 0}
+            <div
+                class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden"
             >
-                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                    <div class="flex items-center gap-2">
-                        <HardDrive size={18} class={worstStorageStatus?.iconColor || 'text-blue-600 dark:text-blue-400'} />
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            ストレージ容量
-                        </h2>
+                <button
+                    type="button"
+                    onclick={() => (isStorageOpen = !isStorageOpen)}
+                    class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+                >
+                    <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <HardDrive
+                                size={18}
+                                class={worstStorageStatus?.iconColor || 'text-blue-600 dark:text-blue-400'}
+                            />
+                            <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">ストレージ容量</h2>
+                        </div>
+
+                        <!-- 健全性ステータスバッジ (一番悪いステータス) -->
+                        {#if worstStorageStatus}
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold {worstStorageStatus.badgeClass}"
+                            >
+                                {#if worstStorageStatus.level === 'danger'}
+                                    <AlertTriangle size={13} />
+                                {:else if worstStorageStatus.level === 'warning'}
+                                    <AlertCircle size={13} />
+                                {:else}
+                                    <CheckCircle2 size={13} />
+                                {/if}
+                                {worstStorageStatus.label}
+                            </span>
+                        {/if}
+
+                        <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">
+                            ({storages.length} ドライブ)
+                        </span>
                     </div>
 
-                    <!-- 健全性ステータスバッジ (一番悪いステータス) -->
-                    {#if worstStorageStatus}
-                        <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold {worstStorageStatus.badgeClass}">
-                            {#if worstStorageStatus.level === 'danger'}
-                                <AlertTriangle size={13} />
-                            {:else if worstStorageStatus.level === 'warning'}
-                                <AlertCircle size={13} />
-                            {:else}
-                                <CheckCircle2 size={13} />
-                            {/if}
-                            {worstStorageStatus.label}
-                        </span>
-                    {/if}
+                    <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <span>{isStorageOpen ? '閉じる' : '詳細'}</span>
+                        {#if isStorageOpen}
+                            <ChevronDown size={16} />
+                        {:else}
+                            <ChevronRight size={16} />
+                        {/if}
+                    </div>
+                </button>
 
-                    <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">({storages.length} ドライブ)</span>
-                </div>
+                {#if isStorageOpen}
+                    <div
+                        class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40"
+                    >
+                        <div class="grid grid-cols-1 gap-4 {storages.length > 1 ? 'sm:grid-cols-2' : ''}">
+                            {#each storages as st}
+                                {@const percent = getUsagePercent(st.used, st.total)}
+                                <div
+                                    class="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-800/60"
+                                >
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span
+                                            class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200"
+                                        >
+                                            <Server size={15} class="text-blue-500" />
+                                            {st.name}
+                                        </span>
+                                        <span
+                                            class="font-bold {percent > 90
+                                                ? 'text-rose-600 dark:text-rose-400'
+                                                : percent > 75
+                                                  ? 'text-amber-600 dark:text-amber-400'
+                                                  : 'text-slate-600 dark:text-slate-300'}"
+                                        >
+                                            {percent}% 使用中
+                                        </span>
+                                    </div>
 
-                <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <span>{isStorageOpen ? '閉じる' : '詳細'}</span>
-                    {#if isStorageOpen}
-                        <ChevronDown size={16} />
-                    {:else}
-                        <ChevronRight size={16} />
-                    {/if}
-                </div>
-            </button>
-
-            {#if isStorageOpen}
-                <div class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
-                    <div class="grid grid-cols-1 gap-4 {storages.length > 1 ? 'sm:grid-cols-2' : ''}">
-                        {#each storages as st}
-                            {@const percent = getUsagePercent(st.used, st.total)}
-                            <div class="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-800/60">
-                                <div class="flex items-center justify-between text-xs">
-                                    <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                                        <Server size={15} class="text-blue-500" />
-                                        {st.name}
-                                    </span>
-                                    <span class="font-bold {percent > 90 ? 'text-rose-600 dark:text-rose-400' : percent > 75 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}">
-                                        {percent}% 使用中
-                                    </span>
-                                </div>
-
-                                <!-- プログレスバー -->
-                                <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                    <!-- プログレスバー -->
                                     <div
-                                        class="h-full rounded-full transition-all duration-500 {percent > 90 ? 'bg-rose-500' : percent > 75 ? 'bg-amber-500' : 'bg-blue-600'}"
-                                        style="width: {percent}%"
-                                    ></div>
+                                        class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+                                    >
+                                        <div
+                                            class="h-full rounded-full transition-all duration-500 {percent > 90
+                                                ? 'bg-rose-500'
+                                                : percent > 75
+                                                  ? 'bg-amber-500'
+                                                  : 'bg-blue-600'}"
+                                            style="width: {percent}%"
+                                        ></div>
+                                    </div>
+
+                                    <!-- 容量詳細数値 -->
+                                    <div
+                                        class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium"
+                                    >
+                                        <span>
+                                            使用: <strong class="text-slate-800 dark:text-slate-200">
+                                                {formatGB(st.used)}
+                                            </strong>
+                                        </span>
+                                        <span>
+                                            空き: <strong class="text-slate-800 dark:text-slate-200">
+                                                {formatGB(st.available)}
+                                            </strong>
+                                        </span>
+                                        <span>
+                                            合計: <strong class="text-slate-800 dark:text-slate-200">
+                                                {formatGB(st.total)}
+                                            </strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        {/if}
+
+        <!-- 予約警告 (競合・重複) アコーディオン通知カード -->
+        {#if conflictReserves.length > 0 || overlapReserves.length > 0}
+            <div
+                class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden"
+            >
+                <button
+                    type="button"
+                    onclick={() => (isAlertsOpen = !isAlertsOpen)}
+                    class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
+                >
+                    <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <AlertTriangle
+                                size={18}
+                                class={conflictReserves.length > 0 ? 'text-rose-500' : 'text-amber-500'}
+                            />
+                            <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">予約の注意・警告</h2>
+                        </div>
+
+                        {#if conflictReserves.length > 0}
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400"
+                            >
+                                <AlertTriangle size={13} />
+                                競合 {conflictReserves.length}件
+                            </span>
+                        {/if}
+
+                        {#if overlapReserves.length > 0}
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-400"
+                            >
+                                <AlertCircle size={13} />
+                                重複スキップ {overlapReserves.length}件
+                            </span>
+                        {/if}
+                    </div>
+
+                    <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <span>{isAlertsOpen ? '閉じる' : '詳細'}</span>
+                        {#if isAlertsOpen}
+                            <ChevronDown size={16} />
+                        {:else}
+                            <ChevronRight size={16} />
+                        {/if}
+                    </div>
+                </button>
+
+                {#if isAlertsOpen}
+                    <div
+                        class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40"
+                    >
+                        <div
+                            class="grid grid-cols-1 gap-4 {conflictReserves.length > 0 && overlapReserves.length > 0
+                                ? 'lg:grid-cols-2'
+                                : ''}"
+                        >
+                            <!-- 競合リスト -->
+                            {#if conflictReserves.length > 0}
+                                <div class="space-y-2">
+                                    <div
+                                        class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800"
+                                    >
+                                        <span
+                                            class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5"
+                                        >
+                                            <AlertTriangle size={14} /> チューナー競合 ({conflictReserves.length}件)
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onclick={() => router.push('/reserves')}
+                                            class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                                        >
+                                            予約一覧へ
+                                        </button>
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        {#each conflictReserves as item}
+                                            <div
+                                                class="flex items-center justify-between gap-2 rounded-xl border border-rose-100 bg-white p-3 shadow-2xs dark:border-rose-950/50 dark:bg-slate-800/60"
+                                            >
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span
+                                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            {channelStore.getChannelName(item.channelId)}
+                                                        </span>
+                                                        <span class="text-[11px] text-slate-400">
+                                                            {formatDate(item.startAt)}
+                                                            {formatTime(item.startAt)}
+                                                        </span>
+                                                    </div>
+                                                    <h4
+                                                        class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
+                                                        title={item.name}
+                                                    >
+                                                        {item.name}
+                                                    </h4>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    {#if item.ruleId}
+                                                        <button
+                                                            type="button"
+                                                            onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                            class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                        >
+                                                            ルール編集
+                                                        </button>
+                                                    {/if}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => router.push('/reserves')}
+                                                        class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/60"
+                                                    >
+                                                        確認 <ArrowRight size={11} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+
+                            <!-- 重複リスト -->
+                            {#if overlapReserves.length > 0}
+                                <div class="space-y-2">
+                                    <div
+                                        class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800"
+                                    >
+                                        <span
+                                            class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
+                                        >
+                                            <AlertCircle size={14} /> 重複スキップ ({overlapReserves.length}件)
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onclick={() => router.push('/reserves')}
+                                            class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                                        >
+                                            予約一覧へ
+                                        </button>
+                                    </div>
+                                    <div class="space-y-1.5">
+                                        {#each overlapReserves as item}
+                                            <div
+                                                class="flex items-center justify-between gap-2 rounded-xl border border-amber-100 bg-white p-3 shadow-2xs dark:border-amber-950/50 dark:bg-slate-800/60"
+                                            >
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span
+                                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                                        >
+                                                            {channelStore.getChannelName(item.channelId)}
+                                                        </span>
+                                                        <span class="text-[11px] text-slate-400">
+                                                            {formatDate(item.startAt)}
+                                                            {formatTime(item.startAt)}
+                                                        </span>
+                                                    </div>
+                                                    <h4
+                                                        class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
+                                                        title={item.name}
+                                                    >
+                                                        {item.name}
+                                                    </h4>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    {#if item.ruleId}
+                                                        <button
+                                                            type="button"
+                                                            onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                            class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                        >
+                                                            ルール編集
+                                                        </button>
+                                                    {/if}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => router.push('/reserves')}
+                                                        class="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                                                    >
+                                                        確認 <ArrowRight size={11} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        {/if}
+
+        <!-- 直近の予約 & 最新録画 2カラム -->
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <!-- 予約一覧 (一覧の中で録画中を自然に表現) -->
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <div class="mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                            <Clock size={18} class="text-amber-500" />
+                            予約リスト
+                        </h2>
+                        <span
+                            class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                        >
+                            {reservesTotal} 件
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onclick={() => router.push('/reserves')}
+                        class="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                        すべて見る <ArrowRight size={14} />
+                    </button>
+                </div>
+
+                {#if isLoading}
+                    <p class="py-8 text-center text-xs text-slate-400">読み込み中...</p>
+                {:else if upcomingReserves.length === 0}
+                    <p class="py-8 text-center text-xs text-slate-400">直近の予約はありません</p>
+                {:else}
+                    <div class="space-y-2.5">
+                        {#each upcomingReserves as item}
+                            <div
+                                class="flex flex-col gap-2 rounded-xl border p-3 transition {item.isRecording
+                                    ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
+                                    : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40'}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            {#if item.isRecording}
+                                                <span
+                                                    class="flex items-center gap-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white uppercase tracking-wider animate-pulse"
+                                                >
+                                                    ● 録画中
+                                                </span>
+                                            {/if}
+                                            {#if item.isConflict}
+                                                <span
+                                                    class="flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                                >
+                                                    <AlertTriangle size={12} /> チューナー競合
+                                                </span>
+                                            {/if}
+                                            {#if item.isOverlap}
+                                                <span
+                                                    class="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                                                >
+                                                    重複スキップ
+                                                </span>
+                                            {/if}
+                                            <span class="text-xs font-bold text-slate-600 dark:text-slate-300">
+                                                {channelStore.getChannelName(item.channelId)}
+                                            </span>
+                                        </div>
+                                        <h3 class="mt-1 truncate text-xs font-bold text-slate-900 dark:text-slate-100">
+                                            {item.name}
+                                        </h3>
+                                    </div>
+
+                                    <div class="shrink-0 text-right">
+                                        {#if item.isRecording && readOnlyStore.canLiveStream}
+                                            <button
+                                                type="button"
+                                                onclick={() =>
+                                                    router.push(
+                                                        `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
+                                                    )}
+                                                class="flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-rose-700 transition"
+                                            >
+                                                <Play size={12} fill="currentColor" /> 視聴
+                                            </button>
+                                        {:else if item.isRecording}
+                                            <span class="text-[11px] font-bold text-rose-500">録画中</span>
+                                        {:else}
+                                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                {formatDate(item.startAt)}
+                                                {formatTime(item.startAt)}
+                                            </span>
+                                        {/if}
+                                    </div>
                                 </div>
 
-                                <!-- 容量詳細数値 -->
-                                <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                                    <span>使用: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.used)}</strong></span>
-                                    <span>空き: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.available)}</strong></span>
-                                    <span>合計: <strong class="text-slate-800 dark:text-slate-200">{formatGB(st.total)}</strong></span>
-                                </div>
+                                <!-- 録画中番組の進行状況バー -->
+                                {#if item.isRecording}
+                                    <div
+                                        class="flex items-center gap-2 pt-1 border-t border-rose-200/50 dark:border-rose-900/30"
+                                    >
+                                        <div
+                                            class="h-1.5 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950"
+                                        >
+                                            <div
+                                                class="h-full rounded-full bg-rose-600 transition-all duration-500"
+                                                style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
+                                            ></div>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                                            {getRecordingProgress(item.startAt, item.endAt)}% ({formatTime(
+                                                item.startAt,
+                                            )} - {formatTime(item.endAt)})
+                                        </span>
+                                    </div>
+                                {/if}
                             </div>
                         {/each}
                     </div>
-                </div>
-            {/if}
-        </div>
-        {/if}
-
-    <!-- 予約警告 (競合・重複) アコーディオン通知カード -->
-    {#if conflictReserves.length > 0 || overlapReserves.length > 0}
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden">
-            <button
-                type="button"
-                onclick={() => (isAlertsOpen = !isAlertsOpen)}
-                class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
-            >
-                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                    <div class="flex items-center gap-2">
-                        <AlertTriangle size={18} class={conflictReserves.length > 0 ? 'text-rose-500' : 'text-amber-500'} />
-                        <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            予約の注意・警告
-                        </h2>
-                    </div>
-
-                    {#if conflictReserves.length > 0}
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400">
-                            <AlertTriangle size={13} />
-                            競合 {conflictReserves.length}件
-                        </span>
-                    {/if}
-
-                    {#if overlapReserves.length > 0}
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-400">
-                            <AlertCircle size={13} />
-                            重複スキップ {overlapReserves.length}件
-                        </span>
-                    {/if}
-                </div>
-
-                <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <span>{isAlertsOpen ? '閉じる' : '詳細'}</span>
-                    {#if isAlertsOpen}
-                        <ChevronDown size={16} />
-                    {:else}
-                        <ChevronRight size={16} />
-                    {/if}
-                </div>
-            </button>
-
-            {#if isAlertsOpen}
-                <div class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
-                    <div class="grid grid-cols-1 gap-4 {conflictReserves.length > 0 && overlapReserves.length > 0 ? 'lg:grid-cols-2' : ''}">
-                        <!-- 競合リスト -->
-                        {#if conflictReserves.length > 0}
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800">
-                                    <span class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                                        <AlertTriangle size={14} /> チューナー競合 ({conflictReserves.length}件)
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onclick={() => router.push('/reserves')}
-                                        class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                                    >
-                                        予約一覧へ
-                                    </button>
-                                </div>
-                                <div class="space-y-1.5">
-                                    {#each conflictReserves as item}
-                                        <div class="flex items-center justify-between gap-2 rounded-xl border border-rose-100 bg-white p-3 shadow-2xs dark:border-rose-950/50 dark:bg-slate-800/60">
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                                        {channelStore.getChannelName(item.channelId)}
-                                                    </span>
-                                                    <span class="text-[11px] text-slate-400">
-                                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
-                                                    </span>
-                                                </div>
-                                                <h4 class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100" title={item.name}>
-                                                    {item.name}
-                                                </h4>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 shrink-0">
-                                                {#if item.ruleId}
-                                                    <button
-                                                        type="button"
-                                                        onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
-                                                        class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                                    >
-                                                        ルール編集
-                                                    </button>
-                                                {/if}
-                                                <button
-                                                    type="button"
-                                                    onclick={() => router.push('/reserves')}
-                                                    class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/60"
-                                                >
-                                                    確認 <ArrowRight size={11} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    {/each}
-                                </div>
-                            </div>
-                        {/if}
-
-                        <!-- 重複リスト -->
-                        {#if overlapReserves.length > 0}
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800">
-                                    <span class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                                        <AlertCircle size={14} /> 重複スキップ ({overlapReserves.length}件)
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onclick={() => router.push('/reserves')}
-                                        class="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                                    >
-                                        予約一覧へ
-                                    </button>
-                                </div>
-                                <div class="space-y-1.5">
-                                    {#each overlapReserves as item}
-                                        <div class="flex items-center justify-between gap-2 rounded-xl border border-amber-100 bg-white p-3 shadow-2xs dark:border-amber-950/50 dark:bg-slate-800/60">
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                                        {channelStore.getChannelName(item.channelId)}
-                                                    </span>
-                                                    <span class="text-[11px] text-slate-400">
-                                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
-                                                    </span>
-                                                </div>
-                                                <h4 class="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100" title={item.name}>
-                                                    {item.name}
-                                                </h4>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 shrink-0">
-                                                {#if item.ruleId}
-                                                    <button
-                                                        type="button"
-                                                        onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
-                                                        class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                                    >
-                                                        ルール編集
-                                                    </button>
-                                                {/if}
-                                                <button
-                                                    type="button"
-                                                    onclick={() => router.push('/reserves')}
-                                                    class="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
-                                                >
-                                                    確認 <ArrowRight size={11} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    {/each}
-                                </div>
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-            {/if}
-        </div>
-    {/if}
-
-    <!-- 直近の予約 & 最新録画 2カラム -->
-    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <!-- 予約一覧 (一覧の中で録画中を自然に表現) -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div class="mb-4 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
-                        <Clock size={18} class="text-amber-500" />
-                        予約リスト
-                    </h2>
-                    <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
-                        {reservesTotal} 件
-                    </span>
-                </div>
-                <button
-                    type="button"
-                    onclick={() => router.push('/reserves')}
-                    class="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                >
-                    すべて見る <ArrowRight size={14} />
-                </button>
+                {/if}
             </div>
 
-            {#if isLoading}
-                <p class="py-8 text-center text-xs text-slate-400">読み込み中...</p>
-            {:else if upcomingReserves.length === 0}
-                <p class="py-8 text-center text-xs text-slate-400">直近の予約はありません</p>
-            {:else}
-                <div class="space-y-2.5">
-                    {#each upcomingReserves as item}
-                        <div class="flex flex-col gap-2 rounded-xl border p-3 transition {item.isRecording ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40'}">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        {#if item.isRecording}
-                                            <span class="flex items-center gap-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
-                                                ● 録画中
-                                            </span>
-                                        {/if}
-                                        {#if item.isConflict}
-                                            <span class="flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                                                <AlertTriangle size={12} /> チューナー競合
-                                            </span>
-                                        {/if}
-                                        {#if item.isOverlap}
-                                            <span class="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                                重複スキップ
-                                            </span>
-                                        {/if}
-                                        <span class="text-xs font-bold text-slate-600 dark:text-slate-300">
+            <!-- 録画リスト (再生ボタンを目立たせて配置) -->
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <div class="mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                            <Video size={18} class="text-emerald-500" />
+                            録画リスト
+                        </h2>
+                        <span
+                            class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                        >
+                            {recordedTotal.toLocaleString()} 件
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onclick={() => router.push('/recorded')}
+                        class="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                        すべて見る <ArrowRight size={14} />
+                    </button>
+                </div>
+                {#if isLoading}
+                    <p class="py-8 text-center text-xs text-slate-400">読み込み中...</p>
+                {:else if latestRecorded.length === 0}
+                    <p class="py-8 text-center text-xs text-slate-400">録画データがありません</p>
+                {:else}
+                    <div class="space-y-2.5">
+                        {#each latestRecorded as item}
+                            <div
+                                class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40"
+                            >
+                                <div
+                                    onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
+                                    class="min-w-0 flex-1 cursor-pointer group"
+                                    role="button"
+                                    tabindex="0"
+                                    onkeydown={e => {
+                                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
+                                    }}
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                             {channelStore.getChannelName(item.channelId)}
                                         </span>
+                                        <span class="text-[11px] text-slate-400">
+                                            {formatDate(item.startAt)}
+                                            {formatTime(item.startAt)}
+                                        </span>
                                     </div>
-                                    <h3 class="mt-1 truncate text-xs font-bold text-slate-900 dark:text-slate-100">
+                                    <h3
+                                        class="mt-0.5 truncate text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400"
+                                    >
                                         {item.name}
                                     </h3>
                                 </div>
 
-                                <div class="shrink-0 text-right">
-                                    {#if item.isRecording && readOnlyStore.canLiveStream}
-                                        <button
-                                            type="button"
-                                            onclick={() => router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`)}
-                                            class="flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-rose-700 transition"
-                                        >
-                                            <Play size={12} fill="currentColor" /> 視聴
-                                        </button>
-                                    {:else if item.isRecording}
-                                        <span class="text-[11px] font-bold text-rose-500">録画中</span>
-                                    {:else}
-                                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                            {formatDate(item.startAt)} {formatTime(item.startAt)}
-                                        </span>
-                                    {/if}
-                                </div>
+                                <!-- 再生ボタン (目立つ青色ボタン) -->
+                                {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                                    <button
+                                        type="button"
+                                        onclick={e => {
+                                            e.stopPropagation();
+                                            handleRecordedPlay(item);
+                                        }}
+                                        class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
+                                        title="今すぐ再生"
+                                    >
+                                        <Play size={13} fill="currentColor" /> 再生
+                                    </button>
+                                {/if}
                             </div>
-
-                            <!-- 録画中番組の進行状況バー -->
-                            {#if item.isRecording}
-                                <div class="flex items-center gap-2 pt-1 border-t border-rose-200/50 dark:border-rose-900/30">
-                                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950">
-                                        <div
-                                            class="h-full rounded-full bg-rose-600 transition-all duration-500"
-                                            style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
-                                        ></div>
-                                    </div>
-                                    <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400">
-                                        {getRecordingProgress(item.startAt, item.endAt)}% ({formatTime(item.startAt)} - {formatTime(item.endAt)})
-                                    </span>
-                                </div>
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
-            {/if}
-        </div>
-
-        <!-- 録画リスト (再生ボタンを目立たせて配置) -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <div class="mb-4 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
-                        <Video size={18} class="text-emerald-500" />
-                        録画リスト
-                    </h2>
-                    <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                        {recordedTotal.toLocaleString()} 件
-                    </span>
-                </div>
-                <button
-                    type="button"
-                    onclick={() => router.push('/recorded')}
-                    class="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                >
-                    すべて見る <ArrowRight size={14} />
-                </button>
+                        {/each}
+                    </div>
+                {/if}
             </div>
-            {#if isLoading}
-                <p class="py-8 text-center text-xs text-slate-400">読み込み中...</p>
-            {:else if latestRecorded.length === 0}
-                <p class="py-8 text-center text-xs text-slate-400">録画データがありません</p>
-            {:else}
-                <div class="space-y-2.5">
-                    {#each latestRecorded as item}
-                        <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40">
-                            <div
-                                onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
-                                class="min-w-0 flex-1 cursor-pointer group"
-                                role="button"
-                                tabindex="0"
-                                onkeydown={(e) => { if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`); }}
-                            >
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        {channelStore.getChannelName(item.channelId)}
-                                    </span>
-                                    <span class="text-[11px] text-slate-400">
-                                        {formatDate(item.startAt)} {formatTime(item.startAt)}
-                                    </span>
-                                </div>
-                                <h3 class="mt-0.5 truncate text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400">
-                                    {item.name}
-                                </h3>
-                            </div>
-
-                            <!-- 再生ボタン (目立つ青色ボタン) -->
-                            {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
-                                <button
-                                    type="button"
-                                    onclick={(e) => { e.stopPropagation(); handleRecordedPlay(item); }}
-                                    class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
-                                    title="今すぐ再生"
-                                >
-                                    <Play size={13} fill="currentColor" /> 再生
-                                </button>
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
-            {/if}
         </div>
     </div>
-</div>
 {/if}
 
 <!-- ストリーム選択モーダル -->

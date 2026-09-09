@@ -28,7 +28,7 @@
         Layers,
         Info,
         HardDrive,
-        FileText
+        FileText,
     } from '@lucide/svelte';
 
     let recorded = $state<apid.RecordedItem | null>(null);
@@ -65,28 +65,32 @@
         try {
             const [, res] = await Promise.all([
                 channelStore.fetch(),
-                http.get(`/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`),
+                http.get(
+                    `/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`,
+                ),
             ]);
             recorded = res.data;
 
-            http.get('/api/config').then(configRes => {
-                const encList = configRes.data?.encode || [];
-                encodeModes = encList.map((e: any) => typeof e === 'string' ? { name: e, suffix: '' } : e);
-                recordedDirs = configRes.data?.recorded || [];
+            http.get('/api/config')
+                .then(configRes => {
+                    const encList = configRes.data?.encode || [];
+                    encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
+                    recordedDirs = configRes.data?.recorded || [];
 
-                // 各プリセットの選択状態を初期化（既存があれば保持）
-                const defaultDir = recordedDirs[0] ?? '';
-                const next: Record<string, EncodePresetSelection> = {};
-                for (const mode of encodeModes) {
-                    next[mode.name] = encodeSelections[mode.name] ?? {
-                        enabled: false,
-                        isSaveSameDirectory: true,
-                        parentDir: defaultDir,
-                        directory: '',
-                    };
-                }
-                encodeSelections = next;
-            }).catch(() => {});
+                    // 各プリセットの選択状態を初期化（既存があれば保持）
+                    const defaultDir = recordedDirs[0] ?? '';
+                    const next: Record<string, EncodePresetSelection> = {};
+                    for (const mode of encodeModes) {
+                        next[mode.name] = encodeSelections[mode.name] ?? {
+                            enabled: false,
+                            isSaveSameDirectory: true,
+                            parentDir: defaultDir,
+                            directory: '',
+                        };
+                    }
+                    encodeSelections = next;
+                })
+                .catch(() => {});
         } catch (e) {
             console.error('Failed to fetch recorded detail', e);
             snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
@@ -313,11 +317,15 @@
     </div>
 
     {#if isLoading}
-        <div class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+        >
             <p class="text-xs text-slate-400">録画詳細を読み込み中...</p>
         </div>
     {:else if !recorded}
-        <div class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+        >
             <AlertTriangle size={36} class="text-amber-500 mb-2" />
             <p class="text-sm font-bold text-slate-800 dark:text-slate-200">録画情報が見つかりませんでした</p>
             <button
@@ -330,7 +338,9 @@
         </div>
     {:else}
         <!-- メイン詳細カード -->
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
             <div class="grid grid-cols-1 md:grid-cols-3">
                 <!-- 左側: サムネイル & クイック再生 -->
                 <div class="relative aspect-video w-full bg-slate-900 md:aspect-auto">
@@ -346,7 +356,9 @@
                         </div>
                     {/if}
 
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-2xs transition hover:bg-black/20">
+                    <div
+                        class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-2xs transition hover:bg-black/20"
+                    >
                         <button
                             type="button"
                             onclick={handleThumbnailPlay}
@@ -363,16 +375,22 @@
                 <div class="p-6 md:col-span-2 space-y-4">
                     <div>
                         <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <span class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            <span
+                                class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                            >
                                 {channelStore.getChannelName(recorded.channelId)}
                             </span>
                             {#if typeof recorded.genre1 === 'number'}
-                                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                <span
+                                    class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                >
                                     ジャンル: {recorded.genre1}
                                 </span>
                             {/if}
                             {#if recorded.isProtected}
-                                <span class="flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                <span
+                                    class="flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                >
                                     <Lock size={12} /> 保護中
                                 </span>
                             {/if}
@@ -382,7 +400,9 @@
                             {recorded.name}
                         </h1>
 
-                        <div class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <div
+                            class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                        >
                             <Clock size={14} />
                             <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
                             <span>({formatDuration(recorded.endAt - recorded.startAt)})</span>
@@ -405,7 +425,7 @@
                         {#if !readOnlyStore.isReadOnly}
                             <button
                                 type="button"
-                                onclick={() => isEncodeModalOpen = true}
+                                onclick={() => (isEncodeModalOpen = true)}
                                 class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                             >
                                 <Sparkles size={14} class="text-amber-500" /> エンコード追加
@@ -438,7 +458,9 @@
 
                 {#if recorded.extended}
                     <div>
-                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">詳細情報・出演者</h2>
+                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                            詳細情報・出演者
+                        </h2>
                         <div class="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
                             {recorded.extended}
                         </div>
@@ -456,16 +478,26 @@
 
             <div class="space-y-3">
                 {#each recorded.videoFiles || [] as file}
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40">
+                    <div
+                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">
-                                <span class="rounded px-2 py-0.5 text-[11px] font-black uppercase {file.type === 'encoded' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}">
+                                <span
+                                    class="rounded px-2 py-0.5 text-[11px] font-black uppercase {file.type === 'encoded'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}"
+                                >
                                     {file.name}
                                 </span>
-                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{file.filename}</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                                    {file.filename}
+                                </span>
                             </div>
                             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                容量: <strong class="text-slate-700 dark:text-slate-300">{formatSize(file.size)}</strong>
+                                容量: <strong class="text-slate-700 dark:text-slate-300">
+                                    {formatSize(file.size)}
+                                </strong>
                             </p>
                         </div>
 
@@ -547,10 +579,12 @@
         <button
             type="button"
             class="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            onclick={() => isEncodeModalOpen = false}
+            onclick={() => (isEncodeModalOpen = false)}
             aria-label="閉じる"
         ></button>
-        <div class="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+        >
             <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">エンコード追加</h3>
 
             <div class="space-y-3 text-xs">
@@ -564,7 +598,11 @@
                             {@const sel = encodeSelections[mode.name]}
                             {#if sel}
                                 <!-- プリセット行 -->
-                                <div class="rounded-xl border transition {sel.enabled ? 'border-blue-400 bg-blue-50/40 dark:border-blue-600 dark:bg-blue-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                                <div
+                                    class="rounded-xl border transition {sel.enabled
+                                        ? 'border-blue-400 bg-blue-50/40 dark:border-blue-600 dark:bg-blue-950/30'
+                                        : 'border-slate-200 dark:border-slate-700'}"
+                                >
                                     <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
                                     <div class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
                                         <!-- チェックボックス + 名前 -->
@@ -574,7 +612,9 @@
                                                 bind:checked={sel.enabled}
                                                 class="h-4 w-4 rounded border-slate-300 accent-blue-600"
                                             />
-                                            <span class="font-bold text-slate-900 dark:text-slate-100">{mode.name}</span>
+                                            <span class="font-bold text-slate-900 dark:text-slate-100">
+                                                {mode.name}
+                                            </span>
                                             {#if mode.suffix}
                                                 <span class="text-slate-400 font-mono">({mode.suffix})</span>
                                             {/if}
@@ -588,7 +628,9 @@
                                                     bind:checked={sel.isSaveSameDirectory}
                                                     class="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
                                                 />
-                                                <span class="text-slate-600 dark:text-slate-300">元ファイルと同じ場所</span>
+                                                <span class="text-slate-600 dark:text-slate-300">
+                                                    元ファイルと同じ場所
+                                                </span>
                                             </label>
 
                                             {#if !sel.isSaveSameDirectory}
@@ -632,7 +674,9 @@
                             bind:checked={isRemoveOriginal}
                             class="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
                         />
-                        <span class="font-bold text-slate-700 dark:text-slate-300">エンコード完了後に元ファイルを削除する</span>
+                        <span class="font-bold text-slate-700 dark:text-slate-300">
+                            エンコード完了後に元ファイルを削除する
+                        </span>
                     </label>
                 </div>
             </div>
@@ -640,7 +684,7 @@
             <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
                     type="button"
-                    onclick={() => isEncodeModalOpen = false}
+                    onclick={() => (isEncodeModalOpen = false)}
                     class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                 >
                     キャンセル
@@ -657,17 +701,18 @@
     </div>
 {/if}
 
-
 <!-- ドロップログモーダル -->
 {#if isDropLogModalOpen}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
         <button
             type="button"
             class="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            onclick={() => isDropLogModalOpen = false}
+            onclick={() => (isDropLogModalOpen = false)}
             aria-label="閉じる"
         ></button>
-        <div class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div
+            class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+        >
             <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">ドロップログ</h3>
 
             {#if isLoadingDropLog}
@@ -687,7 +732,9 @@
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
                             <p class="text-slate-400 text-[11px]">スクランブル</p>
-                            <p class="text-base font-black text-slate-700 dark:text-slate-300">{dropLogData.scrambling || 0}</p>
+                            <p class="text-base font-black text-slate-700 dark:text-slate-300">
+                                {dropLogData.scrambling || 0}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -696,7 +743,7 @@
             <div class="mt-6 flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
                 <button
                     type="button"
-                    onclick={() => isDropLogModalOpen = false}
+                    onclick={() => (isDropLogModalOpen = false)}
                     class="rounded-xl bg-slate-100 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
                 >
                     閉じる

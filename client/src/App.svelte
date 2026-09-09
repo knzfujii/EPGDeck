@@ -94,7 +94,9 @@
     });
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+<div
+    class="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
+>
     <Navigation {isMobileOpen} {isDesktopCollapsed} onCloseMobile={() => (isMobileOpen = false)} />
 
     <div class="flex flex-1 flex-col min-w-0 overflow-hidden">

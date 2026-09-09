@@ -1,5 +1,4 @@
 import { injectable } from 'inversify';
-import * as apid from '../../api';
 import IIPCClient, {
     IPCOperatorEncodeEvent,
     IPCRecordedManageModel,
@@ -13,7 +12,7 @@ import IIPCClient, {
 @injectable()
 export default class MockIPCClient implements IIPCClient {
     public reserveation: IPCReservationManageModel = {
-        getBroadcastStatus: async () => ({ isBroadcasting: false }),
+        getBroadcastStatus: async () => ({ GR: false, BS: false, CS: false, SKY: false }),
         add: async () => 1,
         update: async () => {},
         updateRule: async () => {},
@@ -69,4 +68,3 @@ export default class MockIPCClient implements IIPCClient {
         emitFinishEncode: async () => {},
     };
 }
-

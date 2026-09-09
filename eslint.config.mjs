@@ -34,7 +34,7 @@ export default [
             '@typescript-eslint/no-require-imports': 'off',
             '@typescript-eslint/ban-ts-comment': 'off',
             '@typescript-eslint/no-floating-promises': 'error',
-            'no-constant-condition': 'off',
+            'no-constant-condition': 'error',
             'no-useless-escape': 'error',
             'no-async-promise-executor': 'error',
             'no-useless-assignment': 'error',

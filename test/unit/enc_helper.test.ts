@@ -1,5 +1,7 @@
+import { createRequire } from 'node:module';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-// @ts-ignore
+
+const require = createRequire(__filename);
 const { timeStrToSeconds, buildFFmpegArgs } = require('../../config/enc_helper.js');
 
 describe('enc_helper.js', () => {

@@ -35,7 +35,7 @@ export default [
             '@typescript-eslint/ban-ts-comment': 'off',
             '@typescript-eslint/no-floating-promises': 'error',
             'no-constant-condition': 'off',
-            'no-useless-escape': 'off',
+            'no-useless-escape': 'error',
             'no-async-promise-executor': 'error',
             'no-useless-assignment': 'error',
             'preserve-caught-error': 'off',

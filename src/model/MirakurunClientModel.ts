@@ -36,7 +36,7 @@ export default class MirakurunClientModel implements IMirakurunClientModel {
         if (/\\\\.\\pipe/.test(mirakurunPath)) {
             this.client.socketPath = mirakurunPath;
         } else if (/(?:\/|\+)unix:/.test(mirakurunPath) === true) {
-            const standardFormat = /^http\+unix:\/\/([^\/]+)(\/?.*)$/;
+            const standardFormat = /^http\+unix:\/\/([^/]+)(\/?.*)$/;
             const legacyFormat = /^http:\/\/unix:([^:]+):?(.*)$/;
 
             if (standardFormat.test(mirakurunPath) === true) {

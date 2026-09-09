@@ -238,7 +238,7 @@ export default abstract class RecordedStreamBaseModel
         const option: CreateProcessOption = {
             input: this.isRecording === true ? null : this.videoFilePath,
             output:
-                this.getStreamType() === 'RecordedHLS' ? `${streamFileDir}\/stream${streamId.toString(10)}.m3u8` : null,
+                this.getStreamType() === 'RecordedHLS' ? `${streamFileDir}/stream${streamId.toString(10)}.m3u8` : null,
             cmd: cmd,
             priority: RecordedStreamBaseModel.ENCODE_PROCESS_PRIORITY,
         };

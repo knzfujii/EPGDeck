@@ -90,7 +90,7 @@ namespace StrUtil {
 
         return tmp
             .replace(/"/g, '”')
-            .replace(/\'/g, '’')
+            .replace(/'/g, '’')
             .replace(/`/g, '‘')
             .replace(/ /g, '　')
             .replace(/~/g, '〜')
@@ -120,12 +120,12 @@ namespace StrUtil {
      */
     export const replaceDirName = (str: string): string => {
         return str
-            .replace(/\:/g, '：')
+            .replace(/:/g, '：')
             .replace(/\*/g, '＊')
             .replace(/\?/g, '？')
-            .replace(/\"/g, '”')
-            .replace(/\</g, '＜')
-            .replace(/\>/g, '＞')
+            .replace(/"/g, '”')
+            .replace(/</g, '＜')
+            .replace(/>/g, '＞')
             .replace(/\|/g, '｜')
             .replace(/\./g, '．');
     };
@@ -136,7 +136,7 @@ namespace StrUtil {
      * @return string
      */
     export const replaceFileName = (str: string): string => {
-        return StrUtil.replaceDirName(str).replace(/\//g, '／').replace(/\\/g, '￥').replace(/\¥/g, '￥');
+        return StrUtil.replaceDirName(str).replace(/\//g, '／').replace(/\\/g, '￥').replace(/¥/g, '￥');
     };
 
     /**

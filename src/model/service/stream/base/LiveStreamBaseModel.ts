@@ -64,7 +64,7 @@ export default abstract class LiveStreamBaseModel
 
         return {
             input: null,
-            output: this.getStreamType() === 'LiveHLS' ? `${streamFileDir}\/stream${streamId}.m3u8` : null,
+            output: this.getStreamType() === 'LiveHLS' ? `${streamFileDir}/stream${streamId}.m3u8` : null,
             cmd: cmd,
             priority: LiveStreamBaseModel.ENCODE_PROCESS_PRIORITY,
         };

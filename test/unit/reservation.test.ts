@@ -156,4 +156,111 @@ describe('ReservationManageModel', () => {
             } as any),
         ).rejects.toThrow('AddReservationOptionError');
     });
+
+    it('should reject manual reservation when neither programId nor timeSpecifiedOption is set', async () => {
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            dummyReserveDB,
+            dummyChannelDB,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(reservationModel.add({} as any)).rejects.toThrow('AddReservationOptionError');
+    });
+
+    it('should reject manual reservation if encodeOption is invalid when timeSpecifiedOption is set', async () => {
+        const optionCheckerWithInvalidEncode: any = {
+            ...dummyOptionChecker,
+            checkEncodeOption: vi.fn().mockReturnValue(false),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            optionCheckerWithInvalidEncode,
+            dummyReserveDB,
+            dummyChannelDB,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(
+            reservationModel.add({
+                timeSpecifiedOption: {
+                    name: 'Manual Rec',
+                    startAt: 1000,
+                    endAt: 2000,
+                    channelId: 1,
+                },
+                encodeOption: {
+                    mode1: 'invalid',
+                } as any,
+            } as any),
+        ).rejects.toThrow('AddReservationOptionError');
+    });
+
+    it('should reject editing reservation if encodeOption is invalid', async () => {
+        const optionCheckerWithInvalidEncode: any = {
+            ...dummyOptionChecker,
+            checkEncodeOption: vi.fn().mockReturnValue(false),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            optionCheckerWithInvalidEncode,
+            dummyReserveDB,
+            dummyChannelDB,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(
+            reservationModel.edit(1, {
+                encodeOption: {
+                    mode1: 'invalid',
+                } as any,
+            } as any),
+        ).rejects.toThrow('ReservationEditError');
+    });
+
+    it('should accept editing reservation without programId/timeSpecifiedOption when options are valid', async () => {
+        const mockExistingReserve: any = {
+            id: 1,
+            allowEndLack: false,
+        };
+        const mockReserveDB: any = {
+            findId: vi.fn().mockResolvedValue(mockExistingReserve),
+            updateOnce: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB,
+            dummyChannelDB,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(
+            reservationModel.edit(1, {
+                allowEndLack: true,
+            } as any),
+        ).resolves.toBeUndefined();
+
+        expect(mockReserveDB.updateOnce).toHaveBeenCalled();
+    });
 });

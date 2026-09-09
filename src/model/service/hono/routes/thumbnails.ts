@@ -17,6 +17,18 @@ app.post('/cleanup', async c => {
     }
 });
 
+// POST /api/thumbnails/regenerate
+app.post('/regenerate', async c => {
+    const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+
+    try {
+        await thumbnailApiModel.regenerate();
+        return api.responseJSON(c, 200, { code: 200 });
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
 // POST /api/thumbnails/videos/:videoFileId
 app.post('/videos/:videoFileId', async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');

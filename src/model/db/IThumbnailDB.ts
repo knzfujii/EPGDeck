@@ -8,4 +8,5 @@ export default interface IThumbnailDB {
     deleteRecordedId(recordedId: apid.RecordedId): Promise<void>;
     findId(thumbnailId: apid.ThumbnailId): Promise<Thumbnail | null>;
     findAll(): Promise<Thumbnail[]>;
+    updateFilePath(thumbnailId: apid.ThumbnailId, filePath: string): Promise<void>;
 }

@@ -94,6 +94,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
 
         const fileName = await this.getSaveFileName(videoFile.recordedId);
         const output = path.join(this.config.recording.thumbnail.path, fileName);
+        await FileUtil.mkdir(path.dirname(output));
         const cmdStr = (
             this.config.recording.thumbnail.cmd ||
             '%FFMPEG% -ss %THUMBNAIL_POSITION% -y -i %INPUT% -vframes 1 -f image2 -s %THUMBNAIL_SIZE% %OUTPUT%'
@@ -181,22 +182,33 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     }
 
     /**
-     * 重複しないサムネイルファイル名を返す
+     * recordedId からサブディレクトリ名を取得する (末尾2桁: 00 - 99)
      * @param recordedId: recorded id
-     * @param conflict: 重複数
      * @return string
      */
+    public static getSubDir(recordedId: apid.RecordedId): string {
+        return String(Math.abs(recordedId) % 100).padStart(2, '0');
+    }
+
+    /**
+     * 重複しないサムネイルファイル相対パスを返す
+     * @param recordedId: recorded id
+     * @param conflict: 重複数
+     * @return string (例: "45/12345.jpg")
+     */
     private async getSaveFileName(recordedId: apid.RecordedId, conflict: number = 0): Promise<string> {
+        const subDir = ThumbnailManageModel.getSubDir(recordedId);
         const conflictStr = conflict === 0 ? '' : `(${conflict})`;
         const fileName = `${recordedId}${conflictStr}.jpg`;
-        const filePath = path.join(this.config.recording.thumbnail.path, fileName);
+        const relativePath = path.posix.join(subDir, fileName);
+        const filePath = path.join(this.config.recording.thumbnail.path, relativePath);
 
         try {
             await FileUtil.stat(filePath);
 
             return this.getSaveFileName(recordedId, conflict + 1);
         } catch (err: any) {
-            return fileName;
+            return relativePath;
         }
     }
 
@@ -228,7 +240,30 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
             throw err;
         });
 
+        // サブディレクトリ内の場合、ディレクトリが空なら削除
+        await ThumbnailManageModel.cleanEmptyParentDir(filePath, this.config.recording.thumbnail.path);
+
         this.thumbnailEvent.emitDeleted();
+    }
+
+    /**
+     * 指定されたファイルパスの親ディレクトリが、ベースディレクトリ配下のサブディレクトリかつ空の場合に削除する
+     * @param filePath: string ファイルパス
+     * @param baseDir: string サムネイル基底ディレクトリ
+     */
+    public static async cleanEmptyParentDir(filePath: string, baseDir: string): Promise<void> {
+        const parentDir = path.resolve(path.dirname(filePath));
+        const resolvedBaseDir = path.resolve(baseDir);
+
+        if (parentDir !== resolvedBaseDir && parentDir.startsWith(resolvedBaseDir)) {
+            try {
+                if (await FileUtil.isEmptyDirectory(parentDir)) {
+                    await fs.promises.rmdir(parentDir);
+                }
+            } catch (err: any) {
+                // ディレクトリ削除失敗は致命的でないため無視
+            }
+        }
     }
 
     /**
@@ -307,14 +342,14 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         this.log.system.info('start thumbnail files cleanup');
         const thumbnails = await this.thumbnailDB.findAll();
 
-        // ファイル, ディレクトリ索引生成と DB 上に存在するが実ファイルが存在しないデータを削除する
-        const fileIndex: { [filePath: string]: boolean } = {}; // ファイル索引
+        // ファイル索引生成と DB 上に存在するが実ファイルが存在しないデータを削除する
+        const fileIndex = new Set<string>();
         for (const thumbnail of thumbnails) {
             const filePath = path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
 
             if ((await this.checkFileExistence(filePath)) === true) {
                 // ファイルが存在するなら索引に追加
-                fileIndex[filePath] = true;
+                fileIndex.add(filePath);
             } else {
                 this.log.system.warn(`thumbnail file is not exist: ${filePath}`);
                 // ファイルが存在しないなら削除
@@ -327,7 +362,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         // ファイル索引上に存在しないファイルを削除する
         const list = await FileUtil.getFileList(this.config.recording.thumbnail.path);
         for (const file of list.files) {
-            if (typeof fileIndex[file] !== 'undefined') {
+            if (fileIndex.has(file)) {
                 continue;
             }
 
@@ -336,6 +371,19 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
                 this.log.system.error(`failed to thumbnail file: ${file}`);
                 this.log.system.error(err);
             });
+        }
+
+        // 空になったサブディレクトリを削除する (深いディレクトリから順に)
+        const sortedDirs = [...list.directories].sort((a, b) => b.length - a.length);
+        for (const dir of sortedDirs) {
+            try {
+                if (await FileUtil.isEmptyDirectory(dir)) {
+                    await fs.promises.rmdir(dir);
+                    this.log.system.info(`delete empty directory: ${dir}`);
+                }
+            } catch (err: any) {
+                // 無視
+            }
         }
 
         this.log.system.info('start thumbnail files cleanup completed');

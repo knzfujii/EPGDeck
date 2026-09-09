@@ -8,7 +8,8 @@
 data/*.db
 data/*.db-*
 recorded/*
-thumbnail/*.jpg
+thumbnail/*
+!thumbnail/.gitkeep
 data/streamfiles/*
 .DS_Store
 config/*

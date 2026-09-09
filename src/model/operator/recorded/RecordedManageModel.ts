@@ -13,6 +13,7 @@ import IRecordedDB from '../../db/IRecordedDB';
 import IRecordedHistoryDB from '../../db/IRecordedHistoryDB';
 import IThumbnailDB from '../../db/IThumbnailDB';
 import IVideoFileDB from '../../db/IVideoFileDB';
+import ThumbnailManageModel from '../thumbnail/ThumbnailManageModel';
 import IRecordedEvent from '../../event/IRecordedEvent';
 import IConfigFile from '../../IConfigFile';
 import IConfiguration from '../../IConfiguration';
@@ -108,6 +109,7 @@ export default class RecordedManageModel implements IRecordedManageModel {
                     this.log.system.error(`failed to delete ${filePath}`);
                     this.log.system.error(err);
                 });
+                await ThumbnailManageModel.cleanEmptyParentDir(filePath, this.config.recording.thumbnail.path);
             }
         }
 

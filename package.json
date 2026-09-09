@@ -28,6 +28,7 @@
     "watch": "npm run dev",
     "backup": "node --enable-source-maps dist/DBTools.js -m backup -o",
     "restore": "node --enable-source-maps dist/DBTools.js -m restore -o",
+    "migrate-thumbnails": "node --enable-source-maps dist/tools/MigrateThumbnails.js",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest",

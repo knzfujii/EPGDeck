@@ -466,16 +466,22 @@ export default class IPCClient implements IIPCClient {
     private setThumbnail(): void {
         this.thumbnail = {
             regenerate: () => {
-                return this.send({
-                    model: ModelName.thumbnail,
-                    func: ThumbnailFunctions.regenerate,
-                });
+                return this.send(
+                    {
+                        model: ModelName.thumbnail,
+                        func: ThumbnailFunctions.regenerate,
+                    },
+                    0, // タイムアウトなし
+                );
             },
             fileCleanup: () => {
-                return this.send({
-                    model: ModelName.thumbnail,
-                    func: ThumbnailFunctions.fileCleanup,
-                });
+                return this.send(
+                    {
+                        model: ModelName.thumbnail,
+                        func: ThumbnailFunctions.fileCleanup,
+                    },
+                    0, // タイムアウトなし
+                );
             },
             add: videoFileId => {
                 return this.send({

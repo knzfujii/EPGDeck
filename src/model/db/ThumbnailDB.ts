@@ -115,6 +115,15 @@ export default class ThumbnailDB implements IThumbnailDB {
         });
     }
 
+    public async updateFilePath(thumbnailId: apid.ThumbnailId, filePath: string): Promise<void> {
+        const client = this.drizzleOp.getDB();
+
+        await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            await (db as any).update(schema.thumbnails).set({ filePath }).where(eq(schema.thumbnails.id, thumbnailId));
+        });
+    }
+
     private toEntity(row: any): Thumbnail {
         const entity = new Thumbnail();
         entity.id = row.id;

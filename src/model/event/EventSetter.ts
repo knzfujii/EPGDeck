@@ -383,7 +383,7 @@ export default class EventSetter implements IEventSetter {
      * @return Promise<void>
      */
     private async setTag(recordedId: apid.RecordedId, tagsStr: string): Promise<void> {
-        let tags: apid.RecordedTagId[] = [];
+        let tags: apid.RecordedTagId[];
         try {
             tags = JSON.parse(tagsStr);
         } catch (err: any) {

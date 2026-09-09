@@ -331,7 +331,6 @@ class RecorderModel implements IRecorderModel {
             } catch (err: any) {
                 this.log.system.error(`drop check error: ${recPath.fullPath}`);
                 this.log.system.error(err);
-                dropFilePath = null;
             }
 
             // drop 情報を DB へ反映

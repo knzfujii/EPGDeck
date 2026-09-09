@@ -110,7 +110,7 @@ export default class StorageManageModel implements IStorageManageModel {
                     this.log.system.info(`name: ${l.name}, free: ${free}, threshold: ${l.limitThreshold}`);
 
                     // 削除
-                    let recorded: Recorded | null = null;
+                    let recorded: Recorded | null;
                     try {
                         recorded = await this.recordedDB.findOld();
                     } catch (err: any) {

@@ -249,7 +249,7 @@ class ReservationManageModel implements IReservationManageModel {
         }
 
         // 予約対象の番組情報を取得する
-        let program: Program | null = null;
+        let program: Program | null;
         try {
             // 番組情報取得
             program = await this.programDB.findId(option.programId);
@@ -376,7 +376,7 @@ class ReservationManageModel implements IReservationManageModel {
         newReserve.updateTime = new Date().getTime();
 
         // 番組情報を検索する
-        let program: Program | null = null;
+        let program: Program | null;
         try {
             program = await this.programDB.findId(programId);
         } catch (err: any) {
@@ -421,7 +421,7 @@ class ReservationManageModel implements IReservationManageModel {
      */
     private async checkSingleReserveConflict(newReserve: Reserve): Promise<void> {
         // 追加する予約情報と重複する予約情報を取得 (競合, 除外, 重複しているものは除く)
-        let reserves: Reserve[] = [];
+        let reserves: Reserve[];
         try {
             reserves = await this.reserveDB.findTimeRanges({
                 times: [

@@ -153,7 +153,7 @@ export default class ChannelDB implements IChannelDB {
     private sortChannels(channels: Channel[]): Channel[] {
         const config = this.configuration.getConfig();
 
-        let order: number[] = [];
+        let order: number[];
         let key: string;
         if (typeof config.epg.channelOrder !== 'undefined') {
             order = config.epg.channelOrder;

@@ -181,10 +181,8 @@ export default class RecordedDB implements IRecordedDB {
             const isNeedsDropLog = typeof columnOption !== 'undefined' && columnOption.isNeedsDropLog === true;
             const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
 
-            let records: any[] = [];
             const { db, schema } = client;
-
-            records = await (db as any)
+            const records: any[] = await (db as any)
                 .select()
                 .from(schema.recorded)
                 .where(inArray(schema.recorded.id, recordedIds))

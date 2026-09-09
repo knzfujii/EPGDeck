@@ -37,7 +37,7 @@ export default [
             'no-constant-condition': 'off',
             'no-useless-escape': 'off',
             'no-async-promise-executor': 'error',
-            'no-useless-assignment': 'off',
+            'no-useless-assignment': 'error',
             'preserve-caught-error': 'off',
         },
     },

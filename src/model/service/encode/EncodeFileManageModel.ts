@@ -18,9 +18,8 @@ export default class EncodeFileManageModel implements IEncodeFileManageModel {
     public async getFilePath(outputDirPath: string, inputFilePath: string, suffix: string): Promise<string> {
         const basefileName = path.basename(inputFilePath, path.extname(inputFilePath));
 
-        let result: string | null = null;
         let conflict = 0;
-        while (1) {
+        while (true) {
             // ファイル名生成
             let fileName = basefileName;
             if (conflict > 0) {
@@ -28,7 +27,7 @@ export default class EncodeFileManageModel implements IEncodeFileManageModel {
             }
             fileName += suffix;
 
-            result = path.join(outputDirPath, fileName);
+            const result = path.join(outputDirPath, fileName);
 
             // 使用済みファイル名に一致するか
             if (typeof this.usedFileNameIndex[result] !== 'undefined') {
@@ -42,18 +41,12 @@ export default class EncodeFileManageModel implements IEncodeFileManageModel {
                 conflict++;
             } catch (e: any) {
                 // 同名ファイルがすでに存在しなかった
-                break;
+                // 使用済みファイル名として登録する
+                this.usedFileNameIndex[result] = true;
+
+                return result;
             }
         }
-
-        if (result === null) {
-            throw new Error('GetFilePathError');
-        }
-
-        // 使用済みファイル名として登録する
-        this.usedFileNameIndex[result] = true;
-
-        return result;
     }
 
     /**

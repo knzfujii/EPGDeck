@@ -97,25 +97,37 @@ export default class EventSetter implements IEventSetter {
         // ルール追加イベント
         this.ruleEvent.setAdded(ruleId => {
             this.ipc.notifyClient();
-            this.reservationManage.updateRule(ruleId);
+            this.reservationManage.updateRule(ruleId).catch(err => {
+                this.log.system.error(`failed to update rule. ruleId: ${ruleId}`);
+                this.log.system.error(err);
+            });
         });
 
         // ルール更新イベント
         this.ruleEvent.setUpdated(ruleId => {
             this.ipc.notifyClient();
-            this.reservationManage.updateRule(ruleId);
+            this.reservationManage.updateRule(ruleId).catch(err => {
+                this.log.system.error(`failed to update rule. ruleId: ${ruleId}`);
+                this.log.system.error(err);
+            });
         });
 
         // ルール有効化イベント
         this.ruleEvent.setEnabled(ruleId => {
             this.ipc.notifyClient();
-            this.reservationManage.updateRule(ruleId);
+            this.reservationManage.updateRule(ruleId).catch(err => {
+                this.log.system.error(`failed to update rule. ruleId: ${ruleId}`);
+                this.log.system.error(err);
+            });
         });
 
         // ルール無効化イベント
         this.ruleEvent.setDisabled(ruleId => {
             this.ipc.notifyClient();
-            this.reservationManage.updateRule(ruleId);
+            this.reservationManage.updateRule(ruleId).catch(err => {
+                this.log.system.error(`failed to update rule. ruleId: ${ruleId}`);
+                this.log.system.error(err);
+            });
         });
 
         // ルール削除イベント
@@ -134,7 +146,10 @@ export default class EventSetter implements IEventSetter {
         // 予約情報更新イベント
         this.reserveEvent.setUpdated(diff => {
             this.ipc.notifyClient();
-            this.recordingManage.update(diff);
+            this.recordingManage.update(diff).catch(err => {
+                this.log.system.error('failed to update recording manage');
+                this.log.system.error(err);
+            });
 
             // コマンド実行
             this.externalCommandManage.addUpdateReseves(diff);
@@ -155,7 +170,10 @@ export default class EventSetter implements IEventSetter {
         // 録画準備失敗イベント
         this.recordingEvent.setPrepRecordingFailed(reserve => {
             this.ipc.notifyClient();
-            this.reservationManage.cancel(reserve.id); // 予約から削除
+            this.reservationManage.cancel(reserve.id).catch(err => {
+                this.log.system.error(`failed to cancel reserve: ${reserve.id}`);
+                this.log.system.error(err);
+            });
             this.externalCommandManage.addRecordingPrepRecFailedCmd(reserve);
         });
 
@@ -286,7 +304,10 @@ export default class EventSetter implements IEventSetter {
 
             // cancel reserve
             if (recorded.isRecording === true && recorded.reserveId !== null) {
-                this.reservationManage.cancel(recorded.reserveId);
+                this.reservationManage.cancel(recorded.reserveId).catch(err => {
+                    this.log.system.error(`failed to cancel reserve: ${recorded.reserveId}`);
+                    this.log.system.error(err);
+                });
             }
         });
 

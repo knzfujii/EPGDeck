@@ -88,7 +88,7 @@ export default class IPCClient implements IIPCClient {
                 this.socketIO.notifyClient();
             } else if ((<ParentMessage>msg).type === 'pushEncode') {
                 // エンコード依頼
-                this.encodeManage.push((<PushEncodeMessage>msg).value);
+                await this.encodeManage.push((<PushEncodeMessage>msg).value);
             } else if ((<ParentMessage>msg).type === 'pushLog') {
                 // 親プロセス（Operator）からのログ集約
                 this.logManage.push((<PushLogMessage>msg).entry);

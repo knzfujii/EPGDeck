@@ -256,4 +256,7 @@ class DBTools {
     }
 }
 
-new DBTools().run();
+new DBTools().run().catch(err => {
+    console.error(err);
+    process.exit(1);
+});

@@ -141,6 +141,9 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
         }
 
         // restart
-        this.execute();
+        this.execute().catch(err => {
+            this.log.system.error('failed to restart epg updater');
+            this.log.system.error(err);
+        });
     }
 }

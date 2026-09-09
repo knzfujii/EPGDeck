@@ -125,3 +125,27 @@ GitHub Actions Runner (ubuntu-latest)
 3. **無駄な CI の自動スキップ**:
    - `paths-ignore`: ドキュメント（`docs/**`, `*.md`）変更時は CI を起動せず無料枠を温存。
    - `concurrency`: 同一ブランチへの連続プッシュ時、古い進行中ジョブを自動キャンセル。
+
+---
+
+## 6. 静的解析 & 型検査アーキテクチャ (Static Analysis & Type Integrity)
+
+実行時エラー（特に非同期処理の握りつぶしや unhandledRejection）を未然に防ぎ、長期的な保守性を維持するため、以下の静的解析・型検査基盤を配備しています。
+
+### 6.1 Floating Promise（`await` 漏れ）の完全防止
+- **`@typescript-eslint/no-floating-promises: error`**:
+  `Promise` を返す関数呼び出しにおいて、`await`、`.catch()`、または `void` 演算子による明示的な無視のいずれも行われていないコード（Floating Promise）を ESLint で厳格にエラーとして検出します。
+- **方針**:
+  - 順序制御や結果待ちが必要な処理: `await` を付与
+  - バックグラウンド実行（Fire-and-forget）で例外ログが必要な処理: `.catch(err => { log.error(err); })` を付与
+  - 意図的な非同期起動（キュー投入など、例外が内部で捕捉済みの処理）: `void` を明示
+
+### 6.2 テストコードを含めた網羅的型検査 (`tsconfig.test.json`)
+- 通常の `tsconfig.json` は本番ビルド（`dist/` への出力）用として `src/` のみを対象としていますが、テストコード（`test/`）の型整合性を担保するため、`noEmit: true` の `tsconfig.test.json` を配備しています。
+- これにより、本番成果物にテストファイルを含めることなく、ESLint（Type-aware rules）および `npm run typecheck`（`tsc -p tsconfig.test.json`）でテストコードやモック実装の型エラーを 100% 検知します。
+
+### 6.3 フロントエンド・バックエンド統一フォーマット
+- **Prettier 3 + `prettier-plugin-svelte`**:
+  サーバー（TypeScript / JSON / YAML）およびクライアント（Svelte 5 / Tailwind CSS / TypeScript）のフォーマットを統一。
+- **CI / Git Hooks 連動**:
+  CI パイプライン（`npm run check`）および `lint-staged` によるコミット前フックでフォーマット崩れを自動抑止します。

@@ -56,7 +56,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     public add(videoFileId: apid.VideoFileId): void {
         this.log.system.info(`add thumbnail queue: ${videoFileId}`);
 
-        this.queue.add<void>(() => {
+        void this.queue.add<void>(() => {
             return this.create(videoFileId).catch(err => {
                 this.log.system.error(`create thumbnail error: ${videoFileId}`);
                 this.log.system.error(err);

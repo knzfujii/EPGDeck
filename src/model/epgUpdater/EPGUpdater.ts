@@ -75,7 +75,7 @@ class EPGUpdater implements IEPGUpdater {
         const tunerServerType = await this.updateManage.checkTunerServerType();
 
         // event streamを開始
-        this.startEventStreamAnalysis();
+        void this.startEventStreamAnalysis();
 
         // 放送中や放送開始時刻が間近の番組は短いサイクルでDBへ保存する
         // NOTE: DB負荷などを考慮しEvent受信と同時のDB反映は見合わせる
@@ -86,10 +86,10 @@ class EPGUpdater implements IEPGUpdater {
                 if (this.isEventStreamAlive === true) {
                     if (tunerServerType === TunerServerType.mirakurun) {
                         // mirakurun の場合
-                        this.updateMirakurunEventStream(updateInterval, now);
+                        await this.updateMirakurunEventStream(updateInterval, now);
                     } else {
                         // mirakc の場合
-                        this.updateMirakcEvent(updateInterval, now);
+                        await this.updateMirakcEvent(updateInterval, now);
                     }
                 } else if (this.isEventStreamAlive === false && this.lastUpdatedTime + updateInterval * 1.5 <= now) {
                     await this.updateManage.updateAll();

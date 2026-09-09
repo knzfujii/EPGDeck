@@ -279,12 +279,12 @@ class EncoderModel implements IEncoderModel {
 
         // プロセス終了処理
         this.childProcess.on('exit', async (code, signal) => {
-            this.childEndProcessing(code, signal, outputFilePath, stderrBuffer);
+            await this.childEndProcessing(code, signal, outputFilePath, stderrBuffer);
         });
 
         // プロセスの即時終了対応
         if (ProcessUtil.isExited(this.childProcess) === true) {
-            this.childEndProcessing(
+            await this.childEndProcessing(
                 this.childProcess.exitCode,
                 this.childProcess.signalCode,
                 outputFilePath,

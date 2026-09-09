@@ -156,7 +156,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param reserve: Reserve
      */
     private addReserve(cmd: string, reserve: Reserve): void {
-        this.queue.add<void>(() => {
+        void this.queue.add<void>(() => {
             return this.createReserveCmd(cmd, reserve).catch(err => {
                 this.log.system.error(`execute cmd error: ${cmd}`);
                 this.log.system.error(err);
@@ -170,7 +170,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param reserve: Recorded
      */
     private addRecorded(cmd: string, reserve: Recorded): void {
-        this.queue.add<void>(() => {
+        void this.queue.add<void>(() => {
             return this.createRecordedCmd(cmd, reserve).catch(err => {
                 this.log.system.error(`execute cmd error: ${cmd}`);
                 this.log.system.error(err);
@@ -184,7 +184,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param info OperatorFinishEncodeInfo
      */
     private addFinishEncode(cmd: string, info: OperatorFinishEncodeInfo): void {
-        this.queue.add<void>(() => {
+        void this.queue.add<void>(() => {
             return this.createFinishEncodeCmd(cmd, info).catch(err => {
                 this.log.system.error(`execute cmd error: ${cmd}`);
                 this.log.system.error(err);

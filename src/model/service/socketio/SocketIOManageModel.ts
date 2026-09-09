@@ -39,10 +39,10 @@ export default class SocketIOManageModel implements ISocketIOManageModel {
 
             io.on('connection', socket => {
                 socket.on('subscribeLogs', () => {
-                    socket.join('logs');
+                    void socket.join('logs');
                 });
                 socket.on('unsubscribeLogs', () => {
-                    socket.leave('logs');
+                    void socket.leave('logs');
                 });
             });
 

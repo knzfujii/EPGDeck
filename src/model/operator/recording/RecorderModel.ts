@@ -138,7 +138,7 @@ class RecorderModel implements IRecorderModel {
         }
         this.timerId = setTimeout(async () => {
             try {
-                this.prepRecord();
+                await this.prepRecord();
             } catch (err: any) {
                 this.log.system.error(`failed prep record: ${this.reserve.id}`);
             }
@@ -207,7 +207,7 @@ class RecorderModel implements IRecorderModel {
             if (retry < 3) {
                 // retry
                 setTimeout(() => {
-                    this.prepRecord(retry + 1);
+                    void this.prepRecord(retry + 1);
                 }, 1000 * 5);
             } else {
                 this.isPrepRecording = false;
@@ -309,7 +309,7 @@ class RecorderModel implements IRecorderModel {
             this.log.system.error(`recFile error reserveId: ${this.reserve.id}, recordedId: ${this.recordedId}`);
             this.log.system.error(err);
             if (this.stream === null) {
-                this.cancel(false);
+                await this.cancel(false);
             } else {
                 this.isCanceledCallingFinished = true; // mirakurun の stream の終了処理を行わないようにセット
                 await this.recFailed(err).catch(err => {
@@ -471,9 +471,8 @@ class RecorderModel implements IRecorderModel {
     /**
      * 終了処理追加
      * @param s: Mirakurun からのストリーム
-     * @returns Promise<Recorded>
      */
-    private async setEndProcess(s: http.IncomingMessage): Promise<void> {
+    private setEndProcess(s: http.IncomingMessage): void {
         this.log.system.info(`set stream.finished: reserveId: ${this.reserve.id} recordedId: ${this.recordedId}`);
         stream.finished(s, {}, async err => {
             // 終了処理が呼ばれていたら無視する
@@ -923,7 +922,7 @@ class RecorderModel implements IRecorderModel {
         if (this.isRecording === true && this.recordedId !== null) {
             const recorded = await this.createRecorded();
             this.log.system.info(`update reocrded: ${this.recordedId}`);
-            this.recordedDB.updateOnce(recorded);
+            await this.recordedDB.updateOnce(recorded);
         }
     }
 

@@ -33,7 +33,7 @@ export default [
             '@typescript-eslint/no-namespace': 'off',
             '@typescript-eslint/no-require-imports': 'off',
             '@typescript-eslint/ban-ts-comment': 'off',
-            '@typescript-eslint/no-floating-promises': 'warn',
+            '@typescript-eslint/no-floating-promises': 'error',
             'no-constant-condition': 'off',
             'no-useless-escape': 'off',
             'no-async-promise-executor': 'off',

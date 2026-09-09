@@ -156,14 +156,14 @@ const runService = async () => {
         }
         log.system.fatal('service process is down');
         log.system.fatal('restart service');
-        runService();
+        void runService();
     });
     child.once('error', () => {
         serviceChild = null;
         if (isShuttingDown) {
             return;
         }
-        runService();
+        void runService();
     });
 
     // buffer が埋まらないようにする
@@ -199,10 +199,10 @@ const cleanup = async () => {
  */
 const runEPGUpdater = async () => {
     const epgUpdateExecutorManageModel = container.get<IEPGUpdateExecutorManageModel>('IEPGUpdateExecutorManageModel');
-    epgUpdateExecutorManageModel.execute();
+    await epgUpdateExecutorManageModel.execute();
 };
 
-(async () => {
+void (async () => {
     try {
         await init();
     } catch (err: any) {

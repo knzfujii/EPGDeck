@@ -207,7 +207,7 @@ export default class IPCServer implements IIPCServer {
             if (isUntilComplete === true) {
                 await this.reservationManage.updateAll();
             } else {
-                this.reservationManage.updateAll();
+                void this.reservationManage.updateAll();
             }
         };
 

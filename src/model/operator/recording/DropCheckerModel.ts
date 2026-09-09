@@ -76,7 +76,7 @@ class DropCheckerModel implements IDropCheckerModel {
         });
 
         this.tsPacketAnalyzer.on('packetError', (pid, counter, expected) => {
-            this.appendFile(
+            void this.appendFile(
                 `error: (pid: ${this.pidToString(pid)}, counter: ${counter || '-'}, expected: ${
                     expected || '-'
                 }, time: ${this.getTime()})\n`,
@@ -85,7 +85,7 @@ class DropCheckerModel implements IDropCheckerModel {
         });
 
         this.tsPacketAnalyzer.on('packetDrop', (pid, counter, expected) => {
-            this.appendFile(
+            void this.appendFile(
                 `drop (pid: ${this.pidToString(pid)}, counter: ${counter || '-'}, expected: ${
                     expected || '-'
                 }, time: ${this.getTime()})\n`,
@@ -94,12 +94,12 @@ class DropCheckerModel implements IDropCheckerModel {
         });
 
         this.tsPacketAnalyzer.on('packetScrambling', pid => {
-            this.appendFile(`scrambling (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
+            void this.appendFile(`scrambling (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
             this.hasError = true;
         });
 
         this.tsPacketAnalyzer.on('finish', () => {
-            this.onFinish();
+            void this.onFinish();
         });
 
         this.tsSectionAnalyzer.on('time', time => {
@@ -122,7 +122,7 @@ class DropCheckerModel implements IDropCheckerModel {
         stream.finished(readableStream, {}, async err => {
             if (err) {
                 this.log.system.error(`drop log check stream error: ${srcFilePath}`);
-                this.stop();
+                await this.stop();
             }
         });
     }

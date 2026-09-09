@@ -103,23 +103,26 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
   ```bash
   $ npm run test:watch
   ```
-- **サーバー側 Lint & フォーマット**:
-  ```bash
-  $ npm run lint
-  $ npm run format
-  ```
-- **サーバー側 TypeScript 型チェック**:
-  ```bash
-  $ npm run compile
-  ```
-- **クライアント側 Lint**:
-  ```bash
-  $ cd client && npm run lint
-  ```
 - **全自動包括チェック（コミット前推奨）**:
-  サーバー・クライアントの Lint、フォーマット、型チェック、単体テスト、Vite ビルドを一括実行して検証します。
+  サーバー・クライアントの Lint、フォーマットチェック、型チェック、単体テスト、ビルドを一括実行して検証します。
   ```bash
   $ npm run check
+  ```
+- **サーバー & テストコード型チェック (`tsc`)**:
+  `src/` および `test/` 配下の TypeScript 型エラーを網羅的に検証します（テスト専用のモック型不整合も検出）。
+  ```bash
+  $ npm run typecheck
+  ```
+- **Lint (ESLint / Floating Promise 厳格検査)**:
+  ```bash
+  $ npm run lint          # 自動修正
+  $ npm run lint:check    # チェックのみ
+  ```
+- **コード整形 (Prettier)**:
+  サーバーおよびクライアント（Svelte 5 / TypeScript）のコードを一括整形します。
+  ```bash
+  $ npm run format        # 自動フォーマット
+  $ npm run format:check  # フォーマット検証のみ
   ```
 - **MariaDB / MySQL 実機結合テスト**:
   ローカルの Docker コンテナ（ポート `13306`）を起動し、DDL・インデックス・主要 DAO の CRUD を検証します。

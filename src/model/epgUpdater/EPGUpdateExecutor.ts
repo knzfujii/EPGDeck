@@ -46,7 +46,7 @@ process.on('SIGINT', () => {
 
 const updater = container.get<IEPGUpdater>('IEPGUpdater');
 
-(async () => {
+void (async () => {
     // 初回更新 or event stream 更新時にエラーが発生する
     await updater.start().catch(() => {
         process.exit(1);

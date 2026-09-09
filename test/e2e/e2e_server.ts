@@ -58,7 +58,7 @@ async function main() {
     });
 
     const cleanupAndExit = async () => {
-        io.close();
+        await io.close();
         server.close();
         await drizzleOp.closeConnection();
         process.exit(0);

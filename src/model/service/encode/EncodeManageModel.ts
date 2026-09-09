@@ -162,7 +162,7 @@ class EncodeManageModel implements IEncodeManageModel {
         this.executeManagementModel.unLockExecution(exeId);
 
         if (needsFinalize === true) {
-            this.finalize(encodeOption.encodeId);
+            await this.finalize(encodeOption.encodeId);
         }
     }
 
@@ -204,7 +204,10 @@ class EncodeManageModel implements IEncodeManageModel {
         }
 
         // 終了処理
-        this.finalize(encodeOption.encodeId);
+        this.finalize(encodeOption.encodeId).catch(err => {
+            this.log.encode.error(`finalize error: ${encodeOption.encodeId}`);
+            this.log.encode.error(err);
+        });
     }
 
     /**

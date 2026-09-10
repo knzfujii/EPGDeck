@@ -32,22 +32,22 @@
             items.push({ label: 'ダッシュボード', path: '/', icon: LayoutDashboard });
         }
         if (readOnlyStore.canLiveStream) {
-            items.push({ label: '放映中', path: '/onair', icon: Tv });
+            items.push({ label: '放送中', path: '/onair', icon: Tv });
         }
-        // 番組表・録画済み・予約一覧は常時表示
+        // 番組表・録画一覧・予約一覧は常時表示
         items.push(
             { label: '番組表', path: '/guide', icon: Calendar },
-            { label: '録画済み', path: '/recorded', icon: Video },
+            { label: '録画一覧', path: '/recorded', icon: Video },
             { label: '予約一覧', path: '/reserves', icon: Clock },
         );
         if (readOnlyStore.canViewSearch) {
             items.push({ label: '番組検索', path: '/search', icon: Search });
         }
         if (readOnlyStore.canViewRules) {
-            items.push({ label: 'ルール管理', path: '/rule', icon: SlidersHorizontal });
+            items.push({ label: 'ルール一覧', path: '/rule', icon: SlidersHorizontal });
         }
         if (readOnlyStore.canViewEncode) {
-            items.push({ label: 'エンコード', path: '/encode', icon: Film });
+            items.push({ label: 'エンコード一覧', path: '/encode', icon: Film });
         }
         if (!readOnlyStore.isReadOnly) {
             items.push(

@@ -70,7 +70,7 @@
             onclick={() => router.replace('/recorded')}
             class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
         >
-            録画済み一覧へ
+            録画一覧へ
         </button>
     </div>
 {:else}
@@ -81,7 +81,7 @@
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
                     <SettingsIcon size={20} class="text-blue-600 dark:text-blue-400" />
-                    アプリケーション設定
+                    設定
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400">表示・動作設定のカスタマイズ</p>
             </div>

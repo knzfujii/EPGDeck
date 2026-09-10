@@ -90,14 +90,14 @@
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            手動予約の作成は制限されています。録画済み一覧へリダイレクトします...
+            手動予約の作成は制限されています。録画一覧へリダイレクトします...
         </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
             class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
         >
-            録画済み一覧へ
+            録画一覧へ
         </button>
     </div>
 {:else}

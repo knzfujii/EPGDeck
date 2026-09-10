@@ -19,10 +19,10 @@ test.describe('Dashboard Page (/)', () => {
 
         await page.goto('/');
 
-        // 1. 予約リスト・録画リストの見出し
+        // 1. 予約一覧・録画一覧の見出し
         const main = page.locator('main');
-        await expect(main.getByRole('heading', { name: '予約リスト' })).toBeVisible();
-        await expect(main.getByRole('heading', { name: '録画リスト' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: '予約一覧' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: '録画一覧' })).toBeVisible();
 
         // 2. ダッシュボードに統合されたストレージ容量カード
         const storageCardBtn = main.getByRole('button', { name: /ストレージ容量/ });

@@ -228,7 +228,7 @@
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
                     <Video size={20} class="text-blue-600 dark:text-blue-400" />
-                    録画済み一覧
+                    録画一覧
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400">
                     全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>

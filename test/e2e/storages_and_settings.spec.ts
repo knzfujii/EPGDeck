@@ -48,7 +48,7 @@ test.describe('Storages and Settings Pages', () => {
         await page.waitForLoadState('networkidle');
 
         // 1. ヘッダーとタイトル
-        await expect(page.locator('h1')).toContainText('アプリケーション設定');
+        await expect(page.locator('h1')).toContainText('設定');
         await expect(page.getByRole('heading', { name: '外観・テーマ' })).toBeVisible();
 
         // 2. 半角表示チェックボックスの操作

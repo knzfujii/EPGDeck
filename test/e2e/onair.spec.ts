@@ -21,7 +21,7 @@ test.describe('OnAir Page (/onair)', () => {
         await page.waitForLoadState('networkidle');
 
         // 1. ヘッダーとタイトル
-        await expect(page.locator('h1')).toContainText('放映中');
+        await expect(page.locator('h1')).toContainText('放送中');
 
         // 2. 放送波フィルタ（すべて、地デジ、BSなど）
         await expect(page.getByRole('button', { name: 'すべて' })).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('OnAir Page (/onair)', () => {
         await page.getByRole('button', { name: '地デジ' }).click();
         await page.getByRole('button', { name: 'すべて' }).click();
 
-        // 4. 放映中番組カードが存在する場合のモーダル検証
+        // 4. 放送中番組カードが存在する場合のモーダル検証
         const playButtons = page.locator('button[aria-label="動画を再生"], button:has-text("再生する")');
         const playCount = await playButtons.count();
 

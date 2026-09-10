@@ -856,7 +856,7 @@
                 onclick={() => router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded')}
                 class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
             >
-                {readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画済み一覧へ'}
+                {readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画一覧へ'}
             </button>
         </div>
     {:else if isLoading}

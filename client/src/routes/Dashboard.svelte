@@ -68,7 +68,7 @@
             recordedTotal = recordedRes.data.total || 0;
             storages = storagesRes.data?.items || [];
 
-            // 予約リストに録画中フラグを付与
+            // 予約一覧に録画中フラグを付与
             const now = Date.now();
             const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
             upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
@@ -201,14 +201,14 @@
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            ダッシュボードの閲覧は制限されています。録画済み一覧へリダイレクトします...
+            ダッシュボードの閲覧は制限されています。録画一覧へリダイレクトします...
         </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
             class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
         >
-            録画済み一覧へ
+            録画一覧へ
         </button>
     </div>
 {:else}
@@ -539,7 +539,7 @@
                     <div class="flex items-center gap-2">
                         <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
                             <Clock size={18} class="text-amber-500" />
-                            予約リスト
+                            予約一覧
                         </h2>
                         <span
                             class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
@@ -650,7 +650,7 @@
                 {/if}
             </div>
 
-            <!-- 録画リスト (再生ボタンを目立たせて配置) -->
+            <!-- 録画一覧 (再生ボタンを目立たせて配置) -->
             <div
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
@@ -658,7 +658,7 @@
                     <div class="flex items-center gap-2">
                         <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
                             <Video size={18} class="text-emerald-500" />
-                            録画リスト
+                            録画一覧
                         </h2>
                         <span
                             class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"

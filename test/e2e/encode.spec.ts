@@ -20,7 +20,7 @@ test.describe('Encode Feature & Recorded Detail Encode Modal', () => {
         await page.goto('/encode');
 
         // ヘッダーとセクションカードの確認
-        await expect(page.locator('h1')).toContainText('エンコード管理');
+        await expect(page.locator('h1')).toContainText('エンコード一覧');
         await expect(page.getByRole('heading', { name: /実行中のエンコード/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /待機キュー/ })).toBeVisible();
 

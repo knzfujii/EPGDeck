@@ -57,8 +57,8 @@ test.describe('Search and Rules Management Pages', () => {
         await page.goto('/rule');
         await page.waitForLoadState('networkidle');
 
-        // 1. ルール管理ヘッダー
-        await expect(page.locator('h1')).toContainText('自動録画ルール');
+        // 1. ルール一覧ヘッダー
+        await expect(page.locator('h1')).toContainText('ルール一覧');
 
         // 2. ルール新規作成ボタン
         const addRuleButton = page.getByRole('button', { name: /ルール追加|新規ルール/ }).first();

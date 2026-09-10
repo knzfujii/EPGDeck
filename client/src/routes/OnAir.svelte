@@ -101,7 +101,7 @@
             onAirList = list;
         } catch (e) {
             console.error('Failed to fetch on-air schedules', e);
-            if (!isSilent) snackbar.open({ text: '放映中データの取得に失敗しました', color: 'error' });
+            if (!isSilent) snackbar.open({ text: '放送中データの取得に失敗しました', color: 'error' });
         } finally {
             if (!isSilent) isLoading = false;
         }
@@ -183,14 +183,14 @@
         <Lock size={32} class="text-amber-500 mb-2" />
         <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            オンエアー（放映中）画面の閲覧は制限されています。録画済み一覧へリダイレクトします...
+            放送中画面の閲覧は制限されています。録画一覧へリダイレクトします...
         </p>
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
             class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
         >
-            録画済み一覧へ
+            録画一覧へ
         </button>
     </div>
 {:else}
@@ -202,7 +202,7 @@
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
                     <Radio size={20} class="text-blue-600 dark:text-blue-400" />
-                    放映中の番組
+                    放送中の番組
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400">
                     現在放送中の番組 ＆ 次の番組一覧（クリックで番組詳細・予約）
@@ -230,14 +230,14 @@
             <div
                 class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
             >
-                <p class="text-sm font-medium text-slate-400">放映中データを取得中...</p>
+                <p class="text-sm font-medium text-slate-400">放送中データを取得中...</p>
             </div>
         {:else if filteredList.length === 0}
             <div
                 class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
             >
                 <Tv size={36} class="text-slate-300 dark:text-slate-600" />
-                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">放映中の番組が見つかりません</p>
+                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">放送中の番組が見つかりません</p>
             </div>
         {:else}
             <div
@@ -411,7 +411,7 @@
                             <span
                                 class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                             >
-                                現在放映中
+                                現在放送中
                             </span>
                         {/if}
                     </div>
@@ -513,7 +513,7 @@
 
                 <div class="flex items-center gap-2">
                     {#if !readOnlyStore.isReadOnly}
-                        <!-- 番組予約ボタン (次番組はもちろん、放映中番組の録画も可能) -->
+                        <!-- 番組予約ボタン (次番組はもちろん、放送中番組の録画も可能) -->
                         <button
                             type="button"
                             disabled={isReserving}

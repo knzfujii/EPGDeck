@@ -21,7 +21,7 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.waitForLoadState('networkidle');
 
         // 1. ヘッダーとタイトル
-        await expect(page.locator('h1')).toContainText('録画済み一覧');
+        await expect(page.locator('h1')).toContainText('録画一覧');
 
         // 2. 検索バーとフィルタ
         const searchInput = page.getByPlaceholder('録画を検索...');

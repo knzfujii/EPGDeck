@@ -115,7 +115,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const cancelBtn = page.getByRole('button', { name: 'キャンセル' });
         await cancelBtn.click();
         await page.waitForURL('**/rule');
-        await expect(page.locator('h1')).toContainText('自動録画ルール');
+        await expect(page.locator('h1')).toContainText('ルール一覧');
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

@@ -90,12 +90,21 @@ const runOperator = async () => {
 
 let serviceChild: child_process.ChildProcess | null = null;
 let isShuttingDown: boolean = false;
+let serviceRestartCount: number = 0;
+let serviceStartTime: number = 0;
+let serviceRestartTimer: NodeJS.Timeout | null = null;
 
-const shutdown = (signal: string) => {
+const shutdown = async (signal: string) => {
     if (isShuttingDown) {
         return;
     }
     isShuttingDown = true;
+
+    if (serviceRestartTimer !== null) {
+        clearTimeout(serviceRestartTimer);
+        serviceRestartTimer = null;
+    }
+
     try {
         const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
         log.system.info(`received ${signal}, shutting down gracefully...`);
@@ -104,20 +113,39 @@ const shutdown = (signal: string) => {
     }
 
     if (serviceChild !== null) {
-        serviceChild.removeAllListeners();
+        const targetChild = serviceChild;
+        serviceChild = null;
+        targetChild.removeAllListeners();
+
         try {
-            serviceChild.kill('SIGTERM');
+            targetChild.kill('SIGTERM');
         } catch {
             // ignore
         }
-        serviceChild = null;
+
+        // 子プロセスのクリーン終了を最大 5 秒待つ
+        await new Promise<void>(resolve => {
+            const timeout = setTimeout(() => {
+                try {
+                    targetChild.kill('SIGKILL');
+                } catch {
+                    // ignore
+                }
+                resolve();
+            }, 5000);
+
+            targetChild.once('exit', () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+        });
     }
 
     process.exit(0);
 };
 
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('exit', () => {
     if (serviceChild !== null) {
         serviceChild.removeAllListeners();
@@ -138,6 +166,7 @@ const runService = async () => {
         return;
     }
 
+    serviceStartTime = Date.now();
     const child = child_process.spawn(
         process.argv[0],
         [...process.execArgv, path.join(__dirname, 'model', 'service', 'ServiceExecutor.js')],
@@ -147,24 +176,33 @@ const runService = async () => {
     );
     serviceChild = child;
 
-    // 終了したら再起動
+    // 終了したら再起動（バックオフ機構付き）
     const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
-    child.once('exit', () => {
+    const handleExit = () => {
         serviceChild = null;
         if (isShuttingDown) {
             return;
         }
-        log.system.fatal('service process is down');
-        log.system.fatal('restart service');
-        void runService();
-    });
-    child.once('error', () => {
-        serviceChild = null;
-        if (isShuttingDown) {
-            return;
+
+        // 60秒以上安定稼働していたら連続クラッシュ回数をリセット
+        if (Date.now() - serviceStartTime > 60 * 1000) {
+            serviceRestartCount = 0;
         }
-        void runService();
-    });
+
+        serviceRestartCount++;
+        // 指数バックオフ: 1秒, 2秒, 4秒... 最大30秒
+        const delay = Math.min(1000 * Math.pow(2, serviceRestartCount - 1), 30000);
+
+        log.system.fatal(`service process is down. restarting in ${delay}ms (retry count: ${serviceRestartCount})...`);
+
+        serviceRestartTimer = setTimeout(() => {
+            serviceRestartTimer = null;
+            void runService();
+        }, delay);
+    };
+
+    child.once('exit', handleExit);
+    child.once('error', handleExit);
 
     // buffer が埋まらないようにする
     if (child.stdout !== null) {

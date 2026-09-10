@@ -1,0 +1,48 @@
+[Unit]
+Description=EPGDeck Recording Server
+After=network.target network-online.target mirakurun.service mariadb.service mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# 実行ユーザーおよびグループ（環境に合わせて変更してください）
+User=john
+Group=john
+
+# インストール先ディレクトリ
+WorkingDirectory=/home/john/EPGDeck
+
+# 必要に応じて環境変数や PATH を指定（mise をご利用の場合は shims パスを指定）
+# Environment=PATH=/home/john/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin
+# Environment=NODE_ENV=production
+
+# 起動コマンド（Node.js の絶対パスまたは mise exec 経由）
+ExecStart=/usr/bin/node --enable-source-maps dist/index.js
+
+# プロセス停止・シグナル制御
+# KillMode=mixed: まず親プロセスに SIGTERM を送信してグレースフルシャットダウンを行い、
+# 猶予時間（TimeoutStopSec）内に終了しなかった残存子プロセス（ffmpeg等）を強制終了します。
+KillMode=mixed
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+
+# 24365 連続稼働のための自動再起動設定
+Restart=always
+RestartSec=3s
+
+# パーミッション制御
+# UMask=0002: 作成される録画ファイルやディレクトリにグループ書き込み権限（rw-rw-r-- / rwxrwxr-x）を付与し、
+# Samba や NFS 等の共有ストレージ経由で別ユーザーからの編集・削除を容易にします。
+UMask=0002
+
+# ファイルディスクリプタ上限（同時録画・HLS配信・DB接続対策）
+LimitNOFILE=65536
+
+# ログ出力（systemd-journald によるログ収集・ローテーション管理）
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=epgdeck
+
+[Install]
+WantedBy=multi-user.target

@@ -25,18 +25,49 @@ process.on('unhandledRejection', err => {
     log.system.fatal(`unhandledRejection: ${err}`);
 });
 
+import IEncodeProcessManageModel from './encode/IEncodeProcessManageModel';
+import IStreamManageModel from './stream/manager/IStreamManageModel';
+
+let isExiting = false;
+const cleanExit = async (reason: string) => {
+    if (isExiting) {
+        return;
+    }
+    isExiting = true;
+    log.system.info(`ServiceExecutor is exiting (${reason}). cleaning up child processes...`);
+
+    try {
+        if (container.isBound('IStreamManageModel')) {
+            const streamManage = container.get<IStreamManageModel>('IStreamManageModel');
+            await streamManage.stopAll();
+        }
+    } catch (err: any) {
+        log.system.error(`failed to stop all streams: ${err?.message || err}`);
+    }
+
+    try {
+        if (container.isBound('IEncodeProcessManageModel')) {
+            const encodeProcessManage = container.get<IEncodeProcessManageModel>('IEncodeProcessManageModel');
+            await encodeProcessManage.killAll();
+        }
+    } catch (err: any) {
+        log.system.error(`failed to kill all encode processes: ${err?.message || err}`);
+    }
+
+    process.exit(0);
+};
+
 // 親プロセス（Operator）が終了・切断されたら自プロセスも即座にクリーン終了する（バックグラウンド残存防止）
 process.on('disconnect', () => {
-    log.system.info('parent process disconnected, exiting ServiceExecutor');
-    process.exit(0);
+    void cleanExit('disconnect');
 });
 
 process.on('SIGTERM', () => {
-    process.exit(0);
+    void cleanExit('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-    process.exit(0);
+    void cleanExit('SIGINT');
 });
 
 const encodeFinishModel = container.get<IEncodeFinishModel>('IEncodeFinishModel');

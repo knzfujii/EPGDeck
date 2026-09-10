@@ -1,0 +1,61 @@
+services:
+  epgdeck:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: epgdeck:latest
+    container_name: epgdeck
+    restart: unless-stopped
+
+    # 実行ユーザーの指定（Samba/NAS やホスト環境での所有者トラブル防止）
+    # .env で指定した PUID / PGID で実行します（未指定時は 1000:1000）
+    user: "${PUID:-1000}:${PGID:-1000}"
+
+    ports:
+      - "${PORT:-8888}:8888"
+
+    environment:
+      - TZ=${TZ:-Asia/Tokyo}
+      - NODE_ENV=production
+
+    volumes:
+      # 設定ファイルディレクトリ
+      - ${CONFIG_DIR:-./config}:/app/config
+      # 録画データ保存先（Samba / NFS 共有フォルダを直接マウント可能）
+      - ${RECORDED_DIR:-./recorded}:/app/recorded
+      # サムネイル保存先
+      - ${THUMBNAIL_DIR:-./thumbnail}:/app/thumbnail
+      # ログ出力先
+      - ${LOGS_DIR:-./logs}:/app/logs
+      # SQLite / LibSQL 使用時のデータディレクトリ
+      - ${DATA_DIR:-./data}:/app/data
+      # Mirakurun がホストの Unix ドメインソケットで動作している場合（任意）:
+      # - /var/run/mirakurun.sock:/var/run/mirakurun.sock
+
+    # GPU ハードウェアアクセラレーション（Intel VAAPI / QSV）を利用する場合:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # group_add:
+    #   - "107" # ホストの render または video グループGID
+
+    # グレースフルシャットダウン猶予時間（録画ファイルの後処理を待つため30秒確保）
+    stop_grace_period: 30s
+
+    # Docker組み込みの tini によるゾンビプロセス回収
+    init: true
+
+    # 24365 連続稼働のためのログローテーション（ディスク溢れ防止）
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 死活監視（ヘルスチェック）
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/api/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+

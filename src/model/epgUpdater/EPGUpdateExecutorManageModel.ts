@@ -14,6 +14,9 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
     private ipcServer: IIPCServer;
     private currentExecutor: child_process.ChildProcess | null = null;
     private isShuttingDown: boolean = false;
+    private restartCount: number = 0;
+    private lastStartTime: number = 0;
+    private restartTimer: NodeJS.Timeout | null = null;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
@@ -26,6 +29,10 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
 
         const onShutdown = () => {
             this.isShuttingDown = true;
+            if (this.restartTimer !== null) {
+                clearTimeout(this.restartTimer);
+                this.restartTimer = null;
+            }
             if (this.currentExecutor !== null) {
                 this.currentExecutor.removeAllListeners();
                 try {
@@ -50,6 +57,7 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
             return;
         }
 
+        this.lastStartTime = Date.now();
         const executor = child_process.spawn(
             process.argv[0],
             [...process.execArgv, path.join(__dirname, 'EPGUpdateExecutor.js')],
@@ -140,10 +148,22 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
             executor.stderr.removeAllListeners();
         }
 
-        // restart
-        this.execute().catch(err => {
-            this.log.system.error('failed to restart epg updater');
-            this.log.system.error(err);
-        });
+        // 60秒以上安定稼働していたらリトライ回数をリセット
+        if (Date.now() - this.lastStartTime > 60 * 1000) {
+            this.restartCount = 0;
+        }
+
+        this.restartCount++;
+        const delay = Math.min(1000 * Math.pow(2, this.restartCount - 1), 30000);
+
+        this.log.system.warn(`epg updater will restart in ${delay}ms (retry count: ${this.restartCount})...`);
+
+        this.restartTimer = setTimeout(() => {
+            this.restartTimer = null;
+            this.execute().catch(err => {
+                this.log.system.error('failed to restart epg updater');
+                this.log.system.error(err);
+            });
+        }, delay);
     }
 }

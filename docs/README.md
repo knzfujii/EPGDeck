@@ -9,7 +9,9 @@ EPGDeck の利用ユーザー向けマニュアルおよび開発者向けドキ
 EPGDeck のインストール、設定、日常の運用に関するドキュメントです。
 
 - **[基本セットアップガイド](manual/setup.md)**
-  - Linux / macOS 環境でのインストール手順、mise での環境構築、サービスの自動起動設定（pm2）。
+  - Linux 環境でのインストール手順、mise での環境構築、サービスの自動起動設定（systemd / Docker Compose）。
+- **[実行ユーザー・パーミッション & 共有ストレージ (Samba / NAS) 設定](manual/storage_and_permissions.md)**
+  - 録画ファイルの所有者・UID/GID 制御、Samba / NFS 共有ストレージでのアクセス権限トラブル防止ガイド。
 - **[設定ファイル詳細マニュアル](manual/configuration.md)**
   - `config/config.yml` の各設定項目（ポート、録画先、エンコード、Mirakurun接続等）の解説。
 - **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**

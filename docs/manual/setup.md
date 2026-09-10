@@ -55,43 +55,72 @@
 
 ## EPGDeck の起動 / 終了
 
--   手動で起動する場合
+### 1. 手動で起動する場合 (テスト・開発用)
 
-    ```
-    $ npm start
-    ```
+```bash
+$ npm start
+```
 
--   自動で起動する場合
+終了する場合は、ターミナルで **`Ctrl+C` (SIGINT)** を送信します（グレースフルシャットダウン処理が行われます）。
 
-    -   [pm2](http://pm2.keymetrics.io/) を利用して自動起動設定が可能です
-    -   初回のみ以下の起動設定が必要です
+### 2. 24365 連続稼働（非コンテナ環境: systemd を利用）
 
-    ```
-    $ sudo npm install pm2 -g
-    $ sudo pm2 startup <OS名>
-    $ pm2 start dist/index.js --name "epgdeck"
-    $ pm2 save
-    ```
+Linux 環境では、OS ネイティブの **systemd** を利用して自動起動・自動復旧を行うことを推奨します。
 
--   手動で終了する場合
+1. ユニット定義ファイルのコピーと編集:
+   ```bash
+   $ sudo cp misc/systemd/epgdeck.service /etc/systemd/system/
+   # 実行ユーザー (User=) やパス (WorkingDirectory=, ExecStart=) をご自身の環境に合わせて編集
+   $ sudo nano /etc/systemd/system/epgdeck.service
+   ```
 
-    `npm start` で起動した場合は、ターミナルで **`Ctrl+C`（SIGINT）** を送信して終了します。
+2. サービスの有効化と起動:
+   ```bash
+   $ sudo systemctl daemon-reload
+   $ sudo systemctl enable epgdeck
+   $ sudo systemctl start epgdeck
+   ```
 
-    ```
-    $ Ctrl+C
-    ```
+3. 状態確認・ログ確認・停止:
+   ```bash
+   # 稼働ステータス確認
+   $ sudo systemctl status epgdeck
 
--   自動起動した EPGDeck を終了する場合
+   # リアルタイムログ確認
+   $ journalctl -u epgdeck -f
 
-    ```
-    $ pm2 stop epgdeck
-    ```
+   # サービス停止
+   $ sudo systemctl stop epgdeck
+   ```
 
--   自動起動登録した EPGDeck を削除する場合
+### 3. 24365 連続稼働（コンテナ環境: Docker を利用）
 
-    ```
-    $ pm2 delete epgdeck
-    ```
+Docker Compose を利用してコンテナとして運用する場合の手順です。
+
+1. 環境変数ファイルの設定:
+   ```bash
+   $ cp .env.example .env
+   # ホストの UID/GID、公開ポート、保存先ディレクトリ等を編集
+   $ nano .env
+   ```
+
+2. コンテナのビルドと起動:
+   ```bash
+   $ docker compose up -d --build
+   ```
+
+3. ログ確認・停止:
+   ```bash
+   # ログ確認
+   $ docker compose logs -f
+
+   # コンテナ停止
+   $ docker compose down
+   ```
+
+> [!TIP]
+> **実行ユーザーと Samba / NAS 共有ストレージの設定について**
+> 録画ファイルを Windows/Mac と共有する場合や、外部 NAS をマウントして利用する場合は、パーミッショントラブルを防ぐために必ず [実行ユーザー・パーミッション設定ガイド](storage_and_permissions.md) をご確認ください。
 
 ## MySQL (MariaDB) 使用時の注意
 

@@ -10,4 +10,5 @@ export interface CreateProcessOption {
 
 export default interface IEncodeProcessManageModel {
     create(option: CreateProcessOption): Promise<ChildProcess>;
+    killAll(): Promise<void>;
 }

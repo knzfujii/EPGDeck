@@ -62,6 +62,19 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
     }
 
     /**
+     * 管理下にあるすべてのエンコードプロセスを停止する
+     */
+    public async killAll(): Promise<void> {
+        const processIds = this.childs.map(c => c.processId);
+        for (const processId of processIds) {
+            await this.killChild(processId).catch(err => {
+                this.log.encode.error(`failed to kill encode child: ${processId}`);
+                this.log.encode.error(err);
+            });
+        }
+    }
+
+    /**
      * 指定された processId のプロセスを殺して、option で指定されたコマンドのプロセスを生成する
      * @param planToKillProcessId; number
      * @param option: CreateProcessOption

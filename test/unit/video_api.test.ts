@@ -176,3 +176,57 @@ describe('VideoApiModel - getVtt', () => {
         expect(spawnSpy).toHaveBeenCalledTimes(103);
     });
 });
+
+describe('VideoApiModel - getFullFilePath', () => {
+    let mockVideoUtil: any;
+    let videoApiModel: VideoApiModel;
+
+    beforeEach(() => {
+        mockVideoUtil = {
+            getFullFilePathFromId: vi.fn(),
+        };
+
+        videoApiModel = new VideoApiModel(
+            {} as any, // config
+            {} as any, // videoFileDB
+            {} as any, // recordedDB
+            {} as any, // apiUtil
+            mockVideoUtil,
+            {} as any, // ipc
+        );
+    });
+
+    it('should return null when file does not exist', async () => {
+        mockVideoUtil.getFullFilePathFromId.mockResolvedValue(null);
+        const result = await videoApiModel.getFullFilePath(999);
+        expect(result).toBeNull();
+    });
+
+    it('should return correct mime type for supported video formats', async () => {
+        const testCases = [
+            { path: '/path/to/sample.ts', expected: 'video/mp2t' },
+            { path: '/path/to/SAMPLE.TS', expected: 'video/mp2t' },
+            { path: '/path/to/sample.m2ts', expected: 'video/mp2t' },
+            { path: '/path/to/sample.mp4', expected: 'video/mp4' },
+            { path: '/path/to/sample.m4v', expected: 'video/mp4' },
+            { path: '/path/to/sample.mkv', expected: 'video/x-matroska' },
+            { path: '/path/to/sample.webm', expected: 'video/webm' },
+            { path: '/path/to/sample.mov', expected: 'video/quicktime' },
+        ];
+
+        for (let i = 0; i < testCases.length; i++) {
+            const tc = testCases[i];
+            mockVideoUtil.getFullFilePathFromId.mockResolvedValue(tc.path);
+            const res = await videoApiModel.getFullFilePath(i + 1);
+            expect(res).toEqual({
+                path: tc.path,
+                mime: tc.expected,
+            });
+        }
+    });
+
+    it('should throw error for unknown extensions', async () => {
+        mockVideoUtil.getFullFilePathFromId.mockResolvedValue('/path/to/sample.unknown');
+        await expect(videoApiModel.getFullFilePath(99)).rejects.toThrow('MimeTypeError');
+    });
+});

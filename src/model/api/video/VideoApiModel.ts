@@ -1,5 +1,4 @@
 import { spawn } from 'child_process';
-import * as fileType from 'file-type';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api';
@@ -50,25 +49,29 @@ export default class VideoApiModel implements IVideoApiModel {
             ? null
             : {
                   path: fullPath,
-                  mime: await this.createMime(fullPath),
+                  mime: this.createMime(fullPath),
               };
     }
 
     /**
-     * 指定されたファイルパスからファイルの mime を返す
+     * 指定されたファイルパスから拡張子に基づき動画ファイルの mime を返す
      * @param filePath: string ファイルパス
-     * @return Promise<string>
+     * @return string
      */
-    private async createMime(filePath: string): Promise<string> {
-        const mime = await fileType.fromFile(filePath);
-        if (typeof mime !== 'undefined') {
-            return mime.mime;
-        }
-
-        switch (path.extname(filePath)) {
+    private createMime(filePath: string): string {
+        switch (path.extname(filePath).toLowerCase()) {
             case '.m2ts':
             case '.ts':
                 return 'video/mp2t';
+            case '.mp4':
+            case '.m4v':
+                return 'video/mp4';
+            case '.mkv':
+                return 'video/x-matroska';
+            case '.webm':
+                return 'video/webm';
+            case '.mov':
+                return 'video/quicktime';
             default:
                 throw new Error('MimeTypeError');
         }

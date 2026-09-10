@@ -21,16 +21,21 @@
         SlidersHorizontal,
         Ban,
         RotateCcw,
+        Play,
     } from '@lucide/svelte';
 
-    let reserves = $state<apid.ReserveItem[]>([]);
+    interface ReserveWithRecording extends apid.ReserveItem {
+        isRecording?: boolean;
+    }
+
+    let reserves = $state<ReserveWithRecording[]>([]);
     let total = $state(0);
     let isLoading = $state(true);
-    let filterMode = $state<'all' | 'conflicts' | 'skips' | 'overlaps'>('all');
+    let filterMode = $state<'all' | 'recording' | 'conflicts' | 'skips' | 'overlaps'>('all');
 
     // 予約詳細モーダル状態
     let isDetailModalOpen = $state(false);
-    let selectedReserve = $state<apid.ReserveItem | null>(null);
+    let selectedReserve = $state<ReserveWithRecording | null>(null);
     let isCanceling = $state(false);
 
     // 予約オプション設定 (エンコードプリセット名 / 保存先ディレクトリ名)
@@ -136,13 +141,42 @@
 
     let unsubscribeSocket: (() => void) | null = null;
 
+    function getRecordingProgress(startAt: number, endAt: number): number {
+        const now = Date.now();
+        if (now <= startAt) return 0;
+        if (now >= endAt) return 100;
+        return Math.round(((now - startAt) / (endAt - startAt)) * 100);
+    }
+
     async function fetchReserves(isSilent = false) {
         if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
-            const res = await http.get('/api/reserves?limit=100&isHalfWidth=true');
-            reserves = res.data.reserves || [];
-            total = res.data.total || 0;
+            const [reservesRes, recordingRes] = await Promise.all([
+                http.get('/api/reserves?limit=100&isHalfWidth=true'),
+                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
+            ]);
+
+            const recordingList = recordingRes.data.records || [];
+            const now = Date.now();
+            const rawReserves: apid.ReserveItem[] = reservesRes.data.reserves || [];
+
+            reserves = rawReserves.map(r => {
+                const isCurrentlyRecording =
+                    recordingList.some(
+                        (rec: any) =>
+                            (rec.programId && r.programId && rec.programId === r.programId) ||
+                            (rec.channelId === r.channelId &&
+                                Math.abs(rec.startAt - r.startAt) < 60000 &&
+                                Math.abs(rec.endAt - r.endAt) < 60000),
+                    ) ||
+                    (r.startAt <= now && now < r.endAt && !r.isSkip);
+                return {
+                    ...r,
+                    isRecording: isCurrentlyRecording,
+                };
+            });
+            total = reservesRes.data.total || 0;
         } catch (e) {
             console.error('Failed to fetch reserves', e);
             if (!isSilent) snackbar.open({ text: '予約一覧の取得に失敗しました', color: 'error' });
@@ -183,15 +217,18 @@
     });
 
     let filteredReserves = $derived(
-        filterMode === 'conflicts'
-            ? reserves.filter(r => r.isConflict)
-            : filterMode === 'skips'
-              ? reserves.filter(r => r.isSkip)
-              : filterMode === 'overlaps'
-                ? reserves.filter(r => r.isOverlap)
-                : reserves,
+        filterMode === 'recording'
+            ? reserves.filter(r => r.isRecording)
+            : filterMode === 'conflicts'
+              ? reserves.filter(r => r.isConflict)
+              : filterMode === 'skips'
+                ? reserves.filter(r => r.isSkip)
+                : filterMode === 'overlaps'
+                  ? reserves.filter(r => r.isOverlap)
+                  : reserves,
     );
 
+    let recordingCount = $derived(reserves.filter(r => r.isRecording).length);
     let conflictCount = $derived(reserves.filter(r => r.isConflict).length);
     let skipCount = $derived(reserves.filter(r => r.isSkip).length);
     let overlapCount = $derived(reserves.filter(r => r.isOverlap).length);
@@ -275,6 +312,23 @@
                 </button>
                 <button
                     type="button"
+                    onclick={() => (filterMode = 'recording')}
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    'recording'
+                        ? 'bg-rose-600 text-white font-bold shadow-xs'
+                        : recordingCount > 0
+                          ? 'text-rose-600 font-bold'
+                          : 'text-slate-500'}"
+                >
+                    <span
+                        class="inline-block h-2 w-2 rounded-full {recordingCount > 0
+                            ? 'bg-rose-500 animate-pulse'
+                            : 'bg-slate-400'}"
+                    ></span>
+                    録画中 ({recordingCount})
+                </button>
+                <button
+                    type="button"
                     onclick={() => (filterMode = 'conflicts')}
                     class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
                     'conflicts'
@@ -333,7 +387,9 @@
         >
             <Clock size={36} class="text-slate-300 dark:text-slate-600" />
             <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                {#if filterMode === 'conflicts'}
+                {#if filterMode === 'recording'}
+                    現在録画中の予約はありません
+                {:else if filterMode === 'conflicts'}
                     チューナー競合している予約はありません
                 {:else if filterMode === 'skips'}
                     スキップ中の予約はありません
@@ -360,18 +416,20 @@
                             <th class="px-4 py-3.5">番組名 / 概要</th>
                             <th class="px-4 py-3.5">時間</th>
                             <th class="px-4 py-3.5">状態</th>
-                            <th class="px-4 py-3.5 text-right w-32">キャンセル / 操作</th>
+                            <th class="px-4 py-3.5 text-right w-40">キャンセル / 操作</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each filteredReserves as item}
                             <tr
                                 onclick={() => openReserveDetail(item)}
-                                class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {item.isConflict
-                                    ? 'bg-rose-50/40 dark:bg-rose-950/20'
-                                    : item.isSkip
-                                      ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
-                                      : ''}"
+                                class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {item.isRecording
+                                    ? 'bg-rose-50/70 dark:bg-rose-950/30'
+                                    : item.isConflict
+                                      ? 'bg-rose-50/40 dark:bg-rose-950/20'
+                                      : item.isSkip
+                                        ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
+                                        : ''}"
                             >
                                 <!-- 放送日時 -->
                                 <td
@@ -417,6 +475,23 @@
                                     {#if item.description}
                                         <p class="mt-0.5 line-clamp-1 text-xs text-slate-400">{item.description}</p>
                                     {/if}
+                                    {#if item.isRecording}
+                                        <div class="mt-1.5 flex items-center gap-2 max-w-xs">
+                                            <div
+                                                class="h-1.5 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950"
+                                            >
+                                                <div
+                                                    class="h-full rounded-full bg-rose-600 transition-all duration-500"
+                                                    style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
+                                                ></div>
+                                            </div>
+                                            <span
+                                                class="text-[10px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+                                            >
+                                                {getRecordingProgress(item.startAt, item.endAt)}%
+                                            </span>
+                                        </div>
+                                    {/if}
                                 </td>
 
                                 <!-- 番組長 -->
@@ -428,7 +503,13 @@
 
                                 <!-- 状態バッジ -->
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    {#if item.isConflict}
+                                    {#if item.isRecording}
+                                        <span
+                                            class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs animate-pulse"
+                                        >
+                                            ● 録画中
+                                        </span>
+                                    {:else if item.isConflict}
                                         <span
                                             class="inline-flex items-center gap-1 rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
                                         >
@@ -457,29 +538,50 @@
 
                                 <!-- キャンセル / 操作ボタン -->
                                 <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                    {#if !readOnlyStore.isReadOnly}
-                                        {#if item.isSkip}
+                                    <div class="inline-flex items-center justify-end gap-1.5">
+                                        {#if item.isRecording && readOnlyStore.canLiveStream}
                                             <button
                                                 type="button"
-                                                onclick={e => restoreSkip(item, e)}
-                                                class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
-                                                title="スキップを解除して予約を復活"
+                                                onclick={e => {
+                                                    e.stopPropagation();
+                                                    router.push(
+                                                        `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
+                                                    );
+                                                }}
+                                                class="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                                                title="放送中の番組を視聴"
                                             >
-                                                <RotateCcw size={12} /> 復活
-                                            </button>
-                                        {:else}
-                                            <button
-                                                type="button"
-                                                onclick={e => cancelReserve(item, e)}
-                                                class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                                                title={item.ruleId ? 'この回の録画をスキップ' : '予約を取り消し'}
-                                            >
-                                                <Trash2 size={12} /> キャンセル
+                                                <Play size={12} fill="currentColor" /> 視聴
                                             </button>
                                         {/if}
-                                    {:else}
-                                        <span class="text-xs text-slate-400">-</span>
-                                    {/if}
+                                        {#if !readOnlyStore.isReadOnly}
+                                            {#if item.isSkip}
+                                                <button
+                                                    type="button"
+                                                    onclick={e => restoreSkip(item, e)}
+                                                    class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                                    title="スキップを解除して予約を復活"
+                                                >
+                                                    <RotateCcw size={12} /> 復活
+                                                </button>
+                                            {:else}
+                                                <button
+                                                    type="button"
+                                                    onclick={e => cancelReserve(item, e)}
+                                                    class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                                    title={item.isRecording
+                                                        ? '録画中の予約を取り消し（録画を停止）'
+                                                        : item.ruleId
+                                                          ? 'この回の録画をスキップ'
+                                                          : '予約を取り消し'}
+                                                >
+                                                    <Trash2 size={12} /> キャンセル
+                                                </button>
+                                            {/if}
+                                        {:else if !item.isRecording}
+                                            <span class="text-xs text-slate-400">-</span>
+                                        {/if}
+                                    </div>
                                 </td>
                             </tr>
                         {/each}
@@ -554,7 +656,9 @@
                             <Clock size={15} class="text-blue-600" />
                             {formatTimeRange(item.startAt, item.endAt)} ({formatDuration(item.endAt - item.startAt)})
                         </span>
-                        {#if item.isConflict}
+                        {#if item.isRecording}
+                            <span class="text-rose-600 font-bold flex items-center gap-1 animate-pulse">● 録画中</span>
+                        {:else if item.isConflict}
                             <span class="text-rose-600 font-bold flex items-center gap-1">
                                 <AlertTriangle size={13} /> チューナー競合
                             </span>
@@ -568,6 +672,20 @@
                             </span>
                         {/if}
                     </div>
+
+                    {#if item.isRecording}
+                        <div class="pt-2 border-t border-rose-200/50 dark:border-rose-900/30 flex items-center gap-2">
+                            <div class="h-2 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950">
+                                <div
+                                    class="h-full rounded-full bg-rose-600 transition-all duration-500"
+                                    style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
+                                ></div>
+                            </div>
+                            <span class="text-xs font-bold text-rose-600 dark:text-rose-400">
+                                {getRecordingProgress(item.startAt, item.endAt)}% 進行中
+                            </span>
+                        </div>
+                    {/if}
                 </div>
 
                 <!-- 番組概要 -->
@@ -784,6 +902,18 @@
                 class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 dark:border-slate-800"
             >
                 <div class="flex items-center gap-2">
+                    {#if item.isRecording && readOnlyStore.canLiveStream}
+                        <button
+                            type="button"
+                            onclick={() => {
+                                isDetailModalOpen = false;
+                                router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
+                            }}
+                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                        >
+                            <Play size={14} fill="currentColor" /> ライブ視聴
+                        </button>
+                    {/if}
                     <button
                         type="button"
                         onclick={() => {

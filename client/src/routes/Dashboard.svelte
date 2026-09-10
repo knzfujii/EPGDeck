@@ -73,7 +73,13 @@
             const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
             upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
                 const isCurrentlyRecording =
-                    recordingList.some((rec: any) => rec.programId === r.programId || rec.id === r.id) ||
+                    recordingList.some(
+                        (rec: any) =>
+                            (rec.programId && r.programId && rec.programId === r.programId) ||
+                            (rec.channelId === r.channelId &&
+                                Math.abs(rec.startAt - r.startAt) < 60000 &&
+                                Math.abs(rec.endAt - r.endAt) < 60000),
+                    ) ||
                     (r.startAt <= now && now < r.endAt);
                 return {
                     ...r,

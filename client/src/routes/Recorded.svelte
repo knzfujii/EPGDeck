@@ -28,6 +28,8 @@
         ChevronRight,
         AlertTriangle,
         Sparkles,
+        CheckSquare,
+        X,
     } from '@lucide/svelte';
 
     let recorded = $state<apid.RecordedItem[]>([]);
@@ -217,6 +219,98 @@
     function formatRecordedDuration(startAt: number, endAt: number): string {
         return formatDuration(endAt - startAt);
     }
+
+    // --- 複数選択一括削除ロジック ---
+    let isSelectionMode = $state(false);
+    let selectedIds = $state<number[]>([]);
+    let isDeletingMultiple = $state(false);
+
+    // 現在表示中のページ内で選択可能な番組（保護中を除く）
+    const selectableItems = $derived(recorded.filter(item => !item.isProtected));
+    const isAllSelected = $derived(
+        selectableItems.length > 0 && selectableItems.every(item => selectedIds.includes(item.id)),
+    );
+
+    function toggleSelectionMode() {
+        isSelectionMode = !isSelectionMode;
+        if (!isSelectionMode) {
+            selectedIds = [];
+        }
+    }
+
+    function toggleSelectItem(id: number) {
+        const target = recorded.find(item => item.id === id);
+        if (!target || target.isProtected) return;
+
+        if (selectedIds.includes(id)) {
+            selectedIds = selectedIds.filter(i => i !== id);
+        } else {
+            selectedIds = [...selectedIds, id];
+        }
+    }
+
+    function toggleSelectAll() {
+        if (isAllSelected) {
+            // 現在のページの選択可能アイテムのみ解除
+            const pageSelectableIds = selectableItems.map(item => item.id);
+            selectedIds = selectedIds.filter(id => !pageSelectableIds.includes(id));
+        } else {
+            const currentSelected = new Set(selectedIds);
+            for (const item of selectableItems) {
+                currentSelected.add(item.id);
+            }
+            selectedIds = Array.from(currentSelected);
+        }
+    }
+
+    function clearSelection() {
+        selectedIds = [];
+    }
+
+    async function deleteSelectedRecorded() {
+        if (selectedIds.length === 0 || isDeletingMultiple) return;
+
+        const count = selectedIds.length;
+        const ok = await confirmDialog({
+            title: '録画番組の一括削除',
+            message: `選択した ${count} 件の録画番組を削除しますか？\n（録画ファイルもすべて削除されます。この操作は取り消せません）`,
+            confirmText: `${count}件を削除`,
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
+
+        isDeletingMultiple = true;
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+            for (const id of [...selectedIds]) {
+                try {
+                    await http.delete(`/api/recorded/${id}?isDeleteFile=true`);
+                    successCount++;
+                } catch (e) {
+                    console.error(`Failed to delete recorded id: ${id}`, e);
+                    failCount++;
+                }
+            }
+
+            if (failCount === 0) {
+                snackbar.open({ text: `${successCount} 件の録画を削除しました`, color: 'success' });
+            } else {
+                snackbar.open({
+                    text: `${successCount} 件の録画を削除しました（${failCount} 件失敗）`,
+                    color: failCount > 0 && successCount > 0 ? 'warning' : 'error',
+                });
+            }
+
+            selectedIds = [];
+            isSelectionMode = false;
+            fetchRecorded();
+        } finally {
+            isDeletingMultiple = false;
+        }
+    }
 </script>
 
 <div class="space-y-5 w-full max-w-full min-w-0">
@@ -278,6 +372,20 @@
                         <TableIcon size={16} />
                     </button>
                 </div>
+
+                {#if !readOnlyStore.isReadOnly}
+                    <button
+                        type="button"
+                        onclick={toggleSelectionMode}
+                        class="flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer {isSelectionMode
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/50 dark:text-blue-300'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
+                        title={isSelectionMode ? '選択モードを終了' : '複数選択モードを開始'}
+                    >
+                        <CheckSquare size={15} />
+                        <span class="hidden sm:inline">{isSelectionMode ? '選択終了' : '選択'}</span>
+                    </button>
+                {/if}
             </div>
         </div>
 
@@ -370,6 +478,18 @@
                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                     >
                         <tr>
+                            {#if isSelectionMode}
+                                <th class="w-10 px-3 py-3 text-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAllSelected}
+                                        onchange={toggleSelectAll}
+                                        aria-label="ページ内の未保護番組を全選択"
+                                        class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                        title="ページ内の未保護番組を全選択"
+                                    />
+                                </th>
+                            {/if}
                             <th class="px-4 py-3">放送日時</th>
                             <th class="px-4 py-3">放送局</th>
                             <th class="px-4 py-3">番組名 / 概要</th>
@@ -380,7 +500,27 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each recorded as item}
-                            <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <tr
+                                onclick={() => isSelectionMode && toggleSelectItem(item.id)}
+                                class="transition {isSelectionMode ? 'cursor-pointer' : ''} {selectedIds.includes(
+                                    item.id,
+                                )
+                                    ? 'bg-blue-50/80 dark:bg-blue-950/40'
+                                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'}"
+                            >
+                                {#if isSelectionMode}
+                                    <td class="w-10 px-3 py-3.5 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(item.id)}
+                                            disabled={item.isProtected}
+                                            onclick={e => e.stopPropagation()}
+                                            onchange={() => toggleSelectItem(item.id)}
+                                            aria-label={`${item.name}を選択`}
+                                            class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                        />
+                                    </td>
+                                {/if}
                                 <td
                                     class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-500 dark:text-slate-400"
                                 >
@@ -400,7 +540,14 @@
                                         {/if}
                                         <button
                                             type="button"
-                                            onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
+                                            onclick={e => {
+                                                if (isSelectionMode) {
+                                                    e.stopPropagation();
+                                                    toggleSelectItem(item.id);
+                                                    return;
+                                                }
+                                                router.push(`/recorded/detail?recordedId=${item.id}`);
+                                            }}
                                             class="text-left font-bold text-slate-900 hover:text-blue-600 hover:underline dark:text-slate-100 dark:hover:text-blue-400 cursor-pointer"
                                             title="番組詳細・ファイル一覧を見る"
                                         >
@@ -409,12 +556,24 @@
                                     </div>
                                     {#if item.description}
                                         <div
-                                            onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
+                                            onclick={e => {
+                                                if (isSelectionMode) {
+                                                    e.stopPropagation();
+                                                    toggleSelectItem(item.id);
+                                                    return;
+                                                }
+                                                router.push(`/recorded/detail?recordedId=${item.id}`);
+                                            }}
                                             role="button"
                                             tabindex="0"
                                             onkeydown={e => {
-                                                if (e.key === 'Enter')
-                                                    router.push(`/recorded/detail?recordedId=${item.id}`);
+                                                if (e.key === 'Enter') {
+                                                    if (isSelectionMode) {
+                                                        toggleSelectItem(item.id);
+                                                    } else {
+                                                        router.push(`/recorded/detail?recordedId=${item.id}`);
+                                                    }
+                                                }
                                             }}
                                             class="mt-0.5 line-clamp-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                                             title="番組詳細を見る"
@@ -501,16 +660,48 @@
         <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
             {#each recorded as item}
                 <div
-                    onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
-                    class="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition hover:border-blue-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 cursor-pointer"
+                    onclick={() => {
+                        if (isSelectionMode) {
+                            toggleSelectItem(item.id);
+                            return;
+                        }
+                        router.push(`/recorded/detail?recordedId=${item.id}`);
+                    }}
+                    class="group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-white shadow-2xs transition hover:shadow-md dark:bg-slate-900 cursor-pointer {isSelectionMode &&
+                    selectedIds.includes(item.id)
+                        ? 'border-blue-600 ring-2 ring-blue-600/70 bg-blue-50/20 dark:bg-blue-950/20'
+                        : 'border-slate-200 hover:border-blue-400 dark:border-slate-800'}"
                     role="button"
                     tabindex="0"
                     onkeydown={e => {
-                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
+                        if (e.key === 'Enter') {
+                            if (isSelectionMode) {
+                                toggleSelectItem(item.id);
+                            } else {
+                                router.push(`/recorded/detail?recordedId=${item.id}`);
+                            }
+                        }
                     }}
                 >
                     <!-- サムネイルエリア (カードの一部として機能、中央ボタンのみ即座再生) -->
                     <div class="relative aspect-video w-full bg-slate-900 overflow-hidden">
+                        <!-- 選択モード時のチェックボックス -->
+                        {#if isSelectionMode}
+                            <div
+                                class="absolute top-2 left-2 z-20 flex h-6 w-6 items-center justify-center rounded-lg bg-black/65 backdrop-blur-xs shadow-md"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.includes(item.id)}
+                                    disabled={item.isProtected}
+                                    onclick={e => e.stopPropagation()}
+                                    onchange={() => toggleSelectItem(item.id)}
+                                    aria-label={`${item.name}を選択`}
+                                    class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                />
+                            </div>
+                        {/if}
+
                         {#if item.thumbnails?.[0]}
                             <img
                                 src={`/api/thumbnails/${item.thumbnails[0]}`}
@@ -525,8 +716,8 @@
                             </div>
                         {/if}
 
-                        <!-- 再生ボタンオーバーレイ (丸ボタンクリック時のみ再生) -->
-                        {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                        <!-- 再生ボタンオーバーレイ (丸ボタンクリック時のみ再生、選択モード時は非表示) -->
+                        {#if !isSelectionMode && readOnlyStore.canPlayRecorded(item.videoFiles)}
                             <div
                                 class="absolute inset-0 flex items-center justify-center bg-black/25 opacity-90 transition group-hover:bg-black/15"
                             >
@@ -552,7 +743,9 @@
 
                         {#if item.isProtected}
                             <span
-                                class="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[9px] font-bold text-white shadow-2xs leading-none"
+                                class="absolute {isSelectionMode
+                                    ? 'top-2.5 left-9.5'
+                                    : 'top-1.5 left-1.5'} z-10 flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[9px] font-bold text-white shadow-2xs leading-none"
                             >
                                 <Lock size={9} /> 保護中
                             </span>
@@ -656,6 +849,57 @@
             >
                 次へ <ChevronRight size={14} />
             </button>
+        </div>
+    {/if}
+
+    <!-- フローティング一括操作バー (画面下部固定) -->
+    {#if isSelectionMode}
+        <div
+            class="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2.5 sm:gap-4 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-md text-white animate-in fade-in slide-in-from-bottom-4 duration-200"
+        >
+            <div class="flex items-center gap-2 border-r border-slate-700 pr-3 sm:pr-4">
+                <CheckSquare size={18} class="text-blue-400" />
+                <span class="text-xs font-bold whitespace-nowrap">
+                    <span class="text-sm text-blue-400 font-extrabold">{selectedIds.length}</span>
+                    件選択中
+                </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    onclick={toggleSelectAll}
+                    class="rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                >
+                    {isAllSelected ? '選択全解除' : 'すべて選択'}
+                </button>
+                {#if selectedIds.length > 0}
+                    <button
+                        type="button"
+                        onclick={clearSelection}
+                        class="hidden sm:inline-block rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition cursor-pointer"
+                    >
+                        解除
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isDeletingMultiple}
+                        onclick={deleteSelectedRecorded}
+                        class="flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+                    >
+                        <Trash2 size={14} />
+                        <span>{isDeletingMultiple ? '削除中...' : '一括削除'}</span>
+                    </button>
+                {/if}
+                <button
+                    type="button"
+                    onclick={toggleSelectionMode}
+                    class="rounded-xl bg-slate-800/80 hover:bg-slate-700 p-1.5 text-slate-400 hover:text-white transition cursor-pointer"
+                    title="選択モードを終了"
+                >
+                    <X size={16} />
+                </button>
+            </div>
         </div>
     {/if}
 </div>

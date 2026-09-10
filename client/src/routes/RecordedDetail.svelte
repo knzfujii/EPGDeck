@@ -91,8 +91,13 @@
                     encodeSelections = next;
                 })
                 .catch(() => {});
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to fetch recorded detail', e);
+            if (e?.response?.status === 404) {
+                snackbar.open({ text: '番組情報が存在しないため、録画一覧に戻ります', color: 'warning' });
+                router.push('/recorded');
+                return;
+            }
             snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
         } finally {
             if (!isSilent) isLoading = false;
@@ -154,9 +159,12 @@
 
     // 個別動画ファイル削除
     async function deleteVideoFile(fileId: number, fileName: string) {
+        const isLastVideoFile = (recorded?.videoFiles?.length ?? 0) <= 1;
         const ok = await confirmDialog({
             title: '動画ファイルの削除',
-            message: `ファイル「${fileName}」を削除しますか？`,
+            message: isLastVideoFile
+                ? `ファイル「${fileName}」を削除しますか？\n※この番組の最後の動画ファイルのため、番組情報も削除されます。`
+                : `ファイル「${fileName}」を削除しますか？`,
             confirmText: '削除',
             cancelText: 'キャンセル',
             isDestructive: true,
@@ -165,6 +173,11 @@
 
         try {
             await http.delete(`/api/videos/${fileId}`);
+            if (isLastVideoFile) {
+                snackbar.open({ text: '動画ファイルおよび番組を削除しました', color: 'success' });
+                router.push('/recorded');
+                return;
+            }
             snackbar.open({ text: '動画ファイルを削除しました', color: 'success' });
             await fetchRecordedDetail();
         } catch (e) {

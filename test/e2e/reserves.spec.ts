@@ -167,9 +167,58 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await expect(modal.getByText(/50% 進行中/)).toBeVisible();
         await expect(modal.getByRole('button', { name: 'ライブ視聴' })).toBeVisible();
 
-        // モーダルを閉じる
-        await modal.getByRole('button', { name: 'モーダルを閉じる' }).click();
-        await expect(page.getByRole('dialog')).not.toBeVisible();
+        // モーダル内の「録画を停止 / 操作」ボタンをクリックすると 3択モーダルが表示されることを確認
+        let finishCalled = false;
+        await page.route('**/api/recording/*/finish', async route => {
+            finishCalled = true;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
+        });
+
+        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+
+        // 3択モーダル（録画中番組の操作）の表示検証
+        const actionModal = page.getByRole('dialog').filter({ hasText: '録画中番組の操作' });
+        await expect(actionModal).toBeVisible();
+        await expect(actionModal.getByRole('button', { name: /完了として保存/ })).toBeVisible();
+        await expect(actionModal.getByRole('button', { name: /中断して保存/ })).toBeVisible();
+        await expect(actionModal.getByRole('button', { name: /録画を取り消し（ファイルを破棄）/ })).toBeVisible();
+
+        // 閉じるボタンで一度モーダルを閉じる
+        await actionModal.getByRole('button', { name: /何もしない（閉じる）/ }).click();
+        await expect(actionModal).not.toBeVisible();
+
+        // 再度「録画を停止 / 操作」を開いて「中断して保存」をテスト
+        let stopCalled = false;
+        await page.route('**/api/recording/*/stop', async route => {
+            stopCalled = true;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
+        });
+        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await expect(actionModal).toBeVisible();
+        await actionModal.getByRole('button', { name: /中断して保存/ }).click();
+        await expect(actionModal).not.toBeVisible();
+        expect(stopCalled).toBe(true);
+
+        // 詳細モーダルを再展開して「取り消し（破棄）」をテスト
+        let discardCalled = false;
+        await page.route('**/api/recording/*/discard', async route => {
+            discardCalled = true;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
+        });
+        await page.getByText('現在録画中アニメ番組', { exact: true }).click();
+        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await expect(actionModal).toBeVisible();
+        await actionModal.getByRole('button', { name: /録画を取り消し（ファイルを破棄）/ }).click();
+        await expect(actionModal).not.toBeVisible();
+        expect(discardCalled).toBe(true);
+
+        // 再度展開して「完了として保存」をテスト
+        await page.getByText('現在録画中アニメ番組', { exact: true }).click();
+        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await expect(actionModal).toBeVisible();
+        await actionModal.getByRole('button', { name: /完了として保存/ }).click();
+        await expect(actionModal).not.toBeVisible();
+        expect(finishCalled).toBe(true);
 
         // エラーゼロの検証
         expect(pageErrors).toEqual([]);

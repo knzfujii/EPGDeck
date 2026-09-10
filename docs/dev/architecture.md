@@ -47,6 +47,10 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - 各エンドポイントは DI コンテナから各種 `*ApiModel` を呼び出し、型安全かつ低レイテンシでレスポンスを返却します。
 - **予約・競合エラーハンドリングの適正化**:
   - `POST /api/reserves` において、二重予約やチューナー競合時に 500 ではなく適切な HTTP ステータス（`409 Conflict`、`404 Not Found`、`400 Bad Request`）と日本語メッセージを返却し、画面側（Snackbar）で失敗理由を明確にフィードバックします。
+- **録画中番組のライフサイクル制御 (途中完了 / 中断 / 取り消し)**:
+  - `POST /api/recording/:reserveId/finish`: 録画ストリームを EOF 切断し、実時間確定・サムネイル・エンコード・録画履歴（`RecordedHistory`）登録・予約消化の通常完了シーケンスを実行。
+  - `POST /api/recording/:reserveId/stop`: ファイルは保存・エンコードするが未完了扱い（履歴未登録）とし、再放送があれば自動録画の対象として維持。
+  - `POST /api/recording/:reserveId/discard` (または `DELETE /api/recording/:reserveId`): 録画ストリーム停止後に書きかけの TS ファイルや DB レコードを物理削除し、予約を安全にクリーンアップ。
 - **大容量動画アップロードのストリーム処理**:
   - `POST /api/videos/upload` では、マルチパートリクエストをメモリ上にバッファリングせず、`file.stream()` を用いて直接ディスクへパイプ書き込みすることで、大容量 TS / MP4 ファイルアップロード時のメモリ枯渇（OOM）を防止しています。
 

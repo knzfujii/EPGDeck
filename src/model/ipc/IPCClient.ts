@@ -395,6 +395,33 @@ export default class IPCClient implements IIPCClient {
                     func: RecordingFunctions.resetTimer,
                 });
             },
+            finish: (reserveId: apid.ReserveId) => {
+                return this.send({
+                    model: ModelName.recording,
+                    func: RecordingFunctions.finish,
+                    args: {
+                        reserveId,
+                    },
+                });
+            },
+            stop: (reserveId: apid.ReserveId) => {
+                return this.send({
+                    model: ModelName.recording,
+                    func: RecordingFunctions.stop,
+                    args: {
+                        reserveId,
+                    },
+                });
+            },
+            discard: (reserveId: apid.ReserveId) => {
+                return this.send({
+                    model: ModelName.recording,
+                    func: RecordingFunctions.discard,
+                    args: {
+                        reserveId,
+                    },
+                });
+            },
         };
     }
 

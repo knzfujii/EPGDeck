@@ -11,6 +11,8 @@ import IRecordingManageModel from '../operator/recording/IRecordingManageModel';
 import IReservationManageModel from '../operator/reservation/IReservationManageModel';
 import IRuleManageModel from '../operator/rule/IRuleManageModel';
 import IThumbnailManageModel from '../operator/thumbnail/IThumbnailManageModel';
+import IRecordedDB from '../db/IRecordedDB';
+import IReserveDB from '../db/IReserveDB';
 import { LogEntry } from '../ILogger';
 import IIPCServer from './IIPCServer';
 import {
@@ -42,6 +44,8 @@ export default class IPCServer implements IIPCServer {
     private ruleManage: IRuleManageModel;
     private thumbnailManage: IThumbnailManageModel;
     private encodeEvent: IOperatorEncodeEvent;
+    private recordedDB: IRecordedDB;
+    private reserveDB: IReserveDB;
     private child: ChildProcess | null = null;
     private functions: {
         [modelName: string]: IFunctionIndex;
@@ -56,6 +60,8 @@ export default class IPCServer implements IIPCServer {
         @inject('IRuleManageModel') ruleManage: IRuleManageModel,
         @inject('IThumbnailManageModel') thumbnailManage: IThumbnailManageModel,
         @inject('IOperatorEncodeEvent') encodeEvent: IOperatorEncodeEvent,
+        @inject('IRecordedDB') recordedDB: IRecordedDB,
+        @inject('IReserveDB') reserveDB: IReserveDB,
     ) {
         this.reservationManage = reservationManage;
         this.recordedManage = recordedManage;
@@ -64,6 +70,8 @@ export default class IPCServer implements IIPCServer {
         this.ruleManage = ruleManage;
         this.thumbnailManage = thumbnailManage;
         this.encodeEvent = encodeEvent;
+        this.recordedDB = recordedDB;
+        this.reserveDB = reserveDB;
 
         this.init();
     }
@@ -361,6 +369,49 @@ export default class IPCServer implements IIPCServer {
         // resetTimer
         index[RecordingFunctions.resetTimer] = async () => {
             this.recordingManage.resetTimer();
+        };
+
+        // finish (途中完了として保存)
+        index[RecordingFunctions.finish] = async msg => {
+            const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
+            await this.recordingManage.finish(reserveId);
+        };
+
+        // stop (中断して保存・未完了扱い)
+        index[RecordingFunctions.stop] = async msg => {
+            const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
+            // 録画ストリームを未完了フラグ (isPlanToDelete = false, isNeedDeleteReservation = false) で停止
+            if (this.recordingManage.hasReserve(reserveId)) {
+                await this.recordingManage.cancel(reserveId, false);
+            }
+            // 予約テーブル側も安全にキャンセル（手動なら削除、ルールならスキップ）
+            const reserve = await this.reserveDB.findId(reserveId).catch(() => null);
+            if (reserve !== null) {
+                await this.reservationManage.cancel(reserveId).catch(() => {});
+            }
+        };
+
+        // discard (取り消し・ファイルを破棄)
+        index[RecordingFunctions.discard] = async msg => {
+            const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
+            const recordeds = await this.recordedDB.findReserveId(reserveId);
+            const target = recordeds.find(r => r.isRecording);
+            if (target) {
+                // recordedManage.delete(target.id) により:
+                // ① recordingManage.cancel(reserveId, true)（ストリーム強制破棄）
+                // ② TS実ファイル・DBレコード削除
+                // ③ EventSetter経由で reservationManage.cancel(reserveId) が自動実行される
+                await this.recordedManage.delete(target.id);
+            } else {
+                // 録画準備中などでまだ recorded レコードが作成されていない場合
+                if (this.recordingManage.hasReserve(reserveId)) {
+                    await this.recordingManage.cancel(reserveId, true);
+                }
+                const reserve = await this.reserveDB.findId(reserveId).catch(() => null);
+                if (reserve !== null) {
+                    await this.reservationManage.cancel(reserveId).catch(() => {});
+                }
+            }
         };
 
         return index;

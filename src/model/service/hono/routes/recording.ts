@@ -56,4 +56,56 @@ app.post('/resettimer', async c => {
     }
 });
 
+// POST /api/recording/:reserveId/finish
+app.post('/:reserveId/finish', async c => {
+    const recordingApiModel = container.get<IRecordingApiModel>('IRecordingApiModel');
+    const reserveId = parseInt(c.req.param('reserveId'), 10);
+
+    try {
+        await recordingApiModel.finish(reserveId);
+        return api.responseJSON(c, 200, { code: 200 });
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
+// POST /api/recording/:reserveId/stop
+app.post('/:reserveId/stop', async c => {
+    const recordingApiModel = container.get<IRecordingApiModel>('IRecordingApiModel');
+    const reserveId = parseInt(c.req.param('reserveId'), 10);
+
+    try {
+        await recordingApiModel.stop(reserveId);
+        return api.responseJSON(c, 200, { code: 200 });
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
+// POST /api/recording/:reserveId/discard
+app.post('/:reserveId/discard', async c => {
+    const recordingApiModel = container.get<IRecordingApiModel>('IRecordingApiModel');
+    const reserveId = parseInt(c.req.param('reserveId'), 10);
+
+    try {
+        await recordingApiModel.discard(reserveId);
+        return api.responseJSON(c, 200, { code: 200 });
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
+// DELETE /api/recording/:reserveId
+app.delete('/:reserveId', async c => {
+    const recordingApiModel = container.get<IRecordingApiModel>('IRecordingApiModel');
+    const reserveId = parseInt(c.req.param('reserveId'), 10);
+
+    try {
+        await recordingApiModel.discard(reserveId);
+        return api.responseJSON(c, 200, { code: 200 });
+    } catch (err: any) {
+        return api.responseServerError(c, err.message);
+    }
+});
+
 export default app;

@@ -283,6 +283,24 @@ class RecordingManageModel implements IRecordingManageModel {
     }
 
     /**
+     * 指定された reserve id の録画を途中完了する
+     * @param reserveId: ReserveId
+     * @return Promise<void>
+     */
+    public async finish(reserveId: apid.ReserveId): Promise<void> {
+        const recording = this.recordingIndex[reserveId];
+        if (typeof recording === 'undefined') {
+            // 存在しないのでスルー
+            return;
+        }
+
+        this.deleteRecording(reserveId);
+
+        this.log.system.info(`finish recording reserveId: ${reserveId}`);
+        return recording.finish();
+    }
+
+    /**
      * タイマーを再設定する
      */
     public resetTimer(): void {

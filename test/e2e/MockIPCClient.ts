@@ -46,6 +46,9 @@ export default class MockIPCClient implements IIPCClient {
 
     public recording: IPCRecordingManageModel = {
         resetTimer: () => {},
+        finish: async () => {},
+        stop: async () => {},
+        discard: async () => {},
     };
 
     public rule: IPCRuleManageModel = {

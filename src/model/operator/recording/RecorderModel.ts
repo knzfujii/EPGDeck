@@ -824,6 +824,29 @@ class RecorderModel implements IRecorderModel {
     }
 
     /**
+     * 録画を途中完了として終了する（保存して正常完了シーケンスを実行）
+     */
+    public async finish(): Promise<void> {
+        this.log.system.info(
+            `recording finish requested reserveId: ${this.reserve.id}, recordedId: ${this.recordedId}`,
+        );
+
+        this.isPlanToDelete = false;
+
+        if (this.isPrepRecording === true) {
+            await this._cancel();
+            // 録画準備失敗を通知
+            this.recordingEvent.emitCancelPrepRecording(this.reserve);
+        } else if (this.isRecording === true) {
+            // isNeedDeleteReservation = true を維持して通常完了シーケンスを実行
+            this.isNeedDeleteReservation = true;
+            await this._cancel();
+        } else {
+            await this._cancel();
+        }
+    }
+
+    /**
      * 予約情報を更新する
      * @param newReserve: 新しい予約情報
      * @param isSuppressLog: boolean ログ出力を抑えるか

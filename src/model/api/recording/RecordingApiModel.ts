@@ -50,4 +50,31 @@ export default class RecordingApiModel implements IRecordingApiModel {
     public async resetTimer(): Promise<void> {
         await this.ipc.recording.resetTimer();
     }
+
+    /**
+     * 録画を途中完了として保存する
+     * @param reserveId: ReserveId
+     * @return Promise<void>
+     */
+    public async finish(reserveId: apid.ReserveId): Promise<void> {
+        await this.ipc.recording.finish(reserveId);
+    }
+
+    /**
+     * 録画を中断して保存する（未完了扱い）
+     * @param reserveId: ReserveId
+     * @return Promise<void>
+     */
+    public async stop(reserveId: apid.ReserveId): Promise<void> {
+        await this.ipc.recording.stop(reserveId);
+    }
+
+    /**
+     * 録画を取り消し（ファイルを破棄）する
+     * @param reserveId: ReserveId
+     * @return Promise<void>
+     */
+    public async discard(reserveId: apid.ReserveId): Promise<void> {
+        await this.ipc.recording.discard(reserveId);
+    }
 }

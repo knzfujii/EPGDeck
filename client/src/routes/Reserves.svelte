@@ -23,6 +23,7 @@
         RotateCcw,
         Play,
     } from '@lucide/svelte';
+    import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
 
     interface ReserveWithRecording extends apid.ReserveItem {
         isRecording?: boolean;
@@ -37,6 +38,11 @@
     let isDetailModalOpen = $state(false);
     let selectedReserve = $state<ReserveWithRecording | null>(null);
     let isCanceling = $state(false);
+
+    // 録画中番組の操作モーダル状態
+    let isRecordingActionModalOpen = $state(false);
+    let recordingActionItem = $state<ReserveWithRecording | null>(null);
+    let isRecordingActionProcessing = $state(false);
 
     // 予約オプション設定 (エンコードプリセット名 / 保存先ディレクトリ名)
     let encodeModes = $state<string[]>([]);
@@ -234,8 +240,16 @@
     let overlapCount = $derived(reserves.filter(r => r.isOverlap).length);
 
     // 予約キャンセル / 取り消し
-    async function cancelReserve(item: apid.ReserveItem, e?: MouseEvent) {
+    async function cancelReserve(item: ReserveWithRecording, e?: MouseEvent) {
         if (e) e.stopPropagation();
+
+        // 録画中の番組の場合は専用の操作選択ダイアログを開く
+        if (item.isRecording === true) {
+            recordingActionItem = item;
+            isRecordingActionModalOpen = true;
+            return;
+        }
+
         const actionLabel = item.ruleId ? 'この回の録画をスキップ（除外）' : '予約を取り消し';
         const ok = await confirmDialog({
             title: item.ruleId ? '録画のスキップ' : '予約の取り消し',
@@ -257,6 +271,36 @@
             snackbar.open({ text: '予約の取り消しに失敗しました', color: 'error' });
         } finally {
             isCanceling = false;
+        }
+    }
+
+    // 録画中番組の操作ハンドラー
+    async function handleRecordingAction(action: 'finish' | 'stop' | 'discard') {
+        if (!recordingActionItem) return;
+        const target = recordingActionItem;
+        isRecordingActionProcessing = true;
+
+        try {
+            if (action === 'finish') {
+                await http.post(`/api/recording/${target.id}/finish`);
+                snackbar.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
+            } else if (action === 'stop') {
+                await http.post(`/api/recording/${target.id}/stop`);
+                snackbar.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
+            } else if (action === 'discard') {
+                await http.post(`/api/recording/${target.id}/discard`);
+                snackbar.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
+            }
+
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+            if (isDetailModalOpen) isDetailModalOpen = false;
+            fetchReserves();
+        } catch (e) {
+            console.error(`Failed to execute recording action: ${action}`, e);
+            snackbar.open({ text: '録画操作の実行に失敗しました', color: 'error' });
+        } finally {
+            isRecordingActionProcessing = false;
         }
     }
 
@@ -954,7 +998,11 @@
                                 class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                             >
                                 <Trash2 size={14} />
-                                {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
+                                {item.isRecording
+                                    ? '録画を停止 / 操作'
+                                    : item.ruleId
+                                      ? 'この回をスキップ (キャンセル)'
+                                      : '予約をキャンセル'}
                             </button>
                         {/if}
                     {/if}
@@ -963,3 +1011,15 @@
         </div>
     </div>
 {/if}
+
+<!-- 録画中番組の操作モーダル（完了保存 / 中断保存 / 破棄） -->
+<RecordingActionModal
+    isOpen={isRecordingActionModalOpen}
+    item={recordingActionItem}
+    isProcessing={isRecordingActionProcessing}
+    onClose={() => {
+        isRecordingActionModalOpen = false;
+        recordingActionItem = null;
+    }}
+    onAction={handleRecordingAction}
+/>

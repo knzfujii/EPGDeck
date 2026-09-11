@@ -4,15 +4,19 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
+    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import {
         formatDate,
         formatTime,
         formatTimeRange,
         formatDuration,
         extractFirstSearchWord,
+        getGenreName,
+        getGenreBadgeClass,
+        formatTimeRemaining,
     } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
-    import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
@@ -30,26 +34,45 @@
         Bookmark,
         ArrowRight,
         Lock,
+        CircleDot,
+        Check,
+        Filter,
     } from '@lucide/svelte';
+
+    interface OnAirProgram extends apid.ScheduleProgramItem {
+        isRecording?: boolean;
+        recordingReserveId?: number;
+        isReserved?: boolean;
+        reserveId?: number;
+    }
 
     interface OnAirItem {
         channel: apid.ChannelItem;
-        current: apid.ScheduleProgramItem;
-        next?: apid.ScheduleProgramItem;
+        current: OnAirProgram;
+        next?: OnAirProgram;
     }
 
     let onAirList = $state<OnAirItem[]>([]);
     let isLoading = $state(true);
     let selectedType = $state<string>('all');
+    let selectedGenre = $state<number | null>(null);
+    let keyword = $state<string>('');
+    let currentTime = $state<number>(Date.now());
 
     // 配信設定モーダル状態
     let selectedChannel = $state<apid.ChannelItem | null>(null);
+    let streamModalTitle = $state<string>('');
     let isStreamModalOpen = $state(false);
+
+    // 録画中番組の3択操作モーダル状態
+    let isRecordingActionModalOpen = $state(false);
+    let recordingActionItem = $state<any | null>(null);
+    let isRecordingActionProcessing = $state(false);
 
     // 番組詳細ポップアップモーダル状態
     let isDetailModalOpen = $state(false);
     let selectedDetailItem = $state<{
-        program: apid.ScheduleProgramItem;
+        program: OnAirProgram;
         channel: apid.ChannelItem;
         isNext?: boolean;
     } | null>(null);
@@ -64,6 +87,18 @@
         { id: 'CS', name: 'CS' },
         { id: 'SKY', name: 'SKY' },
     ] as const;
+
+    const GENRES = [
+        { id: null, name: '全ジャンル' },
+        { id: 0, name: 'ニュース' },
+        { id: 7, name: 'アニメ' },
+        { id: 3, name: 'ドラマ' },
+        { id: 5, name: 'バラエティ' },
+        { id: 6, name: '映画' },
+        { id: 1, name: 'スポーツ' },
+        { id: 2, name: '情報' },
+        { id: 4, name: '音楽' },
+    ];
 
     let channelTypes = $derived.by(() => {
         const active = new Set(channelStore.activeChannelTypes);
@@ -81,22 +116,30 @@
         try {
             await channelStore.fetch();
             const now = Date.now();
+            currentTime = now;
             const startAt = now - 30 * 60 * 1000;
             const endAt = now + 6 * 60 * 60 * 1000;
 
-            const res = await http.get('/api/schedules', {
-                params: {
-                    startAt,
-                    endAt,
-                    isHalfWidth: true,
-                    GR: true,
-                    BS: true,
-                    CS: true,
-                    SKY: true,
-                },
-            });
+            const [schedulesRes, recordingRes, reservesRes] = await Promise.all([
+                http.get('/api/schedules', {
+                    params: {
+                        startAt,
+                        endAt,
+                        isHalfWidth: true,
+                        GR: true,
+                        BS: true,
+                        CS: true,
+                        SKY: true,
+                    },
+                }),
+                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
+                http.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [] } })),
+            ]);
 
-            const schedules = res.data || [];
+            const schedules = schedulesRes.data || [];
+            const recordingList = recordingRes.data.records || [];
+            const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
+
             const list: OnAirItem[] = [];
 
             for (const item of schedules) {
@@ -104,9 +147,52 @@
                 if (programs.length === 0) continue;
 
                 // 現在放映中の番組を特定
-                const current = programs.find((p: any) => p.startAt <= now && p.endAt > now) || programs[0];
+                const rawCurrent = programs.find((p: any) => p.startAt <= now && p.endAt > now) || programs[0];
                 // 次の番組を特定
-                const next = programs.find((p: any) => p.startAt >= current.endAt);
+                const rawNext = programs.find((p: any) => p.startAt >= rawCurrent.endAt);
+
+                // 現在番組の録画中判定
+                const matchedRec = recordingList.find(
+                    (rec: any) =>
+                        (rec.programId && rawCurrent.id && rec.programId === rawCurrent.id) ||
+                        (rec.channelId === item.channel.id &&
+                            Math.abs(rec.startAt - rawCurrent.startAt) < 60000 &&
+                            Math.abs(rec.endAt - rawCurrent.endAt) < 60000),
+                );
+
+                // 録画中である場合、対応する予約 (ReserveItem) を特定
+                const matchedReserve = matchedRec
+                    ? reservesList.find(
+                          (r: any) =>
+                              (r.programId && rawCurrent.id && r.programId === rawCurrent.id) ||
+                              (r.channelId === item.channel.id &&
+                                  Math.abs(r.startAt - rawCurrent.startAt) < 60000 &&
+                                  Math.abs(r.endAt - rawCurrent.endAt) < 60000),
+                      )
+                    : undefined;
+
+                const current: OnAirProgram = {
+                    ...rawCurrent,
+                    isRecording: !!matchedRec,
+                    recordingReserveId: matchedReserve ? matchedReserve.id : undefined,
+                };
+
+                // 次番組の予約中判定
+                let next: OnAirProgram | undefined = undefined;
+                if (rawNext) {
+                    const matchedRes = reservesList.find(
+                        (r: any) =>
+                            (r.programId && rawNext.id && r.programId === rawNext.id) ||
+                            (r.channelId === item.channel.id &&
+                                Math.abs(r.startAt - rawNext.startAt) < 60000 &&
+                                Math.abs(r.endAt - rawNext.endAt) < 60000),
+                    );
+                    next = {
+                        ...rawNext,
+                        isReserved: !!matchedRes,
+                        reserveId: matchedRes ? matchedRes.id : undefined,
+                    };
+                }
 
                 list.push({
                     channel: item.channel,
@@ -136,7 +222,12 @@
             return;
         }
         fetchOnAir();
-        const interval = setInterval(() => fetchOnAir(true), 30000); // 30秒毎に自動更新
+        // 30秒毎にスケジュール・予約状態再取得
+        const interval = setInterval(() => fetchOnAir(true), 30000);
+        // 10秒毎に現在時刻を更新（プログレスバー・残り時間をスムーズに追従）
+        const timeInterval = setInterval(() => {
+            currentTime = Date.now();
+        }, 10000);
 
         unsubscribeSocket = socketStore.on('updateStatus', () => {
             fetchOnAir(true);
@@ -144,6 +235,7 @@
 
         return () => {
             clearInterval(interval);
+            clearInterval(timeInterval);
         };
     });
 
@@ -152,30 +244,138 @@
     });
 
     let filteredList = $derived.by(() => {
-        if (selectedType === 'all') return onAirList;
-        return onAirList.filter(item => item.channel?.channelType === selectedType);
+        return onAirList.filter(item => {
+            // 放送波フィルタ
+            if (selectedType !== 'all' && item.channel?.channelType !== selectedType) {
+                return false;
+            }
+            // ジャンルフィルタ
+            if (selectedGenre !== null) {
+                const curGenre = item.current?.genre1;
+                const nextGenre = item.next?.genre1;
+                if (curGenre !== selectedGenre && nextGenre !== selectedGenre) {
+                    return false;
+                }
+            }
+            // キーワードフィルタ
+            if (keyword.trim()) {
+                const kw = keyword.trim().toLowerCase();
+                const chName = (item.channel?.name || '').toLowerCase();
+                const curName = (item.current?.name || '').toLowerCase();
+                const curDesc = (item.current?.description || '').toLowerCase();
+                const nextName = (item.next?.name || '').toLowerCase();
+                if (!chName.includes(kw) && !curName.includes(kw) && !curDesc.includes(kw) && !nextName.includes(kw)) {
+                    return false;
+                }
+            }
+            return true;
+        });
     });
 
-    function getProgress(startAt: number, endAt: number): number {
-        const now = Date.now();
+    function getProgress(startAt: number, endAt: number, now: number): number {
         if (now <= startAt) return 0;
         if (now >= endAt) return 100;
         return Math.min(100, Math.max(0, Math.round(((now - startAt) / (endAt - startAt)) * 100)));
     }
 
-    function openStreamModal(channel: apid.ChannelItem) {
+    function openStreamModal(channel: apid.ChannelItem, programName?: string) {
         selectedChannel = channel;
+        streamModalTitle = programName || `${channel.name} ライブ視聴`;
         isStreamModalOpen = true;
     }
 
-    function openProgramDetail(program: apid.ScheduleProgramItem, channel: apid.ChannelItem, isNext: boolean = false) {
+    function openProgramDetail(program: OnAirProgram, channel: apid.ChannelItem, isNext: boolean = false) {
         selectedDetailItem = { program, channel, isNext };
         isDetailModalOpen = true;
     }
 
-    // ワンクリック予約
-    async function reserveProgram(program: any) {
+    // 現在放送中番組の即時録画開始
+    async function startRecordCurrentProgram(item: OnAirItem) {
+        if (readOnlyStore.isReadOnly) return;
+        const program = item.current;
         if (!program || !program.id) return;
+
+        // すでに録画中の場合は3択モーダルを開く
+        if (program.isRecording) {
+            openRecordingAction(item);
+            return;
+        }
+
+        isReserving = true;
+        try {
+            await http.post('/api/reserves', {
+                programId: program.id,
+                allowEndLack: true, // 途中からの録画を許可
+            });
+            snackbar.open({ text: `「${program.name}」の録画を開始しました`, color: 'success' });
+            await fetchOnAir(true);
+        } catch (e) {
+            console.error('Failed to start recording', e);
+            snackbar.open({ text: '録画の開始に失敗しました', color: 'error' });
+        } finally {
+            isReserving = false;
+        }
+    }
+
+    // 録画中番組の操作モーダルを開く
+    function openRecordingAction(item: OnAirItem) {
+        if (readOnlyStore.isReadOnly) return;
+        const program = item.current;
+        recordingActionItem = {
+            id: program.recordingReserveId,
+            name: program.name,
+            channelId: item.channel.id,
+            startAt: program.startAt,
+            endAt: program.endAt,
+        };
+        isRecordingActionModalOpen = true;
+    }
+
+    // 録画中番組の3択操作実行
+    async function handleRecordingAction(action: 'finish' | 'stop' | 'discard') {
+        if (!recordingActionItem || isRecordingActionProcessing) return;
+        isRecordingActionProcessing = true;
+        const reserveId = recordingActionItem.id;
+        const name = recordingActionItem.name;
+
+        if (!reserveId) {
+            snackbar.open({ text: '予約情報の取得に失敗したため、操作を実行できませんでした', color: 'error' });
+            isRecordingActionProcessing = false;
+            return;
+        }
+
+        try {
+            if (action === 'finish') {
+                await http.post(`/api/recording/${reserveId}/finish`);
+                snackbar.open({ text: `「${name}」を正常終了として保存しました`, color: 'success' });
+            } else if (action === 'stop') {
+                await http.post(`/api/recording/${reserveId}/stop`);
+                snackbar.open({ text: `「${name}」を中断保存しました（録画履歴は未登録）`, color: 'info' });
+            } else if (action === 'discard') {
+                await http.post(`/api/recording/${reserveId}/discard`);
+                snackbar.open({ text: `「${name}」の録画を取り消し、ファイルを破棄しました`, color: 'info' });
+            }
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+            await fetchOnAir(true);
+        } catch (e) {
+            console.error(`Failed to execute recording action ${action}`, e);
+            snackbar.open({ text: '録画の停止操作に失敗しました', color: 'error' });
+        } finally {
+            isRecordingActionProcessing = false;
+        }
+    }
+
+    // 次の番組のワンクリック予約 / 解除
+    async function toggleReserveProgram(program: OnAirProgram) {
+        if (readOnlyStore.isReadOnly || !program || !program.id) return;
+
+        // すでに予約されている場合は予約画面へ遷移
+        if (program.isReserved) {
+            router.push('/reserves');
+            return;
+        }
+
         isReserving = true;
         try {
             await http.post('/api/reserves', {
@@ -183,7 +383,8 @@
                 allowEndLack: false,
             });
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
-            isDetailModalOpen = false;
+            if (isDetailModalOpen) isDetailModalOpen = false;
+            await fetchOnAir(true);
         } catch (e) {
             console.error('Failed to reserve program', e);
             snackbar.open({ text: '番組の予約に失敗しました', color: 'error' });
@@ -212,33 +413,76 @@
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
-        <!-- ヘッダー & 放送波タブ -->
+        <!-- ツールバー & フィルター -->
         <div
-            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="space-y-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
-            <div>
-                <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-                    <Radio size={20} class="text-blue-600 dark:text-blue-400" />
-                    放送中の番組
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                    現在放送中の番組 ＆ 次の番組一覧（クリックで番組詳細・予約）
-                </p>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                        <Radio size={20} class="text-blue-600 dark:text-blue-400" />
+                        放送中の番組
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        現在放送中の番組をリアルタイムに視聴・録画、次の番組を即座に予約
+                    </p>
+                </div>
+
+                <!-- 放送波タブ -->
+                <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+                    {#each channelTypes as type}
+                        <button
+                            type="button"
+                            onclick={() => (selectedType = type.id)}
+                            class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedType ===
+                            type.id
+                                ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
+                                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                        >
+                            {type.name}
+                        </button>
+                    {/each}
+                </div>
             </div>
 
-            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-                {#each channelTypes as type}
-                    <button
-                        type="button"
-                        onclick={() => (selectedType = type.id)}
-                        class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedType ===
-                        type.id
-                            ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
-                    >
-                        {type.name}
-                    </button>
-                {/each}
+            <!-- キーワード検索 & ジャンルチップ -->
+            <div class="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <!-- 検索入力 -->
+                <div class="relative flex-1 min-w-[200px] max-w-md">
+                    <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        bind:value={keyword}
+                        placeholder="番組名や概要で絞り込み..."
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-8 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-blue-400"
+                    />
+                    {#if keyword}
+                        <button
+                            type="button"
+                            onclick={() => (keyword = '')}
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            aria-label="検索ワードをクリア"
+                        >
+                            <X size={13} />
+                        </button>
+                    {/if}
+                </div>
+
+                <!-- ジャンルチップ -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                    {#each GENRES as g}
+                        <button
+                            type="button"
+                            onclick={() => (selectedGenre = g.id)}
+                            class="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer {selectedGenre ===
+                            g.id
+                                ? 'bg-blue-600 text-white font-bold shadow-xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}"
+                        >
+                            {g.name}
+                        </button>
+                    {/each}
+                </div>
             </div>
         </div>
 
@@ -254,22 +498,26 @@
                 class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
             >
                 <Tv size={36} class="text-slate-300 dark:text-slate-600" />
-                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">放送中の番組が見つかりません</p>
+                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                    条件に一致する放送中の番組が見つかりません
+                </p>
+                <p class="text-xs text-slate-400 mt-1">放送波タブやジャンル条件を変更してみてください</p>
             </div>
         {:else}
             <div
                 class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full text-left text-xs">
                         <thead
-                            class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
+                            class="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                         >
                             <tr>
-                                <th class="px-4 py-3.5 w-44">放送局 / 時間</th>
-                                <th class="px-3 py-3.5 w-20 text-center">視聴</th>
-                                <th class="px-4 py-3.5">現在の番組</th>
-                                <th class="px-4 py-3.5 w-72 lg:w-80 border-l border-slate-100 dark:border-slate-800">
+                                <th class="px-4 py-3.5 w-36 sm:w-44">放送局</th>
+                                <th class="px-4 py-3.5 min-w-[320px]">現在の番組 (放送中)</th>
+                                <th
+                                    class="px-4 py-3.5 w-64 sm:w-80 lg:w-96 border-l border-slate-100 dark:border-slate-800"
+                                >
                                     次の番組
                                 </th>
                             </tr>
@@ -278,104 +526,207 @@
                             {#each filteredList as item}
                                 {@const current = item.current}
                                 {@const next = item.next}
-                                {@const progress = current ? getProgress(current.startAt, current.endAt) : 0}
-                                <tr class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                    <!-- 1. 放送局 & 放送時間 (時間の下にプログレスバー、%表記なし) -->
-                                    <td class="whitespace-nowrap px-4 py-3.5 align-top">
-                                        <span
-                                            class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                        >
-                                            {item.channel?.name || ''}
-                                        </span>
-                                        {#if current}
-                                            <div
-                                                class="mt-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                {@const progress = current
+                                    ? getProgress(current.startAt, current.endAt, currentTime)
+                                    : 0}
+                                {@const isRec = current?.isRecording}
+                                <tr
+                                    class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 {isRec
+                                        ? 'bg-rose-50/40 dark:bg-rose-950/20'
+                                        : ''}"
+                                >
+                                    <!-- 1. 放送局カラム -->
+                                    <td class="px-4 py-4 align-top whitespace-nowrap">
+                                        <div class="space-y-1.5">
+                                            <span
+                                                class="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                                             >
-                                                {formatTime(current.startAt)} - {formatTime(current.endAt)}
-                                            </div>
-                                            <!-- 時間の下の経過時間プログレスバー (%表記なし) -->
-                                            <div
-                                                class="mt-1.5 h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-                                            >
+                                                [{item.channel?.channelType}] {item.channel?.name || ''}
+                                            </span>
+                                            {#if item.channel?.remoteControlKeyId}
                                                 <div
-                                                    class="h-full bg-blue-500 transition-all duration-500"
-                                                    style="width: {progress}%"
-                                                ></div>
-                                            </div>
-                                        {/if}
-                                    </td>
-
-                                    <!-- 2. 視聴ボタン -->
-                                    <td class="whitespace-nowrap px-3 py-3.5 align-top text-center">
-                                        {#if readOnlyStore.canLiveStream}
-                                            <button
-                                                type="button"
-                                                onclick={e => {
-                                                    e.stopPropagation();
-                                                    openStreamModal(item.channel);
-                                                }}
-                                                class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
-                                                title="ライブ視聴"
-                                            >
-                                                <Play size={12} fill="currentColor" /> 視聴
-                                            </button>
-                                        {:else}
-                                            <span class="text-xs text-slate-400">-</span>
-                                        {/if}
-                                    </td>
-
-                                    <!-- 3. 現在の番組 (番組名 / 概要) -->
-                                    <td
-                                        onclick={() => openProgramDetail(current, item.channel, false)}
-                                        class="px-4 py-3.5 align-top cursor-pointer group"
-                                    >
-                                        {#if current}
-                                            <div
-                                                class="font-bold text-slate-900 group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 transition-colors"
-                                            >
-                                                {current.name}
-                                            </div>
-                                            {#if current.description}
-                                                <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
-                                                    {current.description}
-                                                </p>
+                                                    class="text-[11px] font-semibold text-slate-400 dark:text-slate-500"
+                                                >
+                                                    ch.{item.channel.remoteControlKeyId}
+                                                </div>
                                             {/if}
+                                        </div>
+                                    </td>
+
+                                    <!-- 2. 現在の番組カラム (主役: メタ情報 ➔ タイトル ＋ 視聴・録画ボタン ➔ 進捗バー ➔ 概要) -->
+                                    <td class="px-4 py-4 align-top min-w-0">
+                                        {#if current}
+                                            <div class="space-y-2.5">
+                                                <!-- メタ情報: 時間、残り時間、ジャンルバッジ、録画中ステータス -->
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span
+                                                        class="flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400 text-xs"
+                                                    >
+                                                        <Clock size={12} />
+                                                        {formatTime(current.startAt)} - {formatTime(current.endAt)}
+                                                    </span>
+
+                                                    <span
+                                                        class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-1.5 py-0.5 rounded text-[11px]"
+                                                    >
+                                                        {formatTimeRemaining(current.endAt, currentTime)}
+                                                    </span>
+
+                                                    {#if current.genre1 !== undefined}
+                                                        <span
+                                                            class="rounded-md border px-1.5 py-0.5 text-[10px] font-bold {getGenreBadgeClass(
+                                                                current.genre1,
+                                                            )}"
+                                                        >
+                                                            {getGenreName(current.genre1)}
+                                                        </span>
+                                                    {/if}
+
+                                                    {#if isRec}
+                                                        <span
+                                                            class="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-xs animate-pulse"
+                                                        >
+                                                            <CircleDot size={10} /> 録画中
+                                                        </span>
+                                                    {/if}
+                                                </div>
+
+                                                <!-- 番組タイトル ＆ アクションボタン群 (番組名のすぐ傍に配置) -->
+                                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => openProgramDetail(current, item.channel, false)}
+                                                        class="text-left font-black text-sm text-slate-900 hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400 transition-colors cursor-pointer flex-1 min-w-[200px]"
+                                                    >
+                                                        {current.name}
+                                                    </button>
+
+                                                    <!-- アクションボタン群 (視聴 ＆ 録画) -->
+                                                    <div class="flex items-center gap-1.5 shrink-0">
+                                                        <!-- 【▶ 視聴】ボタン -->
+                                                        {#if readOnlyStore.canLiveStream}
+                                                            <button
+                                                                type="button"
+                                                                onclick={() =>
+                                                                    openStreamModal(item.channel, current.name)}
+                                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md transition cursor-pointer"
+                                                                title="ライブ視聴を開始"
+                                                            >
+                                                                <Play size={12} fill="currentColor" /> 視聴
+                                                            </button>
+                                                        {/if}
+
+                                                        <!-- 【🔴 録画】/【● 録画中 (3択)】ボタン -->
+                                                        {#if !readOnlyStore.isReadOnly}
+                                                            {#if isRec}
+                                                                <button
+                                                                    type="button"
+                                                                    onclick={() => openRecordingAction(item)}
+                                                                    class="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
+                                                                    title="録画中の操作 (完了・中断・破棄)"
+                                                                >
+                                                                    <CircleDot size={12} /> 録画中
+                                                                </button>
+                                                            {:else}
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isReserving}
+                                                                    onclick={() => startRecordCurrentProgram(item)}
+                                                                    class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-bold text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
+                                                                    title="この番組を今すぐ録画"
+                                                                >
+                                                                    <Bookmark size={12} /> 録画
+                                                                </button>
+                                                            {/if}
+                                                        {/if}
+                                                    </div>
+                                                </div>
+
+                                                <!-- 進捗プログレスバー -->
+                                                <div
+                                                    class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                                                >
+                                                    <div
+                                                        class="h-full bg-blue-500 transition-all duration-500"
+                                                        style="width: {progress}%"
+                                                    ></div>
+                                                </div>
+
+                                                <!-- 番組概要 (2行クランプ、クリックでモーダル) -->
+                                                {#if current.description}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => openProgramDetail(current, item.channel, false)}
+                                                        class="text-left line-clamp-2 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer w-full"
+                                                    >
+                                                        {current.description}
+                                                    </button>
+                                                {/if}
+                                            </div>
                                         {:else}
                                             <span class="text-slate-400 text-xs">番組情報なし</span>
                                         {/if}
                                     </td>
 
-                                    <!-- 4. 最終カラム: 次の番組 (時間、タイトル & 予約導線) -->
+                                    <!-- 3. 次の番組カラム (開始時刻、ジャンル、タイトル、予約ボタン/予約中バッジ) -->
                                     <td
-                                        onclick={() => next && openProgramDetail(next, item.channel, true)}
-                                        class="px-4 py-3.5 align-top border-l border-slate-100 dark:border-slate-800 {next
-                                            ? 'cursor-pointer group/next bg-slate-50/30 dark:bg-slate-900/20 hover:bg-blue-50/40 dark:hover:bg-blue-950/20'
-                                            : ''} transition-colors"
+                                        class="px-4 py-4 align-top border-l border-slate-100 dark:border-slate-800 bg-slate-50/25 dark:bg-slate-900/20"
                                     >
                                         {#if next}
-                                            <div class="flex items-center justify-between gap-1">
-                                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                                    {formatTime(next.startAt)} - {formatTime(next.endAt)}
-                                                </span>
-                                                {#if !readOnlyStore.isReadOnly}
-                                                    <button
-                                                        type="button"
-                                                        onclick={e => {
-                                                            e.stopPropagation();
-                                                            reserveProgram(next);
-                                                        }}
-                                                        class="flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
-                                                        title="ワンクリック予約"
-                                                    >
-                                                        <Bookmark size={11} /> 予約
-                                                    </button>
-                                                {/if}
+                                            <div class="space-y-2">
+                                                <!-- メタ情報 & 予約アクション -->
+                                                <div class="flex items-center justify-between gap-1">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span
+                                                            class="text-[11px] font-bold text-slate-600 dark:text-slate-300"
+                                                        >
+                                                            {formatTime(next.startAt)}〜
+                                                        </span>
+                                                        {#if next.genre1 !== undefined}
+                                                            <span
+                                                                class="rounded-md border px-1.5 py-0.2 text-[9px] font-bold {getGenreBadgeClass(
+                                                                    next.genre1,
+                                                                )}"
+                                                            >
+                                                                {getGenreName(next.genre1)}
+                                                            </span>
+                                                        {/if}
+                                                    </div>
+
+                                                    <!-- 予約状態バッジ / 予約ボタン -->
+                                                    {#if !readOnlyStore.isReadOnly}
+                                                        {#if next.isReserved}
+                                                            <button
+                                                                type="button"
+                                                                onclick={() => router.push('/reserves')}
+                                                                class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
+                                                                title="予約一覧で確認"
+                                                            >
+                                                                <Check size={11} /> 予約中
+                                                            </button>
+                                                        {:else}
+                                                            <button
+                                                                type="button"
+                                                                disabled={isReserving}
+                                                                onclick={() => toggleReserveProgram(next)}
+                                                                class="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
+                                                                title="ワンクリック予約"
+                                                            >
+                                                                <Plus size={11} /> 予約
+                                                            </button>
+                                                        {/if}
+                                                    {/if}
+                                                </div>
+
+                                                <!-- 次番組タイトル -->
+                                                <button
+                                                    type="button"
+                                                    onclick={() => openProgramDetail(next, item.channel, true)}
+                                                    class="text-left line-clamp-2 text-xs font-bold text-slate-800 hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-400 transition-colors cursor-pointer w-full"
+                                                >
+                                                    {next.name}
+                                                </button>
                                             </div>
-                                            <p
-                                                class="mt-1 line-clamp-2 text-xs font-bold text-slate-800 group-hover/next:text-blue-600 dark:text-slate-200 dark:group-hover/next:text-blue-400 transition-colors"
-                                            >
-                                                {next.name}
-                                            </p>
                                         {:else}
                                             <span class="text-slate-400 text-xs">-</span>
                                         {/if}
@@ -395,7 +746,8 @@
     {@const p = selectedDetailItem.program}
     {@const ch = selectedDetailItem.channel}
     {@const isNext = selectedDetailItem.isNext}
-    {@const prog = getProgress(p.startAt, p.endAt)}
+    {@const prog = getProgress(p.startAt, p.endAt, currentTime)}
+    {@const isRec = p.isRecording}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
         <!-- バックドロップ -->
         <button
@@ -412,17 +764,30 @@
             <!-- モーダルヘッダー -->
             <div class="flex items-start justify-between border-b border-slate-100 p-4 dark:border-slate-800">
                 <div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span
                             class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                         >
                             [{ch?.channelType}] {ch?.name}
                         </span>
+                        {#if p.genre1 !== undefined}
+                            <span
+                                class="rounded-md border px-2 py-0.5 text-xs font-bold {getGenreBadgeClass(p.genre1)}"
+                            >
+                                {getGenreName(p.genre1)}
+                            </span>
+                        {/if}
                         {#if isNext}
                             <span
                                 class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                             >
                                 次の番組
+                            </span>
+                        {:else if isRec}
+                            <span
+                                class="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs animate-pulse"
+                            >
+                                <CircleDot size={12} /> 録画中
                             </span>
                         {:else}
                             <span
@@ -459,7 +824,9 @@
                             {formatTime(p.startAt)} - {formatTime(p.endAt)}
                         </span>
                         {#if !isNext}
-                            <span class="text-blue-600 dark:text-blue-400 font-bold">{prog}% 経過</span>
+                            <span class="text-blue-600 dark:text-blue-400 font-bold">
+                                {formatTimeRemaining(p.endAt, currentTime)} ({prog}% 経過)
+                            </span>
                         {/if}
                     </div>
                     {#if !isNext}
@@ -531,16 +898,48 @@
 
                 <div class="flex items-center gap-2">
                     {#if !readOnlyStore.isReadOnly}
-                        <!-- 番組予約ボタン (次番組はもちろん、放送中番組の録画も可能) -->
-                        <button
-                            type="button"
-                            disabled={isReserving}
-                            onclick={() => reserveProgram(p)}
-                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
-                        >
-                            <Bookmark size={14} />
-                            {isNext ? 'この番組を予約' : '録画予約'}
-                        </button>
+                        {#if isRec}
+                            <!-- 録画中の場合は3択モーダルを開く -->
+                            <button
+                                type="button"
+                                onclick={() => {
+                                    isDetailModalOpen = false;
+                                    const item = onAirList.find(s => s.channel.id === ch.id);
+                                    if (item) openRecordingAction(item);
+                                }}
+                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer"
+                            >
+                                <CircleDot size={14} /> 録画操作 (3択)
+                            </button>
+                        {:else if isNext && p.isReserved}
+                            <button
+                                type="button"
+                                onclick={() => {
+                                    isDetailModalOpen = false;
+                                    router.push('/reserves');
+                                }}
+                                class="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
+                            >
+                                <Check size={14} /> 予約一覧で確認
+                            </button>
+                        {:else}
+                            <button
+                                type="button"
+                                disabled={isReserving}
+                                onclick={() => {
+                                    if (isNext) {
+                                        toggleReserveProgram(p);
+                                    } else {
+                                        const item = onAirList.find(s => s.channel.id === ch.id);
+                                        if (item) startRecordCurrentProgram(item);
+                                    }
+                                }}
+                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                            >
+                                <Bookmark size={14} />
+                                {isNext ? 'この番組を予約' : '今すぐ録画'}
+                            </button>
+                        {/if}
                     {/if}
 
                     {#if !isNext && readOnlyStore.canLiveStream}
@@ -548,7 +947,7 @@
                             type="button"
                             onclick={() => {
                                 isDetailModalOpen = false;
-                                openStreamModal(ch);
+                                openStreamModal(ch, p.name);
                             }}
                             class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 cursor-pointer"
                         >
@@ -561,17 +960,32 @@
     </div>
 {/if}
 
+<!-- 録画中番組の操作モーダル (3択アクション) -->
+{#if isRecordingActionModalOpen && recordingActionItem}
+    <RecordingActionModal
+        isOpen={isRecordingActionModalOpen}
+        item={recordingActionItem}
+        isProcessing={isRecordingActionProcessing}
+        onAction={handleRecordingAction}
+        onClose={() => {
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+        }}
+    />
+{/if}
+
 <!-- ライブ配信設定モーダル -->
 {#if selectedChannel}
     {@const ch = selectedChannel}
     <StreamSelectModal
         isOpen={isStreamModalOpen}
-        title={onAirList.find(s => s.channel?.id === ch.id)?.current?.name || `${ch.name} ライブ視聴`}
+        title={streamModalTitle || `${ch.name} ライブ視聴`}
         channelId={ch.id}
         channelName={ch.name}
         onClose={() => {
             isStreamModalOpen = false;
             selectedChannel = null;
+            streamModalTitle = '';
         }}
     />
 {/if}

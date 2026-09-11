@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { extractFirstSearchWord, formatDuration, formatSize } from '../../client/src/lib/utils/format';
+import {
+    extractFirstSearchWord,
+    formatDuration,
+    formatSize,
+    getGenreName,
+    getGenreBadgeClass,
+    formatTimeRemaining,
+} from '../../client/src/lib/utils/format';
 
 describe('format utils', () => {
     describe('extractFirstSearchWord', () => {
@@ -45,6 +53,33 @@ describe('format utils', () => {
             expect(formatSize(1024)).toBe('1.00 KB');
             expect(formatSize(1024 * 1024 * 1.5)).toBe('1.50 MB');
             expect(formatSize(1024 * 1024 * 1024 * 2.5)).toBe('2.50 GB');
+        });
+    });
+
+    describe('getGenreName and getGenreBadgeClass', () => {
+        it('should return correct genre names', () => {
+            expect(getGenreName(0)).toBe('ニュース');
+            expect(getGenreName(7)).toBe('アニメ');
+            expect(getGenreName(3)).toBe('ドラマ');
+            expect(getGenreName(99)).toBe('その他');
+            expect(getGenreName(undefined)).toBe('その他');
+        });
+
+        it('should return valid Tailwind badge classes', () => {
+            expect(getGenreBadgeClass(0)).toContain('bg-blue-50');
+            expect(getGenreBadgeClass(7)).toContain('bg-pink-50');
+            expect(getGenreBadgeClass(undefined)).toContain('bg-slate-100');
+        });
+    });
+
+    describe('formatTimeRemaining', () => {
+        it('should format remaining time correctly', () => {
+            const now = 1700000000000;
+            expect(formatTimeRemaining(now + 24 * 60 * 1000, now)).toBe('残り 24分');
+            expect(formatTimeRemaining(now + 75 * 60 * 1000, now)).toBe('残り 1時間15分');
+            expect(formatTimeRemaining(now + 60 * 60 * 1000, now)).toBe('残り 1時間');
+            expect(formatTimeRemaining(now - 1000, now)).toBe('まもなく終了');
+            expect(formatTimeRemaining(null, now)).toBe('');
         });
     });
 });

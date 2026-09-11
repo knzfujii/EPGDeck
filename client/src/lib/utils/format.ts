@@ -127,3 +127,79 @@ export function extractFirstSearchWord(title: string | undefined | null): string
     const words = cleaned.split(/[\s　]+/);
     return words[0] || title.trim();
 }
+
+/**
+ * 主要ジャンル番号から日本語名称を取得
+ */
+export function getGenreName(genre1?: number): string {
+    switch (genre1) {
+        case 0:
+            return 'ニュース';
+        case 1:
+            return 'スポーツ';
+        case 2:
+            return '情報';
+        case 3:
+            return 'ドラマ';
+        case 4:
+            return '音楽';
+        case 5:
+            return 'バラエティ';
+        case 6:
+            return '映画';
+        case 7:
+            return 'アニメ';
+        case 8:
+            return 'ドキュメンタリー';
+        case 9:
+            return '劇場';
+        case 10:
+            return '趣味・教育';
+        case 11:
+            return '福祉';
+        default:
+            return 'その他';
+    }
+}
+
+/**
+ * ジャンル番号に応じたバッジ表示用 Tailwind CSS クラス
+ */
+export function getGenreBadgeClass(genre1?: number): string {
+    switch (genre1) {
+        case 0:
+            return 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-900';
+        case 1:
+            return 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border-orange-200 dark:border-orange-900';
+        case 2:
+            return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900';
+        case 3:
+            return 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-900';
+        case 4:
+            return 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-900';
+        case 5:
+            return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900';
+        case 6:
+            return 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-200 dark:border-green-900';
+        case 7:
+            return 'bg-pink-50 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-pink-200 dark:border-pink-900';
+        default:
+            return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+    }
+}
+
+/**
+ * 終了時刻までの残り時間を "残り X分" や "残り X時間Y分" にフォーマット
+ */
+export function formatTimeRemaining(endAt: number | undefined | null, now: number = Date.now()): string {
+    if (!endAt) return '';
+    const diffMs = endAt - now;
+    if (diffMs <= 0) return 'まもなく終了';
+    const totalMin = Math.ceil(diffMs / 60000);
+    if (totalMin >= 60) {
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return m > 0 ? `残り ${h}時間${m}分` : `残り ${h}時間`;
+    }
+    return `残り ${totalMin}分`;
+}

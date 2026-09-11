@@ -57,6 +57,13 @@ app.put('/:streamId/keep', async c => {
     }
 });
 
+// Tuner resource unavailable check helper
+const isTunerUnavailable = (err: any): boolean => {
+    if (!err) return false;
+    const msg = typeof err === 'string' ? err : err.message || String(err);
+    return msg.includes('503') || msg.includes('Tuner Resource Unavailable');
+};
+
 // GET /api/streams/live/:channelId/hls
 app.get('/live/:channelId/hls', async c => {
     const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
@@ -67,6 +74,9 @@ app.get('/live/:channelId/hls', async c => {
         const streamId = await streamApiModel.startLiveHLSStream({ channelId, mode });
         return api.responseJSON(c, 200, { streamId });
     } catch (err: any) {
+        if (isTunerUnavailable(err)) {
+            return api.responseError(c, { code: 503, message: 'Tuner Resource Unavailable', errors: err.message });
+        }
         return api.responseServerError(c, err.message);
     }
 });
@@ -88,6 +98,9 @@ app.get('/live/:channelId/m2ts/playlist', async c => {
         }
         return api.responsePlayList(c, playlist);
     } catch (err: any) {
+        if (isTunerUnavailable(err)) {
+            return api.responseError(c, { code: 503, message: 'Tuner Resource Unavailable', errors: err.message });
+        }
         return api.responseServerError(c, err.message);
     }
 });
@@ -147,6 +160,9 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
             keepTimer = null;
         }
         if (streamId !== null) await streamApiModel.stop(streamId, true).catch(() => {});
+        if (isTunerUnavailable(err)) {
+            return api.responseError(c, { code: 503, message: 'Tuner Resource Unavailable', errors: err.message });
+        }
         return api.responseServerError(c, err.message);
     }
 };

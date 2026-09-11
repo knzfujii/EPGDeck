@@ -346,8 +346,20 @@
                 mpegtsInstance.load();
                 mpegtsInstance.play();
 
-                mpegtsInstance.on(Mpegts.Events.ERROR, (type, detail, info) => {
+                mpegtsInstance.on(Mpegts.Events.ERROR, (type: any, detail: any, info: any) => {
                     console.warn('Mpegts error:', type, detail, info);
+                    const statusCode =
+                        info?.code || info?.status || (info?.response ? info.response.status : undefined);
+                    if (statusCode === 503 || (typeof detail === 'string' && detail.includes('503'))) {
+                        errorMessage =
+                            '利用可能なチューナーがありません（現在すべてのチューナーが録画等で使用されています）';
+                    } else if (type === Mpegts.ErrorTypes.NETWORK_ERROR) {
+                        errorMessage = 'ストリームの接続に失敗しました';
+                    } else {
+                        errorMessage = 'ストリームの再生に失敗しました';
+                    }
+                    isLoading = false;
+                    cleanupEngines();
                 });
 
                 mpegtsInstance.on(Mpegts.Events.TIMED_ID3_METADATA_ARRIVED, (data: any) => {
@@ -390,16 +402,26 @@
                 hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
                     if (data.fatal) {
                         switch (data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn('HLS Network error, recovering...');
-                                hlsInstance?.startLoad();
+                            case Hls.ErrorTypes.NETWORK_ERROR: {
+                                const statusCode = data.response?.code || (data.response as any)?.status;
+                                if (statusCode === 503) {
+                                    errorMessage =
+                                        '利用可能なチューナーがありません（現在すべてのチューナーが録画等で使用されています）';
+                                    isLoading = false;
+                                    cleanupEngines();
+                                } else {
+                                    console.warn('HLS Network error, recovering...');
+                                    hlsInstance?.startLoad();
+                                }
                                 break;
+                            }
                             case Hls.ErrorTypes.MEDIA_ERROR:
                                 console.warn('HLS Media error, recovering...');
                                 hlsInstance?.recoverMediaError();
                                 break;
                             default:
                                 errorMessage = 'ストリームの再生に失敗しました';
+                                isLoading = false;
                                 cleanupEngines();
                                 break;
                         }
@@ -522,6 +544,14 @@
             showControls = true;
             if (recordedId) playerState.clearPosition(recordedId);
             if (props.onStreamEnded) props.onStreamEnded();
+        }}
+        onerror={() => {
+            isLoading = false;
+            if (!errorMessage) {
+                errorMessage = isLive
+                    ? 'ライブ配信の再生に失敗しました（チューナー不足または配信停止）'
+                    : '動画の再生に失敗しました';
+            }
         }}
         class="h-full w-full object-contain cursor-pointer"
         playsinline

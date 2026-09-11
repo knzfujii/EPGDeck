@@ -368,6 +368,22 @@
                         </a>
                     </div>
                 {/if}
+
+                <!-- ライブ配信時のチューナー注意案内 -->
+                {#if channelId}
+                    <div
+                        class="rounded-xl border border-blue-100 bg-blue-50/70 p-2.5 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200"
+                    >
+                        <p class="font-bold flex items-center gap-1.5">
+                            <Radio size={13} class="text-blue-600 dark:text-blue-400" />
+                            チューナー確保について
+                        </p>
+                        <p class="text-[11px] text-blue-700/80 dark:text-blue-300/80 mt-0.5">
+                            ライブ視聴には Mirakurun
+                            の空きチューナーを1基使用します。全チューナーが録画で使用中の場合は視聴できないことがあります。
+                        </p>
+                    </div>
+                {/if}
             </div>
 
             <!-- アクションボタン -->

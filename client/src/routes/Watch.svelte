@@ -163,10 +163,16 @@
                     } else {
                         throw new Error('Stream timed out waiting for manifest');
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Failed to start live stream', e);
-                    snackbar.open({ text: 'ライブストリームの開始に失敗しました', color: 'error' });
-                    statusText = 'ライブストリームの開始に失敗しました';
+                    if (e.response?.status === 503) {
+                        const msg = 'チューナー不足: 現在利用可能なチューナーがありません（録画等で使用中）';
+                        snackbar.open({ text: msg, color: 'error' });
+                        statusText = msg;
+                    } else {
+                        snackbar.open({ text: 'ライブストリームの開始に失敗しました', color: 'error' });
+                        statusText = 'ライブストリームの開始に失敗しました';
+                    }
                 } finally {
                     isLoadingInfo = false;
                     isPreparingStream = false;

@@ -31,14 +31,19 @@ test.describe('OnAir Page (/onair)', () => {
         await page.getByRole('button', { name: '地デジ' }).click();
         await page.getByRole('button', { name: 'すべて' }).click();
 
-        // 4. 放送中番組カードが存在する場合のモーダル検証
-        const playButtons = page.locator('button[aria-label="動画を再生"], button:has-text("再生する")');
-        const playCount = await playButtons.count();
+        // 3.1 検索バーとジャンルチップの存在確認
+        await expect(page.getByPlaceholder('番組名や概要で絞り込み...')).toBeVisible();
+        await expect(page.getByRole('button', { name: '全ジャンル' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'ニュース' })).toBeVisible();
 
-        if (playCount > 0) {
-            // 再生モーダルを開く
-            await playButtons.first().click();
-            await expect(page.getByRole('heading', { name: 'ストリーム選択' })).toBeVisible();
+        // 4. 放送中番組の視聴ボタン検証
+        const watchButtons = page.getByRole('button', { name: '視聴' });
+        const watchCount = await watchButtons.count();
+
+        if (watchCount > 0) {
+            // 視聴モーダルを開く
+            await watchButtons.first().click();
+            await expect(page.getByRole('heading', { name: /ライブ視聴/ })).toBeVisible();
             // 閉じる
             const closeBtn = page.getByRole('button', { name: '閉じる' }).first();
             await closeBtn.click();

@@ -18,7 +18,7 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 - [x] **録画中番組の途中完了・取り消し機能（3択アクションモーダル）**
   - 録画進行中の番組に対し、「完了として保存（正常終了・履歴登録）」「中断して保存（未完了・履歴未登録）」「録画を取り消し（ファイル破棄・完全削除）」の3択操作モーダル（`RecordingActionModal.svelte`）を新設
   - 正常終了（`POST /api/recording/:reserveId/finish`）: `isNeedDeleteReservation = true` を維持してストリームを切断し、実時間確定・サムネイル・エンコード・録画履歴（`RecordedHistory`）登録・予約消化を通常通り実行
-  - 中断（`POST /api/recording/:reserveId/stop`）: ファイルは保存・エンコードするが未完了扱いとし、再放送があれば自動録画の対象として再取得可能に
+  - 中断（`POST /api/recording/:reserveId/stop`）: ファイルは保存・エンコードするが未完了扱い（履歴未登録）とし、再放送時などに重複録画の判定対象（録画済み扱い）にならないよう維持
   - 取り消し（`POST /api/recording/:reserveId/discard` / `DELETE /api/recording/:reserveId`）: ストリーム停止後に録画中 TS 実ファイル・DB レコードを物理削除し、予約も削除/スキップ
   - 予約一覧（行・カード・予約詳細モーダル）から録画中番組の操作時に自動連動
 - [x] **リードオンリーモード（閲覧専用モード）/ 録画ファイル削除の非表示設定**

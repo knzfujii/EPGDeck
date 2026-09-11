@@ -7,6 +7,8 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import type * as apid from '../../../api';
     import http from '@/lib/httpClient';
+    import { extractFirstSearchWord } from '../lib/utils/format';
+    import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import {
         Calendar,
         ChevronLeft,
@@ -88,8 +90,13 @@
     let isReserving = $state(false);
 
     // 予約マップ (programId -> reserve)
-    let reservesMap = $state<Map<number, apid.ReserveItem>>(new Map());
+    let reservesMap = $state<Map<number, apid.ReserveItem & { isRecording?: boolean }>>(new Map());
     let unsubscribeSocket: (() => void) | null = null;
+
+    // 録画中番組の操作モーダル状態
+    let isRecordingActionModalOpen = $state(false);
+    let recordingActionItem = $state<(apid.ReserveItem & { isRecording?: boolean }) | null>(null);
+    let isRecordingActionProcessing = $state(false);
 
     // 予約オプション設定 (エンコードプリセット名 / 保存先ディレクトリ名)
     let encodeModes = $state<string[]>([]);
@@ -152,12 +159,23 @@
     // グリッドスクロールコンテナ参照
     let scrollContainer = $state<HTMLDivElement | null>(null);
 
-    const channelTypes = [
+    const ALL_CHANNEL_TYPES = [
         { id: 'GR', name: '地デジ' },
         { id: 'BS', name: 'BS' },
         { id: 'CS', name: 'CS' },
         { id: 'SKY', name: 'SKY' },
-    ];
+    ] as const;
+
+    let channelTypes = $derived.by(() => {
+        const active = new Set(channelStore.activeChannelTypes);
+        return ALL_CHANNEL_TYPES.filter(t => active.has(t.id));
+    });
+
+    $effect(() => {
+        if (channelTypes.length > 0 && !channelTypes.some(t => t.id === selectedType)) {
+            selectedType = channelTypes[0].id;
+        }
+    });
 
     // 時間帯ジャンプのプリセット (早朝4時は削除)
     const timeJumps = [
@@ -206,6 +224,26 @@
         currentTimeTop = calculateCurrentTimeTop(Date.now(), guideStartAt, guideEndAt);
     }
 
+    function createReservesMap(reserves: apid.ReserveItem[], recordingList: any[]) {
+        const now = Date.now();
+        const map = new Map<number, apid.ReserveItem & { isRecording?: boolean }>();
+        for (const r of reserves || []) {
+            if (r.programId) {
+                const isCurrentlyRecording =
+                    recordingList.some(
+                        (rec: any) =>
+                            (rec.programId && rec.programId === r.programId) ||
+                            (rec.channelId === r.channelId &&
+                                Math.abs(rec.startAt - r.startAt) < 60000 &&
+                                Math.abs(rec.endAt - r.endAt) < 60000),
+                    ) ||
+                    (r.startAt <= now && now < r.endAt && !r.isSkip);
+                map.set(r.programId, { ...r, isRecording: isCurrentlyRecording });
+            }
+        }
+        return map;
+    }
+
     async function fetchGuide(autoScroll = false) {
         isLoading = true;
         try {
@@ -217,7 +255,7 @@
             guideStartAt = start.getTime();
             guideEndAt = guideStartAt + DISPLAY_HOURS * 60 * 60 * 1000;
 
-            const [scheduleRes, reservesRes] = await Promise.all([
+            const [scheduleRes, reservesRes, recordingRes] = await Promise.all([
                 http.get('/api/schedules', {
                     params: {
                         startAt: guideStartAt,
@@ -235,16 +273,11 @@
                         },
                     })
                     .catch(() => ({ data: { reserves: [] } })),
+                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
             ]);
 
             schedules = scheduleRes.data || [];
-
-            // 予約マップ構築
-            const map = new Map<number, apid.ReserveItem>();
-            for (const r of reservesRes.data.reserves || []) {
-                if (r.programId) map.set(r.programId, r);
-            }
-            reservesMap = map;
+            reservesMap = createReservesMap(reservesRes.data?.reserves || [], recordingRes.data?.records || []);
 
             updateCurrentTimeLine();
         } catch (e) {
@@ -266,21 +299,20 @@
     // 予約マップのみを更新 (番組表の再描画・スクロール位置のリセットを避ける)
     async function refreshReservesMap() {
         try {
-            const reservesRes = await http
-                .get('/api/reserves', {
-                    params: {
-                        startAt: guideStartAt,
-                        endAt: guideEndAt,
-                        isHalfWidth: true,
-                    },
-                })
-                .catch(() => ({ data: { reserves: [] } }));
+            const [reservesRes, recordingRes] = await Promise.all([
+                http
+                    .get('/api/reserves', {
+                        params: {
+                            startAt: guideStartAt,
+                            endAt: guideEndAt,
+                            isHalfWidth: true,
+                        },
+                    })
+                    .catch(() => ({ data: { reserves: [] } })),
+                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
+            ]);
 
-            const map = new Map<number, apid.ReserveItem>();
-            for (const r of reservesRes.data.reserves || []) {
-                if (r.programId) map.set(r.programId, r);
-            }
-            reservesMap = map;
+            reservesMap = createReservesMap(reservesRes.data?.reserves || [], recordingRes.data?.records || []);
         } catch (e) {
             console.error('Failed to refresh reserves map', e);
         }
@@ -489,6 +521,36 @@
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
+        }
+    }
+
+    // 録画中番組の操作ハンドラー
+    async function handleRecordingAction(action: 'finish' | 'stop' | 'discard') {
+        if (!recordingActionItem) return;
+        const target = recordingActionItem;
+        isRecordingActionProcessing = true;
+
+        try {
+            if (action === 'finish') {
+                await http.post(`/api/recording/${target.id}/finish`);
+                snackbar.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
+            } else if (action === 'stop') {
+                await http.post(`/api/recording/${target.id}/stop`);
+                snackbar.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
+            } else if (action === 'discard') {
+                await http.post(`/api/recording/${target.id}/discard`);
+                snackbar.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
+            }
+
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+            if (isModalOpen) isModalOpen = false;
+            await refreshReservesMap();
+        } catch (e) {
+            console.error(`Failed to execute recording action: ${action}`, e);
+            snackbar.open({ text: '録画操作の実行に失敗しました', color: 'error' });
+        } finally {
+            isRecordingActionProcessing = false;
         }
     }
 
@@ -721,13 +783,23 @@
                                             style="top: {topPx}px; height: {heightPx}px;"
                                             class="group absolute inset-x-0.5 overflow-hidden rounded-md border border-slate-200/90 p-2 text-left transition hover:z-20 hover:border-blue-500 hover:shadow-lg dark:border-slate-800 {getGenreClass(
                                                 prog.genre1,
-                                            )} {reserve?.isSkip ? 'opacity-60 border-dashed' : ''}"
+                                            )} {reserve?.isRecording
+                                                ? 'ring-2 ring-rose-500 shadow-xs'
+                                                : reserve?.isSkip
+                                                  ? 'opacity-60 border-dashed'
+                                                  : ''}"
                                         >
                                             <div class="flex flex-col h-full justify-start overflow-hidden">
                                                 <!-- 予約バッジ (予約状態に合わせて表示) -->
                                                 {#if reserve}
                                                     <div class="flex items-center justify-end mb-1 shrink-0">
-                                                        {#if reserve.isSkip}
+                                                        {#if reserve.isRecording}
+                                                            <span
+                                                                class="flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.2 text-[10px] font-black text-white shadow-xs animate-pulse"
+                                                            >
+                                                                ● 録画中
+                                                            </span>
+                                                        {:else if reserve.isSkip}
                                                             <span
                                                                 class="flex items-center gap-0.5 rounded bg-slate-500/85 px-1.5 py-0.2 text-[10px] font-bold text-white shadow-xs"
                                                             >
@@ -820,7 +892,13 @@
                             </span>
                         {/if}
                         {#if selectedProgram.reserve}
-                            {#if selectedProgram.reserve.isSkip}
+                            {#if selectedProgram.reserve.isRecording}
+                                <span
+                                    class="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs animate-pulse"
+                                >
+                                    ● 録画中
+                                </span>
+                            {:else if selectedProgram.reserve.isSkip}
                                 <span
                                     class="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                                 >
@@ -1051,9 +1129,10 @@
                     type="button"
                     onclick={() => {
                         isModalOpen = false;
-                        router.push(`/search?keyword=${encodeURIComponent(selectedProgram.name)}`);
+                        const kw = extractFirstSearchWord(selectedProgram.name);
+                        router.push(`/search?keyword=${encodeURIComponent(kw)}`);
                     }}
-                    class="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400"
+                    class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                 >
                     <Search size={14} /> ルール検索へ
                 </button>
@@ -1062,14 +1141,25 @@
                     <button
                         type="button"
                         onclick={() => (isModalOpen = false)}
-                        class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                        class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >
                         閉じる
                     </button>
 
                     {#if !readOnlyStore.isReadOnly}
                         {#if selectedProgram.reserve}
-                            {#if selectedProgram.reserve.isSkip}
+                            {#if selectedProgram.reserve.isRecording}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        recordingActionItem = selectedProgram.reserve;
+                                        isRecordingActionModalOpen = true;
+                                    }}
+                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer"
+                                >
+                                    <Trash2 size={14} /> 録画を停止 / 操作
+                                </button>
+                            {:else if selectedProgram.reserve.isSkip}
                                 <button
                                     type="button"
                                     disabled={isReserving}
@@ -1123,3 +1213,15 @@
         </div>
     </div>
 {/if}
+
+<!-- 録画中番組の操作モーダル（完了保存 / 中断保存 / 破棄） -->
+<RecordingActionModal
+    isOpen={isRecordingActionModalOpen}
+    item={recordingActionItem}
+    isProcessing={isRecordingActionProcessing}
+    onClose={() => {
+        isRecordingActionModalOpen = false;
+        recordingActionItem = null;
+    }}
+    onAction={handleRecordingAction}
+/>

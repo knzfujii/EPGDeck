@@ -156,7 +156,7 @@
                             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                                 ここまでの録画ファイルを保存しますが、未完了として扱います。
                                 <strong>録画履歴には残さない</strong>
-                                ため、再放送があれば自動録画されます。
+                                ため、重複録画の判定対象になりません。
                             </p>
                         </div>
                     </div>

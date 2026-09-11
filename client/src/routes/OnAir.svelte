@@ -4,7 +4,13 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
-    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
+    import {
+        formatDate,
+        formatTime,
+        formatTimeRange,
+        formatDuration,
+        extractFirstSearchWord,
+    } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -51,13 +57,24 @@
 
     let unsubscribeSocket: (() => void) | null = null;
 
-    const channelTypes = [
+    const ALL_CHANNEL_TYPES = [
         { id: 'all', name: 'すべて' },
         { id: 'GR', name: '地デジ' },
         { id: 'BS', name: 'BS' },
         { id: 'CS', name: 'CS' },
         { id: 'SKY', name: 'SKY' },
-    ];
+    ] as const;
+
+    let channelTypes = $derived.by(() => {
+        const active = new Set(channelStore.activeChannelTypes);
+        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as any));
+    });
+
+    $effect(() => {
+        if (channelTypes.length > 0 && !channelTypes.some(t => t.id === selectedType)) {
+            selectedType = 'all';
+        }
+    });
 
     async function fetchOnAir(isSilent = false) {
         if (!isSilent) isLoading = true;
@@ -501,7 +518,8 @@
                         type="button"
                         onclick={() => {
                             isDetailModalOpen = false;
-                            router.push(`/search?keyword=${encodeURIComponent(p.name)}`);
+                            const kw = extractFirstSearchWord(p.name);
+                            router.push(`/search?keyword=${encodeURIComponent(kw)}`);
                         }}
                         class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >

@@ -105,3 +105,25 @@ export function formatBitrate(bps: number | undefined | null): string {
     }
     return `${bps} bps`;
 }
+
+/**
+ * 番組タイトルから記号（[字], 【新】, 「」等）を除去し、検索に適した先頭の単語を抽出する（EPGStation互換）
+ */
+export function extractFirstSearchWord(title: string | undefined | null): string {
+    if (!title) return '';
+    // [xxx], 【xxx】, (xxx), （xxx） などのメタ情報記号や囲みを除去
+    const cleaned = title
+        .replace(/\[[^\]]*\]/g, ' ')
+        .replace(/【[^】]*】/g, ' ')
+        .replace(/［[^］]*］/g, ' ')
+        .replace(/〈[^〉]*〉/g, ' ')
+        .replace(/《[^》]*》/g, ' ')
+        .replace(/[「」『』]/g, ' ')
+        .trim();
+
+    if (!cleaned) return title.trim();
+
+    // 空白（半角・全角）で分割し、最初の空でないトークンを取得
+    const words = cleaned.split(/[\s　]+/);
+    return words[0] || title.trim();
+}

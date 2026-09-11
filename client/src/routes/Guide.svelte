@@ -45,7 +45,7 @@
     let schedules = $state<any[]>([]);
     let isLoading = $state(true);
     let selectedDate = $state(getBaseDate());
-    let selectedType = $state<'GR' | 'BS' | 'CS' | 'SKY'>('GR');
+    let selectedType = $state<'all' | 'GR' | 'BS' | 'CS' | 'SKY'>('all');
 
     // 選択可能な日付リスト (今日〜8日後)
     let availableDates = $derived.by(() => {
@@ -160,6 +160,7 @@
     let scrollContainer = $state<HTMLDivElement | null>(null);
 
     const ALL_CHANNEL_TYPES = [
+        { id: 'all', name: 'すべて' },
         { id: 'GR', name: '地デジ' },
         { id: 'BS', name: 'BS' },
         { id: 'CS', name: 'CS' },
@@ -168,12 +169,12 @@
 
     let channelTypes = $derived.by(() => {
         const active = new Set(channelStore.activeChannelTypes);
-        return ALL_CHANNEL_TYPES.filter(t => active.has(t.id));
+        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as any));
     });
 
     $effect(() => {
         if (channelTypes.length > 0 && !channelTypes.some(t => t.id === selectedType)) {
-            selectedType = channelTypes[0].id;
+            selectedType = 'all';
         }
     });
 
@@ -255,14 +256,23 @@
             guideStartAt = start.getTime();
             guideEndAt = guideStartAt + DISPLAY_HOURS * 60 * 60 * 1000;
 
+            const scheduleParams: Record<string, any> = {
+                startAt: guideStartAt,
+                endAt: guideEndAt,
+                isHalfWidth: true,
+            };
+            if (selectedType === 'all') {
+                scheduleParams.GR = true;
+                scheduleParams.BS = true;
+                scheduleParams.CS = true;
+                scheduleParams.SKY = true;
+            } else {
+                scheduleParams[selectedType] = true;
+            }
+
             const [scheduleRes, reservesRes, recordingRes] = await Promise.all([
                 http.get('/api/schedules', {
-                    params: {
-                        startAt: guideStartAt,
-                        endAt: guideEndAt,
-                        [selectedType]: true,
-                        isHalfWidth: true,
-                    },
+                    params: scheduleParams,
                 }),
                 http
                     .get('/api/reserves', {
@@ -753,9 +763,25 @@
                             <div
                                 class="sticky top-0 z-30 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-50/95 px-2 text-center backdrop-blur dark:border-slate-800 dark:bg-slate-800/95"
                             >
-                                <span class="truncate text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
-                                    {col.channel?.name}
-                                </span>
+                                <div class="flex items-center gap-1 min-w-0 max-w-full justify-center">
+                                    {#if col.channel?.channelType}
+                                        <span
+                                            class="shrink-0 rounded px-1 py-0.2 text-[9px] font-black uppercase {col
+                                                .channel.channelType === 'GR'
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                : col.channel.channelType === 'BS'
+                                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}"
+                                        >
+                                            {col.channel.channelType}
+                                        </span>
+                                    {/if}
+                                    <span
+                                        class="truncate text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100"
+                                    >
+                                        {col.channel?.name}
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- チャンネル内番組配置エリア (高さ 4320px の絶対グリッド) -->

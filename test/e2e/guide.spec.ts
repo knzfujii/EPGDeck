@@ -48,7 +48,19 @@ test.describe('Guide Page (/guide)', () => {
         await nowBtn.click();
         await expect(prevBtn).toBeDisabled();
 
-        // 7. エラーゼロの検証
+        // 7. 放送波セレクター（「すべて」がデフォルト、および切り替え）の検証
+        const allBtn = page.getByRole('button', { name: 'すべて' });
+        await expect(allBtn).toBeVisible();
+        await expect(allBtn).toHaveClass(/bg-white/); // アクティブ状態
+        const grBtn = page.getByRole('button', { name: '地デジ' });
+        if (await grBtn.isVisible()) {
+            await grBtn.click();
+            await expect(grBtn).toHaveClass(/bg-white/);
+            await allBtn.click();
+            await expect(allBtn).toHaveClass(/bg-white/);
+        }
+
+        // 8. エラーゼロの検証
         expect(pageErrors, `Page errors: ${pageErrors.join(', ')}`).toEqual([]);
         expect(consoleErrors, `Console errors: ${consoleErrors.join(', ')}`).toEqual([]);
     });

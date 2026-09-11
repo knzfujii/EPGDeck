@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { extractFirstSearchWord, formatDuration, formatSize } from '../../client/src/lib/utils/format';
 import {
     extractFirstSearchWord,
     formatDuration,

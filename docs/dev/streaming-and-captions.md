@@ -191,3 +191,34 @@ private injectDefaultCaptionManagement(): void {
   - FFmpeg 内で ARIB 字幕のデコーダーは `libaribb24` のみ（標準組み込みデコーダーは存在しない）であるため、`subtitle: true` を動作させるには **`--enable-libaribb24` を有効化してビルドされた FFmpeg が必須** となります。
   - 非対応 FFmpeg で `subtitle: true` を指定すると、`Decoder (codec arib_caption) not found for input stream` エラーでエンコードが失敗します（`subtitle: false` の場合は `-sn` となるため非対応 FFmpeg でも安全に完了します）。
 
+---
+
+## 7. MP4 オンデマンド WebVTT 字幕配信 API (`GET /api/videos/:id/vtt`)
+
+MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブラウザ標準の `<track>` タグでオーバーレイ表示するための API 構成です。
+
+- **ファイルレス（オンデマンド抽出）**:
+  - ディスク上に `.vtt` ファイルを永続化保存せず、リクエスト時に FFmpeg pipe（`ffmpeg -i input.mp4 -f webvtt pipe:1`）経由でメモリ上にストリーム抽出します。
+- **LRU インメモリキャッシュ**:
+  - 同一動画・同一セッションでのシークや再取得による FFmpeg 多重起動を防ぐため、サーバー側で LRU インメモリキャッシュを保持します。
+- **クライアント連携**:
+  - `VideoPlayer.svelte` 内で `<track kind="subtitles" src="/api/videos/:id/vtt" default>` としてバインドされ、ネイティブな字幕レンダリングと完全連動します。
+
+---
+
+## 8. クライアント再生・シーク制御と Svelte 5 実装原則
+
+### 8.1 シーク・実尺（duration）同期原則
+- **MP4 等の直接再生**:
+  - ネイティブの `videoElement.duration` を最優先とし、ブラウザ内蔵の正確なコンテナメタデータを信頼します。
+- **HLS / WebM 配信再生**:
+  - 配信開始直後はセグメントバッファが未充足で `videoElement.duration` が `Infinity` や不定になりやすいため、DB に記録された実録画時間（`totalDuration`）を初期値として同期し、プログレスバーやシークバーの破綻を防止します。
+
+### 8.2 Svelte 5 リアクティビティ規約 (`VideoPlayer.svelte` / UI)
+- **`$props()` の分割代入によるリアクティビティ喪失の防止**:
+  - Svelte 5 では `const { value } = $props()` と分割代入すると、以降のプロパティ更新がリアクティブに追従しなくなります。
+  - プレイヤーの再生位置や状態同期を行う場合は、必ず `props.xxx` を直接 `$derived` や `$effect` 内で参照します。
+- **ローカル `$state` との連動による即時 UI フィードバック**:
+  - 音量スライダー、シークバー、字幕 ON/OFF ボタンなどのハイライトは、サーバーレスポンスを待たずにローカル `$state` と連動させて即時描画を保証します。
+
+

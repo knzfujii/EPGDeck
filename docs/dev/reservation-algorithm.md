@@ -61,16 +61,17 @@ flowchart TD
 
 ### 録画履歴（`recorded_history`）の保存条件
 
-録画履歴は、無条件にすべて記録されるわけではありません。以下の条件をすべて満たして録画が完了したときのみ、`RecorderModel.ts` 内で `recorded_history` に INSERT されます。
+録画履歴は二重録画防止の要であり、不用意に短期自動削除せず、ユーザーの意図した無期限（`0`）または長期保持を優先します。
+録画履歴は以下の条件をすべて満たして録画が完了したときのみ、`RecorderModel.ts` 内で `recorded_history` に INSERT されます。
 
 ```typescript
 // src/model/operator/recording/RecorderModel.ts
 if (
     this.reserve.isTimeSpecified === false && // 時刻指定予約ではない
-    this.reserve.ruleId !== null &&           // ルール予約である（手動予約ではない）
     this.reserve.isEventRelay === false &&      // イベントリレー番組ではない
     this.isNeedDeleteReservation === true     // 正常に終了した
 ) {
+    // 番組指定予約（ルール予約および手動個別予約）の場合に記録する
     const history = new RecordedHistory();
     history.name = StrUtil.deleteBrackets(recorded.halfWidthName);
     history.channelId = recorded.channelId;
@@ -79,7 +80,18 @@ if (
 }
 ```
 
-- **手動予約（個別番組予約や時刻指定予約）で録画した番組は履歴に保存されません。**（ルールによる自動録画のみが履歴として蓄積されます）
+- **手動の個別番組指定予約の保存**:
+  - EPGStation オリジナルでは「ルール予約のみ」が履歴に保存されていましたが、EPGDeck では**手動の個別番組指定予約であっても、ユーザーの「録画済み」の意図を尊重して履歴に保存**します（時刻指定予約およびイベントリレーのみ除外）。
+- **録画失敗時のスキップ防止（再放送救済）**:
+  - チューナー不足やドロップ障害等で録画が失敗した場合（`isNeedDeleteReservation === false` や異常終了時）は、再放送時に重複スキップされてしまうのを防ぐため、**履歴には保存しません**。
+- **録画中の中断保存（`stop`）時の扱い**:
+  - 録画中に手動で「中断して保存」した場合は、途中ファイルは保持・エンコードされますが、未完了扱いとして**録画履歴には残しません**（再放送時などに重複録画の判定対象・録画済み扱いにならないよう救済）。
+
+### 予約重複調停（同一番組に対する複数ルール）の原則
+
+同一番組（`programId`）に対して複数のルールが重複してマッチした場合の調停原則：
+- 手動予約が最優先され、ルール予約同士はルール優先度（`rule.priority`）順で調停されます。
+- 重複調停のインデックス化はステータス（スキップ / 通常予約）ごとに独立して管理され、あるルールでスキップ指定されていても、別ルールで優先される場合は救済録画が行われるよう設計されています。
 
 ### 重複判定のキーと正規化ロジック（`shortName`）
 

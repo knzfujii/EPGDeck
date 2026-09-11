@@ -20,7 +20,7 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
   - 正常終了（`POST /api/recording/:reserveId/finish`）: `isNeedDeleteReservation = true` を維持してストリームを切断し、実時間確定・サムネイル・エンコード・録画履歴（`RecordedHistory`）登録・予約消化を通常通り実行
   - 中断（`POST /api/recording/:reserveId/stop`）: ファイルは保存・エンコードするが未完了扱い（履歴未登録）とし、再放送時などに重複録画の判定対象（録画済み扱い）にならないよう維持
   - 取り消し（`POST /api/recording/:reserveId/discard` / `DELETE /api/recording/:reserveId`）: ストリーム停止後に録画中 TS 実ファイル・DB レコードを物理削除し、予約も削除/スキップ
-  - 予約一覧（行・カード・予約詳細モーダル）から録画中番組の操作時に自動連動
+  - 予約一覧（行・カード・予約詳細モーダル）および番組表（番組詳細モーダル）から録画中番組の操作時に自動連動
 - [x] **リードオンリーモード（閲覧専用モード）/ 録画ファイル削除の非表示設定**
   - 誤操作防止（ファミリー利用・閲覧専用端末等）のため、UI 上からの削除・予約変更・ルール編集等の制限とパスワード解除機能を実装
   - `config.yml`（および環境変数 `EPGDECK_ADMIN_PASSWORD`）によるグローバル設定、`allowedOperations`（`liveStream`, `recordedStream`, `download`, `dashboard`, `search`, `rules`, `encode`）の制御、ローカルストレージによるアンロック維持に対応

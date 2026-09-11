@@ -64,4 +64,140 @@ test.describe('Guide Page (/guide)', () => {
         expect(pageErrors, `Page errors: ${pageErrors.join(', ')}`).toEqual([]);
         expect(consoleErrors, `Console errors: ${consoleErrors.join(', ')}`).toEqual([]);
     });
+
+    test('should keep timescale visible when scrolling horizontally with many channels', async ({ page }) => {
+        // 30チャンネル分のモックデータを作成して横スクロールを発生させる
+        const mockChannels: any[] = [];
+        const mockSchedules: any[] = [];
+        const now = new Date();
+        now.setHours(4, 0, 0, 0);
+        const startAt = now.getTime();
+        const endAt = startAt + 24 * 60 * 60 * 1000;
+
+        for (let i = 1; i <= 30; i++) {
+            const ch = {
+                id: i,
+                serviceId: 1000 + i,
+                networkId: 32736,
+                name: `チャンネル${i}`,
+                halfWidthName: `Ch${i}`,
+                channelTypeId: 1,
+                channelType: 'GR',
+                channel: `${20 + i}`,
+                hasLogoData: false,
+            };
+            mockChannels.push(ch);
+
+            mockSchedules.push({
+                channel: ch,
+                programs: [
+                    {
+                        id: i * 1000 + 1,
+                        channelId: i,
+                        startAt: startAt,
+                        endAt: startAt + 2 * 60 * 60 * 1000,
+                        name: `番組 A - Ch ${i}`,
+                        description: `番組詳細 A - Ch ${i}`,
+                        genre1: 0,
+                    },
+                    {
+                        id: i * 1000 + 2,
+                        channelId: i,
+                        startAt: startAt + 2 * 60 * 60 * 1000,
+                        endAt: endAt,
+                        name: `番組 B - Ch ${i}`,
+                        description: `番組詳細 B - Ch ${i}`,
+                        genre1: 1,
+                    },
+                ],
+            });
+        }
+
+        await page.route('**/api/channels*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockChannels),
+            });
+        });
+
+        await page.route('**/api/schedules*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockSchedules),
+            });
+        });
+
+        await page.route('**/api/reserves*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([]),
+            });
+        });
+
+        await page.goto('/guide');
+
+        // 番組表のロードを待機
+        await expect(page.locator('text=時刻')).toBeVisible({ timeout: 10000 });
+
+        const scrollContainer = page.locator('.overflow-auto').first();
+        await expect(scrollContainer).toBeVisible();
+
+        const timeHeader = page.locator('text=時刻');
+        await expect(timeHeader).toBeVisible();
+
+        const scrollWidth = await scrollContainer.evaluate(el => el.scrollWidth);
+        const clientWidth = await scrollContainer.evaluate(el => el.clientWidth);
+        console.log(`[E2E] scrollWidth: ${scrollWidth}, clientWidth: ${clientWidth}`);
+
+        const maxScroll = scrollWidth - clientWidth;
+        const scrollPositions: number[] = [];
+        for (let s = 0; s <= maxScroll; s += 100) {
+            scrollPositions.push(s);
+        }
+        if (scrollPositions[scrollPositions.length - 1] !== maxScroll) {
+            scrollPositions.push(maxScroll);
+        }
+
+        for (const scrollLeft of scrollPositions) {
+            await scrollContainer.evaluate((el, s) => {
+                el.scrollLeft = s;
+            }, scrollLeft);
+
+            // 要素の状態を検証
+            const check = await page.evaluate(() => {
+                const header = Array.from(document.querySelectorAll('div')).find(
+                    el => el.textContent?.trim() === '時刻' && el.classList.contains('sticky'),
+                );
+                if (!header) return { found: false };
+                const rect = header.getBoundingClientRect();
+                const container = header.closest('.overflow-auto');
+                const containerRect = container?.getBoundingClientRect();
+
+                const timeCol = header.closest('.sticky.left-0');
+                const timeColRect = timeCol?.getBoundingClientRect();
+
+                // 最前面にある要素
+                const elAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+                return {
+                    found: true,
+                    timeColRect: timeColRect ? { left: timeColRect.left, width: timeColRect.width } : null,
+                    containerRect: containerRect ? { left: containerRect.left, width: containerRect.width } : null,
+                    elAtCenterText: elAtCenter?.textContent?.trim()?.slice(0, 30),
+                };
+            });
+
+            expect(check.found).toBe(true);
+            if (check.containerRect && check.timeColRect) {
+                const diff = Math.abs(check.timeColRect.left - check.containerRect.left);
+                expect(diff).toBeLessThanOrEqual(5);
+            }
+
+            // 最も前面が「時刻」ヘッダーであること
+            expect(check.elAtCenterText).toBe('時刻');
+        }
+    });
 });

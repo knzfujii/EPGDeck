@@ -705,14 +705,15 @@
             class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
             style="max-height: calc(100vh - 180px);"
         >
-            <div class="inline-flex min-w-full">
+            <!-- 番組表グリッド親コンテナ (max-w-none: app.css の全称 max-width: 100% を一時解除。全体UI刷新時に app.css 側で整理予定) -->
+            <div class="inline-flex min-w-full max-w-none">
                 <!-- 左端: タイムスケール目盛り列 (横固定) -->
                 <div
-                    class="sticky left-0 z-30 w-16 shrink-0 border-r border-slate-200 bg-slate-100/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95"
+                    class="sticky left-0 z-40 w-16 shrink-0 border-r border-slate-200 bg-slate-100/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 shadow-xs"
                 >
                     <!-- 左上コーナーヘッダー (局名行と高さ合わせ) -->
                     <div
-                        class="sticky top-0 z-40 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-200/95 font-bold text-xs text-slate-600 backdrop-blur dark:border-slate-800 dark:bg-slate-800/95 dark:text-slate-300"
+                        class="sticky top-0 z-50 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-200/95 font-bold text-xs text-slate-600 backdrop-blur dark:border-slate-800 dark:bg-slate-800/95 dark:text-slate-300"
                     >
                         時刻
                     </div>
@@ -741,7 +742,7 @@
                 </div>
 
                 <!-- チャンネル列コンテナ群 -->
-                <div class="relative flex min-w-max flex-1">
+                <div class="relative flex">
                     <!-- 現在時刻の赤い水平線 -->
                     {#if currentTimeTop !== null}
                         <div
@@ -757,7 +758,7 @@
                         </div>
                     {/if}
 
-                    {#each schedules as col}
+                    {#each schedules as col (col.channel?.id)}
                         <div class="w-40 shrink-0 border-r border-slate-200 last:border-r-0 dark:border-slate-800">
                             <!-- 局名ヘッダー (上部固定) -->
                             <div
@@ -793,9 +794,8 @@
                                         style="top: {hour.top}px;"
                                     ></div>
                                 {/each}
-
                                 <!-- 番組セル群 (計算された top と height で絶対配置) -->
-                                {#each col.programs || [] as prog}
+                                {#each col.programs || [] as prog (prog.id)}
                                     {@const progStart = Math.max(guideStartAt, prog.startAt)}
                                     {@const progEnd = Math.min(guideEndAt, prog.endAt)}
                                     {@const topPx = ((progStart - guideStartAt) / 60000) * MINUTE_HEIGHT}

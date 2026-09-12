@@ -87,3 +87,11 @@ export function getSmartWatchUrl(recordedId: number, videoFiles?: apid.VideoFile
     }
     return null;
 }
+
+/**
+ * 録画番組に紐づくすべての動画ファイル（TSやエンコード済み等）の合計サイズ（バイト数）を取得
+ */
+export function getTotalVideoFileSize(videoFiles?: apid.VideoFile[] | null): number {
+    if (!videoFiles || videoFiles.length === 0) return 0;
+    return videoFiles.reduce((acc, file) => acc + (file.size || 0), 0);
+}

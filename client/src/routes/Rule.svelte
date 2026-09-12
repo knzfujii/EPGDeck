@@ -14,7 +14,6 @@
         Folder,
         CheckCircle2,
         Edit3,
-        Search,
         HardDrive,
         Sparkles,
         Power,
@@ -22,6 +21,7 @@
         AlertCircle,
         Tv,
         Lock,
+        ListVideo,
     } from '@lucide/svelte';
 
     let rules = $state<any[]>([]);
@@ -327,17 +327,19 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <!-- 検索リンク -->
+                                <!-- 録画一覧ボタン -->
                                 <button
                                     type="button"
                                     onclick={e => {
                                         e.stopPropagation();
-                                        router.push(`/search?keyword=${encodeURIComponent(opt.keyword || '')}`);
+                                        router.push(`/recorded?ruleId=${r.id}`);
                                     }}
-                                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800 cursor-pointer"
-                                    title="この条件で番組検索"
+                                    class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/60 dark:hover:text-blue-400 transition-colors shadow-2xs cursor-pointer shrink-0"
+                                    title="このルールの録画一覧を表示"
+                                    aria-label="このルールの録画一覧を表示"
                                 >
-                                    <Search size={15} />
+                                    <ListVideo size={14} class="text-blue-500 dark:text-blue-400" />
+                                    <span>録画一覧</span>
                                 </button>
 
                                 {#if !readOnlyStore.isReadOnly}
@@ -347,17 +349,18 @@
                                             e.stopPropagation();
                                             goEditRule(r);
                                         }}
-                                        class="btn-secondary flex items-center gap-1 px-2.5 py-1 text-xs cursor-pointer"
+                                        class="btn-secondary flex h-8 min-h-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold cursor-pointer shrink-0"
+                                        title="ルールを編集"
                                     >
                                         <Edit3 size={13} /> 編集
                                     </button>
 
-                                    <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-700 mx-1.5"></div>
+                                    <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
                                     <button
                                         type="button"
                                         onclick={e => deleteRule(r, e)}
-                                        class="btn-danger p-1.5 cursor-pointer"
+                                        class="btn-danger flex h-8 w-8 min-h-0 items-center justify-center rounded-lg p-0 cursor-pointer shrink-0"
                                         title="削除"
                                     >
                                         <Trash2 size={14} />
@@ -600,19 +603,19 @@
                                     <!-- 操作ボタン -->
                                     <td class="px-4 py-3.5 text-right">
                                         <div class="flex items-center justify-end gap-2">
-                                            <!-- 検索リンク -->
+                                            <!-- 録画一覧ボタン -->
                                             <button
                                                 type="button"
                                                 onclick={e => {
                                                     e.stopPropagation();
-                                                    router.push(
-                                                        `/search?keyword=${encodeURIComponent(opt.keyword || '')}`,
-                                                    );
+                                                    router.push(`/recorded?ruleId=${r.id}`);
                                                 }}
-                                                class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800 cursor-pointer"
-                                                title="この条件で番組検索"
+                                                class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/60 dark:hover:text-blue-400 transition-colors shadow-2xs cursor-pointer shrink-0"
+                                                title="このルールの録画一覧を表示"
+                                                aria-label="このルールの録画一覧を表示"
                                             >
-                                                <Search size={16} />
+                                                <ListVideo size={14} class="text-blue-500 dark:text-blue-400" />
+                                                <span>録画一覧</span>
                                             </button>
 
                                             <!-- 編集ボタン -->
@@ -623,22 +626,22 @@
                                                         e.stopPropagation();
                                                         goEditRule(r);
                                                     }}
-                                                    class="btn-secondary flex items-center gap-1.5 text-xs cursor-pointer"
+                                                    class="btn-secondary flex h-8 min-h-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold cursor-pointer shrink-0"
                                                     title="ルールを編集"
                                                 >
-                                                    <Edit3 size={14} /> 編集
+                                                    <Edit3 size={13} /> 編集
                                                 </button>
 
-                                                <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1.5"></div>
+                                                <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
                                                 <!-- 削除ボタン -->
                                                 <button
                                                     type="button"
                                                     onclick={e => deleteRule(r, e)}
-                                                    class="btn-danger p-2 cursor-pointer"
+                                                    class="btn-danger flex h-8 w-8 min-h-0 items-center justify-center rounded-lg p-0 cursor-pointer shrink-0"
                                                     title="削除"
                                                 >
-                                                    <Trash2 size={15} />
+                                                    <Trash2 size={14} />
                                                 </button>
                                             {/if}
                                         </div>

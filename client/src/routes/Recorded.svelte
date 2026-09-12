@@ -6,7 +6,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
-    import { getSmartWatchUrl } from '../lib/utils/video';
+    import { getSmartWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -30,6 +30,7 @@
         Sparkles,
         CheckSquare,
         X,
+        SlidersHorizontal,
     } from '@lucide/svelte';
 
     let recorded = $state<apid.RecordedItem[]>([]);
@@ -49,6 +50,22 @@
             }
         }
     }
+
+    // ルール一覧
+    interface RuleOption {
+        id: number;
+        name: string;
+    }
+    let rulesList = $state<RuleOption[]>([]);
+    let selectedRuleId = $state<number | null>(
+        router.current.query.ruleId ? parseInt(router.current.query.ruleId, 10) : null,
+    );
+    const selectedRuleName = $derived.by(() => {
+        if (selectedRuleId === null) return null;
+        if (selectedRuleId === 0) return '手動録画のみ';
+        const found = rulesList.find(r => r.id === selectedRuleId);
+        return found ? found.name : `ルール #${selectedRuleId}`;
+    });
 
     // 検索・絞り込み状態
     let keyword = $state(router.current.query.keyword || '');
@@ -95,6 +112,7 @@
 
             if (keyword.trim()) params.keyword = keyword.trim();
             if (selectedGenre !== null) params.genre = selectedGenre;
+            if (selectedRuleId !== null) params.ruleId = selectedRuleId;
 
             if (selectedYear !== null && selectedMonth !== null) {
                 const startDate = new Date(selectedYear, selectedMonth - 1, 1);
@@ -119,6 +137,60 @@
         }
     }
 
+    async function fetchRules() {
+        try {
+            const res = await http.get('/api/rules?limit=1000&isHalfWidth=true');
+            const rawRules = res.data.rules || [];
+            rulesList = rawRules.map((r: any) => ({
+                id: r.id,
+                name: r.searchOption?.keyword || r.reserveOption?.name || `ルール #${r.id}`,
+            }));
+        } catch (e) {
+            console.error('Failed to fetch rules', e);
+        }
+    }
+
+    function updateQueryParams() {
+        const queryParams = new URLSearchParams();
+        if (currentPage > 1) queryParams.set('page', String(currentPage));
+        if (keyword.trim()) queryParams.set('keyword', keyword.trim());
+        if (selectedGenre !== null) queryParams.set('genre', String(selectedGenre));
+        if (selectedRuleId !== null) queryParams.set('ruleId', String(selectedRuleId));
+
+        const searchStr = queryParams.toString();
+        router.replace(searchStr ? `/recorded?${searchStr}` : '/recorded');
+    }
+
+    $effect(() => {
+        const q = router.current.query;
+        const qKeyword = q.keyword || '';
+        const qGenre = q.genre ? parseInt(q.genre, 10) : null;
+        const qRuleId = q.ruleId !== undefined ? (q.ruleId === '0' ? 0 : parseInt(q.ruleId, 10)) : null;
+        const qPage = q.page ? parseInt(q.page, 10) : 1;
+
+        let hasChanged = false;
+        if (qKeyword !== keyword) {
+            keyword = qKeyword;
+            hasChanged = true;
+        }
+        if (qGenre !== selectedGenre) {
+            selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
+            hasChanged = true;
+        }
+        if (qRuleId !== selectedRuleId) {
+            selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
+            hasChanged = true;
+        }
+        if (qPage !== currentPage) {
+            currentPage = Number.isNaN(qPage) ? 1 : qPage;
+            hasChanged = true;
+        }
+
+        if (hasChanged) {
+            fetchRecorded();
+        }
+    });
+
     onMount(() => {
         if (typeof window !== 'undefined') {
             try {
@@ -130,6 +202,7 @@
                 // ignore
             }
         }
+        fetchRules();
         fetchRecorded();
 
         // Socket.IO による録画ステータス更新の受信
@@ -144,12 +217,21 @@
 
     function handleSearch() {
         currentPage = 1;
+        updateQueryParams();
         fetchRecorded();
     }
 
     function selectGenre(id: number | null) {
         selectedGenre = id;
         currentPage = 1;
+        updateQueryParams();
+        fetchRecorded();
+    }
+
+    function selectRule(id: number | null | undefined) {
+        selectedRuleId = id ?? null;
+        currentPage = 1;
+        updateQueryParams();
         fetchRecorded();
     }
 
@@ -157,12 +239,14 @@
         selectedYear = year;
         selectedMonth = month;
         currentPage = 1;
+        updateQueryParams();
         fetchRecorded();
     }
 
     function changePage(page: number) {
         if (page < 1 || page > Math.ceil(total / limit)) return;
         currentPage = page;
+        updateQueryParams();
         fetchRecorded();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -328,10 +412,28 @@
                     <Video size={20} class="text-blue-600 dark:text-blue-400" />
                     録画一覧
                 </h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                    全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>
-                    件中 {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件
-                </p>
+                <div class="flex items-center gap-2 flex-wrap mt-0.5">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>
+                        件中 {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件
+                    </p>
+                    {#if selectedRuleName}
+                        <span
+                            class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
+                            <SlidersHorizontal size={12} class="text-blue-500" />
+                            <span class="max-w-[150px] sm:max-w-[200px] truncate">{selectedRuleName}</span>
+                            <button
+                                type="button"
+                                onclick={() => selectRule(null)}
+                                class="hover:text-blue-900 dark:hover:text-white cursor-pointer ml-0.5"
+                                title="ルール絞り込みを解除"
+                            >
+                                <X size={12} />
+                            </button>
+                        </span>
+                    {/if}
+                </div>
             </div>
 
             <!-- 表示切り替え & 検索 -->
@@ -393,52 +495,89 @@
             </div>
         </div>
 
-        <!-- 年月ジャンプナビゲーション (15,000件対応) -->
-        <div class="flex flex-wrap items-center gap-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
-            <span
-                class="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
-            >
-                <Calendar size={16} class="text-blue-500" /> 年月指定:
-            </span>
-            <select
-                value={selectedYear ?? ''}
-                onchange={e => {
-                    const val = e.currentTarget.value;
-                    handleDateJump(val === '' ? null : parseInt(val, 10), selectedMonth);
-                }}
-                class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
-            >
-                <option value="">すべての年</option>
-                {#each years as y}
-                    <option value={y}>{y}年</option>
-                {/each}
-            </select>
-
-            {#if selectedYear !== null}
+        <!-- フィルターナビゲーション (ルール指定 & 年月指定) -->
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <!-- ルール指定 -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span
+                    class="flex items-center gap-1 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
+                >
+                    <SlidersHorizontal size={15} class="text-blue-500" /> ルール:
+                </span>
                 <select
-                    value={selectedMonth ?? ''}
+                    value={selectedRuleId !== null ? String(selectedRuleId) : ''}
                     onchange={e => {
                         const val = e.currentTarget.value;
-                        handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
+                        selectRule(val === '' ? null : parseInt(val, 10));
+                    }}
+                    class="h-10 max-w-[150px] sm:max-w-[210px] truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
+                >
+                    <option value="">すべてのルール</option>
+                    <option value="0">手動録画のみ (ルールなし)</option>
+                    {#each rulesList as r}
+                        <option value={String(r.id)}>{r.name}</option>
+                    {/each}
+                </select>
+                {#if selectedRuleId !== null}
+                    <button
+                        type="button"
+                        onclick={() => selectRule(null)}
+                        class="btn-secondary h-10 px-2.5 text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0"
+                        title="ルール絞り込みを解除"
+                    >
+                        <X size={14} />
+                    </button>
+                {/if}
+            </div>
+
+            <!-- 年月指定 -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span
+                    class="flex items-center gap-1 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
+                >
+                    <Calendar size={15} class="text-blue-500" /> 年月:
+                </span>
+                <select
+                    value={selectedYear ?? ''}
+                    onchange={e => {
+                        const val = e.currentTarget.value;
+                        handleDateJump(val === '' ? null : parseInt(val, 10), selectedMonth);
                     }}
                     class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
                 >
-                    <option value="">すべての月</option>
-                    {#each months as m}
-                        <option value={m}>{m}月</option>
+                    <option value="">すべての年</option>
+                    {#each years as y}
+                        <option value={y}>{y}年</option>
                     {/each}
                 </select>
-            {/if}
 
-            {#if selectedYear !== null || selectedMonth !== null}
-                <button
-                    type="button"
-                    onclick={() => handleDateJump(null, null)}
-                    class="btn-secondary h-10 px-3.5 text-sm font-semibold cursor-pointer whitespace-nowrap shrink-0"
-                >
-                    クリア
-                </button>
-            {/if}
+                {#if selectedYear !== null}
+                    <select
+                        value={selectedMonth ?? ''}
+                        onchange={e => {
+                            const val = e.currentTarget.value;
+                            handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
+                        }}
+                        class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
+                    >
+                        <option value="">すべての月</option>
+                        {#each months as m}
+                            <option value={m}>{m}月</option>
+                        {/each}
+                    </select>
+                {/if}
+
+                {#if selectedYear !== null || selectedMonth !== null}
+                    <button
+                        type="button"
+                        onclick={() => handleDateJump(null, null)}
+                        class="btn-secondary h-10 px-2.5 text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0"
+                        title="年月指定を解除"
+                    >
+                        <X size={14} />
+                    </button>
+                {/if}
+            </div>
         </div>
 
         <!-- ジャンルフィルターチップ -->
@@ -540,11 +679,26 @@
                                     <div class="text-xs text-slate-400">{formatTime(item.startAt)}</div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    <span
-                                        class="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                    >
-                                        {channelStore.getChannelName(item.channelId)}
-                                    </span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span
+                                            class="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                        >
+                                            {channelStore.getChannelName(item.channelId)}
+                                        </span>
+                                        {#if item.ruleId}
+                                            <button
+                                                type="button"
+                                                onclick={e => {
+                                                    e.stopPropagation();
+                                                    selectRule(item.ruleId);
+                                                }}
+                                                class="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-blue-950 dark:hover:text-blue-300 transition-colors cursor-pointer"
+                                                title="このルールの録画を絞り込み"
+                                            >
+                                                ルール
+                                            </button>
+                                        {/if}
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-1.5">
@@ -574,7 +728,9 @@
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 text-slate-500 dark:text-slate-400">
                                     <div>{formatDuration(item.endAt - item.startAt)}</div>
-                                    <div class="text-xs text-slate-400">{formatSize(item.videoFiles?.[0]?.size)}</div>
+                                    <div class="text-xs text-slate-400">
+                                        {formatSize(getTotalVideoFileSize(item.videoFiles))}
+                                    </div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     {#if item.dropLogFile && (item.dropLogFile.dropCnt > 0 || item.dropLogFile.errorCnt > 0)}
@@ -748,13 +904,28 @@
                     <div class="flex flex-1 flex-col justify-between p-3">
                         <div>
                             <div class="flex items-center justify-between gap-2">
-                                <span
-                                    class="truncate rounded-lg bg-blue-50 px-2.5 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 max-w-[65%]"
-                                >
-                                    {channelStore.getChannelName(item.channelId)}
-                                </span>
+                                <div class="flex items-center gap-1.5 min-w-0 max-w-[68%]">
+                                    <span
+                                        class="truncate rounded-lg bg-blue-50 px-2.5 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                    >
+                                        {channelStore.getChannelName(item.channelId)}
+                                    </span>
+                                    {#if item.ruleId}
+                                        <button
+                                            type="button"
+                                            onclick={e => {
+                                                e.stopPropagation();
+                                                selectRule(item.ruleId);
+                                            }}
+                                            class="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-blue-950 dark:hover:text-blue-300 transition-colors cursor-pointer shrink-0"
+                                            title="このルールの録画を絞り込み"
+                                        >
+                                            ルール
+                                        </button>
+                                    {/if}
+                                </div>
                                 <span class="text-sm font-medium text-slate-400 shrink-0">
-                                    {formatSize(item.videoFiles?.[0]?.size)}
+                                    {formatSize(getTotalVideoFileSize(item.videoFiles))}
                                 </span>
                             </div>
                             <h3

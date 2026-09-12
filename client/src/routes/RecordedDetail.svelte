@@ -14,7 +14,7 @@
         getGenreName,
         getGenreBadgeClass,
     } from '../lib/utils/format';
-    import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl } from '../lib/utils/video';
+    import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -37,6 +37,9 @@
         Info,
         HardDrive,
         FileText,
+        ChevronLeft,
+        ChevronRight,
+        Video,
     } from '@lucide/svelte';
 
     let recorded = $state<apid.RecordedItem | null>(null);
@@ -67,6 +70,54 @@
     const query = $derived(router.current.query);
     const recordedId = $derived(query.recordedId ? parseInt(query.recordedId, 10) : null);
 
+    // 同一ルールの録画一覧
+    let sameRuleRecords = $state<apid.RecordedItem[]>([]);
+    let sameRuleTotal = $state(0);
+    let ruleKeyword = $state<string>('');
+    let isLoadingSameRule = $state(false);
+    let currentFetchedRuleId: number | null = null;
+    let carouselEl = $state<HTMLElement | null>(null);
+
+    function scrollCarousel(direction: 'left' | 'right') {
+        if (!carouselEl) return;
+        const scrollAmount = Math.max(240, carouselEl.clientWidth * 0.75);
+        carouselEl.scrollBy({
+            left: direction === 'left' ? -scrollAmount : scrollAmount,
+            behavior: 'smooth',
+        });
+    }
+
+    async function fetchSameRuleRecords(ruleId: number, isSilent = false) {
+        if (!isSilent) isLoadingSameRule = true;
+        try {
+            const [recordsRes, ruleRes] = await Promise.allSettled([
+                http.get('/api/recorded', {
+                    params: {
+                        ruleId,
+                        limit: 24,
+                        isHalfWidth: true,
+                    },
+                }),
+                http.get(`/api/rules/${ruleId}?isHalfWidth=true`),
+            ]);
+
+            if (recordsRes.status === 'fulfilled') {
+                sameRuleRecords = recordsRes.value.data.records || [];
+                sameRuleTotal = recordsRes.value.data.total || 0;
+            }
+
+            if (ruleRes.status === 'fulfilled') {
+                const ruleData = ruleRes.value.data;
+                ruleKeyword = ruleData.searchOption?.keyword || ruleData.reserveOption?.name || '';
+            }
+            currentFetchedRuleId = ruleId;
+        } catch (e) {
+            console.error('Failed to fetch same rule records', e);
+        } finally {
+            if (!isSilent) isLoadingSameRule = false;
+        }
+    }
+
     async function fetchRecordedDetail(isSilent = false) {
         if (!recordedId) return;
         if (!isSilent) isLoading = true;
@@ -78,6 +129,16 @@
                 ),
             ]);
             recorded = res.data;
+
+            if (recorded?.ruleId) {
+                const isSameRule = recorded.ruleId === currentFetchedRuleId;
+                fetchSameRuleRecords(recorded.ruleId, isSameRule);
+            } else {
+                sameRuleRecords = [];
+                sameRuleTotal = 0;
+                ruleKeyword = '';
+                currentFetchedRuleId = null;
+            }
 
             http.get('/api/config')
                 .then(configRes => {
@@ -112,9 +173,13 @@
         }
     }
 
-    onMount(() => {
-        fetchRecordedDetail();
+    $effect(() => {
+        if (recordedId) {
+            fetchRecordedDetail();
+        }
+    });
 
+    onMount(() => {
         unsubscribeSocket = socketStore.on('updateStatus', () => {
             fetchRecordedDetail(true);
         });
@@ -468,6 +533,147 @@
                 {/if}
             </div>
         </div>
+
+        <!-- 同じルールの録画カルーセル -->
+        {#if recorded.ruleId && (sameRuleRecords.length > 0 || isLoadingSameRule)}
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <!-- ヘッダー -->
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <Layers size={18} class="text-blue-500 shrink-0" />
+                            <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+                                同じルールの録画
+                                {#if ruleKeyword}
+                                    <span class="ml-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        ({ruleKeyword})
+                                    </span>
+                                {/if}
+                            </h2>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            全 {sameRuleTotal} 件中 {sameRuleRecords.length} 件を表示
+                        </p>
+                    </div>
+
+                    <!-- 全検索のリンク -->
+                    <button
+                        type="button"
+                        onclick={() => router.push(`/recorded?ruleId=${recorded?.ruleId}`)}
+                        class="flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-400 dark:hover:bg-blue-900 transition-colors cursor-pointer shrink-0"
+                    >
+                        <span>すべて見る</span>
+                        <ChevronRight size={14} />
+                    </button>
+                </div>
+
+                <!-- カルーセル本体 -->
+                {#if isLoadingSameRule}
+                    <div class="flex gap-3 overflow-x-hidden py-2">
+                        {#each [1, 2, 3, 4] as _}
+                            <div
+                                class="w-48 sm:w-56 shrink-0 animate-pulse rounded-xl border border-slate-100 bg-slate-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50"
+                            >
+                                <div class="aspect-video w-full rounded-lg bg-slate-200 dark:bg-slate-700"></div>
+                                <div class="mt-2.5 h-3.5 w-3/4 rounded bg-slate-200 dark:bg-slate-700"></div>
+                                <div class="mt-1.5 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700"></div>
+                            </div>
+                        {/each}
+                    </div>
+                {:else}
+                    <div class="relative group/carousel">
+                        <!-- スクロールコンテナ -->
+                        <div
+                            bind:this={carouselEl}
+                            class="flex gap-3.5 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth"
+                        >
+                            {#each sameRuleRecords as item}
+                                {@const isCurrent = item.id === recorded.id}
+                                <div
+                                    class="w-48 sm:w-56 shrink-0 flex flex-col justify-between rounded-xl border bg-white shadow-2xs transition-all duration-200 dark:bg-slate-900 overflow-hidden cursor-pointer hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 {isCurrent
+                                        ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/20 dark:bg-blue-950/20'
+                                        : 'border-slate-200 dark:border-slate-800'}"
+                                    onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
+                                    role="button"
+                                    tabindex="0"
+                                    onkeydown={e => {
+                                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
+                                    }}
+                                >
+                                    <!-- サムネイル部 -->
+                                    <div class="relative aspect-video w-full bg-slate-900 overflow-hidden">
+                                        {#if isCurrent}
+                                            <span
+                                                class="absolute top-1.5 left-1.5 z-10 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs leading-none"
+                                            >
+                                                表示中
+                                            </span>
+                                        {/if}
+                                        <span
+                                            class="absolute bottom-1.5 right-1.5 z-10 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none"
+                                        >
+                                            {formatDuration(item.endAt - item.startAt)}
+                                        </span>
+                                        {#if item.thumbnails?.[0]}
+                                            <img
+                                                src={`/api/thumbnails/${item.thumbnails[0]}`}
+                                                alt={item.name}
+                                                loading="lazy"
+                                                class="h-full w-full object-cover transition duration-300 group-hover/carousel:scale-105"
+                                            />
+                                        {:else}
+                                            <div class="flex h-full w-full items-center justify-center text-slate-600">
+                                                <Video size={24} />
+                                            </div>
+                                        {/if}
+                                    </div>
+
+                                    <!-- 本文 -->
+                                    <div class="p-3 flex flex-1 flex-col justify-between">
+                                        <div>
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400"
+                                            >
+                                                <span>{formatDate(item.startAt)}</span>
+                                                <span>{formatTime(item.startAt)}</span>
+                                            </div>
+                                            <h3
+                                                class="mt-1.5 text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                title={item.name}
+                                            >
+                                                {item.name}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+
+                        <!-- 左右スクロールボタン (PCで表示) -->
+                        {#if sameRuleRecords.length > 3}
+                            <button
+                                type="button"
+                                onclick={() => scrollCarousel('left')}
+                                class="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 z-20 h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md border border-slate-200 text-slate-700 hover:bg-white hover:text-blue-600 dark:bg-slate-800/90 dark:border-slate-700 dark:text-slate-200 cursor-pointer transition opacity-0 group-hover/carousel:opacity-100"
+                                title="前へ"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onclick={() => scrollCarousel('right')}
+                                class="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md border border-slate-200 text-slate-700 hover:bg-white hover:text-blue-600 dark:bg-slate-800/90 dark:border-slate-700 dark:text-slate-200 cursor-pointer transition opacity-0 group-hover/carousel:opacity-100"
+                                title="次へ"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
+        {/if}
 
         <!-- 録画ファイル一覧カード -->
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">

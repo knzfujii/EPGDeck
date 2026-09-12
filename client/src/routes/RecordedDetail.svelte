@@ -62,7 +62,7 @@
 
     // ドロップログモーダル
     let isDropLogModalOpen = $state(false);
-    let dropLogData = $state<any>(null);
+    let dropLogContent = $state<string | null>(null);
     let isLoadingDropLog = $state(false);
 
     let unsubscribeSocket: (() => void) | null = null;
@@ -261,15 +261,27 @@
 
     // ドロップログ表示
     async function openDropLog() {
-        if (!recorded) return;
+        if (!recorded?.dropLogFile) return;
         isDropLogModalOpen = true;
+        dropLogContent = null;
+
+        const isZero =
+            recorded.dropLogFile.dropCnt === 0 &&
+            recorded.dropLogFile.errorCnt === 0 &&
+            recorded.dropLogFile.scramblingCnt === 0;
+
+        if (isZero) {
+            // ドロップ0件の場合はログ実ファイルが生成/保持されないためAPIを取得しない
+            return;
+        }
+
         isLoadingDropLog = true;
         try {
-            const res = await http.get(`/api/dropLogs/${recorded.id}`);
-            dropLogData = res.data;
+            const res = await http.get(`/api/dropLogs/${recorded.dropLogFile.id}`, { responseType: 'text' });
+            dropLogContent = typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2);
         } catch (e) {
             console.error('Failed to fetch drop log', e);
-            dropLogData = null;
+            dropLogContent = null;
         } finally {
             isLoadingDropLog = false;
         }
@@ -927,29 +939,45 @@
         >
             <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">ドロップログ</h3>
 
-            {#if isLoadingDropLog}
-                <p class="py-8 text-center text-xs text-slate-400">読み込み中...</p>
-            {:else if !dropLogData}
-                <p class="py-8 text-center text-xs text-slate-400">ドロップログ情報がありません</p>
-            {:else}
+            {#if recorded?.dropLogFile}
                 <div class="space-y-4 text-xs">
                     <div class="grid grid-cols-3 gap-3 text-center">
                         <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
                             <p class="text-slate-400 text-[11px]">ドロップ</p>
-                            <p class="text-base font-black text-rose-600">{dropLogData.drop || 0}</p>
+                            <p class="text-base font-black text-rose-600">{recorded.dropLogFile.dropCnt || 0}</p>
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
                             <p class="text-slate-400 text-[11px]">エラー</p>
-                            <p class="text-base font-black text-amber-600">{dropLogData.error || 0}</p>
+                            <p class="text-base font-black text-amber-600">{recorded.dropLogFile.errorCnt || 0}</p>
                         </div>
                         <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
                             <p class="text-slate-400 text-[11px]">スクランブル</p>
                             <p class="text-base font-black text-slate-700 dark:text-slate-300">
-                                {dropLogData.scrambling || 0}
+                                {recorded.dropLogFile.scramblingCnt || 0}
                             </p>
                         </div>
                     </div>
+
+                    {#if recorded.dropLogFile.dropCnt === 0 && recorded.dropLogFile.errorCnt === 0 && recorded.dropLogFile.scramblingCnt === 0}
+                        <div
+                            class="rounded-xl bg-emerald-50/70 p-3 text-center text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                        >
+                            ドロップ・エラーは検出されませんでした（正常）
+                        </div>
+                    {:else if isLoadingDropLog}
+                        <p class="py-4 text-center text-xs text-slate-400">詳細ログを読み込み中...</p>
+                    {:else if dropLogContent}
+                        <div>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">詳細ログ</p>
+                            <pre
+                                class="max-h-60 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300 whitespace-pre-wrap border border-slate-100 dark:border-slate-800">{dropLogContent}</pre>
+                        </div>
+                    {:else}
+                        <p class="py-2 text-center text-xs text-slate-400">詳細ログファイルは存在しません</p>
+                    {/if}
                 </div>
+            {:else}
+                <p class="py-8 text-center text-xs text-slate-400">ドロップログ情報がありません</p>
             {/if}
 
             <div class="mt-6 flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">

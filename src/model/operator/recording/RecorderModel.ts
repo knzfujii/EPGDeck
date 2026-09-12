@@ -746,6 +746,18 @@ class RecorderModel implements IRecorderModel {
             scrambling: scrambling,
         });
 
+        // ドロップ・エラー・スクランブルがすべて0件の場合、設定に応じてログ実ファイルを削除して肥大化を防止
+        if (this.config.recording.dropLog.deleteOnNoDrop !== false && error === 0 && drop === 0 && scrambling === 0) {
+            const dropFilePath = this.dropChecker.getFilePath();
+            if (dropFilePath !== null) {
+                this.log.system.info(`zero drop/error detected, deleting drop log file: ${dropFilePath}`);
+                await FileUtil.unlink(dropFilePath).catch(err => {
+                    this.log.system.warn(`failed to delete zero-drop log file: ${dropFilePath}`);
+                    this.log.system.warn(err);
+                });
+            }
+        }
+
         // DB へ反映
         await this.dropLogFileDB
             .updateCnt({

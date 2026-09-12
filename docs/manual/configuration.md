@@ -188,6 +188,7 @@ recording:
   dropLog:
     enabled: true
     path: '%ROOT%/drop'
+    deleteOnNoDrop: true           # エラー・ドロップが0件の録画はログ実ファイルを自動削除 (省略時: true)
   uploadTempDir: '%ROOT%/data/upload'
 ```
 

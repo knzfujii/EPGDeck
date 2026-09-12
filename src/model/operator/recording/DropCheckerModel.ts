@@ -144,7 +144,6 @@ class DropCheckerModel implements IDropCheckerModel {
 
         const result = this.tsPacketAnalyzer.getResult();
         this.result = result;
-        this.listener.emit(DropCheckerModel.FINISH_EVENT);
 
         if (this.hasError) {
             await this.appendFile('\n').catch(err => {
@@ -165,6 +164,8 @@ class DropCheckerModel implements IDropCheckerModel {
                 this.log.system.error(err);
             });
         }
+
+        this.listener.emit(DropCheckerModel.FINISH_EVENT);
     }
 
     /**

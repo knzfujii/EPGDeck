@@ -111,6 +111,7 @@ export interface ThumbnailConfig {
 export interface DropLogConfig {
     path: string;
     enabled: boolean;
+    deleteOnNoDrop?: boolean;
 }
 
 export interface RecordingConfig {

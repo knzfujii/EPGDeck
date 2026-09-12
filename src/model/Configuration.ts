@@ -165,6 +165,7 @@ class Configuration implements IConfiguration {
                 dropLogConf.path || raw.dropLog || path.join(Configuration.ROOT_PATH, 'drop'),
             ),
             enabled: typeof dropLogConf.enabled === 'boolean' ? dropLogConf.enabled : raw.isEnabledDropCheck || false,
+            deleteOnNoDrop: typeof dropLogConf.deleteOnNoDrop === 'boolean' ? dropLogConf.deleteOnNoDrop : true,
         };
 
         const priorityConf = recConf.priority || {};

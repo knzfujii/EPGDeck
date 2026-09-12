@@ -140,11 +140,13 @@ export default class RecordedManageModel implements IRecordedManageModel {
         // ドロップログファイル削除処理
         if (typeof recorded.dropLogFile !== 'undefined' && recorded.dropLogFile !== null) {
             const filePath = this.getDropLogFilePath(recorded.dropLogFile);
-            this.log.system.info(`delete: ${filePath}`);
-            await FileUtil.unlink(filePath).catch(err => {
-                this.log.system.error(`failed to delete ${filePath}`);
-                this.log.system.error(err);
-            });
+            if ((await this.checkFileExistence(filePath)) === true) {
+                this.log.system.info(`delete: ${filePath}`);
+                await FileUtil.unlink(filePath).catch(err => {
+                    this.log.system.error(`failed to delete ${filePath}`);
+                    this.log.system.error(err);
+                });
+            }
         }
 
         // DB からサムネイル情報削除
@@ -594,35 +596,46 @@ export default class RecordedManageModel implements IRecordedManageModel {
     }
 
     /**
-     * DB に登録されていないログファイル削除 &  DB に登録されているが存在しないログ情報の削除
+     * ドロップログファイルのクリーンアップ
+     * - DBに登録されていない孤立ログファイルの削除
+     * - deleteOnNoDrop有効時のドロップ0件ログファイルの削除
+     * ※実ファイルの有無にかかわらず、ドロップ・エラー数等の履歴を保護するためDBレコードは削除しない
      */
     public async dropLogFileCleanup(): Promise<void> {
         this.log.system.info('start drop log files cleanup');
         const dropLogs = await this.dropLogFileDB.findAll();
+        const isDeleteOnNoDrop = this.config.recording.dropLog.deleteOnNoDrop !== false;
 
-        // ファイル, ディレクトリ索引生成と DB 上に存在するが実ファイルが存在しないデータを削除する
+        // ディレクトリ内の実ファイルを一括取得（15k回のfs.statシステムコールを全廃しO(1)判定に最適化）
+        const list = await FileUtil.getFileList(this.config.recording.dropLog.path);
+        const diskFileSet = new Set<string>(list.files);
+
+        // ファイル索引生成
         const fileIndex: { [filePath: string]: boolean } = {}; // ファイル索引
         for (const dropLog of dropLogs) {
             const filePath = this.getDropLogFilePath(dropLog);
+            const exists = diskFileSet.has(filePath);
+            const isZeroDrop = dropLog.dropCnt === 0 && dropLog.errorCnt === 0 && dropLog.scramblingCnt === 0;
 
-            if ((await this.checkFileExistence(filePath)) === true) {
-                // ファイルが存在するなら索引に追加
-                fileIndex[filePath] = true;
-            } else {
-                this.log.system.warn(`drop file is not exist: ${filePath}`);
-                // ファイルが存在しないなら削除
-                try {
-                    await this.recordedDB.removeDropLogFileId(dropLog.id);
-                    await this.dropLogFileDB.deleteOnce(dropLog.id);
-                } catch (err: any) {
-                    this.log.system.error(err);
+            if (isZeroDrop === true && isDeleteOnNoDrop === true) {
+                // ドロップ0件かつ自動削除有効の場合、実ファイルが存在すれば削除して肥大化を防止
+                if (exists === true) {
+                    this.log.system.info(`cleanup zero-drop log file: ${filePath}`);
+                    await FileUtil.unlink(filePath).catch(err => {
+                        this.log.system.warn(`failed to delete zero-drop log file: ${filePath}`);
+                        this.log.system.warn(err);
+                    });
+                    diskFileSet.delete(filePath);
                 }
+            } else if (exists === true) {
+                // 実ファイルが存在するなら索引に追加（孤立ファイル削除から保護）
+                fileIndex[filePath] = true;
             }
+            // ※実ファイルが無くてもドロップ数・エラー数等の履歴は永続保持する
         }
 
-        // ファイル索引上に存在しないファイルを削除する
-        const list = await FileUtil.getFileList(this.config.recording.dropLog.path);
-        for (const file of list.files) {
+        // ファイル索引上に存在しないファイル（DBに紐付かない孤立ファイル）を削除する
+        for (const file of diskFileSet) {
             if (typeof fileIndex[file] !== 'undefined') {
                 continue;
             }

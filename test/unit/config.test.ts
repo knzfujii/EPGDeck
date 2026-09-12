@@ -243,4 +243,40 @@ describe('Structured Config Schema', () => {
         expect(confCustomCmd.recording.thumbnail.format).toBe('webp');
         expect(confCustomCmd.recording.thumbnail.cmd).toBe(customCmd);
     });
+
+    it('should configure dropLog deleteOnNoDrop correctly (default: true)', () => {
+        // デフォルト (未指定時) は true (ドロップ0件時に自動削除)
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.recording.dropLog.deleteOnNoDrop).toBe(true);
+
+        // 明示的に false を指定した場合 (削除せず常に保持)
+        const confFalse = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                dropLog: {
+                    deleteOnNoDrop: false,
+                },
+            },
+        } as any);
+        expect(confFalse.recording.dropLog.deleteOnNoDrop).toBe(false);
+
+        // 明示的に true を指定した場合
+        const confTrue = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                dropLog: {
+                    deleteOnNoDrop: true,
+                },
+            },
+        } as any);
+        expect(confTrue.recording.dropLog.deleteOnNoDrop).toBe(true);
+    });
 });

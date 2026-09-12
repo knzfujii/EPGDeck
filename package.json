@@ -1,6 +1,6 @@
 {
   "name": "epgdeck",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "DTV Software in Japan.",
   "main": "dist/index.js",
   "engines": {

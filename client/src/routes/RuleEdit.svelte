@@ -28,7 +28,7 @@
         Lock,
     } from '@lucide/svelte';
 
-    // 編集対象のルールID (?id=<ruleId>)。未指定なら新規作成
+    // 編集対象のルールID (?ruleId=<ruleId>)。未指定なら新規作成
     let ruleId = $state<number | null>(null);
     let rule = $state<any>(null);
     let isLoading = $state(true);
@@ -553,7 +553,7 @@
         }
         await initOptions();
 
-        const idParam = router.current.query['id'];
+        const idParam = router.current.query['ruleId'];
         if (idParam) {
             ruleId = parseInt(idParam, 10);
             try {

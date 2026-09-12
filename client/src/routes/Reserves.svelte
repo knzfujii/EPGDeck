@@ -148,7 +148,7 @@
     // ルール予約の場合はルール編集ページへ遷移
     function goToRuleEdit(item: apid.ReserveItem) {
         isDetailModalOpen = false;
-        router.push(`/rule/edit?id=${item.ruleId}`);
+        router.push(`/rule/edit?ruleId=${item.ruleId}`);
     }
 
     let unsubscribeSocket: (() => void) | null = null;

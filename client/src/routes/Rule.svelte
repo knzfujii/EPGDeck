@@ -77,7 +77,7 @@
 
     // 編集ページへ遷移
     function goEditRule(rule: any) {
-        router.push(`/rule/edit?id=${rule.id}`);
+        router.push(`/rule/edit?ruleId=${rule.id}`);
     }
 
     // 有効 / 無効トグル

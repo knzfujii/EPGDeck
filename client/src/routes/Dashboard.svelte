@@ -440,7 +440,8 @@
                                                     {#if item.ruleId}
                                                         <button
                                                             type="button"
-                                                            onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                            onclick={() =>
+                                                                router.push(`/rule/edit?ruleId=${item.ruleId}`)}
                                                             class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
                                                         >
                                                             ルール編集
@@ -504,7 +505,8 @@
                                                     {#if item.ruleId}
                                                         <button
                                                             type="button"
-                                                            onclick={() => router.push(`/rule/edit?id=${item.ruleId}`)}
+                                                            onclick={() =>
+                                                                router.push(`/rule/edit?ruleId=${item.ruleId}`)}
                                                             class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
                                                         >
                                                             ルール編集

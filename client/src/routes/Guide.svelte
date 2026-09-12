@@ -1056,7 +1056,7 @@
                                     type="button"
                                     onclick={() => {
                                         isModalOpen = false;
-                                        router.push(`/rule/edit?id=${selectedProgram.reserve.ruleId}`);
+                                        router.push(`/rule/edit?ruleId=${selectedProgram.reserve.ruleId}`);
                                     }}
                                     class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
                                 >

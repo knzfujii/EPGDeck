@@ -553,7 +553,7 @@
         }
         await initOptions();
 
-        const idParam = router.query['id'];
+        const idParam = router.current.query['id'];
         if (idParam) {
             ruleId = parseInt(idParam, 10);
             try {
@@ -566,7 +566,7 @@
             }
         } else {
             // 新規作成時: 検索画面から渡された検索条件をプリフィル
-            const q = router.query;
+            const q = router.current.query;
             if (q['keyword']) {
                 keyword = q['keyword'];
                 isName = q['name'] !== '0';

@@ -50,8 +50,39 @@ class RouterState {
     }
 
     public replace(url: string) {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.location.pathname + window.location.search !== url) {
             window.history.replaceState({}, '', url);
+            this.update();
+        }
+    }
+
+    public setQuery(
+        newParams: Record<string, string | number | boolean | null | undefined>,
+        options: { replace?: boolean } = { replace: false },
+    ) {
+        if (typeof window === 'undefined') return;
+
+        const currentParams = new URLSearchParams(this.search);
+        for (const [key, value] of Object.entries(newParams)) {
+            if (value === null || value === undefined || value === '') {
+                currentParams.delete(key);
+            } else {
+                currentParams.set(key, String(value));
+            }
+        }
+
+        const newSearch = currentParams.toString() ? `?${currentParams.toString()}` : '';
+        const targetUrl = this.pathname + newSearch;
+
+        if (this.pathname + this.search === targetUrl) {
+            return;
+        }
+
+        if (options.replace) {
+            window.history.replaceState({}, '', targetUrl);
+            this.update();
+        } else {
+            window.history.pushState({}, '', targetUrl);
             this.update();
         }
     }

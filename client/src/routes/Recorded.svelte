@@ -150,15 +150,16 @@
         }
     }
 
-    function updateQueryParams() {
-        const queryParams = new URLSearchParams();
-        if (currentPage > 1) queryParams.set('page', String(currentPage));
-        if (keyword.trim()) queryParams.set('keyword', keyword.trim());
-        if (selectedGenre !== null) queryParams.set('genre', String(selectedGenre));
-        if (selectedRuleId !== null) queryParams.set('ruleId', String(selectedRuleId));
-
-        const searchStr = queryParams.toString();
-        router.replace(searchStr ? `/recorded?${searchStr}` : '/recorded');
+    function updateQueryParams(options: { replace?: boolean } = { replace: false }) {
+        router.setQuery(
+            {
+                page: currentPage > 1 ? currentPage : null,
+                keyword: keyword.trim() || null,
+                genre: selectedGenre,
+                ruleId: selectedRuleId,
+            },
+            options,
+        );
     }
 
     $effect(() => {

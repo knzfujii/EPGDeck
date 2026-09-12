@@ -31,8 +31,86 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(searchButton).toBeVisible();
         await searchButton.click();
 
+        // クエリパラメータの同期検証
+        await expect(page).toHaveURL(/keyword=%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9/);
+
         // 3. ルール作成ボタンの存在確認
         await expect(page.getByRole('button', { name: 'この条件でルール作成' })).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should prefill search input and execute search from query params', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // クエリパラメータ付きでアクセス
+        await page.goto('/search?keyword=%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9');
+        await page.waitForLoadState('networkidle');
+
+        // 検索ボックスに値がセットされ、検索が自動実行されていることを検証
+        const searchInput = page.getByPlaceholder(/番組名やキーワード/);
+        await expect(searchInput).toHaveValue('ニュース');
+        await expect(page.getByRole('button', { name: 'この条件でルール作成' })).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should allow navigating back and forth across search history with browser back/forward', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.goto('/search');
+        await page.waitForLoadState('networkidle');
+
+        const searchInput = page.getByPlaceholder(/番組名やキーワード/);
+        const searchButton = page.getByRole('button', { name: '検索', exact: true });
+
+        // 1回目の検索: 「ニュース」
+        await searchInput.fill('ニュース');
+        await searchButton.click();
+        await expect(page).toHaveURL(/keyword=%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9/);
+
+        // 2回目の検索: 「アニメ」
+        await searchInput.fill('アニメ');
+        await searchButton.click();
+        await expect(page).toHaveURL(/keyword=%E3%82%A2%E3%83%8B%E3%83%A1/);
+
+        // ブラウザの戻るを実行 -> 「ニュース」の検索状態に復元
+        await page.goBack();
+        await expect(page).toHaveURL(/keyword=%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9/);
+        await expect(searchInput).toHaveValue('ニュース');
+
+        // ブラウザの進むを実行 -> 「アニメ」の検索状態に復元
+        await page.goForward();
+        await expect(page).toHaveURL(/keyword=%E3%82%A2%E3%83%8B%E3%83%A1/);
+        await expect(searchInput).toHaveValue('アニメ');
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

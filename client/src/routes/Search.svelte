@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -23,6 +23,54 @@
     let isDescription = $state(true);
     let selectedGenre = $state<number | null>(null);
 
+    let isInitialized = false;
+
+    $effect(() => {
+        const q = router.current.query;
+        const qKeyword = q.keyword || '';
+        const qGenre = q.genre ? parseInt(q.genre, 10) : null;
+        const qName = q.name !== '0';
+        const qDesc = q.description !== '0';
+
+        untrack(() => {
+            if (!isInitialized) {
+                isInitialized = true;
+                keyword = qKeyword;
+                selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
+                isName = qName;
+                isDescription = qDesc;
+                if (keyword.trim()) {
+                    executeSearch({ replace: true });
+                }
+                return;
+            }
+
+            let hasChanged = false;
+            if (qKeyword !== keyword) {
+                keyword = qKeyword;
+                hasChanged = true;
+            }
+            if (qGenre !== selectedGenre) {
+                selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
+                hasChanged = true;
+            }
+            if (qName !== isName) {
+                isName = qName;
+                hasChanged = true;
+            }
+            if (qDesc !== isDescription) {
+                isDescription = qDesc;
+                hasChanged = true;
+            }
+
+            if (hasChanged && keyword.trim()) {
+                executeSearch({ replace: true });
+            } else if (hasChanged && !keyword.trim()) {
+                searchResults = [];
+            }
+        });
+    });
+
     const genres = [
         { id: null, name: 'すべてのジャンル' },
         { id: 7, name: 'アニメ' },
@@ -35,8 +83,18 @@
         { id: 2, name: '情報' },
     ];
 
-    async function executeSearch() {
+    async function executeSearch(options: { replace?: boolean } = { replace: false }) {
         if (!keyword.trim()) return;
+
+        router.setQuery(
+            {
+                keyword: keyword.trim(),
+                genre: selectedGenre,
+                name: !isName ? '0' : null,
+                description: !isDescription ? '0' : null,
+            },
+            options,
+        );
 
         isLoading = true;
         try {
@@ -63,10 +121,6 @@
     onMount(() => {
         if (!readOnlyStore.canViewSearch) {
             router.replace('/recorded');
-            return;
-        }
-        if (keyword.trim()) {
-            executeSearch();
         }
     });
 

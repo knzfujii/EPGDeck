@@ -168,10 +168,25 @@ urlscheme:
 # ------------------------------------------------------------------------------
 # 9. ライブ・録画ストリーミング設定 (Streaming - 省略時は標準構成が自動適用されます)
 # ------------------------------------------------------------------------------
+# デフォルトで 1080p, 720p, 480p の各解像度プリセット（M2TS-LL / HLS / WebM / MP4）が内蔵されています。
+# カスタマイズする場合のみ、必要な部分を記述してください。
 # streaming:
 #   tempDir: '%ROOT%/data/streamfiles'
-#   live: ...
-#   recorded: ...
+#   live:
+#     ts:
+#       m2tsll:
+#         - name: '1080p'
+#           cmd: '%FFMPEG% -dual_mono_mode main -f mpegts -analyzeduration 500000 -i pipe:0 -map 0 -c:s copy -c:d copy -ignore_unknown -fflags nobuffer -flags low_delay -max_delay 250000 -max_interleave_delta 1 -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:1080 -b:v 6000k -preset veryfast -y -f mpegts pipe:1'
+#         - name: '720p'
+#           cmd: '%FFMPEG% -dual_mono_mode main -f mpegts -analyzeduration 500000 -i pipe:0 -map 0 -c:s copy -c:d copy -ignore_unknown -fflags nobuffer -flags low_delay -max_delay 250000 -max_interleave_delta 1 -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1'
+#       hls:
+#         - name: '1080p'
+#           cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 17 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:1080 -b:v 6000k -preset veryfast -flags +loop-global_header %OUTPUT%'
+#   recorded:
+#     ts:
+#       hls:
+#         - name: '1080p'
+#           cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:1080 -b:v 6000k -preset veryfast -flags +loop-global_header %OUTPUT%'
 
 # ------------------------------------------------------------------------------
 # 10. Kodi 連携設定 (Kodi)

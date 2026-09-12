@@ -9,6 +9,7 @@ class ReadOnlyStore {
     isInitialized = $state(false);
     allowedOperations = $state<apid.ReadOnlyOperation[]>([]);
     token = $state<string | null>(null);
+    serverConfig = $state<apid.Config | null>(null);
     isModalOpen = $state(false);
 
     get isReadOnly(): boolean {
@@ -77,6 +78,7 @@ class ReadOnlyStore {
         try {
             // サーバーのコンフィグ取得
             const res = await http.get<apid.Config>('/api/config');
+            this.serverConfig = res.data;
             if (res.data.readOnly && res.data.readOnly.enabled) {
                 this.enabled = true;
                 this.allowedOperations = res.data.readOnly.allowedOperations || [];

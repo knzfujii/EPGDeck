@@ -1,22 +1,20 @@
 <script lang="ts">
     import { router } from '../../router.svelte';
     import { readOnlyStore } from '../../stores/readOnly.svelte';
-    import {
-        Play,
-        Tv,
-        Radio,
-        FileVideo,
-        Sparkles,
-        ExternalLink,
-        Download,
-        X,
-        Zap,
-        CheckCircle2,
-        Lock,
-    } from '@lucide/svelte';
+    import { Play, Radio, FileVideo, Download, X, Zap, CheckCircle2, Lock } from '@lucide/svelte';
+    import { formatSize } from '../../utils/format';
 
     import type * as apid from '../../../../../api';
-    import { isMp4VideoFile, getTopMp4File, getWatchUrl } from '../../utils/video';
+    import {
+        isMp4VideoFile,
+        getTopMp4File,
+        getWatchUrl,
+        getPlaybackPreference,
+        savePlaybackPreference,
+        getProtocolOptions,
+        getAvailableStreamModes,
+        type PlaybackStreamType,
+    } from '../../utils/video';
 
     interface Props {
         isOpen: boolean;
@@ -42,10 +40,21 @@
 
     // 選択状態
     let selectedFileId = $state<number | null>(null);
-    let selectedStreamType = $state<'m2tsll' | 'webm' | 'mp4' | 'hls' | 'direct'>('m2tsll');
+    let selectedStreamType = $state<PlaybackStreamType>('m2tsll');
     let selectedMode = $state<number>(0);
 
-    // デフォルトファイルと形式の初期化
+    let selectedFile = $derived(videoFiles.find(f => f.id === selectedFileId) ?? null);
+    let isCurrentFileMp4 = $derived(selectedFile ? isMp4VideoFile(selectedFile) : false);
+
+    function applyPreferenceForFile(file: apid.VideoFile) {
+        selectedFileId = file.id;
+        const target = isMp4VideoFile(file) ? 'recorded_mp4' : 'recorded_ts';
+        const pref = getPlaybackPreference(target);
+        selectedStreamType = pref.streamType;
+        selectedMode = pref.mode;
+    }
+
+    // デフォルトファイルと形式の初期化 (前回設定の復元)
     $effect(() => {
         if (isOpen) {
             if (videoFiles.length > 0) {
@@ -56,47 +65,85 @@
                     videoFiles[0];
 
                 if (targetFile) {
-                    selectedFileId = targetFile.id;
-                    if (isMp4VideoFile(targetFile)) {
-                        selectedStreamType = 'direct';
-                    } else if (readOnlyStore.canRecordedStream) {
-                        selectedStreamType = 'hls';
-                    } else {
-                        selectedStreamType = 'direct';
-                    }
+                    applyPreferenceForFile(targetFile);
                 }
             } else if (channelId) {
-                // ライブ配信の場合: 最速の m2tsll をデフォルトに
-                selectedStreamType = 'm2tsll';
+                // ライブ配信の場合: 記憶設定を復元
+                const pref = getPlaybackPreference('live');
+                selectedStreamType = pref.streamType;
+                selectedMode = pref.mode;
             }
         }
     });
 
-    const streamModes = [
-        { id: 0, label: '720p', desc: '標準高画質' },
-        { id: 1, label: '480p', desc: '中画質・節約' },
-        { id: 2, label: '1080p', desc: '最高画質' },
-    ];
+    // プロトコルごとの利用可否と説明文
+    const protocolOptions = $derived(
+        getProtocolOptions({
+            channelId,
+            recordedId,
+            isCurrentFileMp4,
+            hasSelectedFile: !!selectedFile,
+            canLiveStream: readOnlyStore.canLiveStream,
+            canRecordedStream: readOnlyStore.canRecordedStream,
+        }),
+    );
+
+    // サーバー設定に基づく動的画質モードの取得と降順ソート
+    const availableStreamModes = $derived(
+        getAvailableStreamModes({
+            streamType: selectedStreamType,
+            channelId,
+            recordedId,
+            isEncoded: selectedFile?.type === 'encoded',
+            streamConfig: readOnlyStore.serverConfig?.streamConfig,
+        }),
+    );
+
+    // モードが存在しない場合は有効な最高画質（先頭）に自動調整
+    $effect(() => {
+        if (availableStreamModes.length > 0) {
+            const exists = availableStreamModes.some(m => m.id === selectedMode);
+            if (!exists) {
+                selectedMode = availableStreamModes[0].id;
+            }
+        }
+    });
+
+    // 選択されたプロトコルが利用不可の場合、利用可能な先頭プロトコルに安全にフォールバック
+    $effect(() => {
+        if (protocolOptions.length > 0) {
+            const current = protocolOptions.find(p => p.type === selectedStreamType);
+            if (!current || !current.isAvailable) {
+                const firstAvail = protocolOptions.find(p => p.isAvailable);
+                if (firstAvail) {
+                    selectedStreamType = firstAvail.type;
+                }
+            }
+        }
+    });
 
     const canStartPlayback = $derived.by(() => {
-        if (channelId) {
-            return readOnlyStore.canLiveStream;
-        }
-        if (recordedId) {
-            if (selectedStreamType === 'direct') {
-                return !!selectedFileId;
-            }
-            return readOnlyStore.canRecordedStream && !!selectedFileId;
-        }
-        return false;
+        const curOpt = protocolOptions.find(p => p.type === selectedStreamType);
+        return curOpt ? curOpt.isAvailable : false;
     });
 
     function startPlayback() {
         if (!canStartPlayback) return;
         if (channelId) {
-            // ライブ視聴
+            // ライブ視聴設定を保存
+            savePlaybackPreference('live', {
+                streamType: selectedStreamType,
+                mode: selectedMode,
+            });
             router.push(`/onair/watch?channelId=${channelId}&type=${selectedStreamType}&mode=${selectedMode}`);
         } else if (recordedId && selectedFileId) {
+            // 録画設定を保存 (MP4かTSかに応じて別々に保存)
+            const target = isCurrentFileMp4 ? 'recorded_mp4' : 'recorded_ts';
+            savePlaybackPreference(target, {
+                streamType: selectedStreamType,
+                mode: selectedMode,
+            });
+
             if (selectedStreamType === 'direct') {
                 // 直接再生
                 router.push(getWatchUrl({ recordedId, videoId: selectedFileId }));
@@ -113,12 +160,6 @@
             }
         }
         onClose();
-    }
-
-    function formatSize(bytes?: number): string {
-        if (!bytes) return '-';
-        const gb = bytes / (1024 * 1024 * 1024);
-        return `${gb.toFixed(1)} GB`;
     }
 </script>
 
@@ -171,188 +212,130 @@
                         <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">再生する動画ファイル</p>
                         <div class="grid grid-cols-1 gap-2">
                             {#each videoFiles as file}
+                                {@const isSelected = selectedFileId === file.id}
                                 <button
                                     type="button"
-                                    onclick={() => {
-                                        selectedFileId = file.id;
-                                        if (file.type === 'encoded' || file.name.toLowerCase().includes('mp4')) {
-                                            selectedStreamType = 'direct';
-                                        } else {
-                                            selectedStreamType = 'hls';
-                                        }
-                                    }}
-                                    class="flex items-center justify-between rounded-xl border p-3 text-left transition cursor-pointer {selectedFileId ===
-                                    file.id
-                                        ? 'border-blue-500 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/40'
-                                        : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50'}"
+                                    onclick={() => applyPreferenceForFile(file)}
+                                    class="flex items-center justify-between rounded-xl border p-3 text-left transition cursor-pointer {isSelected
+                                        ? 'border-blue-500 bg-blue-50/70 hover:bg-blue-100/60 dark:border-blue-500 dark:bg-blue-950/60 dark:hover:bg-blue-900/40 ring-1 ring-blue-500'
+                                        : 'border-slate-200 bg-white hover:bg-slate-100/80 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-slate-800 dark:hover:border-slate-700'}"
                                 >
-                                    <div class="flex items-center gap-2.5">
+                                    <div class="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
                                         <span
-                                            class="rounded px-2.5 py-0.5 text-xs font-black uppercase {file.type ===
+                                            class="rounded px-2.5 py-0.5 text-xs font-black uppercase shrink-0 {file.type ===
                                             'encoded'
                                                 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                                                 : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}"
                                         >
                                             {file.name}
                                         </span>
-                                        <span class="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                        <span class="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                                             {file.filename}
                                         </span>
                                     </div>
-                                    <span class="text-sm font-semibold text-slate-400">{formatSize(file.size)}</span>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span
+                                            class="text-sm font-semibold {isSelected
+                                                ? 'text-blue-700 dark:text-blue-300'
+                                                : 'text-slate-500 dark:text-slate-400'}"
+                                        >
+                                            {formatSize(file.size)}
+                                        </span>
+                                        {#if isSelected}
+                                            <CheckCircle2 size={16} class="text-blue-600 dark:text-blue-400 shrink-0" />
+                                        {/if}
+                                    </div>
                                 </button>
                             {/each}
                         </div>
                     </div>
                 {/if}
 
-                <!-- ストリーム形式 / 再生方式 (性能順: M2TS-LL > WebM > HLS) -->
+                <!-- ストリーム形式 / 再生方式 (全 4 項目固定グリッド) -->
                 <div>
                     <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        再生プロトコル / 形式（性能順: M2TS-LL ＞ WebM ＞ HLS）
+                        再生プロトコル / 形式（性能順: 直接再生 ＞ M2TS-LL ＞ WebM ＞ HLS）
                     </p>
-                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        {#if channelId}
-                            <!-- M2TS-LL (最速・超低遅延) -->
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {#each protocolOptions as opt}
+                            {@const isSelected = selectedStreamType === opt.type}
                             <button
                                 type="button"
-                                onclick={() => (selectedStreamType = 'm2tsll')}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-pointer {selectedStreamType ===
-                                'm2tsll'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                disabled={!opt.isAvailable}
+                                onclick={() => {
+                                    if (opt.isAvailable) {
+                                        selectedStreamType = opt.type;
+                                    }
+                                }}
+                                class="flex flex-col items-center justify-center rounded-xl border px-1.5 py-2.5 text-center transition {!opt.isAvailable
+                                    ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500'
+                                    : isSelected
+                                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold ring-1 ring-blue-500 cursor-pointer'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer'}"
                             >
-                                <span class="flex items-center gap-1 text-sm font-black">
-                                    <Zap size={15} class="text-amber-500" /> M2TS-LL
+                                <span class="flex items-center gap-1 text-sm font-black whitespace-nowrap">
+                                    {#if opt.type === 'direct'}
+                                        <Play size={13} fill="currentColor" />
+                                    {:else if opt.type === 'm2tsll'}
+                                        <Zap size={14} class={opt.isAvailable ? 'text-amber-500' : ''} />
+                                    {/if}
+                                    {opt.label}
+                                    {#if opt.badge}
+                                        <span
+                                            class="rounded px-1.5 py-0.5 text-[10px] font-bold shrink-0 whitespace-nowrap {opt.type ===
+                                            'direct'
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
+                                                : opt.badge === '字幕非対応'
+                                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}"
+                                        >
+                                            {opt.badge}
+                                        </span>
+                                    {/if}
                                 </span>
-                                <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
-                                    超低遅延 (1-2秒)
-                                </span>
-                            </button>
-
-                            <!-- WebM (高速) -->
-                            <button
-                                type="button"
-                                onclick={() => (selectedStreamType = 'webm')}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-pointer {selectedStreamType ===
-                                'webm'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                            >
-                                <span class="text-sm font-black">WebM</span>
-                                <span class="text-sm text-blue-600 dark:text-blue-400 font-medium mt-0.5">
-                                    高速 (3-5秒)
-                                </span>
-                            </button>
-
-                            <!-- HLS (高互換・字幕対応) -->
-                            <button
-                                type="button"
-                                onclick={() => (selectedStreamType = 'hls')}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition cursor-pointer {selectedStreamType ===
-                                'hls'
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                            >
-                                <span class="flex items-center gap-1.5 text-sm font-black">
-                                    HLS <span
-                                        class="rounded-md bg-emerald-100 px-1.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                    >
-                                        字幕対応
-                                    </span>
-                                </span>
-                                <span class="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                                    字幕対応・iOS
-                                </span>
-                            </button>
-                        {:else}
-                            <!-- 録画再生の場合 -->
-                            {#if videoFiles.length > 0 && selectedFileId && videoFiles.find(f => f.id === selectedFileId)?.type === 'encoded'}
-                                <button
-                                    type="button"
-                                    onclick={() => (selectedStreamType = 'direct')}
-                                    class="flex flex-col items-center justify-center rounded-xl border p-3 transition cursor-pointer {selectedStreamType ===
-                                    'direct'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                                <span
+                                    class="text-xs font-medium mt-1 whitespace-nowrap {isSelected
+                                        ? 'text-blue-600 dark:text-blue-300'
+                                        : opt.isAvailable
+                                          ? 'text-slate-500 dark:text-slate-400'
+                                          : 'text-slate-400 dark:text-slate-500'}"
                                 >
-                                    <span class="text-sm font-black">直接再生 (MP4)</span>
-                                    <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
-                                        即時再生
-                                    </span>
-                                </button>
-                            {/if}
-                            <button
-                                type="button"
-                                disabled={!readOnlyStore.canRecordedStream}
-                                onclick={() => (selectedStreamType = 'hls')}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition cursor-pointer {!readOnlyStore.canRecordedStream
-                                    ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
-                                    : selectedStreamType === 'hls'
-                                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                            >
-                                <span class="flex items-center gap-1.5 text-sm font-black">
-                                    HLS 配信 <span
-                                        class="rounded-md bg-emerald-100 px-1.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                    >
-                                        字幕対応
-                                    </span>
-                                </span>
-                                <span class="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                                    {#if !readOnlyStore.canRecordedStream}
-                                        🔒 制限中
-                                    {:else}
-                                        字幕・高互換
-                                    {/if}
+                                    {opt.subText}
                                 </span>
                             </button>
-                            <button
-                                type="button"
-                                disabled={!readOnlyStore.canRecordedStream}
-                                onclick={() => (selectedStreamType = 'webm')}
-                                class="flex flex-col items-center justify-center rounded-xl border p-3 transition cursor-pointer {!readOnlyStore.canRecordedStream
-                                    ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50'
-                                    : selectedStreamType === 'webm'
-                                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
-                                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                            >
-                                <span class="text-sm font-black">WebM</span>
-                                <span class="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                                    {#if !readOnlyStore.canRecordedStream}
-                                        🔒 制限中
-                                    {:else}
-                                        高速トランスコード
-                                    {/if}
-                                </span>
-                            </button>
-                        {/if}
+                        {/each}
                     </div>
                 </div>
 
-                <!-- 画質・解像度 (トランスコード時) -->
-                {#if selectedStreamType !== 'direct'}
-                    <div>
-                        <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">画質・解像度</p>
-                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            {#each streamModes as mode}
+                <!-- 画質・解像度 -->
+                <div>
+                    <p class="block font-bold text-slate-700 dark:text-slate-300 mb-2">画質・解像度</p>
+                    {#if selectedStreamType === 'direct'}
+                        <div
+                            class="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-center text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300"
+                        >
+                            直接再生のためトランスコード不要（元ファイルの画質で再生）
+                        </div>
+                    {:else if availableStreamModes.length > 0}
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {#each availableStreamModes as mode}
+                                {@const isModeSelected = selectedMode === mode.id}
                                 <button
                                     type="button"
                                     onclick={() => (selectedMode = mode.id)}
-                                    class="flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition cursor-pointer {selectedMode ===
-                                    mode.id
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                                    class="flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition cursor-pointer {isModeSelected
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold ring-1 ring-blue-500'
                                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                                 >
                                     <span class="text-sm font-bold">{mode.label}</span>
-                                    <span class="text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                                         {mode.desc}
                                     </span>
                                 </button>
                             {/each}
                         </div>
-                    </div>
-                {/if}
+                    {/if}
+                </div>
 
                 <!-- 外部アプリ連携導線 -->
                 {#if recordedId && selectedFileId && readOnlyStore.canDownload}

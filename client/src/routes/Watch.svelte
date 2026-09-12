@@ -8,17 +8,8 @@
     import { getChannelTypeBadgeClass } from '../lib/utils/format';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
     import http from '@/lib/httpClient';
-    import {
-        ArrowLeft,
-        Radio,
-        Calendar,
-        Clock,
-        FileVideo,
-        Download,
-        Share2,
-        Loader2,
-        AlertTriangle,
-    } from '@lucide/svelte';
+    import type * as apid from '../../../api';
+    import { ArrowLeft, Radio, Clock, FileVideo, Loader2 } from '@lucide/svelte';
 
     let videoSrc = $state<string>('');
     let vttSrc = $state<string | undefined>(undefined);
@@ -36,7 +27,8 @@
     let timeRange = $state('');
     let description = $state('');
     let extended = $state('');
-    let recordedData = $state<any>(null);
+    let recordedData = $state<apid.RecordedItem | null>(null);
+    let currentVideoFile = $state<apid.VideoFile | null>(null);
     let isLoadingInfo = $state(true);
 
     let totalDuration = $derived.by(() => {
@@ -44,11 +36,10 @@
         if (recordedData.startAt && recordedData.endAt) {
             return Math.max(0, Math.floor((recordedData.endAt - recordedData.startAt) / 1000));
         }
-        if (recordedData.duration && recordedData.duration > 0) {
-            return recordedData.duration > 86400 ? Math.floor(recordedData.duration / 1000) : recordedData.duration;
-        }
         return 0;
     });
+
+    let activeVideoFile = $derived(currentVideoFile ?? recordedData?.videoFiles?.[0] ?? null);
 
     function withAuthToken(url: string): string {
         if (!readOnlyStore.token) return url;
@@ -93,6 +84,37 @@
             await new Promise(resolve => setTimeout(resolve, 300));
         }
         return false;
+    }
+
+    async function startHlsStream(
+        endpoint: string,
+        params: Record<string, any>,
+        preparingMessage: string,
+    ): Promise<boolean> {
+        streamType = 'hls';
+        isPreparingStream = true;
+        statusText = preparingMessage;
+
+        const streamRes = await http.get(endpoint, { params });
+        const sId = Number(streamRes.data.streamId);
+        streamId = sId;
+        startKeepAlive(sId);
+
+        const isReady = await waitForStreamReady(sId);
+        if (isReady) {
+            videoSrc = `/streamfiles/stream${sId}.m3u8`;
+            isHls = true;
+            return true;
+        }
+        throw new Error('Stream timed out waiting for manifest');
+    }
+
+    function startDirectPlay(file: apid.VideoFile) {
+        streamType = 'direct';
+        currentVideoFile = file;
+        videoSrc = withAuthToken(`/api/videos/${file.id}`);
+        vttSrc = withAuthToken(`/api/videos/${file.id}/vtt`);
+        isHls = false;
     }
 
     async function initWatch() {
@@ -145,25 +167,12 @@
                 isLoadingInfo = false;
             } else {
                 // 📱 HLS 配信
-                streamType = 'hls';
-                isPreparingStream = true;
-                statusText = 'チューナーを確保してライブ配信を生成中...';
-
                 try {
-                    const streamRes = await http.get(`/api/streams/live/${channelId}/hls`, {
-                        params: { mode },
-                    });
-                    const sId = Number(streamRes.data.streamId);
-                    streamId = sId;
-                    startKeepAlive(sId);
-
-                    const isReady = await waitForStreamReady(sId);
-                    if (isReady) {
-                        videoSrc = `/streamfiles/stream${sId}.m3u8`;
-                        isHls = true;
-                    } else {
-                        throw new Error('Stream timed out waiting for manifest');
-                    }
+                    await startHlsStream(
+                        `/api/streams/live/${channelId}/hls`,
+                        { mode },
+                        'チューナーを確保してライブ配信を生成中...',
+                    );
                 } catch (e: any) {
                     console.error('Failed to start live stream', e);
                     if (e.response?.status === 503) {
@@ -186,6 +195,7 @@
             try {
                 const recRes = await http.get(`/api/recorded/${recordedId}?isHalfWidth=true`);
                 recordedData = recRes.data;
+                if (!recordedData) throw new Error('Recorded data not found');
                 programTitle = recordedData.name;
                 channelName = channelStore.getChannelName(recordedData.channelId);
                 description = recordedData.description || '';
@@ -201,66 +211,45 @@
             }
 
             try {
-                if (videoId !== null && !isNaN(videoId)) {
+                const requestedFile = videoId ? (recordedData.videoFiles?.find(f => f.id === videoId) ?? null) : null;
+                const requestedStreamFile = videoFileId
+                    ? (recordedData.videoFiles?.find(f => f.id === videoFileId) ?? null)
+                    : null;
+
+                if (requestedFile) {
                     // 直接再生 (MP4 / WebM)
-                    streamType = 'direct';
-                    videoSrc = withAuthToken(`/api/videos/${videoId}`);
-                    vttSrc = withAuthToken(`/api/videos/${videoId}/vtt`);
-                    isHls = false;
-                } else if (videoFileId !== null && !isNaN(videoFileId)) {
+                    startDirectPlay(requestedFile);
+                } else if (requestedStreamFile) {
+                    currentVideoFile = requestedStreamFile;
                     vttSrc = undefined;
                     if (reqType === 'mp4' || reqType === 'webm') {
                         // トランスコード MP4/WebM 直接ストリーム
                         streamType = reqType;
-                        videoSrc = withAuthToken(`/api/streams/recorded/${videoFileId}/${reqType}?mode=${mode}`);
+                        videoSrc = withAuthToken(
+                            `/api/streams/recorded/${requestedStreamFile.id}/${reqType}?mode=${mode}`,
+                        );
                         isHls = false;
                     } else {
                         // トランスコード HLS ストリーミング
-                        streamType = 'hls';
-                        isPreparingStream = true;
-                        statusText = 'トランスコード配信を生成中...';
-                        const streamRes = await http.get(`/api/streams/recorded/${videoFileId}/hls`, {
-                            params: { mode },
-                        });
-                        const sId = Number(streamRes.data.streamId);
-                        streamId = sId;
-                        startKeepAlive(sId);
-
-                        const isReady = await waitForStreamReady(sId);
-                        if (isReady) {
-                            videoSrc = `/streamfiles/stream${sId}.m3u8`;
-                            isHls = true;
-                        } else {
-                            throw new Error('Stream timed out waiting for manifest');
-                        }
+                        await startHlsStream(
+                            `/api/streams/recorded/${requestedStreamFile.id}/hls`,
+                            { mode },
+                            'トランスコード配信を生成中...',
+                        );
                     }
                 } else if (recordedData.videoFiles?.[0]) {
                     // デフォルト: 最上位MP4ファイルを最優先して直接再生
                     const topMp4 = getTopMp4File(recordedData.videoFiles);
                     if (topMp4) {
-                        streamType = 'direct';
-                        videoSrc = withAuthToken(`/api/videos/${topMp4.id}`);
-                        vttSrc = withAuthToken(`/api/videos/${topMp4.id}/vtt`);
-                        isHls = false;
+                        startDirectPlay(topMp4);
                     } else if (readOnlyStore.canRecordedStream) {
                         const firstFile = recordedData.videoFiles[0];
-                        streamType = 'hls';
-                        isPreparingStream = true;
-                        statusText = 'トランスコード配信を生成中...';
-                        const streamRes = await http.get(`/api/streams/recorded/${firstFile.id}/hls`, {
-                            params: { mode: 0 },
-                        });
-                        const sId = Number(streamRes.data.streamId);
-                        streamId = sId;
-                        startKeepAlive(sId);
-
-                        const isReady = await waitForStreamReady(sId);
-                        if (isReady) {
-                            videoSrc = `/streamfiles/stream${sId}.m3u8`;
-                            isHls = true;
-                        } else {
-                            throw new Error('Stream timed out waiting for manifest');
-                        }
+                        currentVideoFile = firstFile;
+                        await startHlsStream(
+                            `/api/streams/recorded/${firstFile.id}/hls`,
+                            { mode: 0 },
+                            'トランスコード配信を生成中...',
+                        );
                     } else {
                         statusText = '閲覧専用モードのため、トランスコード配信は制限されています。';
                         snackbar.open({ text: statusText, color: 'error' });
@@ -396,11 +385,14 @@
                         <Clock size={14} />
                         {timeRange}
                     </span>
-                    {#if recordedData?.videoFiles?.[0]}
+                    {#if activeVideoFile}
                         <span
-                            class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                            class="rounded-md px-2 py-0.5 text-xs font-bold border uppercase {activeVideoFile.type ===
+                            'encoded'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'}"
                         >
-                            {recordedData.videoFiles[0].name}
+                            {activeVideoFile.name}
                         </span>
                     {/if}
                 </div>

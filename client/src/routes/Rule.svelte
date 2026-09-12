@@ -1,11 +1,12 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
+    import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
         SlidersHorizontal,
@@ -22,32 +23,62 @@
         Tv,
         Lock,
         ListVideo,
+        Search,
+        X,
     } from '@lucide/svelte';
 
-    let rules = $state<any[]>([]);
+    let rules = $state<apid.Rule[]>([]);
     let total = $state(0);
+    let totalAllRules = $state(0);
     let isLoading = $state(true);
     let ruleReservesMap = $state<Record<number, number>>({});
 
-    async function fetchRules() {
+    let keyword = $state(router.current.query.keyword || '');
+    let activeKeyword = $state(router.current.query.keyword || '');
+
+    async function fetchRules(kw: string = activeKeyword) {
         isLoading = true;
         try {
+            const params: Record<string, any> = {
+                limit: 100,
+                isHalfWidth: true,
+                type: 'all',
+            };
+            const trimmed = kw.trim();
+            if (trimmed) {
+                params.keyword = trimmed;
+            }
+
             const [rulesRes, reservesRes] = await Promise.all([
-                http.get('/api/rules?limit=100&isHalfWidth=true'),
-                http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } })),
+                http.get('/api/rules', { params }),
+                Object.keys(ruleReservesMap).length === 0
+                    ? http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } }))
+                    : Promise.resolve(null),
             ]);
 
             rules = rulesRes.data.rules || [];
             total = rulesRes.data.total || 0;
+            if (!trimmed) {
+                totalAllRules = total;
+            } else if (totalAllRules === 0) {
+                // 初回アクセス時にキーワード付きで開かれた場合、全件数を非同期で取得
+                http.get('/api/rules?limit=1&isHalfWidth=true')
+                    .then(res => {
+                        totalAllRules = res.data.total || 0;
+                    })
+                    .catch(() => {});
+            }
 
             // ルールIDごとの予約数を集計
-            const counts: Record<number, number> = {};
-            for (const res of reservesRes.data?.reserves || []) {
-                if (res.ruleId) {
-                    counts[res.ruleId] = (counts[res.ruleId] || 0) + 1;
+            if (reservesRes?.data?.reserves) {
+                const counts: Record<number, number> = {};
+                for (const res of reservesRes.data.reserves) {
+                    if (res.ruleId) {
+                        counts[res.ruleId] = (counts[res.ruleId] || 0) + 1;
+                    }
                 }
+                ruleReservesMap = counts;
             }
-            ruleReservesMap = counts;
         } catch (e) {
             console.error('Fetch rules error', e);
             snackbar.open({ text: 'ルール一覧の取得に失敗しました', color: 'error' });
@@ -56,19 +87,59 @@
         }
     }
 
-    $effect(() => {
-        if (!readOnlyStore.canViewRules) {
-            router.replace('/recorded');
-        }
-    });
+    let isInitialized = false;
 
-    onMount(() => {
+    $effect(() => {
         if (!readOnlyStore.canViewRules) {
             router.replace('/recorded');
             return;
         }
-        fetchRules();
+
+        const qKeyword = router.current.query.keyword || '';
+
+        untrack(() => {
+            if (!isInitialized) {
+                isInitialized = true;
+                keyword = qKeyword;
+                activeKeyword = qKeyword;
+                fetchRules(qKeyword);
+                return;
+            }
+
+            if (qKeyword !== activeKeyword) {
+                keyword = qKeyword;
+                activeKeyword = qKeyword;
+                fetchRules(qKeyword);
+            }
+        });
     });
+
+    function handleSearch() {
+        const trimmed = keyword.trim();
+        activeKeyword = trimmed;
+        router.setQuery({ keyword: trimmed || null });
+        fetchRules(trimmed);
+    }
+
+    function clearSearch() {
+        keyword = '';
+        activeKeyword = '';
+        router.setQuery({ keyword: null });
+        fetchRules('');
+    }
+
+    function onInputKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    }
+
+    function onInput(e: Event) {
+        const target = e.target as HTMLInputElement;
+        if (target.value === '' && activeKeyword !== '') {
+            clearSearch();
+        }
+    }
 
     // 新規作成ページへ遷移
     function goCreateRule() {
@@ -76,12 +147,12 @@
     }
 
     // 編集ページへ遷移
-    function goEditRule(rule: any) {
+    function goEditRule(rule: apid.Rule) {
         router.push(`/rule/edit?ruleId=${rule.id}`);
     }
 
     // 有効 / 無効トグル
-    async function toggleRuleEnable(rule: any, event: Event) {
+    async function toggleRuleEnable(rule: apid.Rule, event: Event) {
         event.stopPropagation();
         const isEnable = !rule.reserveOption?.enable;
         try {
@@ -99,7 +170,7 @@
     }
 
     // ルール削除
-    async function deleteRule(rule: any, event: Event) {
+    async function deleteRule(rule: apid.Rule, event: Event) {
         event.stopPropagation();
         const kw = rule.searchOption?.keyword || `#${rule.id}`;
         const ok = await confirmDialog({
@@ -114,7 +185,8 @@
         try {
             await http.delete(`/api/rules/${rule.id}`);
             snackbar.open({ text: 'ルールを削除しました', color: 'success' });
-            fetchRules();
+            if (totalAllRules > 0) totalAllRules--;
+            fetchRules(activeKeyword);
         } catch (e) {
             console.error('Delete rule error', e);
             snackbar.open({ text: 'ルールの削除に失敗しました', color: 'error' });
@@ -143,28 +215,93 @@
     <div class="space-y-5 w-full max-w-full min-w-0">
         <!-- ヘッダーツールバー -->
         <div
-            class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
                     <SlidersHorizontal size={20} class="text-blue-600 dark:text-blue-400" />
                     ルール一覧
                 </h1>
-                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    登録済みルール: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
-                    件
-                </p>
+                <div class="flex items-center gap-2 flex-wrap mt-0.5">
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        {#if activeKeyword}
+                            絞り込み結果: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
+                            件
+                            {#if totalAllRules > 0}
+                                <span class="text-slate-400">（全 {totalAllRules} 件）</span>
+                            {/if}
+                        {:else}
+                            登録済みルール: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
+                            件
+                        {/if}
+                    </p>
+                    {#if activeKeyword}
+                        <span
+                            class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
+                            <Search size={12} class="text-blue-500" />
+                            <span class="max-w-[120px] sm:max-w-[180px] truncate">{activeKeyword}</span>
+                            <button
+                                type="button"
+                                onclick={clearSearch}
+                                class="hover:text-blue-900 dark:hover:text-white cursor-pointer ml-0.5"
+                                title="絞り込みを解除"
+                                aria-label="絞り込みを解除"
+                            >
+                                <X size={12} />
+                            </button>
+                        </span>
+                    {/if}
+                </div>
             </div>
 
-            {#if !readOnlyStore.isReadOnly}
-                <button
-                    type="button"
-                    onclick={goCreateRule}
-                    class="btn-primary flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            <div class="flex items-center gap-2.5 w-full sm:w-auto">
+                <!-- 検索フォーム -->
+                <form
+                    onsubmit={e => {
+                        e.preventDefault();
+                        handleSearch();
+                    }}
+                    class="relative flex-1 sm:w-64"
                 >
-                    <Plus size={16} /> 新規ルール作成
-                </button>
-            {/if}
+                    <input
+                        type="text"
+                        bind:value={keyword}
+                        onkeydown={onInputKeydown}
+                        oninput={onInput}
+                        placeholder="ルールを検索..."
+                        aria-label="ルールをキーワードで絞り込み"
+                        class="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
+                    />
+                    <Search
+                        size={16}
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                    {#if keyword}
+                        <button
+                            type="button"
+                            onclick={clearSearch}
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                            title="検索をクリア"
+                            aria-label="検索をクリア"
+                        >
+                            <X size={14} />
+                        </button>
+                    {/if}
+                </form>
+
+                {#if !readOnlyStore.isReadOnly}
+                    <button
+                        type="button"
+                        onclick={goCreateRule}
+                        class="btn-primary flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                        <Plus size={16} />
+                        <span class="hidden sm:inline">新規ルール作成</span>
+                        <span class="sm:hidden">新規作成</span>
+                    </button>
+                {/if}
+            </div>
         </div>
 
         <!-- ルール一覧テーブル -->
@@ -175,24 +312,41 @@
                 <p class="text-sm font-medium text-slate-400">ルール一覧を取得中...</p>
             </div>
         {:else if rules.length === 0}
-            <div
-                class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-            >
-                <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
-                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">登録されたルールはありません</p>
-                <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
-                    最初のルールを作成する
-                </button>
-            </div>
+            {#if activeKeyword}
+                <div
+                    class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+                >
+                    <Search size={36} class="text-slate-300 dark:text-slate-600" />
+                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                        「{activeKeyword}」に一致するルールは見つかりませんでした
+                    </p>
+                    <p class="mt-1 text-xs text-slate-400">キーワードを変更するか、絞り込みを解除してください</p>
+                    <button type="button" onclick={clearSearch} class="btn-secondary mt-3 cursor-pointer">
+                        絞り込みを解除
+                    </button>
+                </div>
+            {:else}
+                <div
+                    class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+                >
+                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
+                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                        登録されたルールはありません
+                    </p>
+                    <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
+                        最初のルールを作成する
+                    </button>
+                </div>
+            {/if}
         {:else}
             <!-- モバイル表示: カード型ルールリスト (md:hidden) -->
             <div class="space-y-3 md:hidden">
                 {#each rules as r}
                     {@const isEnabled = r.reserveOption?.enable !== false}
                     {@const opt = r.searchOption || {}}
-                    {@const save = r.saveOption || {}}
-                    {@const enc = r.encodeOption || {}}
-                    {@const genreId = opt.genres?.[0]?.lv1 ?? opt.genres?.[0]?.genre}
+                    {@const save = r.saveOption}
+                    {@const enc = r.encodeOption}
+                    {@const genreId = opt.genres?.[0]?.genre}
                     <div
                         role="button"
                         tabindex="0"
@@ -239,11 +393,11 @@
 
                             <!-- 予約数バッジ -->
                             <div class="shrink-0">
-                                {#if (ruleReservesMap[r.id] || 0) > 0}
+                                {#if (r.reservesCnt ?? ruleReservesMap[r.id] ?? 0) > 0}
                                     <span
                                         class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
                                     >
-                                        {ruleReservesMap[r.id]} 件
+                                        {r.reservesCnt ?? ruleReservesMap[r.id] ?? 0} 件
                                     </span>
                                 {:else}
                                     <span class="text-xs text-slate-400 font-medium">0 件</span>
@@ -275,26 +429,44 @@
                                 </span>
                             {/if}
 
-                            <!-- 放送波 -->
-                            {#if opt.channelType}
+                            <!-- 放送波 / 放送局 -->
+                            {#if opt.channelIds && opt.channelIds.length > 0}
                                 <span
-                                    class="rounded-md px-1.5 py-0.5 font-black uppercase {getChannelTypeBadgeClass(
-                                        opt.channelType,
-                                    )}"
+                                    class="rounded-md bg-indigo-50 px-1.5 py-0.5 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60 flex items-center gap-1"
                                 >
-                                    {opt.channelType}
+                                    <Tv size={10} />
+                                    {channelStore.getChannelName(opt.channelIds[0])}
+                                    {#if opt.channelIds.length > 1}
+                                        <span>+{opt.channelIds.length - 1}</span>
+                                    {/if}
                                 </span>
+                            {:else}
+                                {#if opt.GR !== false}<span
+                                        class="rounded-md px-1.5 py-0.5 font-bold {getChannelTypeBadgeClass('GR')}"
+                                    >
+                                        地デジ
+                                    </span>{/if}
+                                {#if opt.BS !== false}<span
+                                        class="rounded-md px-1.5 py-0.5 font-bold {getChannelTypeBadgeClass('BS')}"
+                                    >
+                                        BS
+                                    </span>{/if}
+                                {#if opt.CS !== false}<span
+                                        class="rounded-md px-1.5 py-0.5 font-bold {getChannelTypeBadgeClass('CS')}"
+                                    >
+                                        CS
+                                    </span>{/if}
                             {/if}
 
                             <!-- エンコード -->
-                            {#if enc.mode1}
+                            {#if enc?.mode1}
                                 <span
                                     class="rounded-md bg-amber-50 px-1.5 py-0.5 font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
                                 >
                                     {enc.mode1}
                                 </span>
                             {/if}
-                            {#if enc.isDeleteOriginalAfterEncode}
+                            {#if enc?.isDeleteOriginalAfterEncode}
                                 <span
                                     class="rounded-md bg-rose-50 px-1.5 py-0.5 font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
                                 >
@@ -314,7 +486,7 @@
                             class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between"
                         >
                             <div class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[60%]">
-                                {#if save.parentDirectoryName || save.directory}
+                                {#if save?.parentDirectoryName || save?.directory}
                                     <span class="flex items-center gap-1 truncate">
                                         <Folder size={12} class="shrink-0 text-amber-500" />
                                         <span class="truncate">
@@ -395,9 +567,9 @@
                             {#each rules as r}
                                 {@const isEnabled = r.reserveOption?.enable !== false}
                                 {@const opt = r.searchOption || {}}
-                                {@const save = r.saveOption || {}}
-                                {@const enc = r.encodeOption || {}}
-                                {@const genreId = opt.genres?.[0]?.lv1 ?? opt.genres?.[0]?.genre}
+                                {@const save = r.saveOption}
+                                {@const enc = r.encodeOption}
+                                {@const genreId = opt.genres?.[0]?.genre}
                                 <tr
                                     onclick={() => goEditRule(r)}
                                     class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled
@@ -544,9 +716,9 @@
                                             class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
                                         >
                                             <HardDrive size={14} class="text-slate-400 shrink-0" />
-                                            <span class="font-bold">{save.parentDirectoryName || 'デフォルト'}</span>
+                                            <span class="font-bold">{save?.parentDirectoryName || 'デフォルト'}</span>
                                         </div>
-                                        {#if save.directory}
+                                        {#if save?.directory}
                                             <p
                                                 class="mt-1 text-xs text-slate-400 flex items-center gap-1 truncate max-w-xs"
                                             >
@@ -558,7 +730,7 @@
 
                                     <!-- エンコード設定 -->
                                     <td class="px-4 py-3.5">
-                                        {#if enc.mode1 || enc.mode2 || enc.mode3}
+                                        {#if enc?.mode1 || enc?.mode2 || enc?.mode3}
                                             <div class="flex items-center gap-1.5 flex-wrap">
                                                 {#if enc.mode1}
                                                     <span
@@ -589,11 +761,11 @@
 
                                     <!-- 予約数 -->
                                     <td class="px-4 py-3.5 text-center font-bold">
-                                        {#if (ruleReservesMap[r.id] || 0) > 0}
+                                        {#if (r.reservesCnt ?? ruleReservesMap[r.id] ?? 0) > 0}
                                             <span
                                                 class="inline-flex items-center justify-center rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
                                             >
-                                                {ruleReservesMap[r.id]} 件
+                                                {r.reservesCnt ?? ruleReservesMap[r.id] ?? 0} 件
                                             </span>
                                         {:else}
                                             <span class="text-xs text-slate-400 font-medium">0 件</span>

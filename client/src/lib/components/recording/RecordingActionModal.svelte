@@ -74,7 +74,7 @@
             <div
                 class="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60"
             >
-                <div class="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
+                <div class="program-title-modal line-clamp-2">
                     {item.name}
                 </div>
                 <div
@@ -181,7 +181,7 @@
                             >
                                 <span>録画を取り消し（ファイルを破棄）</span>
                                 <span
-                                    class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300"
+                                    class="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300"
                                 >
                                     完全削除
                                 </span>
@@ -198,15 +198,10 @@
 
             <!-- フッター -->
             <div class="mt-5 flex items-center justify-end">
-                <button
-                    type="button"
-                    disabled={isProcessing}
-                    onclick={onClose}
-                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700/70 disabled:opacity-50"
-                >
+                <button type="button" disabled={isProcessing} onclick={onClose} class="btn-secondary">
                     {#if isProcessing}
                         <span class="inline-flex items-center gap-1.5">
-                            <Loader2 size={14} class="animate-spin" />
+                            <Loader2 size={16} class="animate-spin" />
                             処理中...
                         </span>
                     {:else}

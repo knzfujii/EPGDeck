@@ -163,28 +163,36 @@ export function getGenreName(genre1?: number): string {
 }
 
 /**
- * ジャンル番号に応じたバッジ表示用 Tailwind CSS クラス
+ * ジャンル番号に応じたバッジ表示用 Tailwind CSS クラス（ARIB標準カラー準拠）
  */
 export function getGenreBadgeClass(genre1?: number): string {
     switch (genre1) {
         case 0:
-            return 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-900';
+            return 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60';
         case 1:
-            return 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border-orange-200 dark:border-orange-900';
+            return 'bg-orange-50 text-orange-700 dark:bg-orange-950/70 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60';
         case 2:
-            return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900';
+            return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60';
         case 3:
-            return 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-900';
+            return 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60';
         case 4:
-            return 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-900';
+            return 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60';
         case 5:
-            return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900';
+            return 'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60';
         case 6:
-            return 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-200 dark:border-green-900';
+            return 'bg-green-50 text-green-700 dark:bg-green-950/70 dark:text-green-300 border border-green-200 dark:border-green-800/60';
         case 7:
-            return 'bg-pink-50 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-pink-200 dark:border-pink-900';
+            return 'bg-pink-50 text-pink-700 dark:bg-pink-950/70 dark:text-pink-300 border border-pink-200 dark:border-pink-800/60';
+        case 8:
+            return 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/70 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60';
+        case 9:
+            return 'bg-violet-50 text-violet-700 dark:bg-violet-950/70 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60';
+        case 10:
+            return 'bg-lime-50 text-lime-800 dark:bg-lime-950/70 dark:text-lime-300 border border-lime-200 dark:border-lime-800/60';
+        case 11:
+            return 'bg-teal-50 text-teal-700 dark:bg-teal-950/70 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60';
         default:
-            return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+            return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700';
     }
 }
 
@@ -202,4 +210,21 @@ export function formatTimeRemaining(endAt: number | undefined | null, now: numbe
         return m > 0 ? `残り ${h}時間${m}分` : `残り ${h}時間`;
     }
     return `残り ${totalMin}分`;
+}
+
+/**
+ * 放送波種別（GR / BS / CS / SKY）に応じたバッジ表示用 Tailwind CSS クラス
+ */
+export function getChannelTypeBadgeClass(channelType?: string): string {
+    switch (channelType) {
+        case 'GR':
+            return 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60';
+        case 'BS':
+            return 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-900/60';
+        case 'CS':
+        case 'SKY':
+            return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60';
+        default:
+            return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+    }
 }

@@ -204,3 +204,46 @@
 - エンコード済み MP4 ファイル等の直接再生（`GET /api/videos/:id`）はサーバー負荷が低いため常時許可。
 - 更新系リクエスト（POST, PUT, DELETE, PATCH 等）は未認証時は原則全面禁止（ストリーム維持・個別停止を除く）。
 
+---
+
+## 6. PWA・モバイル最適化・UI/UX 統一仕様
+
+### 6.1 PWA (Progressive Web Apps) & 設定画面連動
+- **Service Worker ライフサイクル管理 (`client/src/lib/utils/pwa.ts`)**:
+  - 設定画面（`Settings.svelte`）の「PWA (ホーム画面追加)」トグルと連動。
+  - トグル ON（デフォルト）時は `navigator.serviceWorker.register('/serviceWorker.js', { scope: '/' })` を実行。OFF 保存時は `navigator.serviceWorker.getRegistrations()` により全ワーカーを `unregister()`。
+  - アプリ起動時（`main.ts`）に `localStorage` の設定値を自動読み込みして同期。
+- **キャッシュ事故を防ぐ最小限 Service Worker (`client/public/serviceWorker.js`)**:
+  - PWA インストール要件を満たす最小構成（Fetch イベントリスナー）のみを保持し、過剰なオフラインキャッシュによる「新バージョン JS が反映されない」「API レスポンスの滞留」「動画ストリーミングの妨害」等のトラブルを完全防止。
+- **Web App Manifest & iOS メタタグ (`index.html`, `manifest.json`)**:
+  - `display: standalone`、テーマカラー `#2563eb`、背景色 `#0f172a`。
+  - `viewport-fit=cover`, `apple-mobile-web-app-capable="yes"`, `apple-mobile-web-app-status-bar-style="default"`, `apple-touch-icon` を完備。ホーム画面追加時に URL バーのないネイティブ全画面アプリとして起動。
+
+### 6.2 動的ビューポート & セーフエリア最適化
+- **動的ビューポート (`h-dvh`)**:
+  - `App.svelte` の最外枠コンテナに `h-screen h-dvh` を適用し、モバイルブラウザのアドレスバー伸縮や PWA 全画面表示に追従。
+- **Tailwind v4 セーフエリアユーティリティ (`app.css`)**:
+  - `@utility pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }`
+  - `@utility pt-safe { padding-top: env(safe-area-inset-top, 0px); }`
+  - `@utility mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }`
+  - メイン表示エリア（`main`）に `pb-safe` を付与し、iPhone の Home Indicator（下部バー）との重なりを防止。
+  - モバイルドロワー（`Navigation.svelte`）に `pt-safe pb-safe` を付与。
+
+### 6.3 レスポンシブ & 誤操作防止
+- **予約一覧のスマホ最適化 (`Reserves.svelte`)**:
+  - フィルタータブコンテナの親に `min-w-0 max-w-full` を適用し、子要素の横幅がスマホ画面を突き破って「重複」以降が切り取られる問題を解消。
+  - スマホ時はタイトル＋手動予約ボタン（上段）と、カード枠内でスワイプできる横スクロールタブ（下段）の 2 段構成に最適化（PC時は 1 行構成を維持）。
+  - スマホ時のタブ文字・パディングを `px-2.5 py-1.5 text-xs` に調整して一覧性を向上。
+- **ルール一覧の誤操作防止ディバイダー (`Rule.svelte`)**:
+  - カード表示（スマホ）およびテーブル表示（PC）の双方で、通常操作（「編集」ボタン）と破壊的操作（「削除/ゴミ箱」ボタン）の間にディバイダー（縦区切り線 `w-px h-4 bg-slate-200 dark:bg-slate-700`）とマージン（`mx-1.5`）を配置。誤タップ・誤操作を物理的・視覚的に防止。
+- **横スクロールタブの所作統一 (`no-scrollbar`)**:
+  - `app.css` に `@utility no-scrollbar`（ベンダープレフィックス網羅）を定義。
+  - 予約一覧・放送中（放送波タブ）・番組表（時間帯ジャンプ）に適用し、OS 既定の太いスクロールバーを排除して滑らかなスワイプ操作を提供。
+
+### 6.4 タイポグラフィ・視認性統一
+- **番組タイトル**: `.program-title` の PC サイズを 16px から **15px** に統一。録画一覧・予約一覧テーブルの文字サイズを統一。
+- **番組概要・詳細テキスト**: モーダル・詳細画面向けに 12px から **14px**（`.program-description`, `.program-extended`）に引き上げ。
+- **一覧概要スニペット**: カード・テーブルの概要スニペットを **スマホ 13px / PC 14px**（`.program-summary`）に拡大。
+- **録画一覧テーブルの保護時位置ズレ修正**: 保護中番組（削除ボタン非表示時）に不可視プレースホルダー（`h-8 w-8`）を配置し、再生ボタン・保護ボタンの X 座標を完全に固定。
+
+

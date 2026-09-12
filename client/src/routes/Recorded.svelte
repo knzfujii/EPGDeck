@@ -167,6 +167,10 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    function openRecordedDetail(item: { id: number }) {
+        router.push(`/recorded/detail?recordedId=${item.id}`);
+    }
+
     // スマート再生トリガー（最上位MP4があれば即座に直接再生、なければ再生方法選択モーダル）
     function handlePlayClick(item: apid.RecordedItem) {
         const watchUrl = getSmartWatchUrl(item.id, item.videoFiles);
@@ -331,7 +335,7 @@
             </div>
 
             <!-- 表示切り替え & 検索 -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2.5">
                 <form
                     onsubmit={e => {
                         e.preventDefault();
@@ -343,33 +347,33 @@
                         type="text"
                         bind:value={keyword}
                         placeholder="録画を検索..."
-                        class="h-9 w-48 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-64 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
+                        class="h-10 w-52 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-72 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
                     />
-                    <Search size={14} class="absolute left-2.5 text-slate-400" />
+                    <Search size={16} class="absolute left-3 text-slate-400" />
                 </form>
 
                 <div class="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
                     <button
                         type="button"
                         onclick={() => setViewMode('card')}
-                        class="rounded-lg p-1.5 {viewMode === 'card'
+                        class="rounded-lg p-2 cursor-pointer transition {viewMode === 'card'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="カード表示"
                         aria-label="カード表示"
                     >
-                        <LayoutGrid size={16} />
+                        <LayoutGrid size={18} />
                     </button>
                     <button
                         type="button"
                         onclick={() => setViewMode('table')}
-                        class="rounded-lg p-1.5 {viewMode === 'table'
+                        class="rounded-lg p-2 cursor-pointer transition {viewMode === 'table'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="テーブル表示"
                         aria-label="テーブル表示"
                     >
-                        <TableIcon size={16} />
+                        <TableIcon size={18} />
                     </button>
                 </div>
 
@@ -377,12 +381,12 @@
                     <button
                         type="button"
                         onclick={toggleSelectionMode}
-                        class="flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer {isSelectionMode
+                        class="flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition cursor-pointer {isSelectionMode
                             ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/50 dark:text-blue-300'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                         title={isSelectionMode ? '選択モードを終了' : '複数選択モードを開始'}
                     >
-                        <CheckSquare size={15} />
+                        <CheckSquare size={16} />
                         <span class="hidden sm:inline">{isSelectionMode ? '選択終了' : '選択'}</span>
                     </button>
                 {/if}
@@ -390,9 +394,11 @@
         </div>
 
         <!-- 年月ジャンプナビゲーション (15,000件対応) -->
-        <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-            <span class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <Calendar size={14} /> 年月指定:
+        <div class="flex flex-wrap items-center gap-2.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <span
+                class="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
+            >
+                <Calendar size={16} class="text-blue-500" /> 年月指定:
             </span>
             <select
                 value={selectedYear ?? ''}
@@ -400,7 +406,7 @@
                     const val = e.currentTarget.value;
                     handleDateJump(val === '' ? null : parseInt(val, 10), selectedMonth);
                 }}
-                class="h-7 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
             >
                 <option value="">すべての年</option>
                 {#each years as y}
@@ -415,7 +421,7 @@
                         const val = e.currentTarget.value;
                         handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
                     }}
-                    class="h-7 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                    class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
                 >
                     <option value="">すべての月</option>
                     {#each months as m}
@@ -428,7 +434,7 @@
                 <button
                     type="button"
                     onclick={() => handleDateJump(null, null)}
-                    class="h-7 rounded-lg bg-slate-100 px-2 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 cursor-pointer"
+                    class="btn-secondary h-10 px-3.5 text-sm font-semibold cursor-pointer whitespace-nowrap shrink-0"
                 >
                     クリア
                 </button>
@@ -436,15 +442,15 @@
         </div>
 
         <!-- ジャンルフィルターチップ -->
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex flex-wrap gap-2">
             {#each genres as g}
                 <button
                     type="button"
                     onclick={() => selectGenre(g.id)}
-                    class="rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {selectedGenre ===
+                    class="rounded-xl px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedGenre ===
                     g.id
-                        ? 'bg-blue-600 text-white font-bold'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
+                        ? 'bg-blue-600 text-white font-bold shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                 >
                     {g.name}
                 </button>
@@ -473,19 +479,19 @@
             class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs">
+                <table class="w-full text-left text-sm">
                     <thead
                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                     >
                         <tr>
                             {#if isSelectionMode}
-                                <th class="w-10 px-3 py-3 text-center">
+                                <th class="w-12 px-3 py-3 text-center">
                                     <input
                                         type="checkbox"
                                         checked={isAllSelected}
                                         onchange={toggleSelectAll}
                                         aria-label="ページ内の未保護番組を全選択"
-                                        class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                        class="form-checkbox"
                                         title="ページ内の未保護番組を全選択"
                                     />
                                 </th>
@@ -501,7 +507,13 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each recorded as item}
                             <tr
-                                onclick={() => isSelectionMode && toggleSelectItem(item.id)}
+                                onclick={() => {
+                                    if (isSelectionMode) {
+                                        if (!item.isProtected) toggleSelectItem(item.id);
+                                    } else {
+                                        openRecordedDetail(item);
+                                    }
+                                }}
                                 class="transition {isSelectionMode ? 'cursor-pointer' : ''} {selectedIds.includes(
                                     item.id,
                                 )
@@ -509,7 +521,7 @@
                                     : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'}"
                             >
                                 {#if isSelectionMode}
-                                    <td class="w-10 px-3 py-3.5 text-center">
+                                    <td class="w-12 px-3 py-3.5 text-center">
                                         <input
                                             type="checkbox"
                                             checked={selectedIds.includes(item.id)}
@@ -517,14 +529,15 @@
                                             onclick={e => e.stopPropagation()}
                                             onchange={() => toggleSelectItem(item.id)}
                                             aria-label={`${item.name}を選択`}
-                                            class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                            class="form-checkbox disabled:opacity-30"
                                         />
                                     </td>
                                 {/if}
                                 <td
                                     class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-500 dark:text-slate-400"
                                 >
-                                    {formatDate(item.startAt)}
+                                    <div>{formatDate(item.startAt)}</div>
+                                    <div class="text-xs text-slate-400">{formatTime(item.startAt)}</div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     <span
@@ -536,48 +549,25 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-1.5">
                                         {#if item.isProtected}
-                                            <Lock size={13} class="text-amber-500 shrink-0" title="保護中" />
+                                            <span
+                                                class="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs leading-none"
+                                            >
+                                                保護中
+                                            </span>
                                         {/if}
                                         <button
                                             type="button"
                                             onclick={e => {
-                                                if (isSelectionMode) {
-                                                    e.stopPropagation();
-                                                    toggleSelectItem(item.id);
-                                                    return;
-                                                }
-                                                router.push(`/recorded/detail?recordedId=${item.id}`);
+                                                e.stopPropagation();
+                                                openRecordedDetail(item);
                                             }}
-                                            class="text-left font-bold text-slate-900 hover:text-blue-600 hover:underline dark:text-slate-100 dark:hover:text-blue-400 cursor-pointer"
-                                            title="番組詳細・ファイル一覧を見る"
+                                            class="program-title hover:text-blue-600 dark:hover:text-blue-400 text-left line-clamp-1 cursor-pointer transition-colors"
                                         >
                                             {item.name}
                                         </button>
                                     </div>
                                     {#if item.description}
-                                        <div
-                                            onclick={e => {
-                                                if (isSelectionMode) {
-                                                    e.stopPropagation();
-                                                    toggleSelectItem(item.id);
-                                                    return;
-                                                }
-                                                router.push(`/recorded/detail?recordedId=${item.id}`);
-                                            }}
-                                            role="button"
-                                            tabindex="0"
-                                            onkeydown={e => {
-                                                if (e.key === 'Enter') {
-                                                    if (isSelectionMode) {
-                                                        toggleSelectItem(item.id);
-                                                    } else {
-                                                        router.push(`/recorded/detail?recordedId=${item.id}`);
-                                                    }
-                                                }
-                                            }}
-                                            class="mt-0.5 line-clamp-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                                            title="番組詳細を見る"
-                                        >
+                                        <div class="program-summary mt-0.5 line-clamp-1">
                                             {item.description}
                                         </div>
                                     {/if}
@@ -611,10 +601,10 @@
                                             <button
                                                 type="button"
                                                 onclick={() => handlePlayClick(item)}
-                                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                                                class="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-1.5 text-sm font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer shrink-0 whitespace-nowrap"
                                                 title="今すぐ再生"
                                             >
-                                                <Play size={13} fill="currentColor" /> 再生
+                                                <Play size={15} fill="currentColor" /> 再生
                                             </button>
                                         {/if}
 
@@ -623,28 +613,30 @@
                                             <button
                                                 type="button"
                                                 onclick={() => toggleProtect(item)}
-                                                class="rounded-lg p-1.5 {item.isProtected
-                                                    ? 'text-amber-500 hover:bg-amber-50'
-                                                    : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                                class="rounded-lg p-2 shrink-0 {item.isProtected
+                                                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                                                    : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'} cursor-pointer transition-colors"
                                                 title={item.isProtected ? '保護解除' : '番組を保護'}
                                             >
                                                 {#if item.isProtected}
-                                                    <Lock size={15} />
+                                                    <Lock size={16} />
                                                 {:else}
-                                                    <Unlock size={15} />
+                                                    <Unlock size={16} />
                                                 {/if}
                                             </button>
 
-                                            <!-- 削除ボタン (保護中は非表示) -->
+                                            <!-- 削除ボタン (保護中は不可視プレースホルダーで幅32pxを維持し再生ボタンのズレを防止) -->
                                             {#if !item.isProtected}
                                                 <button
                                                     type="button"
                                                     onclick={() => deleteRecorded(item.id, item.name)}
-                                                    class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                                    class="rounded-lg p-2 shrink-0 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer transition-colors"
                                                     title="削除"
                                                 >
-                                                    <Trash2 size={15} />
+                                                    <Trash2 size={16} />
                                                 </button>
+                                            {:else}
+                                                <div class="h-8 w-8 shrink-0" aria-hidden="true"></div>
                                             {/if}
                                         {/if}
                                     </div>
@@ -656,8 +648,8 @@
             </div>
         </div>
     {:else}
-        <!-- コンパクトカード表示 (可変カラム: 240px以上で自動配置) -->
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+        <!-- コンパクトカード表示 (可変カラム: 260px以上で自動配置) -->
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
             {#each recorded as item}
                 <div
                     onclick={() => {
@@ -688,7 +680,7 @@
                         <!-- 選択モード時のチェックボックス -->
                         {#if isSelectionMode}
                             <div
-                                class="absolute top-2 left-2 z-20 flex h-6 w-6 items-center justify-center rounded-lg bg-black/65 backdrop-blur-xs shadow-md"
+                                class="absolute top-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-xl bg-black/75 backdrop-blur-xs shadow-md"
                             >
                                 <input
                                     type="checkbox"
@@ -697,7 +689,7 @@
                                     onclick={e => e.stopPropagation()}
                                     onchange={() => toggleSelectItem(item.id)}
                                     aria-label={`${item.name}を選択`}
-                                    class="h-4 w-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 cursor-pointer"
+                                    class="form-checkbox disabled:opacity-30 cursor-pointer"
                                 />
                             </div>
                         {/if}
@@ -727,10 +719,10 @@
                                         e.stopPropagation();
                                         handlePlayClick(item);
                                     }}
-                                    class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition duration-150 hover:scale-110 hover:bg-blue-500 cursor-pointer"
+                                    class="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl transition duration-150 hover:scale-110 hover:bg-blue-500 cursor-pointer"
                                     title="今すぐ動画を再生"
                                 >
-                                    <Play size={15} fill="currentColor" class="translate-x-0.5" />
+                                    <Play size={24} fill="currentColor" class="translate-x-0.5" />
                                 </button>
                             </div>
                         {/if}
@@ -745,34 +737,34 @@
                             <span
                                 class="absolute {isSelectionMode
                                     ? 'top-2.5 left-9.5'
-                                    : 'top-1.5 left-1.5'} z-10 flex items-center gap-0.5 rounded bg-amber-500/90 px-1 py-0.5 text-[9px] font-bold text-white shadow-2xs leading-none"
+                                    : 'top-1.5 left-1.5'} z-10 flex items-center gap-1 rounded-md bg-amber-500/90 px-1.5 py-0.5 text-xs font-bold text-white shadow-2xs leading-none"
                             >
-                                <Lock size={9} /> 保護中
+                                <Lock size={12} /> 保護中
                             </span>
                         {/if}
                     </div>
 
                     <!-- カード本文 (コンパクト) -->
-                    <div class="flex flex-1 flex-col justify-between p-2.5 sm:p-3">
+                    <div class="flex flex-1 flex-col justify-between p-3">
                         <div>
-                            <div class="flex items-center justify-between gap-1.5">
+                            <div class="flex items-center justify-between gap-2">
                                 <span
-                                    class="truncate rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 max-w-[65%]"
+                                    class="truncate rounded-lg bg-blue-50 px-2.5 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300 max-w-[65%]"
                                 >
                                     {channelStore.getChannelName(item.channelId)}
                                 </span>
-                                <span class="text-[10px] font-medium text-slate-400 shrink-0">
+                                <span class="text-sm font-medium text-slate-400 shrink-0">
                                     {formatSize(item.videoFiles?.[0]?.size)}
                                 </span>
                             </div>
                             <h3
-                                class="mt-1.5 line-clamp-2 text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400 leading-snug"
+                                class="program-title mt-2 line-clamp-2 transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
                                 title={item.name}
                             >
                                 {item.name}
                             </h3>
                             {#if item.description}
-                                <p class="mt-1 line-clamp-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                <p class="program-summary mt-1.5 line-clamp-1">
                                     {item.description}
                                 </p>
                             {/if}
@@ -780,9 +772,9 @@
 
                         <!-- 下部メタ & アクションボタン -->
                         <div
-                            class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-slate-800"
+                            class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-sm text-slate-400 dark:border-slate-800"
                         >
-                            <span class="font-medium text-[10px]">
+                            <span class="font-medium text-sm">
                                 {formatDate(item.startAt)}
                                 {formatTime(item.startAt)}
                             </span>
@@ -794,15 +786,15 @@
                                             e.stopPropagation();
                                             toggleProtect(item);
                                         }}
-                                        class="rounded p-1 {item.isProtected
-                                            ? 'text-amber-500 hover:bg-amber-50'
-                                            : 'text-slate-400 hover:bg-slate-100'} dark:hover:bg-slate-800 cursor-pointer"
+                                        class="rounded-lg p-2 {item.isProtected
+                                            ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                                            : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'} cursor-pointer transition-colors"
                                         title={item.isProtected ? '保護解除' : '番組を保護'}
                                     >
                                         {#if item.isProtected}
-                                            <Lock size={13} />
+                                            <Lock size={16} />
                                         {:else}
-                                            <Unlock size={13} />
+                                            <Unlock size={16} />
                                         {/if}
                                     </button>
                                     {#if !item.isProtected}
@@ -812,10 +804,10 @@
                                                 e.stopPropagation();
                                                 deleteRecorded(item.id, item.name);
                                             }}
-                                            class="rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                            class="rounded-lg p-2 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer transition-colors"
                                             title="削除"
                                         >
-                                            <Trash2 size={13} />
+                                            <Trash2 size={16} />
                                         </button>
                                     {/if}
                                 {/if}

@@ -74,19 +74,13 @@
 
             <!-- アクションボタン -->
             <div class="mt-6 flex items-center justify-end gap-3">
-                <button
-                    type="button"
-                    onclick={() => confirmStore.handleCancel()}
-                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700/70"
-                >
+                <button type="button" onclick={() => confirmStore.handleCancel()} class="btn-secondary">
                     {confirmStore.cancelText}
                 </button>
                 <button
                     type="button"
                     onclick={() => confirmStore.handleConfirm()}
-                    class="rounded-xl px-4 py-2 text-xs font-bold text-white transition cursor-pointer shadow-sm {confirmStore.isDestructive
-                        ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-950/20'
-                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-950/20'}"
+                    class={confirmStore.isDestructive ? 'btn-danger' : 'btn-primary'}
                 >
                     {confirmStore.confirmText}
                 </button>

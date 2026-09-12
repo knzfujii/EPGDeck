@@ -77,7 +77,7 @@
     });
 
     function toggleDrawer() {
-        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             isMobileOpen = !isMobileOpen;
         } else {
             isDesktopCollapsed = !isDesktopCollapsed;
@@ -95,14 +95,14 @@
 </script>
 
 <div
-    class="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
+    class="flex h-screen h-dvh w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
 >
     <Navigation {isMobileOpen} {isDesktopCollapsed} onCloseMobile={() => (isMobileOpen = false)} />
 
     <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
         <Header onToggleDrawer={toggleDrawer} />
 
-        <main class="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main class="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-safe">
             {#if !readOnlyStore.isInitialized || (isPageLoading && !CurrentComponent)}
                 <div class="flex h-64 items-center justify-center">
                     <Loader2 size={32} class="animate-spin text-blue-600 dark:text-blue-400" />

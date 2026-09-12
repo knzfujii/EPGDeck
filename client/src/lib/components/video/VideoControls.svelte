@@ -70,20 +70,24 @@
     <!-- シークバー (シーク可能時のみ表示) -->
     {#if canSeek}
         <div class="mb-2.5 flex items-center gap-2">
-            <span class="text-[11px] font-medium text-slate-300">{formatPlayerTime(currentTime)}</span>
-            <input
-                type="range"
-                min="0"
-                max={displayDuration}
-                step="1"
-                value={currentTime}
-                oninput={onSeekChange}
-                onchange={e => (e.currentTarget as HTMLElement)?.blur()}
-                onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
-                tabindex="-1"
-                class="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2"
-            />
-            <span class="text-[11px] font-medium text-slate-300">{formatPlayerTime(displayDuration)}</span>
+            <span class="text-xs font-medium text-slate-300 min-w-[36px] text-right">
+                {formatPlayerTime(currentTime)}
+            </span>
+            <div class="flex-1 flex items-center py-2 cursor-pointer">
+                <input
+                    type="range"
+                    min="0"
+                    max={displayDuration}
+                    step="1"
+                    value={currentTime}
+                    oninput={onSeekChange}
+                    onchange={e => (e.currentTarget as HTMLElement)?.blur()}
+                    onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
+                    tabindex="-1"
+                    class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2.5"
+                />
+            </div>
+            <span class="text-xs font-medium text-slate-300 min-w-[36px]">{formatPlayerTime(displayDuration)}</span>
         </div>
     {/if}
 
@@ -165,12 +169,29 @@
         <!-- 右側: 倍速・PiP・全画面 -->
         <div class="flex items-center gap-1.5 sm:gap-2">
             {#if !isLive}
-                <div class="flex rounded-lg bg-white/10 p-0.5 text-[11px] font-bold">
+                <!-- モバイル用単一サイクルボタン -->
+                <button
+                    type="button"
+                    onclick={() => {
+                        const cycle = [1.0, 1.25, 1.5, 2.0];
+                        const cur = playerState.playbackRate;
+                        const idx = cycle.indexOf(cur);
+                        const nextRate = idx !== -1 ? cycle[(idx + 1) % cycle.length] : 1.0;
+                        onSetPlaybackRate(nextRate);
+                    }}
+                    class="sm:hidden rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-white hover:bg-white/20 transition cursor-pointer"
+                    title="タップで速度切り替え"
+                >
+                    {playerState.playbackRate}x
+                </button>
+
+                <!-- デスクトップ用全レートボタン -->
+                <div class="hidden sm:flex rounded-lg bg-white/10 p-0.5 text-[11px] font-bold">
                     {#each playbackRates as rate}
                         <button
                             type="button"
                             onclick={() => onSetPlaybackRate(rate)}
-                            class="rounded px-1.5 py-0.5 transition {playerState.playbackRate === rate
+                            class="rounded px-1.5 py-0.5 transition cursor-pointer {playerState.playbackRate === rate
                                 ? 'bg-blue-600 text-white'
                                 : 'text-slate-300 hover:text-white'}"
                         >

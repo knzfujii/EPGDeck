@@ -380,6 +380,7 @@ export default class IPCServer implements IIPCServer {
         // stop (中断して保存・未完了扱い)
         index[RecordingFunctions.stop] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
+            await this.reservationManage.cancel(reserveId);
             // 録画ストリームを未完了フラグ (isPlanToDelete = false, isNeedDeleteReservation = false) で停止
             if (this.recordingManage.hasReserve(reserveId)) {
                 await this.recordingManage.cancel(reserveId, false);
@@ -397,11 +398,14 @@ export default class IPCServer implements IIPCServer {
             const recordeds = await this.recordedDB.findReserveId(reserveId);
             const target = recordeds.find(r => r.isRecording);
             if (target) {
+                // 録画停止・実ファイル削除・DB削除
                 // recordedManage.delete(target.id) により:
                 // ① recordingManage.cancel(reserveId, true)（ストリーム強制破棄）
                 // ② TS実ファイル・DBレコード削除
                 // ③ EventSetter経由で reservationManage.cancel(reserveId) が自動実行される
                 await this.recordedManage.delete(target.id);
+            } else if (this.recordingManage.hasReserve(reserveId)) {
+                await this.recordingManage.cancel(reserveId, true);
             } else {
                 // 録画準備中などでまだ recorded レコードが作成されていない場合
                 if (this.recordingManage.hasReserve(reserveId)) {
@@ -412,6 +416,8 @@ export default class IPCServer implements IIPCServer {
                     await this.reservationManage.cancel(reserveId).catch(() => {});
                 }
             }
+            // 予約テーブルからも削除・スキップ
+            await this.reservationManage.cancel(reserveId);
         };
 
         return index;

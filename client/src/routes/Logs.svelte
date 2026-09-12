@@ -244,187 +244,198 @@
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+            class="mt-4 h-10 rounded-xl bg-slate-900 px-5 py-2 text-sm font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
         >
             録画一覧へ
         </button>
     </div>
 {:else}
     <div class="space-y-4">
-        <!-- ヘッダーエリア -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div class="flex items-center gap-2">
-                <div class="p-2 rounded-lg bg-blue-500/10 text-blue-500 dark:bg-blue-400/10 dark:text-blue-400">
-                    <Terminal class="w-6 h-6" />
-                </div>
+        <!-- ヘッダー & ツールバー コンテナ -->
+        <div
+            class="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight">システムログ</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">
-                        リアルタイムログストリーミング・ログ確認
+                    <div class="flex items-center gap-3">
+                        <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                            <Terminal class="text-blue-600 dark:text-blue-400" size={20} /> システムログ
+                        </h1>
                         {#if socketStore.isConnected}
-                            <span class="inline-flex items-center gap-1 text-emerald-500 ml-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span
+                                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
+                            >
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Live
                             </span>
                         {:else}
-                            <span class="inline-flex items-center gap-1 text-amber-500 ml-2">
-                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span
+                                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                            >
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                 Offline
                             </span>
                         {/if}
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        サーバー稼働ログのリアルタイム追尾・キーワード検索・ログ保存
                     </p>
+                </div>
+
+                <!-- ツールボタン -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- 自動スクロールトグル -->
+                    <button
+                        type="button"
+                        class="flex items-center gap-1.5 h-10 px-3.5 text-sm font-bold rounded-xl border transition-colors cursor-pointer {autoScroll
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                            : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'}"
+                        onclick={() => {
+                            autoScroll = !autoScroll;
+                            if (autoScroll) scrollToBottom(true);
+                        }}
+                        title={autoScroll ? '自動スクロールON (最新ログに追尾中)' : '自動スクロールOFF'}
+                    >
+                        {#if autoScroll}
+                            <Pause class="w-4 h-4 text-emerald-500 animate-pulse" />
+                            <span>リアルタイム追尾中</span>
+                        {:else}
+                            <Play class="w-4 h-4" />
+                            <span>追尾停止中</span>
+                        {/if}
+                    </button>
+
+                    <!-- 再取得 -->
+                    <button
+                        type="button"
+                        class="btn-secondary h-10 px-3 cursor-pointer"
+                        onclick={fetchLogs}
+                        title="ログを再取得"
+                        disabled={isLoading}
+                    >
+                        <RefreshCw class="w-4 h-4 {isLoading ? 'animate-spin' : ''}" />
+                    </button>
+
+                    <!-- コピー -->
+                    <button
+                        type="button"
+                        class="btn-secondary h-10 px-3.5 text-sm font-bold cursor-pointer flex items-center gap-1.5"
+                        onclick={copyToClipboard}
+                        title="表示中のログをコピー"
+                    >
+                        {#if isCopied}
+                            <Check class="w-4 h-4 text-emerald-500" />
+                            <span>コピー完了</span>
+                        {:else}
+                            <Copy class="w-4 h-4" />
+                            <span>コピー</span>
+                        {/if}
+                    </button>
+
+                    <!-- ファイルダウンロード -->
+                    <button
+                        type="button"
+                        class="btn-secondary h-10 px-3.5 text-sm font-bold cursor-pointer flex items-center gap-1.5"
+                        onclick={downloadLogFile}
+                        title="ログファイル全体をダウンロード"
+                    >
+                        <Download class="w-4 h-4" />
+                        <span>保存</span>
+                    </button>
+
+                    <!-- 画面クリア -->
+                    <button
+                        type="button"
+                        class="h-10 w-10 flex items-center justify-center text-rose-600 hover:text-rose-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        onclick={clearScreen}
+                        title="画面上のログを消去"
+                    >
+                        <Trash2 class="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
-            <!-- ツールボタン -->
-            <div class="flex items-center gap-2 flex-wrap">
-                <!-- 自動スクロールトグル -->
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors {autoScroll
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                        : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'}"
-                    onclick={() => {
-                        autoScroll = !autoScroll;
-                        if (autoScroll) scrollToBottom(true);
-                    }}
-                    title={autoScroll ? '自動スクロールON (最新ログに追尾中)' : '自動スクロールOFF'}
-                >
-                    {#if autoScroll}
-                        <Pause class="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                        <span>追尾中 (tail -f)</span>
-                    {:else}
-                        <Play class="w-3.5 h-3.5" />
-                        <span>追尾停止中</span>
-                    {/if}
-                </button>
+            <!-- フィルタ・検索バー -->
+            <div
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3.5 border-t border-slate-100 dark:border-slate-800"
+            >
+                <!-- キーワード検索 -->
+                <div class="relative">
+                    <Search class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="ログを検索..."
+                        bind:value={searchKeyword}
+                        class="h-10 w-full pl-9 pr-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400 transition-colors"
+                    />
+                </div>
 
-                <!-- 再取得 -->
-                <button
-                    type="button"
-                    class="p-2 text-slate-600 hover:text-slate-900 bg-white dark:bg-slate-900 dark:text-slate-300 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    onclick={fetchLogs}
-                    title="ログを再取得"
-                    disabled={isLoading}
-                >
-                    <RefreshCw class="w-4 h-4 {isLoading ? 'animate-spin' : ''}" />
-                </button>
+                <!-- ログレベル -->
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">Level:</span>
+                    <select
+                        bind:value={selectedLevel}
+                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
+                    >
+                        <option value="all">すべて (All)</option>
+                        <option value="debug">DEBUG 以上</option>
+                        <option value="info">INFO 以上</option>
+                        <option value="warn">WARN 以上</option>
+                        <option value="error">ERROR / FATAL</option>
+                    </select>
+                </div>
 
-                <!-- コピー -->
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition-colors"
-                    onclick={copyToClipboard}
-                    title="表示中のログをコピー"
-                >
-                    {#if isCopied}
-                        <Check class="w-3.5 h-3.5 text-emerald-500" />
-                        <span>コピー完了</span>
-                    {:else}
-                        <Copy class="w-3.5 h-3.5" />
-                        <span>コピー</span>
-                    {/if}
-                </button>
+                <!-- プロセス -->
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">Process:</span>
+                    <select
+                        bind:value={selectedProcess}
+                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
+                    >
+                        <option value="all">全プロセス (All)</option>
+                        <option value="Operator">Operator</option>
+                        <option value="Service">Service</option>
+                        <option value="EPGUpdater">EPGUpdater</option>
+                    </select>
+                </div>
 
-                <!-- ファイルダウンロード -->
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition-colors"
-                    onclick={downloadLogFile}
-                    title="ログファイル全体をダウンロード"
-                >
-                    <Download class="w-3.5 h-3.5" />
-                    <span>ログ保存</span>
-                </button>
-
-                <!-- 画面クリア -->
-                <button
-                    type="button"
-                    class="p-2 text-rose-600 hover:text-rose-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                    onclick={clearScreen}
-                    title="画面上のログを消去"
-                >
-                    <Trash2 class="w-4 h-4" />
-                </button>
-            </div>
-        </div>
-
-        <!-- フィルタ・検索バー -->
-        <div
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
-        >
-            <!-- キーワード検索 -->
-            <div class="relative">
-                <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="ログを検索..."
-                    bind:value={searchKeyword}
-                    class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 placeholder:text-slate-400"
-                />
-            </div>
-
-            <!-- ログレベル -->
-            <div class="flex items-center gap-1.5 text-xs">
-                <span class="text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">Level:</span>
-                <select
-                    bind:value={selectedLevel}
-                    class="flex-1 py-1.5 px-2.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
-                >
-                    <option value="all">すべて (All)</option>
-                    <option value="debug">DEBUG 以上</option>
-                    <option value="info">INFO 以上</option>
-                    <option value="warn">WARN 以上</option>
-                    <option value="error">ERROR / FATAL</option>
-                </select>
-            </div>
-
-            <!-- プロセス -->
-            <div class="flex items-center gap-1.5 text-xs">
-                <span class="text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">Process:</span>
-                <select
-                    bind:value={selectedProcess}
-                    class="flex-1 py-1.5 px-2.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
-                >
-                    <option value="all">全プロセス (All)</option>
-                    <option value="Operator">Operator</option>
-                    <option value="Service">Service</option>
-                    <option value="EPGUpdater">EPGUpdater</option>
-                </select>
-            </div>
-
-            <!-- カテゴリ -->
-            <div class="flex items-center gap-1.5 text-xs">
-                <span class="text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">Category:</span>
-                <select
-                    bind:value={selectedCategory}
-                    class="flex-1 py-1.5 px-2.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
-                >
-                    <option value="all">全カテゴリ (All)</option>
-                    <option value="system">system</option>
-                    <option value="access">access</option>
-                    <option value="stream">stream</option>
-                    <option value="encode">encode</option>
-                </select>
+                <!-- カテゴリ -->
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">
+                        Category:
+                    </span>
+                    <select
+                        bind:value={selectedCategory}
+                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
+                    >
+                        <option value="all">全カテゴリ (All)</option>
+                        <option value="system">system</option>
+                        <option value="access">access</option>
+                        <option value="stream">stream</option>
+                        <option value="encode">encode</option>
+                    </select>
+                </div>
             </div>
         </div>
 
         <!-- ログコンソールエリア -->
         <div
-            class="relative rounded-xl border border-slate-800 bg-slate-950 shadow-xl overflow-hidden font-mono text-xs text-slate-200"
+            class="relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-xl overflow-hidden font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-200"
         >
             <!-- 上部ステータスバー -->
             <div
-                class="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[11px] text-slate-400"
+                class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 dark:bg-slate-900/90 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400"
             >
                 <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
                     <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    <span class="ml-2 text-slate-300 font-semibold">Console Output</span>
+                    <span class="ml-2 text-slate-700 dark:text-slate-300 font-semibold text-xs sm:text-sm">
+                        Console Output
+                    </span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span>表示件数: {filteredLogs.length} / 全体: {rawLogs.length}</span>
+                    <span class="text-xs">表示件数: {filteredLogs.length} / 全体: {rawLogs.length}</span>
                 </div>
             </div>
 
@@ -432,74 +443,74 @@
             <div
                 bind:this={logContainer}
                 onscroll={handleScroll}
-                class="h-[600px] overflow-y-auto p-3 sm:p-4 space-y-1 select-text scroll-smooth"
+                class="h-[calc(100dvh-280px)] min-h-[360px] overflow-y-auto p-3 sm:p-4 space-y-1.5 select-text scroll-smooth"
             >
                 {#if isLoading}
-                    <div class="flex items-center justify-center h-full text-slate-500">
+                    <div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
                         <RefreshCw class="w-6 h-6 animate-spin mr-2" />
                         <span>ログを読み込み中...</span>
                     </div>
                 {:else if filteredLogs.length === 0}
-                    <div class="flex flex-col items-center justify-center h-full text-slate-500">
+                    <div class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                         <Terminal class="w-10 h-10 mb-2 opacity-40" />
                         <span>表示するログがありません</span>
                     </div>
                 {:else}
                     {#each filteredLogs as log, i (`${log.process}-${log.id}-${log.timestamp}-${i}`)}
                         <div
-                            class="group flex items-start gap-2 py-0.5 px-1.5 rounded hover:bg-slate-900/70 transition-colors leading-relaxed break-all font-mono {log.level ===
+                            class="group flex items-start gap-2 py-1 px-2 rounded hover:bg-slate-100 dark:hover:bg-slate-900/80 transition-colors leading-relaxed break-all font-mono {log.level ===
                                 'error' || log.level === 'fatal'
-                                ? 'bg-rose-950/20 text-rose-300 border-l-2 border-rose-500 pl-2'
+                                ? 'bg-rose-50 text-rose-800 border-l-2 border-rose-500 pl-2.5 dark:bg-rose-950/25 dark:text-rose-300'
                                 : log.level === 'warn'
-                                  ? 'bg-amber-950/20 text-amber-200 border-l-2 border-amber-500 pl-2'
+                                  ? 'bg-amber-50 text-amber-800 border-l-2 border-amber-500 pl-2.5 dark:bg-amber-950/25 dark:text-amber-200'
                                   : ''}"
                         >
                             <!-- タイムスタンプ -->
-                            <span class="text-slate-500 shrink-0 select-none text-[11px]">
+                            <span class="text-slate-400 dark:text-slate-500 shrink-0 select-none text-xs">
                                 {formatTime(log.timestamp)}
                             </span>
 
                             <!-- プロセスバッジ -->
                             <span
-                                class="shrink-0 text-[10px] font-semibold px-1.5 py-0.2 rounded border {log.process ===
+                                class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded border {log.process ===
                                 'Operator'
-                                    ? 'bg-cyan-950/60 text-cyan-400 border-cyan-800/60'
+                                    ? 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800/60'
                                     : log.process === 'Service'
-                                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60'
-                                      : 'bg-purple-950/60 text-purple-400 border-purple-800/60'}"
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800/60'
+                                      : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-400 dark:border-purple-800/60'}"
                             >
                                 {log.process}
                             </span>
 
                             <!-- レベルバッジ -->
                             <span
-                                class="shrink-0 text-[10px] font-bold px-1.5 py-0.2 rounded {log.level === 'fatal'
+                                class="shrink-0 text-xs font-bold px-2 py-0.5 rounded {log.level === 'fatal'
                                     ? 'bg-rose-600 text-white'
                                     : log.level === 'error'
-                                      ? 'bg-rose-950 text-rose-400'
+                                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
                                       : log.level === 'warn'
-                                        ? 'bg-amber-950 text-amber-300'
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
                                         : log.level === 'debug'
-                                          ? 'bg-slate-800 text-slate-400'
-                                          : 'bg-blue-950 text-blue-400'}"
+                                          ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                          : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'}"
                             >
                                 {log.level.toUpperCase()}
                             </span>
 
                             <!-- カテゴリ -->
-                            <span class="text-slate-400 shrink-0 text-[11px]">
+                            <span class="text-slate-500 dark:text-slate-400 shrink-0 text-xs">
                                 [{log.category}]
                             </span>
 
                             <!-- メッセージ -->
                             <span
                                 class="flex-1 whitespace-pre-wrap {log.level === 'error' || log.level === 'fatal'
-                                    ? 'text-rose-300 font-medium'
+                                    ? 'text-rose-700 dark:text-rose-300 font-medium'
                                     : log.level === 'warn'
-                                      ? 'text-amber-200 font-medium'
+                                      ? 'text-amber-700 dark:text-amber-200 font-medium'
                                       : log.level === 'debug'
-                                        ? 'text-slate-400'
-                                        : 'text-slate-200'}"
+                                        ? 'text-slate-500 dark:text-slate-400'
+                                        : 'text-slate-800 dark:text-slate-200'}"
                             >
                                 {log.message}
                             </span>
@@ -507,11 +518,11 @@
                             <!-- ホバー時行コピーボタン -->
                             <button
                                 type="button"
-                                class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition-opacity cursor-pointer shrink-0"
+                                class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:text-white dark:hover:bg-slate-800 rounded transition-all cursor-pointer shrink-0"
                                 onclick={() => copySingleLog(log)}
                                 title="この行をコピー"
                             >
-                                <Copy class="w-3 h-3" />
+                                <Copy class="w-3.5 h-3.5" />
                             </button>
                         </div>
                     {/each}
@@ -522,13 +533,13 @@
             {#if !autoScroll && filteredLogs.length > 0}
                 <button
                     type="button"
-                    class="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/50 transition-transform active:scale-95"
+                    class="absolute bottom-4 right-4 flex items-center gap-2 h-10 px-4 text-sm font-bold rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/50 transition-transform active:scale-95 cursor-pointer"
                     onclick={() => {
                         autoScroll = true;
                         scrollToBottom(true);
                     }}
                 >
-                    <ArrowDown class="w-3.5 h-3.5" />
+                    <ArrowDown class="w-4 h-4" />
                     <span>最新ログへスクロール</span>
                 </button>
             {/if}

@@ -118,29 +118,20 @@
                         bind:value={password}
                         placeholder="パスワードを入力..."
                         disabled={isSubmitting}
-                        class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800"
+                        class="form-input"
                     />
                     {#if errorMessage}
                         <p class="mt-1.5 text-xs text-rose-500 font-medium">{errorMessage}</p>
                     {/if}
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2">
-                    <button
-                        type="button"
-                        onclick={close}
-                        disabled={isSubmitting}
-                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
-                    >
+                <div class="flex justify-end gap-2.5 pt-2">
+                    <button type="button" onclick={close} disabled={isSubmitting} class="btn-secondary">
                         キャンセル
                     </button>
-                    <button
-                        type="submit"
-                        disabled={!password || isSubmitting}
-                        class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                    >
+                    <button type="submit" disabled={!password || isSubmitting} class="btn-primary">
                         {#if isSubmitting}
-                            <Loader2 size={14} class="animate-spin" />
+                            <Loader2 size={16} class="animate-spin" />
                             解除中...
                         {:else}
                             <Lock size={14} />

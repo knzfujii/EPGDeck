@@ -38,27 +38,27 @@
 </script>
 
 <header
-    class="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90"
+    class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90"
 >
-    <div class="flex items-center gap-2 sm:gap-3">
+    <div class="flex items-center gap-2.5 sm:gap-3.5">
         <button
             type="button"
             onclick={() => onToggleDrawer?.()}
-            class="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+            class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
             aria-label="メニューを開閉"
         >
-            <Menu size={20} />
+            <Menu size={22} />
         </button>
 
         <button
             type="button"
             onclick={() => router.push('/')}
-            class="flex items-center gap-1.5 text-base sm:text-lg font-black tracking-tight text-blue-600 hover:opacity-80 dark:text-blue-400 cursor-pointer"
+            class="flex items-center gap-2 text-lg sm:text-xl font-black tracking-tight text-blue-600 hover:opacity-80 dark:text-blue-400 cursor-pointer"
         >
             <span>{title}</span>
             {#if appVersion}
                 <span
-                    class="rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                    class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                 >
                     v{appVersion}
                 </span>
@@ -66,26 +66,26 @@
         </button>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2.5">
         {#if readOnlyStore.enabled}
             {#if readOnlyStore.isReadOnly}
                 <button
                     type="button"
                     onclick={() => readOnlyStore.openUnlockModal()}
-                    class="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 transition cursor-pointer"
+                    class="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 transition cursor-pointer shadow-xs"
                     title="パスワードを入力して管理者モードへ切り替える"
                 >
-                    <Lock size={13} class="text-amber-600 dark:text-amber-400" />
+                    <Lock size={15} class="text-amber-600 dark:text-amber-400" />
                     <span>閲覧専用</span>
                 </button>
             {:else}
                 <button
                     type="button"
                     onclick={handleLock}
-                    class="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer"
+                    class="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer shadow-xs"
                     title="クリックして閲覧専用モード（ロック）に戻す"
                 >
-                    <Unlock size={13} class="text-emerald-600 dark:text-emerald-400" />
+                    <Unlock size={15} class="text-emerald-600 dark:text-emerald-400" />
                     <span class="hidden sm:inline">管理者モード</span>
                     <span class="sm:hidden">管理者</span>
                 </button>
@@ -95,13 +95,13 @@
         <button
             type="button"
             onclick={() => themeStore.toggle()}
-            class="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+            class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
             aria-label="テーマ切り替え"
         >
             {#if themeStore.isDark}
-                <Sun size={18} class="text-amber-400" />
+                <Sun size={20} class="text-amber-400" />
             {:else}
-                <Moon size={18} class="text-slate-600" />
+                <Moon size={20} class="text-slate-600" />
             {/if}
         </button>
     </div>

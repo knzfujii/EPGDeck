@@ -6,6 +6,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
+    import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
         SlidersHorizontal,
         Plus,
@@ -120,27 +121,8 @@
         }
     }
 
-    function getGenreName(genreId?: number): string {
-        switch (genreId) {
-            case 0:
-                return 'ニュース';
-            case 1:
-                return 'スポーツ';
-            case 2:
-                return '情報';
-            case 3:
-                return 'ドラマ';
-            case 4:
-                return '音楽';
-            case 5:
-                return 'バラエティ';
-            case 6:
-                return '映画';
-            case 7:
-                return 'アニメ';
-            default:
-                return 'すべて';
-        }
+    function formatGenreLabel(genreId?: number): string {
+        return genreId !== undefined && genreId !== null ? getGenreName(genreId) : 'すべて';
     }
 </script>
 
@@ -153,11 +135,7 @@
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
             ルール一覧の閲覧は制限されています。録画一覧へリダイレクトします...
         </p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
-        >
+        <button type="button" onclick={() => router.replace('/recorded')} class="btn-secondary mt-4 cursor-pointer">
             録画一覧へ
         </button>
     </div>
@@ -172,7 +150,7 @@
                     <SlidersHorizontal size={20} class="text-blue-600 dark:text-blue-400" />
                     ルール一覧
                 </h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                     登録済みルール: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
                     件
                 </p>
@@ -182,7 +160,7 @@
                 <button
                     type="button"
                     onclick={goCreateRule}
-                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer"
+                    class="btn-primary flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                     <Plus size={16} /> 新規ルール作成
                 </button>
@@ -202,17 +180,198 @@
             >
                 <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
                 <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">登録されたルールはありません</p>
-                <button
-                    type="button"
-                    onclick={goCreateRule}
-                    class="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
-                >
+                <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
                     最初のルールを作成する
                 </button>
             </div>
         {:else}
+            <!-- モバイル表示: カード型ルールリスト (md:hidden) -->
+            <div class="space-y-3 md:hidden">
+                {#each rules as r}
+                    {@const isEnabled = r.reserveOption?.enable !== false}
+                    {@const opt = r.searchOption || {}}
+                    {@const save = r.saveOption || {}}
+                    {@const enc = r.encodeOption || {}}
+                    {@const genreId = opt.genres?.[0]?.lv1 ?? opt.genres?.[0]?.genre}
+                    <div
+                        role="button"
+                        tabindex="0"
+                        onclick={() => goEditRule(r)}
+                        onkeydown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                goEditRule(r);
+                            }
+                        }}
+                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 cursor-pointer {isEnabled
+                            ? ''
+                            : 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'}"
+                    >
+                        <!-- 1行目: スイッチ + キーワード + 予約数バッジ -->
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <!-- 有効/無効スイッチ -->
+                                {#if !readOnlyStore.isReadOnly}
+                                    <button
+                                        type="button"
+                                        onclick={e => toggleRuleEnable(r, e)}
+                                        class="shrink-0 inline-flex items-center justify-center rounded-full p-1.5 transition cursor-pointer {isEnabled
+                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
+                                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400'}"
+                                        title={isEnabled ? 'クリックして無効化' : 'クリックして有効化'}
+                                    >
+                                        <Power size={14} />
+                                    </button>
+                                {:else}
+                                    <span
+                                        class="shrink-0 inline-flex items-center justify-center rounded-full p-1.5 {isEnabled
+                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                            : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}"
+                                    >
+                                        <Power size={14} />
+                                    </span>
+                                {/if}
+
+                                <span class="font-bold text-slate-900 dark:text-slate-100 text-sm truncate">
+                                    {opt.keyword || '(全番組)'}
+                                </span>
+                            </div>
+
+                            <!-- 予約数バッジ -->
+                            <div class="shrink-0">
+                                {#if (ruleReservesMap[r.id] || 0) > 0}
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
+                                    >
+                                        {ruleReservesMap[r.id]} 件
+                                    </span>
+                                {:else}
+                                    <span class="text-xs text-slate-400 font-medium">0 件</span>
+                                {/if}
+                            </div>
+                        </div>
+
+                        <!-- 2行目: 検索条件タグ・除外キーワード -->
+                        <div class="mt-2.5 flex items-center gap-1.5 flex-wrap text-xs">
+                            {#if opt.keyRegExp}
+                                <span
+                                    class="rounded-md bg-purple-100 px-1.5 py-0.5 font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                >
+                                    正規表現
+                                </span>
+                            {/if}
+                            {#if opt.keyCS}
+                                <span
+                                    class="rounded-md bg-blue-100 px-1.5 py-0.5 font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                >
+                                    大小区別
+                                </span>
+                            {/if}
+
+                            <!-- ジャンル -->
+                            {#if genreId !== undefined}
+                                <span class="rounded-md px-1.5 py-0.5 font-bold {getGenreBadgeClass(genreId)}">
+                                    {getGenreName(genreId)}
+                                </span>
+                            {/if}
+
+                            <!-- 放送波 -->
+                            {#if opt.channelType}
+                                <span
+                                    class="rounded-md px-1.5 py-0.5 font-black uppercase {getChannelTypeBadgeClass(
+                                        opt.channelType,
+                                    )}"
+                                >
+                                    {opt.channelType}
+                                </span>
+                            {/if}
+
+                            <!-- エンコード -->
+                            {#if enc.mode1}
+                                <span
+                                    class="rounded-md bg-amber-50 px-1.5 py-0.5 font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
+                                >
+                                    {enc.mode1}
+                                </span>
+                            {/if}
+                            {#if enc.isDeleteOriginalAfterEncode}
+                                <span
+                                    class="rounded-md bg-rose-50 px-1.5 py-0.5 font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
+                                >
+                                    TS削除
+                                </span>
+                            {/if}
+                        </div>
+
+                        {#if opt.ignoreKeyword}
+                            <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400 truncate">
+                                除外: {opt.ignoreKeyword}
+                            </p>
+                        {/if}
+
+                        <!-- 3行目: 保存先 & アクションボタン -->
+                        <div
+                            class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between"
+                        >
+                            <div class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[60%]">
+                                {#if save.parentDirectoryName || save.directory}
+                                    <span class="flex items-center gap-1 truncate">
+                                        <Folder size={12} class="shrink-0 text-amber-500" />
+                                        <span class="truncate">
+                                            {save.parentDirectoryName || ''}/{save.directory || ''}
+                                        </span>
+                                    </span>
+                                {:else}
+                                    <span class="text-slate-400">デフォルト保存先</span>
+                                {/if}
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <!-- 検索リンク -->
+                                <button
+                                    type="button"
+                                    onclick={e => {
+                                        e.stopPropagation();
+                                        router.push(`/search?keyword=${encodeURIComponent(opt.keyword || '')}`);
+                                    }}
+                                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800 cursor-pointer"
+                                    title="この条件で番組検索"
+                                >
+                                    <Search size={15} />
+                                </button>
+
+                                {#if !readOnlyStore.isReadOnly}
+                                    <button
+                                        type="button"
+                                        onclick={e => {
+                                            e.stopPropagation();
+                                            goEditRule(r);
+                                        }}
+                                        class="btn-secondary flex items-center gap-1 px-2.5 py-1 text-xs cursor-pointer"
+                                    >
+                                        <Edit3 size={13} /> 編集
+                                    </button>
+
+                                    <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-700 mx-1.5"></div>
+
+                                    <button
+                                        type="button"
+                                        onclick={e => deleteRule(r, e)}
+                                        class="btn-danger p-1.5 cursor-pointer"
+                                        title="削除"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+            <!-- デスクトップ表示: テーブル (hidden md:block) -->
             <div
-                class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+                class="hidden md:block w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm">
@@ -235,6 +394,7 @@
                                 {@const opt = r.searchOption || {}}
                                 {@const save = r.saveOption || {}}
                                 {@const enc = r.encodeOption || {}}
+                                {@const genreId = opt.genres?.[0]?.lv1 ?? opt.genres?.[0]?.genre}
                                 <tr
                                     onclick={() => goEditRule(r)}
                                     class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled
@@ -248,8 +408,8 @@
                                                 type="button"
                                                 onclick={e => toggleRuleEnable(r, e)}
                                                 class="inline-flex items-center justify-center rounded-full p-1.5 transition cursor-pointer {isEnabled
-                                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
-                                                    : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400'}"
+                                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900'
+                                                    : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-300'}"
                                                 title={isEnabled ? 'クリックして無効化' : 'クリックして有効化'}
                                             >
                                                 <Power size={14} />
@@ -268,19 +428,21 @@
                                     <!-- キーワード / 検索条件 -->
                                     <td class="px-4 py-3.5">
                                         <div class="flex items-center gap-1.5 flex-wrap">
-                                            <span class="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                            <span
+                                                class="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base"
+                                            >
                                                 {opt.keyword || '(全番組)'}
                                             </span>
                                             {#if opt.keyRegExp}
                                                 <span
-                                                    class="rounded bg-purple-100 px-1.5 py-0.2 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                                    class="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
                                                 >
                                                     正規表現
                                                 </span>
                                             {/if}
                                             {#if opt.keyCS}
                                                 <span
-                                                    class="rounded bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                                    class="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                                                 >
                                                     大小区別
                                                 </span>
@@ -289,26 +451,28 @@
 
                                         {#if opt.ignoreKeyword}
                                             <p
-                                                class="mt-0.5 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1"
+                                                class="mt-1 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1"
                                             >
                                                 除外: {opt.ignoreKeyword}
                                             </p>
                                         {/if}
 
-                                        <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+                                        <div class="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
                                             <span>対象:</span>
                                             {#if opt.name !== false}<span
-                                                    class="rounded bg-slate-100 px-1 dark:bg-slate-800"
+                                                    class="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
                                                 >
-                                                    名
+                                                    番組名
                                                 </span>{/if}
                                             {#if opt.description !== false}<span
-                                                    class="rounded bg-slate-100 px-1 dark:bg-slate-800"
+                                                    class="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
                                                 >
-                                                    概
+                                                    概要
                                                 </span>{/if}
-                                            {#if opt.extended}<span class="rounded bg-slate-100 px-1 dark:bg-slate-800">
-                                                    詳
+                                            {#if opt.extended}<span
+                                                    class="rounded-md bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
+                                                >
+                                                    詳細
                                                 </span>{/if}
                                         </div>
                                     </td>
@@ -316,54 +480,74 @@
                                     <!-- 対象局 / ジャンル -->
                                     <td class="px-4 py-3.5">
                                         {#if opt.channelIds && opt.channelIds.length > 0}
-                                            <div class="flex items-center gap-1 flex-wrap">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
                                                 <span
-                                                    class="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center gap-1"
+                                                    class="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60 flex items-center gap-1"
                                                 >
-                                                    <Tv size={10} />
+                                                    <Tv size={12} />
                                                     {channelStore.getChannelName(opt.channelIds[0])}
                                                     {#if opt.channelIds.length > 1}
-                                                        <span class="text-[9px] font-normal opacity-80">
+                                                        <span class="text-xs font-normal opacity-80">
                                                             (他{opt.channelIds.length - 1}局)
                                                         </span>
                                                     {/if}
                                                 </span>
                                             </div>
                                         {:else}
-                                            <div class="flex items-center gap-1 flex-wrap">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
                                                 {#if opt.GR !== false}<span
-                                                        class="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                                        class="rounded-md px-2 py-0.5 text-xs font-bold {getChannelTypeBadgeClass(
+                                                            'GR',
+                                                        )}"
                                                     >
                                                         地デジ
                                                     </span>{/if}
                                                 {#if opt.BS !== false}<span
-                                                        class="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950 dark:text-teal-300"
+                                                        class="rounded-md px-2 py-0.5 text-xs font-bold {getChannelTypeBadgeClass(
+                                                            'BS',
+                                                        )}"
                                                     >
                                                         BS
                                                     </span>{/if}
                                                 {#if opt.CS !== false}<span
-                                                        class="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                                                        class="rounded-md px-2 py-0.5 text-xs font-bold {getChannelTypeBadgeClass(
+                                                            'CS',
+                                                        )}"
                                                     >
                                                         CS
                                                     </span>{/if}
                                             </div>
                                         {/if}
-                                        <p class="mt-1 text-slate-600 dark:text-slate-400 font-medium">
-                                            {getGenreName(opt.genres?.[0]?.lv1 ?? opt.genres?.[0]?.genre)}
-                                        </p>
+                                        <div class="mt-1.5">
+                                            {#if genreId !== undefined && genreId !== null}
+                                                <span
+                                                    class="inline-block rounded-md px-2 py-0.5 text-xs font-bold {getGenreBadgeClass(
+                                                        genreId,
+                                                    )}"
+                                                >
+                                                    {formatGenreLabel(genreId)}
+                                                </span>
+                                            {:else}
+                                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                    全ジャンル
+                                                </span>
+                                            {/if}
+                                        </div>
                                     </td>
 
                                     <!-- 保存先ストレージ / ディレクトリ -->
                                     <td class="px-4 py-3.5">
-                                        <div class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                                            <HardDrive size={13} class="text-slate-400 shrink-0" />
+                                        <div
+                                            class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 text-xs sm:text-sm"
+                                        >
+                                            <HardDrive size={14} class="text-slate-400 shrink-0" />
                                             <span class="font-bold">{save.parentDirectoryName || 'デフォルト'}</span>
                                         </div>
                                         {#if save.directory}
                                             <p
-                                                class="mt-0.5 text-[11px] text-slate-400 flex items-center gap-1 truncate max-w-xs"
+                                                class="mt-1 text-xs text-slate-400 flex items-center gap-1 truncate max-w-xs"
                                             >
-                                                <Folder size={11} />
+                                                <Folder size={12} />
                                                 {save.directory}
                                             </p>
                                         {/if}
@@ -372,31 +556,31 @@
                                     <!-- エンコード設定 -->
                                     <td class="px-4 py-3.5">
                                         {#if enc.mode1 || enc.mode2 || enc.mode3}
-                                            <div class="flex items-center gap-1 flex-wrap">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
                                                 {#if enc.mode1}
                                                     <span
-                                                        class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                                        class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
                                                     >
                                                         {enc.mode1}
                                                     </span>
                                                 {/if}
                                                 {#if enc.mode2}
                                                     <span
-                                                        class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                                        class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
                                                     >
                                                         {enc.mode2}
                                                     </span>
                                                 {/if}
                                                 {#if enc.isDeleteOriginalAfterEncode}
                                                     <span
-                                                        class="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400"
+                                                        class="rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
                                                     >
                                                         TS削除
                                                     </span>
                                                 {/if}
                                             </div>
                                         {:else}
-                                            <span class="text-slate-400 text-[11px]">TSのみ</span>
+                                            <span class="text-slate-400 text-xs">TSのみ</span>
                                         {/if}
                                     </td>
 
@@ -404,7 +588,7 @@
                                     <td class="px-4 py-3.5 text-center font-bold">
                                         {#if (ruleReservesMap[r.id] || 0) > 0}
                                             <span
-                                                class="inline-flex items-center justify-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                                class="inline-flex items-center justify-center rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
                                             >
                                                 {ruleReservesMap[r.id]} 件
                                             </span>
@@ -415,7 +599,7 @@
 
                                     <!-- 操作ボタン -->
                                     <td class="px-4 py-3.5 text-right">
-                                        <div class="flex items-center justify-end gap-1.5">
+                                        <div class="flex items-center justify-end gap-2">
                                             <!-- 検索リンク -->
                                             <button
                                                 type="button"
@@ -425,10 +609,10 @@
                                                         `/search?keyword=${encodeURIComponent(opt.keyword || '')}`,
                                                     );
                                                 }}
-                                                class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800"
+                                                class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800 cursor-pointer"
                                                 title="この条件で番組検索"
                                             >
-                                                <Search size={14} />
+                                                <Search size={16} />
                                             </button>
 
                                             <!-- 編集ボタン -->
@@ -439,20 +623,22 @@
                                                         e.stopPropagation();
                                                         goEditRule(r);
                                                     }}
-                                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-600 shadow-2xs hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-400 cursor-pointer"
+                                                    class="btn-secondary flex items-center gap-1.5 text-xs cursor-pointer"
                                                     title="ルールを編集"
                                                 >
-                                                    <Edit3 size={13} /> 編集
+                                                    <Edit3 size={14} /> 編集
                                                 </button>
+
+                                                <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1.5"></div>
 
                                                 <!-- 削除ボタン -->
                                                 <button
                                                     type="button"
                                                     onclick={e => deleteRule(r, e)}
-                                                    class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer"
+                                                    class="btn-danger p-2 cursor-pointer"
                                                     title="削除"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             {/if}
                                         </div>

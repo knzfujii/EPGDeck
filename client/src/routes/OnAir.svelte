@@ -13,6 +13,7 @@
         extractFirstSearchWord,
         getGenreName,
         getGenreBadgeClass,
+        getChannelTypeBadgeClass,
         formatTimeRemaining,
     } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
@@ -429,14 +430,14 @@
                 </div>
 
                 <!-- 放送波タブ -->
-                <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+                <div class="flex overflow-x-auto max-w-full rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar">
                     {#each channelTypes as type}
                         <button
                             type="button"
                             onclick={() => (selectedType = type.id)}
-                            class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedType ===
+                            class="rounded-xl px-4 py-2 text-sm font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedType ===
                             type.id
-                                ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
+                                ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
                                 : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
                         >
                             {type.name}
@@ -446,24 +447,24 @@
             </div>
 
             <!-- キーワード検索 & ジャンルチップ -->
-            <div class="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <div class="flex flex-wrap items-center gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
                 <!-- 検索入力 -->
-                <div class="relative flex-1 min-w-[200px] max-w-md">
-                    <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div class="relative flex-1 min-w-[220px] max-w-md">
+                    <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                         type="text"
                         bind:value={keyword}
                         placeholder="番組名や概要で絞り込み..."
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-8 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-blue-400"
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800 transition-colors"
                     />
                     {#if keyword}
                         <button
                             type="button"
                             onclick={() => (keyword = '')}
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
                             aria-label="検索ワードをクリア"
                         >
-                            <X size={13} />
+                            <X size={15} />
                         </button>
                     {/if}
                 </div>
@@ -474,10 +475,10 @@
                         <button
                             type="button"
                             onclick={() => (selectedGenre = g.id)}
-                            class="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer {selectedGenre ===
+                            class="rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap {selectedGenre ===
                             g.id
                                 ? 'bg-blue-600 text-white font-bold shadow-xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}"
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                         >
                             {g.name}
                         </button>
@@ -504,8 +505,160 @@
                 <p class="text-xs text-slate-400 mt-1">放送波タブやジャンル条件を変更してみてください</p>
             </div>
         {:else}
+            <!-- モバイル向けカードリスト (md:hidden) -->
+            <div class="space-y-3 md:hidden">
+                {#each filteredList as item}
+                    {@const current = item.current}
+                    {@const next = item.next}
+                    {@const progress = current ? getProgress(current.startAt, current.endAt, currentTime) : 0}
+                    {@const isRec = current?.isRecording}
+
+                    <div
+                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3 {isRec
+                            ? 'border-l-4 border-l-rose-500 bg-rose-50/20 dark:bg-rose-950/10'
+                            : ''}"
+                    >
+                        <!-- 局情報ヘッダー -->
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="rounded-lg px-2.5 py-0.5 text-xs font-bold {getChannelTypeBadgeClass(
+                                        item.channel?.channelType,
+                                    )}"
+                                >
+                                    [{item.channel?.channelType}] {item.channel?.name || ''}
+                                </span>
+                                {#if item.channel?.remoteControlKeyId}
+                                    <span class="text-xs font-semibold text-slate-400">
+                                        ch.{item.channel.remoteControlKeyId}
+                                    </span>
+                                {/if}
+                            </div>
+                            {#if isRec}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-700 dark:bg-rose-950/80 dark:text-rose-300 animate-pulse"
+                                >
+                                    <CircleDot size={12} /> 録画中
+                                </span>
+                            {/if}
+                        </div>
+
+                        <!-- 現在放送中 -->
+                        {#if current}
+                            <div class="space-y-2.5">
+                                <div
+                                    class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"
+                                >
+                                    <span class="flex items-center gap-1 font-semibold">
+                                        <Clock size={13} />
+                                        {formatTime(current.startAt)} - {formatTime(current.endAt)}
+                                    </span>
+                                    <span
+                                        class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded"
+                                    >
+                                        {formatTimeRemaining(current.endAt, currentTime)}
+                                    </span>
+                                </div>
+
+                                <!-- 番組名 -->
+                                <button
+                                    type="button"
+                                    onclick={() => openProgramDetail(current, item.channel, false)}
+                                    class="program-title hover:text-blue-600 dark:hover:text-blue-400 text-left line-clamp-2 cursor-pointer transition-colors w-full"
+                                >
+                                    {current.name}
+                                </button>
+
+                                <!-- 進捗バー -->
+                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                    <div
+                                        class="h-full bg-blue-500 transition-all duration-500"
+                                        style="width: {progress}%"
+                                    ></div>
+                                </div>
+
+                                {#if current.description}
+                                    <p class="program-summary line-clamp-2">
+                                        {current.description}
+                                    </p>
+                                {/if}
+
+                                <!-- 視聴・録画ボタン -->
+                                <div class="flex items-center gap-2 pt-1">
+                                    {#if readOnlyStore.canLiveStream}
+                                        <button
+                                            type="button"
+                                            onclick={() => openStreamModal(item.channel, current.name)}
+                                            class="flex-1 btn-primary h-10 text-sm font-bold cursor-pointer"
+                                        >
+                                            <Play size={15} fill="currentColor" /> 視聴する
+                                        </button>
+                                    {/if}
+                                    {#if !readOnlyStore.isReadOnly}
+                                        {#if isRec}
+                                            <button
+                                                type="button"
+                                                onclick={() => openRecordingAction(item)}
+                                                class="h-10 px-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950 dark:text-rose-300 text-sm font-bold cursor-pointer transition-colors flex items-center gap-1.5"
+                                            >
+                                                <CircleDot size={14} /> 録画中
+                                            </button>
+                                        {:else}
+                                            <button
+                                                type="button"
+                                                disabled={isReserving}
+                                                onclick={() => startRecordCurrentProgram(item)}
+                                                class="h-10 px-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 text-sm font-bold cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                            >
+                                                <Bookmark size={14} /> 録画
+                                            </button>
+                                        {/if}
+                                    {/if}
+                                </div>
+                            </div>
+                        {:else}
+                            <p class="text-xs text-slate-400">現在放送中の番組情報がありません</p>
+                        {/if}
+
+                        <!-- 次の番組 -->
+                        {#if next}
+                            <div
+                                class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2"
+                            >
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-0.5">
+                                        <span class="font-bold text-slate-500 dark:text-slate-400">次の番組</span>
+                                        <span>{formatTime(next.startAt)} - {formatTime(next.endAt)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onclick={() => openProgramDetail(next, item.channel, true)}
+                                        class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1 hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer w-full"
+                                    >
+                                        {next.name}
+                                    </button>
+                                </div>
+                                {#if !readOnlyStore.isReadOnly}
+                                    <button
+                                        type="button"
+                                        disabled={isReserving}
+                                        onclick={() => toggleReserveProgram(next)}
+                                        class="shrink-0 h-9 px-3.5 text-xs font-bold rounded-xl border transition-colors cursor-pointer disabled:opacity-50 {next.isReserved
+                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                            : 'btn-secondary'}"
+                                    >
+                                        {next.isReserved ? '予約中' : '予約'}
+                                    </button>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+
+            <!-- デスクトップ向けテーブル (hidden md:block) -->
             <div
-                class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+                class="hidden md:block w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
@@ -539,13 +692,15 @@
                                     <td class="px-4 py-4 align-top whitespace-nowrap">
                                         <div class="space-y-1.5">
                                             <span
-                                                class="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                                class="inline-block rounded-lg px-2.5 py-1 text-xs font-bold {getChannelTypeBadgeClass(
+                                                    item.channel?.channelType,
+                                                )}"
                                             >
                                                 [{item.channel?.channelType}] {item.channel?.name || ''}
                                             </span>
                                             {#if item.channel?.remoteControlKeyId}
                                                 <div
-                                                    class="text-[11px] font-semibold text-slate-400 dark:text-slate-500"
+                                                    class="text-xs font-semibold text-slate-400 dark:text-slate-500 pl-1"
                                                 >
                                                     ch.{item.channel.remoteControlKeyId}
                                                 </div>
@@ -562,19 +717,19 @@
                                                     <span
                                                         class="flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400 text-xs"
                                                     >
-                                                        <Clock size={12} />
+                                                        <Clock size={13} />
                                                         {formatTime(current.startAt)} - {formatTime(current.endAt)}
                                                     </span>
 
                                                     <span
-                                                        class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-1.5 py-0.5 rounded text-[11px]"
+                                                        class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded text-xs"
                                                     >
                                                         {formatTimeRemaining(current.endAt, currentTime)}
                                                     </span>
 
                                                     {#if current.genre1 !== undefined}
                                                         <span
-                                                            class="rounded-md border px-1.5 py-0.5 text-[10px] font-bold {getGenreBadgeClass(
+                                                            class="rounded-md border px-2 py-0.5 text-xs font-bold {getGenreBadgeClass(
                                                                 current.genre1,
                                                             )}"
                                                         >
@@ -584,9 +739,9 @@
 
                                                     {#if isRec}
                                                         <span
-                                                            class="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white shadow-xs animate-pulse"
+                                                            class="flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-black text-white shadow-xs animate-pulse"
                                                         >
-                                                            <CircleDot size={10} /> 録画中
+                                                            <CircleDot size={12} /> 録画中
                                                         </span>
                                                     {/if}
                                                 </div>
@@ -596,23 +751,23 @@
                                                     <button
                                                         type="button"
                                                         onclick={() => openProgramDetail(current, item.channel, false)}
-                                                        class="text-left font-black text-sm text-slate-900 hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400 transition-colors cursor-pointer flex-1 min-w-[200px]"
+                                                        class="program-title text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer flex-1 min-w-[200px]"
                                                     >
                                                         {current.name}
                                                     </button>
 
                                                     <!-- アクションボタン群 (視聴 ＆ 録画) -->
-                                                    <div class="flex items-center gap-1.5 shrink-0">
+                                                    <div class="flex items-center gap-2 shrink-0">
                                                         <!-- 【▶ 視聴】ボタン -->
                                                         {#if readOnlyStore.canLiveStream}
                                                             <button
                                                                 type="button"
                                                                 onclick={() =>
                                                                     openStreamModal(item.channel, current.name)}
-                                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:shadow-md transition cursor-pointer"
+                                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-xs hover:shadow-md transition cursor-pointer"
                                                                 title="ライブ視聴を開始"
                                                             >
-                                                                <Play size={12} fill="currentColor" /> 視聴
+                                                                <Play size={13} fill="currentColor" /> 視聴
                                                             </button>
                                                         {/if}
 
@@ -622,20 +777,20 @@
                                                                 <button
                                                                     type="button"
                                                                     onclick={() => openRecordingAction(item)}
-                                                                    class="inline-flex items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
+                                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
                                                                     title="録画中の操作 (完了・中断・破棄)"
                                                                 >
-                                                                    <CircleDot size={12} /> 録画中
+                                                                    <CircleDot size={13} /> 録画中
                                                                 </button>
                                                             {:else}
                                                                 <button
                                                                     type="button"
                                                                     disabled={isReserving}
                                                                     onclick={() => startRecordCurrentProgram(item)}
-                                                                    class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-bold text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
+                                                                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 text-xs font-bold text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
                                                                     title="この番組を今すぐ録画"
                                                                 >
-                                                                    <Bookmark size={12} /> 録画
+                                                                    <Bookmark size={13} /> 録画
                                                                 </button>
                                                             {/if}
                                                         {/if}
@@ -644,7 +799,7 @@
 
                                                 <!-- 進捗プログレスバー -->
                                                 <div
-                                                    class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                                                    class="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
                                                 >
                                                     <div
                                                         class="h-full bg-blue-500 transition-all duration-500"
@@ -657,7 +812,7 @@
                                                     <button
                                                         type="button"
                                                         onclick={() => openProgramDetail(current, item.channel, false)}
-                                                        class="text-left line-clamp-2 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer w-full"
+                                                        class="text-left line-clamp-2 text-xs leading-relaxed text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer w-full"
                                                     >
                                                         {current.description}
                                                     </button>
@@ -676,15 +831,15 @@
                                             <div class="space-y-2">
                                                 <!-- メタ情報 & 予約アクション -->
                                                 <div class="flex items-center justify-between gap-1">
-                                                    <div class="flex items-center gap-1.5">
+                                                    <div class="flex items-center gap-1.5 flex-wrap">
                                                         <span
-                                                            class="text-[11px] font-bold text-slate-600 dark:text-slate-300"
+                                                            class="text-xs font-bold text-slate-600 dark:text-slate-300"
                                                         >
                                                             {formatTime(next.startAt)}〜
                                                         </span>
                                                         {#if next.genre1 !== undefined}
                                                             <span
-                                                                class="rounded-md border px-1.5 py-0.2 text-[9px] font-bold {getGenreBadgeClass(
+                                                                class="rounded-md border px-2 py-0.5 text-xs font-bold {getGenreBadgeClass(
                                                                     next.genre1,
                                                                 )}"
                                                             >
@@ -699,20 +854,20 @@
                                                             <button
                                                                 type="button"
                                                                 onclick={() => router.push('/reserves')}
-                                                                class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
+                                                                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
                                                                 title="予約一覧で確認"
                                                             >
-                                                                <Check size={11} /> 予約中
+                                                                <Check size={15} /> 予約中
                                                             </button>
                                                         {:else}
                                                             <button
                                                                 type="button"
                                                                 disabled={isReserving}
                                                                 onclick={() => toggleReserveProgram(next)}
-                                                                class="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
+                                                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 px-3.5 py-1.5 text-sm font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
                                                                 title="ワンクリック予約"
                                                             >
-                                                                <Plus size={11} /> 予約
+                                                                <Plus size={15} /> 予約
                                                             </button>
                                                         {/if}
                                                     {/if}
@@ -722,7 +877,7 @@
                                                 <button
                                                     type="button"
                                                     onclick={() => openProgramDetail(next, item.channel, true)}
-                                                    class="text-left line-clamp-2 text-xs font-bold text-slate-800 hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-400 transition-colors cursor-pointer w-full"
+                                                    class="program-title-dense text-left line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer w-full"
                                                 >
                                                     {next.name}
                                                 </button>
@@ -797,7 +952,7 @@
                             </span>
                         {/if}
                     </div>
-                    <h2 class="mt-2 text-base font-black text-slate-900 dark:text-slate-100">
+                    <h2 class="program-title-modal mt-2">
                         {p.name}
                     </h2>
                 </div>
@@ -812,10 +967,10 @@
             </div>
 
             <!-- モーダルコンテンツ -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+            <div class="flex-1 overflow-y-auto p-5 space-y-4">
                 <!-- 時間・進行状況 -->
                 <div
-                    class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40 space-y-2"
+                    class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40 space-y-2 text-xs sm:text-sm"
                 >
                     <div class="flex items-center justify-between text-slate-600 dark:text-slate-400 font-semibold">
                         <span class="flex items-center gap-1.5">
@@ -839,35 +994,33 @@
                 <!-- 番組概要 -->
                 {#if p.description}
                     <div>
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">番組概要</h4>
-                        <p
-                            class="leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20"
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1">番組概要</h4>
+                        <div
+                            class="program-description rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/20"
                         >
                             {p.description}
-                        </p>
+                        </div>
                     </div>
                 {/if}
 
                 <!-- 詳細情報 / 出演者 / あらすじ -->
                 {#if p.extended}
                     <div>
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">詳細情報・出演者</h4>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1">詳細情報・出演者</h4>
                         <div
-                            class="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20 max-h-60 overflow-y-auto"
+                            class="program-extended space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/20 max-h-60 overflow-y-auto"
                         >
                             {#if typeof p.extended === 'object'}
                                 {#each Object.entries(p.extended) as [key, value]}
                                     <div>
                                         <span class="font-bold text-blue-600 dark:text-blue-400">{key}:</span>
-                                        <p
-                                            class="mt-0.5 text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed"
-                                        >
+                                        <p class="mt-0.5 whitespace-pre-wrap leading-relaxed">
                                             {value}
                                         </p>
                                     </div>
                                 {/each}
                             {:else}
-                                <p class="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                <p class="whitespace-pre-wrap leading-relaxed">
                                     {p.extended}
                                 </p>
                             {/if}

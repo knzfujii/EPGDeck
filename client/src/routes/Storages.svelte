@@ -56,7 +56,7 @@
             <HardDrive size={20} class="text-blue-600 dark:text-blue-400" />
             ストレージ容量
         </h1>
-        <p class="text-xs text-slate-500 dark:text-slate-400">
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             録画ファイルの保存先ストレージ一覧（全 {storages.length} ドライブ）
         </p>
     </div>
@@ -83,21 +83,23 @@
                 >
                     <div>
                         <div class="flex items-center justify-between">
-                            <span class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100">
-                                <Server size={18} class="text-blue-600 dark:text-blue-400" />
+                            <span
+                                class="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100"
+                            >
+                                <Server size={20} class="text-blue-600 dark:text-blue-400" />
                                 {st.name}
                             </span>
                             <span
-                                class="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                class="rounded-lg bg-slate-100 px-2.5 py-1 text-xs sm:text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
                             >
                                 {percent}% 使用中
                             </span>
                         </div>
 
                         <!-- プログレスバー -->
-                        <div class="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div class="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                             <div
-                                class="h-full transition-all duration-500 {percent > 90
+                                class="h-full rounded-full transition-all duration-500 {percent > 90
                                     ? 'bg-rose-500'
                                     : percent > 75
                                       ? 'bg-amber-500'
@@ -108,20 +110,20 @@
 
                         <!-- 容量詳細数値 -->
                         <div
-                            class="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center text-xs dark:border-slate-800"
+                            class="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center text-xs sm:text-sm dark:border-slate-800"
                         >
                             <div>
-                                <p class="text-[10px] font-semibold text-slate-400">使用容量</p>
+                                <p class="text-xs font-semibold text-slate-400">使用容量</p>
                                 <p class="mt-0.5 font-bold text-slate-800 dark:text-slate-200">{formatGB(st.used)}</p>
                             </div>
                             <div>
-                                <p class="text-[10px] font-semibold text-slate-400">空き容量</p>
+                                <p class="text-xs font-semibold text-slate-400">空き容量</p>
                                 <p class="mt-0.5 font-bold text-emerald-600 dark:text-emerald-400">
                                     {formatGB(st.available)}
                                 </p>
                             </div>
                             <div>
-                                <p class="text-[10px] font-semibold text-slate-400">総容量</p>
+                                <p class="text-xs font-semibold text-slate-400">総容量</p>
                                 <p class="mt-0.5 font-bold text-slate-800 dark:text-slate-200">{formatGB(st.total)}</p>
                             </div>
                         </div>

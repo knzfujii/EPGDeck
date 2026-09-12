@@ -5,7 +5,15 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
-    import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
+    import {
+        formatDate,
+        formatTime,
+        formatTimeRange,
+        formatDuration,
+        formatSize,
+        getGenreName,
+        getGenreBadgeClass,
+    } from '../lib/utils/format';
     import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
@@ -286,11 +294,7 @@
 <div class="w-full max-w-5xl min-w-0 space-y-5">
     <!-- ヘッダー & ナビゲーション -->
     <div class="flex items-center justify-between">
-        <button
-            type="button"
-            onclick={() => router.push('/recorded')}
-            class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-        >
+        <button type="button" onclick={() => router.push('/recorded')} class="btn-secondary">
             <ArrowLeft size={16} /> 録画一覧へ戻る
         </button>
 
@@ -301,27 +305,22 @@
                     <button
                         type="button"
                         onclick={toggleProtect}
-                        class="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition {recorded.isProtected
+                        class="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-bold transition cursor-pointer {recorded.isProtected
                             ? 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                         title={recorded.isProtected ? '保護を解除' : '誤削除から保護'}
                     >
                         {#if recorded.isProtected}
-                            <Lock size={14} class="text-amber-500" /> 保護中
+                            <Lock size={15} class="text-amber-500" /> 保護中
                         {:else}
-                            <Unlock size={14} /> 保護する
+                            <Unlock size={15} /> 保護する
                         {/if}
                     </button>
 
                     <!-- 削除ボタン -->
                     {#if !recorded.isProtected}
-                        <button
-                            type="button"
-                            onclick={deleteRecorded}
-                            class="flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-xs transition hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 cursor-pointer"
-                            title="録画を削除"
-                        >
-                            <Trash2 size={14} /> 削除
+                        <button type="button" onclick={deleteRecorded} class="btn-danger" title="録画を削除">
+                            <Trash2 size={15} /> 削除
                         </button>
                     {/if}
                 {/if}
@@ -333,19 +332,15 @@
         <div
             class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
         >
-            <p class="text-xs text-slate-400">録画詳細を読み込み中...</p>
+            <p class="text-sm text-slate-400">録画詳細を読み込み中...</p>
         </div>
     {:else if !recorded}
         <div
             class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
         >
-            <AlertTriangle size={36} class="text-amber-500 mb-2" />
-            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">録画情報が見つかりませんでした</p>
-            <button
-                type="button"
-                onclick={() => router.push('/recorded')}
-                class="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"
-            >
+            <AlertTriangle size={40} class="text-amber-500 mb-2" />
+            <p class="text-base font-bold text-slate-800 dark:text-slate-200">録画情報が見つかりませんでした</p>
+            <button type="button" onclick={() => router.push('/recorded')} class="btn-primary mt-4">
                 録画一覧へ戻る
             </button>
         </div>
@@ -375,11 +370,11 @@
                         <button
                             type="button"
                             onclick={handleThumbnailPlay}
-                            class="flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl transition hover:scale-110 hover:bg-blue-500 cursor-pointer"
+                            class="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl transition hover:scale-110 hover:bg-blue-500 cursor-pointer"
                             aria-label="動画を再生"
                             title="最上位の動画を再生"
                         >
-                            <Play size={24} fill="currentColor" class="translate-x-0.5" />
+                            <Play size={28} fill="currentColor" class="translate-x-0.5" />
                         </button>
                     </div>
                 </div>
@@ -389,69 +384,63 @@
                     <div>
                         <div class="flex items-center gap-2 flex-wrap mb-2">
                             <span
-                                class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                             >
                                 {channelStore.getChannelName(recorded.channelId)}
                             </span>
                             {#if typeof recorded.genre1 === 'number'}
                                 <span
-                                    class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                    class="rounded-lg border px-2.5 py-1 text-xs font-bold {getGenreBadgeClass(
+                                        recorded.genre1,
+                                    )}"
                                 >
-                                    ジャンル: {recorded.genre1}
+                                    {getGenreName(recorded.genre1)}
                                 </span>
                             {/if}
                             {#if recorded.isProtected}
                                 <span
-                                    class="flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                    class="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                                 >
-                                    <Lock size={12} /> 保護中
+                                    <Lock size={13} /> 保護中
                                 </span>
                             {/if}
                         </div>
 
-                        <h1 class="text-lg font-black text-slate-900 dark:text-slate-100 sm:text-xl leading-snug">
+                        <h1 class="program-title-hero">
                             {recorded.name}
                         </h1>
 
                         <div
-                            class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                            class="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400"
                         >
-                            <Clock size={14} />
+                            <Clock size={16} />
                             <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
                             <span>({formatDuration(recorded.endAt - recorded.startAt)})</span>
                         </div>
                     </div>
 
                     <!-- 再生 & アクションボタン列 -->
-                    <div class="flex items-center gap-2.5 flex-wrap pt-2">
+                    <div class="flex items-center gap-3 flex-wrap pt-2">
                         {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
                             <button
                                 type="button"
                                 onclick={handleDetailPlay}
-                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                                class="btn-primary"
                                 title="再生方法や画質を選択して再生"
                             >
-                                <Play size={14} fill="currentColor" /> 詳細再生
+                                <Play size={16} fill="currentColor" /> 詳細再生
                             </button>
                         {/if}
 
                         {#if !readOnlyStore.isReadOnly}
-                            <button
-                                type="button"
-                                onclick={() => (isEncodeModalOpen = true)}
-                                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
-                            >
-                                <Sparkles size={14} class="text-amber-500" /> エンコード追加
+                            <button type="button" onclick={() => (isEncodeModalOpen = true)} class="btn-secondary">
+                                <Sparkles size={16} class="text-amber-500" /> エンコード追加
                             </button>
                         {/if}
 
                         {#if recorded.dropLogFile}
-                            <button
-                                type="button"
-                                onclick={openDropLog}
-                                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
-                            >
-                                <FileText size={14} /> ドロップログ
+                            <button type="button" onclick={openDropLog} class="btn-secondary">
+                                <FileText size={16} /> ドロップログ
                             </button>
                         {/if}
                     </div>
@@ -462,8 +451,8 @@
             <div class="border-t border-slate-100 p-6 dark:border-slate-800 space-y-4">
                 {#if recorded.description}
                     <div>
-                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">番組概要</h2>
-                        <p class="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1.5">番組概要</h2>
+                        <p class="program-description">
                             {recorded.description}
                         </p>
                     </div>
@@ -471,10 +460,8 @@
 
                 {#if recorded.extended}
                     <div>
-                        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                            詳細情報・出演者
-                        </h2>
-                        <div class="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
+                        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1.5">詳細情報・出演者</h2>
+                        <div class="program-extended">
                             {recorded.extended}
                         </div>
                     </div>
@@ -532,7 +519,7 @@
                                 <a
                                     href={`/api/videos/${file.id}?isDownload=true${readOnlyStore.token ? `&token=${readOnlyStore.token}` : ''}`}
                                     download
-                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
                                     title="ファイルをダウンロード"
                                 >
                                     <Download size={13} />
@@ -544,7 +531,7 @@
                                 <a
                                     href={`/api/videos/${file.id}/playlist${readOnlyStore.token ? `?token=${readOnlyStore.token}` : ''}`}
                                     download
-                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
                                     title="VLC/Infuse 向け M3U プレイリスト"
                                 >
                                     <Share2 size={13} /> M3U
@@ -617,42 +604,48 @@
                                         : 'border-slate-200 dark:border-slate-700'}"
                                 >
                                     <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
-                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
+                                    <div class="flex flex-wrap items-center gap-x-5 gap-y-3 p-3.5">
                                         <!-- チェックボックス + 名前 -->
-                                        <label class="flex shrink-0 items-center gap-2 cursor-pointer min-w-[120px]">
-                                            <input
-                                                type="checkbox"
-                                                bind:checked={sel.enabled}
-                                                class="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                                            />
-                                            <span class="font-bold text-slate-900 dark:text-slate-100">
+                                        <label
+                                            class="flex shrink-0 items-center gap-2.5 cursor-pointer min-w-[140px] select-none py-1"
+                                        >
+                                            <input type="checkbox" bind:checked={sel.enabled} class="form-checkbox" />
+                                            <span
+                                                class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100"
+                                            >
                                                 {mode.name}
                                             </span>
                                             {#if mode.suffix}
-                                                <span class="text-slate-400 font-mono">({mode.suffix})</span>
+                                                <span class="text-xs text-slate-400 font-mono">({mode.suffix})</span>
                                             {/if}
                                         </label>
 
                                         {#if sel.enabled}
                                             <!-- 元ファイルと同じ場所トグル -->
-                                            <label class="flex shrink-0 items-center gap-1.5 cursor-pointer">
+                                            <label
+                                                class="flex shrink-0 items-center gap-2 cursor-pointer select-none py-1"
+                                            >
                                                 <input
                                                     type="checkbox"
                                                     bind:checked={sel.isSaveSameDirectory}
-                                                    class="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
+                                                    class="form-checkbox"
                                                 />
-                                                <span class="text-slate-600 dark:text-slate-300">
+                                                <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
                                                     元ファイルと同じ場所
                                                 </span>
                                             </label>
 
                                             {#if !sel.isSaveSameDirectory}
                                                 <!-- 保存先ドロップダウン -->
-                                                <div class="flex items-center gap-1.5 min-w-[140px]">
-                                                    <span class="text-slate-500 shrink-0">保存先</span>
+                                                <div class="flex items-center gap-2 min-w-[160px]">
+                                                    <span
+                                                        class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
+                                                    >
+                                                        保存先
+                                                    </span>
                                                     <select
                                                         bind:value={sel.parentDir}
-                                                        class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                                        class="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                                     >
                                                         {#each recordedDirs as dir}
                                                             <option value={dir}>{dir}</option>
@@ -661,13 +654,17 @@
                                                 </div>
 
                                                 <!-- サブディレクトリ入力 -->
-                                                <div class="flex items-center gap-1.5 min-w-[160px]">
-                                                    <span class="text-slate-500 shrink-0">ディレクトリ</span>
+                                                <div class="flex items-center gap-2 min-w-[180px]">
+                                                    <span
+                                                        class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
+                                                    >
+                                                        ディレクトリ
+                                                    </span>
                                                     <input
                                                         type="text"
                                                         bind:value={sel.directory}
                                                         placeholder="省略可"
-                                                        class="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                                        class="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                                     />
                                                 </div>
                                             {/if}
@@ -680,15 +677,11 @@
                 {/if}
 
                 <!-- 全体共通: 元ファイル削除 -->
-                <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            bind:checked={isRemoveOriginal}
-                            class="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
-                        />
-                        <span class="font-bold text-slate-700 dark:text-slate-300">
-                            エンコード完了後に元ファイルを削除する
+                <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
+                    <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
+                        <input type="checkbox" bind:checked={isRemoveOriginal} class="form-checkbox text-rose-600" />
+                        <span class="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400">
+                            エンコード完了後に元ファイルを自動削除
                         </span>
                     </label>
                 </div>
@@ -757,7 +750,7 @@
                 <button
                     type="button"
                     onclick={() => (isDropLogModalOpen = false)}
-                    class="rounded-xl bg-slate-100 px-5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                    class="btn-secondary px-5 py-2 text-xs font-bold cursor-pointer"
                 >
                     閉じる
                 </button>

@@ -334,26 +334,41 @@
 <div class="space-y-5 w-full max-w-full min-w-0">
     <!-- ヘッダー & アクション -->
     <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
     >
-        <div>
-            <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
-                <Clock size={20} class="text-amber-500" />
-                予約一覧
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-                全 <span class="font-bold text-slate-900 dark:text-slate-100">{total}</span>
-                件の録画予約（クリックで詳細確認・キャンセル）
-            </p>
+        <div class="flex items-center justify-between gap-2">
+            <div>
+                <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                    <Clock size={20} class="text-amber-500" />
+                    予約一覧
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    全 <span class="font-bold text-slate-900 dark:text-slate-100">{total}</span>
+                    件の録画予約（クリックで詳細確認・キャンセル）
+                </p>
+            </div>
+
+            <!-- スマホ用手動予約ボタン -->
+            {#if !readOnlyStore.isReadOnly}
+                <button
+                    type="button"
+                    onclick={() => router.push('/reserves/manual')}
+                    class="btn-primary sm:hidden whitespace-nowrap shrink-0 text-xs py-1.5 px-3 min-h-0"
+                >
+                    <Plus size={14} /> 手動予約
+                </button>
+            {/if}
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-            <!-- フィルタータブ -->
-            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div class="flex items-center gap-2.5 min-w-0 max-w-full">
+            <!-- フィルタータブ (スマホではカード幅内で横スクロール可能に) -->
+            <div
+                class="flex overflow-x-auto min-w-0 max-w-full rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar"
+            >
                 <button
                     type="button"
                     onclick={() => (filterMode = 'all')}
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'all'
                         ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
@@ -363,7 +378,7 @@
                 <button
                     type="button"
                     onclick={() => (filterMode = 'recording')}
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'recording'
                         ? 'bg-rose-600 text-white font-bold shadow-xs'
                         : recordingCount > 0
@@ -371,7 +386,7 @@
                           : 'text-slate-500'}"
                 >
                     <span
-                        class="inline-block h-2 w-2 rounded-full {recordingCount > 0
+                        class="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full {recordingCount > 0
                             ? 'bg-rose-500 animate-pulse'
                             : 'bg-slate-400'}"
                     ></span>
@@ -380,19 +395,19 @@
                 <button
                     type="button"
                     onclick={() => (filterMode = 'conflicts')}
-                    class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'conflicts'
                         ? 'bg-rose-600 text-white font-bold shadow-xs'
                         : conflictCount > 0
                           ? 'text-rose-600 font-bold'
                           : 'text-slate-500'}"
                 >
-                    <AlertTriangle size={12} /> 競合 ({conflictCount})
+                    <AlertTriangle size={14} /> 競合 ({conflictCount})
                 </button>
                 <button
                     type="button"
                     onclick={() => (filterMode = 'skips')}
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'skips'
                         ? 'bg-amber-500 text-white font-bold shadow-xs'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
@@ -402,7 +417,7 @@
                 <button
                     type="button"
                     onclick={() => (filterMode = 'overlaps')}
-                    class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {filterMode ===
+                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'overlaps'
                         ? 'bg-slate-700 text-white font-bold shadow-xs dark:bg-slate-600'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
@@ -411,14 +426,14 @@
                 </button>
             </div>
 
-            <!-- 手動予約ボタン -->
+            <!-- 手動予約ボタン (PC用) -->
             {#if !readOnlyStore.isReadOnly}
                 <button
                     type="button"
                     onclick={() => router.push('/reserves/manual')}
-                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 transition cursor-pointer"
+                    class="btn-primary hidden sm:inline-flex whitespace-nowrap shrink-0"
                 >
-                    <Plus size={15} /> 手動予約を追加
+                    <Plus size={16} /> 手動予約を追加
                 </button>
             {/if}
         </div>
@@ -435,8 +450,8 @@
         <div
             class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
         >
-            <Clock size={36} class="text-slate-300 dark:text-slate-600" />
-            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+            <Clock size={40} class="text-slate-300 dark:text-slate-600" />
+            <p class="mt-2 text-base font-bold text-slate-700 dark:text-slate-300">
                 {#if filterMode === 'recording'}
                     現在録画中の予約はありません
                 {:else if filterMode === 'conflicts'}
@@ -447,15 +462,167 @@
                     録画予約はありません
                 {/if}
             </p>
-            <p class="text-xs text-slate-400">番組表や検索画面から録画予約を追加できます</p>
+            <p class="text-sm text-slate-400 mt-0.5">番組表や検索画面から録画予約を追加できます</p>
         </div>
     {:else}
         <!-- テーブル表示 -->
+        <!-- モバイル表示: カード型予約リスト (md:hidden) -->
+        <div class="space-y-3 md:hidden">
+            {#each filteredReserves as item}
+                <div
+                    role="button"
+                    tabindex="0"
+                    onclick={() => openReserveDetail(item)}
+                    onkeydown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openReserveDetail(item);
+                        }
+                    }}
+                    class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 cursor-pointer {item.isRecording
+                        ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
+                        : item.isConflict
+                          ? 'border-rose-200 bg-rose-50/20 dark:border-rose-900/40'
+                          : item.isSkip
+                            ? 'opacity-60 bg-slate-50/50'
+                            : ''}"
+                >
+                    <!-- 1行目: 日時・局・種別・状態 -->
+                    <div class="flex items-center justify-between gap-2 flex-wrap text-xs">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-bold text-slate-900 dark:text-slate-100">
+                                {formatDate(item.startAt)}
+                                {formatTime(item.startAt)}〜
+                            </span>
+                            <span
+                                class="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                            >
+                                {channelStore.getChannelName(item.channelId)}
+                            </span>
+                            {#if item.ruleId}
+                                <span
+                                    class="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                >
+                                    ルール
+                                </span>
+                            {:else}
+                                <span
+                                    class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                >
+                                    個別
+                                </span>
+                            {/if}
+                        </div>
+
+                        <!-- 状態バッジ -->
+                        <div>
+                            {#if item.isRecording}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white animate-pulse"
+                                >
+                                    ● 録画中
+                                </span>
+                            {:else if item.isConflict}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                >
+                                    <AlertTriangle size={11} /> 競合
+                                </span>
+                            {:else if item.isSkip}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                    <Ban size={11} /> スキップ
+                                </span>
+                            {:else if item.isOverlap}
+                                <span
+                                    class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                                >
+                                    重複
+                                </span>
+                            {/if}
+                        </div>
+                    </div>
+
+                    <!-- 2行目: 番組名 & 概要 -->
+                    <div class="mt-2">
+                        <h3 class="program-title-dense hover:text-blue-600 dark:hover:text-blue-400 text-sm">
+                            {item.name}
+                        </h3>
+                        {#if item.description}
+                            <p class="program-summary mt-1 line-clamp-2 leading-snug">
+                                {item.description}
+                            </p>
+                        {/if}
+                    </div>
+
+                    <!-- 録画進捗バー (録画中のみ) -->
+                    {#if item.isRecording}
+                        <div class="mt-2.5 flex items-center gap-2">
+                            <div class="h-2 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950">
+                                <div
+                                    class="h-full rounded-full bg-rose-600 transition-all duration-500"
+                                    style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
+                                ></div>
+                            </div>
+                            <span class="text-xs font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                                {getRecordingProgress(item.startAt, item.endAt)}%
+                            </span>
+                        </div>
+                    {/if}
+
+                    <!-- 3行目: 長さ & アクションボタン -->
+                    <div
+                        class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between"
+                    >
+                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {formatDuration(item.endAt - item.startAt)}
+                        </span>
+
+                        <div class="flex items-center gap-2">
+                            {#if item.isRecording && readOnlyStore.canLiveStream}
+                                <button
+                                    type="button"
+                                    onclick={e => {
+                                        e.stopPropagation();
+                                        router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
+                                    }}
+                                    class="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
+                                >
+                                    <Play size={12} fill="currentColor" /> 視聴
+                                </button>
+                            {/if}
+                            {#if !readOnlyStore.isReadOnly}
+                                {#if item.isSkip}
+                                    <button
+                                        type="button"
+                                        onclick={e => restoreSkip(item, e)}
+                                        class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                    >
+                                        <RotateCcw size={12} /> 復活
+                                    </button>
+                                {:else}
+                                    <button
+                                        type="button"
+                                        onclick={e => cancelReserve(item, e)}
+                                        class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 transition cursor-pointer"
+                                    >
+                                        <Trash2 size={12} /> キャンセル
+                                    </button>
+                                {/if}
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+
+        <!-- デスクトップ表示: テーブル (hidden md:block) -->
         <div
-            class="w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="hidden md:block w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs">
+                <table class="w-full text-left text-sm">
                     <thead
                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                     >
@@ -481,18 +648,20 @@
                                         ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
                                         : ''}"
                             >
-                                <!-- 放送日時 -->
-                                <td
-                                    class="whitespace-nowrap px-4 py-3.5 font-medium text-slate-600 dark:text-slate-400"
-                                >
-                                    {formatDate(item.startAt)}
-                                    {formatTime(item.startAt)}
+                                <!-- 放送日時 (2行スタック化) -->
+                                <td class="whitespace-nowrap px-4 py-3 font-medium text-slate-600 dark:text-slate-400">
+                                    <div class="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                        {formatDate(item.startAt)}
+                                    </div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                                        {formatTime(item.startAt)}〜
+                                    </div>
                                 </td>
 
                                 <!-- 放送局 -->
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     <span
-                                        class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                        class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                                     >
                                         {channelStore.getChannelName(item.channelId)}
                                     </span>
@@ -502,13 +671,13 @@
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     {#if item.ruleId}
                                         <span
-                                            class="rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                            class="rounded-lg bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
                                         >
                                             ルール
                                         </span>
                                     {:else}
                                         <span
-                                            class="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                            class="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                                         >
                                             個別予約
                                         </span>
@@ -517,18 +686,16 @@
 
                                 <!-- 番組名 & 概要 -->
                                 <td class="px-4 py-3.5">
-                                    <div
-                                        class="font-bold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400"
-                                    >
+                                    <div class="program-title hover:text-blue-600 dark:hover:text-blue-400">
                                         {item.name}
                                     </div>
                                     {#if item.description}
-                                        <p class="mt-0.5 line-clamp-1 text-xs text-slate-400">{item.description}</p>
+                                        <p class="program-summary mt-0.5 line-clamp-1">{item.description}</p>
                                     {/if}
                                     {#if item.isRecording}
                                         <div class="mt-1.5 flex items-center gap-2 max-w-xs">
                                             <div
-                                                class="h-1.5 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950"
+                                                class="h-2 flex-1 overflow-hidden rounded-full bg-rose-200 dark:bg-rose-950"
                                             >
                                                 <div
                                                     class="h-full rounded-full bg-rose-600 transition-all duration-500"
@@ -536,7 +703,7 @@
                                                 ></div>
                                             </div>
                                             <span
-                                                class="text-[10px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+                                                class="text-xs font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
                                             >
                                                 {getRecordingProgress(item.startAt, item.endAt)}%
                                             </span>
@@ -598,10 +765,10 @@
                                                         `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
                                                     );
                                                 }}
-                                                class="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-sm font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
                                                 title="放送中の番組を視聴"
                                             >
-                                                <Play size={12} fill="currentColor" /> 視聴
+                                                <Play size={14} fill="currentColor" /> 視聴
                                             </button>
                                         {/if}
                                         {#if !readOnlyStore.isReadOnly}
@@ -609,23 +776,23 @@
                                                 <button
                                                     type="button"
                                                     onclick={e => restoreSkip(item, e)}
-                                                    class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-1.5 text-sm font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
                                                     title="スキップを解除して予約を復活"
                                                 >
-                                                    <RotateCcw size={12} /> 復活
+                                                    <RotateCcw size={14} /> 復活
                                                 </button>
                                             {:else}
                                                 <button
                                                     type="button"
                                                     onclick={e => cancelReserve(item, e)}
-                                                    class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-1.5 text-sm font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
                                                     title={item.isRecording
                                                         ? '録画中の予約を取り消し（録画を停止）'
                                                         : item.ruleId
                                                           ? 'この回の録画をスキップ'
                                                           : '予約を取り消し'}
                                                 >
-                                                    <Trash2 size={12} /> キャンセル
+                                                    <Trash2 size={14} /> キャンセル
                                                 </button>
                                             {/if}
                                         {:else if !item.isRecording}
@@ -681,7 +848,7 @@
                             </span>
                         {/if}
                     </div>
-                    <h2 class="mt-2 text-base font-black text-slate-900 dark:text-slate-100">
+                    <h2 class="program-title-modal mt-2">
                         {item.name}
                     </h2>
                 </div>
@@ -696,10 +863,10 @@
             </div>
 
             <!-- モーダルコンテンツ -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+            <div class="flex-1 overflow-y-auto p-5 space-y-4">
                 <!-- 放送日時・状態 -->
                 <div
-                    class="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40 space-y-2"
+                    class="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40 space-y-2 text-xs sm:text-sm"
                 >
                     <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-bold">
                         <span class="flex items-center gap-1.5">
@@ -741,35 +908,33 @@
                 <!-- 番組概要 -->
                 {#if item.description}
                     <div>
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">番組概要</h4>
-                        <p
-                            class="leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20"
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1">番組概要</h4>
+                        <div
+                            class="program-description rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/20"
                         >
                             {item.description}
-                        </p>
+                        </div>
                     </div>
                 {/if}
 
                 <!-- 詳細情報 / 出演者 / あらすじ -->
                 {#if item.extended}
                     <div>
-                        <h4 class="font-bold text-slate-700 dark:text-slate-300 mb-1">詳細情報・出演者</h4>
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100 mb-1">詳細情報・出演者</h4>
                         <div
-                            class="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/20 max-h-52 overflow-y-auto"
+                            class="program-extended space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/20 max-h-52 overflow-y-auto"
                         >
                             {#if typeof item.extended === 'object'}
                                 {#each Object.entries(item.extended) as [key, value]}
                                     <div>
                                         <span class="font-bold text-blue-600 dark:text-blue-400">{key}:</span>
-                                        <p
-                                            class="mt-0.5 text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed"
-                                        >
+                                        <p class="mt-0.5 whitespace-pre-wrap leading-relaxed">
                                             {value}
                                         </p>
                                     </div>
                                 {/each}
                             {:else}
-                                <p class="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                <p class="whitespace-pre-wrap leading-relaxed">
                                     {item.extended}
                                 </p>
                             {/if}
@@ -828,14 +993,14 @@
                         </h4>
 
                         <!-- TS保存先 -->
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-2 gap-2.5">
                             <div>
-                                <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                <span class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                                     TS保存先 (親)
                                 </span>
                                 <select
                                     bind:value={saveParentDir}
-                                    class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                    class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                                 >
                                     <option value="">デフォルト</option>
                                     {#each storageDirs as dir}
@@ -844,44 +1009,44 @@
                                 </select>
                             </div>
                             <div>
-                                <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                <span class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                                     TS保存先 (サブ)
                                 </span>
                                 <input
                                     type="text"
                                     bind:value={saveSubDir}
                                     placeholder="サブディレクトリ (任意)"
-                                    class="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                                    class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
                                 />
                             </div>
                         </div>
 
                         <!-- エンコード設定 -->
-                        <div class="mt-3 space-y-2">
+                        <div class="mt-3.5 space-y-2.5">
                             <div class="flex items-center justify-between">
-                                <span class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                <span class="block text-sm font-bold text-slate-700 dark:text-slate-300">
                                     エンコード設定
                                 </span>
                                 {#if encRows.length < 3}
                                     <button
                                         type="button"
                                         onclick={addEncodeRow}
-                                        class="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                                        class="flex items-center gap-1.5 text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
                                     >
-                                        <Plus size={12} /> 追加
+                                        <Plus size={16} /> 追加
                                     </button>
                                 {/if}
                             </div>
 
                             {#each encRows as row, i}
                                 <div
-                                    class="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-800"
+                                    class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-600 dark:bg-slate-800"
                                 >
                                     <div class="flex items-center gap-2">
-                                        <span class="text-[11px] font-bold text-slate-400">#{i + 1}</span>
+                                        <span class="text-sm font-bold text-slate-400">#{i + 1}</span>
                                         <select
                                             bind:value={row.mode}
-                                            class="h-8 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                            class="h-9 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                                         >
                                             <option value="">エンコードなし</option>
                                             {#each encodeModes as mode}
@@ -892,17 +1057,18 @@
                                             <button
                                                 type="button"
                                                 onclick={() => removeEncodeRow(i)}
-                                                class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-700"
+                                                class="rounded-lg p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                                title="削除"
                                                 aria-label="エンコード行を削除"
                                             >
-                                                <Trash2 size={13} />
+                                                <Trash2 size={14} />
                                             </button>
                                         {/if}
                                     </div>
-                                    <div class="mt-2 grid grid-cols-2 gap-2">
+                                    <div class="mt-2.5 grid grid-cols-2 gap-2.5">
                                         <select
                                             bind:value={row.parentDir}
-                                            class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                            class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                                         >
                                             <option value="">保存先: デフォルト</option>
                                             {#each storageDirs as dir}
@@ -913,36 +1079,29 @@
                                             type="text"
                                             bind:value={row.subDir}
                                             placeholder="サブディレクトリ (任意)"
-                                            class="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
+                                            class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500"
                                         />
                                     </div>
                                 </div>
                             {/each}
                         </div>
 
-                        <!-- TSファイル削除 -->
-                        <label class="mt-3 flex cursor-pointer items-center gap-2">
-                            <input
-                                type="checkbox"
-                                bind:checked={isDeleteOriginal}
-                                class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
-                            />
-                            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                エンコード完了後に元のTSファイルを削除する
-                            </span>
-                        </label>
+                        <!-- TSファイル削除 & 末尾欠け許可 -->
+                        <div class="mt-3.5 space-y-2.5">
+                            <label class="flex cursor-pointer items-center gap-2.5">
+                                <input type="checkbox" bind:checked={isDeleteOriginal} class="form-checkbox" />
+                                <span class="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                    エンコード完了後に元TSファイルを自動削除
+                                </span>
+                            </label>
 
-                        <!-- 末尾欠け許可 -->
-                        <label class="mt-3 flex cursor-pointer items-center gap-2">
-                            <input
-                                type="checkbox"
-                                bind:checked={allowEndLack}
-                                class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600"
-                            />
-                            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                状況に応じて末尾が欠けることを許可する
-                            </span>
-                        </label>
+                            <label class="flex cursor-pointer items-center gap-2.5">
+                                <input type="checkbox" bind:checked={allowEndLack} class="form-checkbox" />
+                                <span class="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                    チューナー競合時の末尾切れを許可
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 {/if}
             </div>

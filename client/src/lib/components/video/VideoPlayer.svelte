@@ -6,7 +6,7 @@
     import VideoControls from './VideoControls.svelte';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
-    import { Play, Loader2, AlertCircle } from '@lucide/svelte';
+    import { Play, Pause, RotateCcw, RotateCw, Loader2, AlertCircle } from '@lucide/svelte';
 
     interface Props {
         src: string;
@@ -74,23 +74,55 @@
     // シーク可能かどうか
     let canSeek = $derived(!isLive && displayDuration > 0 && Number.isFinite(displayDuration));
 
-    let hideControlsTimer: any = null;
+    let hideControlsTimer: ReturnType<typeof setTimeout> | null = null;
     let lastLoadedSrc = '';
     let lastLoadedType = '';
     let lastSavedSecond = -1;
 
     function resetHideControlsTimer() {
         showControls = true;
-        if (hideControlsTimer) clearTimeout(hideControlsTimer);
+        if (hideControlsTimer) {
+            clearTimeout(hideControlsTimer);
+            hideControlsTimer = null;
+        }
         if (isPlaying) {
             hideControlsTimer = setTimeout(() => {
                 showControls = false;
-            }, 3000);
+            }, 3500);
         }
     }
 
-    function formatTime(seconds: number): string {
-        return formatPlayerTime(seconds);
+    function pauseHideControlsTimer() {
+        if (hideControlsTimer) {
+            clearTimeout(hideControlsTimer);
+            hideControlsTimer = null;
+        }
+    }
+
+    function handlePointerMove(e: PointerEvent) {
+        // タッチデバイス（スマホ・タブレット等）のタッチ移動は無視（PCマウスの移動時のみコントロールを表示）
+        if (e.pointerType === 'touch') return;
+        resetHideControlsTimer();
+    }
+
+    function handlePointerLeave(e: PointerEvent) {
+        if (e.pointerType === 'touch') return;
+        if (isPlaying) {
+            showControls = false;
+            pauseHideControlsTimer();
+        }
+    }
+
+    function handleOverlayClick(e: MouseEvent) {
+        e.stopPropagation();
+        if (!showControls) {
+            // コントロール非表示時：動画の再生・停止は行わず、コントロールを表示するのみ
+            resetHideControlsTimer();
+        } else {
+            // コントロール表示時：背景タップでコントロールを即座に隠す
+            showControls = false;
+            pauseHideControlsTimer();
+        }
     }
 
     // 再生 / 一時停止
@@ -491,10 +523,8 @@
 
 <div
     bind:this={containerElement}
-    onmousemove={resetHideControlsTimer}
-    onmouseleave={() => {
-        if (isPlaying) showControls = false;
-    }}
+    onpointermove={handlePointerMove}
+    onpointerleave={handlePointerLeave}
     class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none"
     role="region"
     aria-label="動画プレーヤー"
@@ -502,7 +532,6 @@
     <!-- ビデオ本体 -->
     <video
         bind:this={videoElement}
-        onclick={togglePlay}
         onplay={() => {
             isPlaying = true;
             if (videoElement) {
@@ -513,6 +542,7 @@
         onpause={() => {
             isPlaying = false;
             showControls = true;
+            pauseHideControlsTimer();
         }}
         onwaiting={() => (isLoading = true)}
         onplaying={() => {
@@ -542,6 +572,7 @@
         onended={() => {
             isPlaying = false;
             showControls = true;
+            pauseHideControlsTimer();
             if (recordedId) playerState.clearPosition(recordedId);
             if (props.onStreamEnded) props.onStreamEnded();
         }}
@@ -553,7 +584,7 @@
                     : '動画の再生に失敗しました';
             }
         }}
-        class="h-full w-full object-contain cursor-pointer"
+        class="h-full w-full object-contain"
         playsinline
     >
         {#if vttSrc}
@@ -566,10 +597,19 @@
         aria-hidden="true"
     ></div>
 
+    <!-- タップ / クリック判定用オーバーレイ (非表示時はコントロール表示、表示時は非表示化) -->
+    <button
+        type="button"
+        onclick={handleOverlayClick}
+        class="absolute inset-0 z-10 h-full w-full cursor-pointer border-none bg-transparent p-0 focus:outline-hidden touch-manipulation"
+        tabindex="-1"
+        aria-label={showControls ? 'コントロールを非表示' : 'コントロールを表示'}
+    ></button>
+
     <!-- ローディングスピナー -->
     {#if isLoading && !errorMessage}
         <div
-            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-2xs"
+            class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30 backdrop-blur-2xs"
         >
             <Loader2 size={48} class="animate-spin text-blue-500" />
         </div>
@@ -577,7 +617,9 @@
 
     <!-- エラー表示 -->
     {#if errorMessage}
-        <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 p-6 text-center text-white">
+        <div
+            class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 p-6 text-center text-white"
+        >
             <AlertCircle size={48} class="text-rose-500" />
             <p class="mt-3 text-sm font-bold">{errorMessage}</p>
             <button
@@ -621,22 +663,67 @@
     <!-- タイトルバー (上部オーバーレイ) -->
     {#if title && showControls}
         <div
-            class="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
+            class="pointer-events-none absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
         >
             <h2 class="truncate text-sm font-bold text-white drop-shadow-md">{title}</h2>
         </div>
     {/if}
 
-    <!-- 中央クイック再生/一時停止バッジ (画面クリック時) -->
-    {#if !isPlaying && !isLoading && showControls}
+    {#snippet seekButton(offset: number, iconType: 'ccw' | 'cw', label: string, title: string)}
         <button
             type="button"
-            onclick={togglePlay}
-            class="absolute z-20 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600/90 text-white shadow-2xl transition hover:scale-110 hover:bg-blue-600"
-            aria-label="再生"
+            onclick={e => {
+                e.stopPropagation();
+                seekRelative(offset);
+            }}
+            class="pointer-events-auto relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/20 text-white shadow-lg backdrop-blur-xs transition hover:scale-110 hover:bg-black/40 active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
+            {title}
+            aria-label={title}
         >
-            <Play size={28} fill="currentColor" class="translate-x-0.5" />
+            {#if iconType === 'ccw'}
+                <RotateCcw class="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={1.75} />
+            {:else}
+                <RotateCw class="h-10 w-10 sm:h-11 sm:w-11" strokeWidth={1.75} />
+            {/if}
+            <span
+                class="absolute inset-0 flex items-center justify-center text-[10px] sm:text-[11px] font-black tracking-tighter select-none pt-0.5"
+            >
+                {label}
+            </span>
         </button>
+    {/snippet}
+
+    <!-- 中央クイック操作ボタン群 (スマホでも快適にタップ可能) -->
+    {#if showControls && !isLoading && !errorMessage}
+        <div
+            class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-5 sm:gap-10 transition-opacity duration-200"
+        >
+            {#if canSeek}
+                {@render seekButton(-10, 'ccw', '-10s', '10秒戻る')}
+            {/if}
+
+            <button
+                type="button"
+                onclick={e => {
+                    e.stopPropagation();
+                    togglePlay();
+                    resetHideControlsTimer();
+                }}
+                class="pointer-events-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-blue-600/35 text-white shadow-xl backdrop-blur-xs transition hover:scale-110 hover:bg-blue-600/60 active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
+                title={isPlaying ? '一時停止' : '再生'}
+                aria-label={isPlaying ? '一時停止' : '再生'}
+            >
+                {#if isPlaying}
+                    <Pause size={32} class="sm:scale-110" />
+                {:else}
+                    <Play size={32} fill="currentColor" class="translate-x-0.5 sm:scale-110" />
+                {/if}
+            </button>
+
+            {#if canSeek}
+                {@render seekButton(30, 'cw', '+30s', '30秒進む')}
+            {/if}
+        </div>
     {/if}
 
     <!-- コントロールバー (下部オーバーレイ) -->
@@ -653,7 +740,8 @@
         {isFullscreen}
         onTogglePlay={togglePlay}
         onSeekChange={handleSeekChange}
-        onSeekRelative={seekRelative}
+        onSeekStart={pauseHideControlsTimer}
+        onSeekEnd={resetHideControlsTimer}
         onToggleMute={toggleMute}
         onVolumeChange={handleVolumeChange}
         onSetPlaybackRate={setPlaybackRate}

@@ -1,18 +1,7 @@
 <script lang="ts">
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
-    import {
-        Play,
-        Pause,
-        Volume2,
-        VolumeX,
-        RotateCcw,
-        Maximize,
-        Minimize,
-        PictureInPicture,
-        FastForward,
-        Subtitles,
-    } from '@lucide/svelte';
+    import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, PictureInPicture, Subtitles } from '@lucide/svelte';
 
     interface Props {
         isPlaying: boolean;
@@ -27,7 +16,8 @@
         isFullscreen: boolean;
         onTogglePlay: () => void;
         onSeekChange: (e: Event) => void;
-        onSeekRelative: (offset: number) => void;
+        onSeekStart?: () => void;
+        onSeekEnd?: () => void;
         onToggleMute: () => void;
         onVolumeChange: (e: Event) => void;
         onSetPlaybackRate: (rate: number) => void;
@@ -49,7 +39,8 @@
         isFullscreen,
         onTogglePlay,
         onSeekChange,
-        onSeekRelative,
+        onSeekStart,
+        onSeekEnd,
         onToggleMute,
         onVolumeChange,
         onSetPlaybackRate,
@@ -59,13 +50,27 @@
     }: Props = $props();
 
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+    let canShowSubtitle = $derived(
+        isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts' || streamType === 'direct',
+    );
+
+    function handleSliderEnd(e: Event) {
+        (e.currentTarget as HTMLElement)?.blur();
+        onSeekEnd?.();
+    }
 </script>
 
 <!-- コントロールバー (下部オーバーレイ) -->
 <div
     class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
-        ? 'opacity-100'
+        ? 'opacity-100 pointer-events-auto'
         : 'opacity-0 pointer-events-none'}"
+    onclick={e => e.stopPropagation()}
+    onkeydown={e => e.stopPropagation()}
+    role="presentation"
+    inert={!showControls || undefined}
+    aria-hidden={!showControls}
 >
     <!-- シークバー (シーク可能時のみ表示) -->
     {#if canSeek}
@@ -81,10 +86,11 @@
                     step="1"
                     value={currentTime}
                     oninput={onSeekChange}
-                    onchange={e => (e.currentTarget as HTMLElement)?.blur()}
-                    onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
+                    onpointerdown={() => onSeekStart?.()}
+                    onpointerup={handleSliderEnd}
+                    onchange={handleSliderEnd}
                     tabindex="-1"
-                    class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2.5"
+                    class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2.5 touch-none"
                 />
             </div>
             <span class="text-xs font-medium text-slate-300 min-w-[36px]">{formatPlayerTime(displayDuration)}</span>
@@ -98,7 +104,7 @@
             <button
                 type="button"
                 onclick={onTogglePlay}
-                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition"
+                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition touch-manipulation cursor-pointer"
                 title={isPlaying ? '一時停止 (Space)' : '再生 (Space)'}
             >
                 {#if isPlaying}
@@ -108,33 +114,12 @@
                 {/if}
             </button>
 
-            {#if !isLive}
-                <button
-                    type="button"
-                    onclick={() => onSeekRelative(-10)}
-                    class="rounded-lg p-1.5 text-white hover:bg-white/20 transition"
-                    title="10秒戻る (←)"
-                >
-                    <RotateCcw size={18} />
-                </button>
-
-                <button
-                    type="button"
-                    onclick={() => onSeekRelative(30)}
-                    class="flex items-center gap-0.5 rounded-lg px-2 py-1 text-xs font-bold text-white hover:bg-white/20 transition"
-                    title="30秒スキップ (CM送り)"
-                >
-                    <FastForward size={16} />
-                    <span class="text-[10px]">+30s</span>
-                </button>
-            {/if}
-
             <!-- 音量 & ミュート -->
             <div class="flex items-center gap-1 ml-1">
                 <button
                     type="button"
                     onclick={onToggleMute}
-                    class="rounded-lg p-1.5 text-white hover:bg-white/20 transition"
+                    class="rounded-lg p-1.5 text-white hover:bg-white/20 transition touch-manipulation cursor-pointer"
                     title={playerState.isMuted ? 'ミュート解除 (M)' : 'ミュート (M)'}
                 >
                     {#if playerState.isMuted || playerState.volume === 0}
@@ -150,8 +135,9 @@
                     step="0.05"
                     value={playerState.isMuted ? 0 : playerState.volume}
                     oninput={onVolumeChange}
-                    onchange={e => (e.currentTarget as HTMLElement)?.blur()}
-                    onpointerup={e => (e.currentTarget as HTMLElement)?.blur()}
+                    onpointerdown={() => onSeekStart?.()}
+                    onpointerup={handleSliderEnd}
+                    onchange={handleSliderEnd}
                     tabindex="-1"
                     class="hidden sm:block h-1 w-16 cursor-pointer appearance-none rounded-full bg-slate-600 accent-white"
                 />
@@ -179,7 +165,7 @@
                         const nextRate = idx !== -1 ? cycle[(idx + 1) % cycle.length] : 1.0;
                         onSetPlaybackRate(nextRate);
                     }}
-                    class="sm:hidden rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-white hover:bg-white/20 transition cursor-pointer"
+                    class="sm:hidden rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-white hover:bg-white/20 transition cursor-pointer touch-manipulation"
                     title="タップで速度切り替え"
                 >
                     {playerState.playbackRate}x
@@ -191,7 +177,8 @@
                         <button
                             type="button"
                             onclick={() => onSetPlaybackRate(rate)}
-                            class="rounded px-1.5 py-0.5 transition cursor-pointer {playerState.playbackRate === rate
+                            class="rounded px-1.5 py-0.5 transition cursor-pointer touch-manipulation {playerState.playbackRate ===
+                            rate
                                 ? 'bg-blue-600 text-white'
                                 : 'text-slate-300 hover:text-white'}"
                         >
@@ -202,11 +189,11 @@
             {/if}
 
             <!-- 字幕切り替えボタン (HLS / M2TS 配信時、または直接再生時) -->
-            {#if isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts' || streamType === 'direct'}
+            {#if canShowSubtitle}
                 <button
                     type="button"
                     onclick={onToggleSubtitle}
-                    class="rounded-lg p-1.5 transition {isSubtitleOn
+                    class="rounded-lg p-1.5 transition touch-manipulation cursor-pointer {isSubtitleOn
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'text-slate-300 hover:text-white hover:bg-white/20'}"
                     title={isSubtitleOn ? '字幕を非表示 (C)' : '字幕を表示 (C)'}
@@ -219,7 +206,7 @@
             <button
                 type="button"
                 onclick={onTogglePiP}
-                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition hidden sm:block"
+                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition hidden sm:block touch-manipulation cursor-pointer"
                 title="ピクチャー・イン・ピクチャー"
             >
                 <PictureInPicture size={18} />
@@ -228,7 +215,7 @@
             <button
                 type="button"
                 onclick={onToggleFullscreen}
-                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition"
+                class="rounded-lg p-1.5 text-white hover:bg-white/20 transition touch-manipulation cursor-pointer"
                 title="全画面表示 (F)"
             >
                 {#if isFullscreen}

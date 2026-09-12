@@ -143,22 +143,23 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await expect(recordingTab).toBeVisible();
 
         // 2. テーブル行に「現在録画中アニメ番組」と「未来の通常予約番組」が表示されていることを確認
-        await expect(page.getByText('現在録画中アニメ番組')).toBeVisible();
-        await expect(page.getByText('未来の通常予約番組')).toBeVisible();
+        const table = page.getByRole('table');
+        await expect(table.getByText('現在録画中アニメ番組')).toBeVisible();
+        await expect(table.getByText('未来の通常予約番組')).toBeVisible();
 
         // 3. 録画中行のバッジ（● 録画中）と進行度（50%）および視聴ボタンを確認
-        await expect(page.getByText('● 録画中').first()).toBeVisible();
-        await expect(page.getByText(/50%/)).toBeVisible();
-        const watchBtn = page.getByRole('button', { name: /視聴/ });
+        await expect(table.getByText('● 録画中')).toBeVisible();
+        await expect(table.getByText(/50%/)).toBeVisible();
+        const watchBtn = table.getByRole('button', { name: /視聴/ });
         await expect(watchBtn).toBeVisible();
 
         // 4. 「録画中 (1)」タブをクリックして絞り込み確認
         await recordingTab.click();
-        await expect(page.getByText('現在録画中アニメ番組')).toBeVisible();
-        await expect(page.getByText('未来の通常予約番組')).not.toBeVisible();
+        await expect(table.getByText('現在録画中アニメ番組')).toBeVisible();
+        await expect(table.getByText('未来の通常予約番組')).not.toBeVisible();
 
         // 5. 録画中行をクリックして詳細モーダルを開く
-        await page.getByText('現在録画中アニメ番組').click();
+        await table.getByText('現在録画中アニメ番組').click();
         await expect(page.getByRole('dialog')).toBeVisible();
 
         // モーダル内の録画中バッジ、進行中テキスト、ライブ視聴ボタンを確認
@@ -205,7 +206,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
             discardCalled = true;
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
         });
-        await page.getByText('現在録画中アニメ番組', { exact: true }).click();
+        await table.getByText('現在録画中アニメ番組').click();
         await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
         await expect(actionModal).toBeVisible();
         await actionModal.getByRole('button', { name: /録画を取り消し（ファイルを破棄）/ }).click();
@@ -213,7 +214,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(discardCalled).toBe(true);
 
         // 再度展開して「完了として保存」をテスト
-        await page.getByText('現在録画中アニメ番組', { exact: true }).click();
+        await table.getByText('現在録画中アニメ番組').click();
         await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
         await expect(actionModal).toBeVisible();
         await actionModal.getByRole('button', { name: /完了として保存/ }).click();

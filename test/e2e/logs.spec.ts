@@ -62,11 +62,11 @@ test.describe('System Logs Page (/logs)', () => {
         if (isInitiallyFollowing) {
             await expect(followButton).toHaveText(/追尾停止中/);
         } else {
-            await expect(followButton).toHaveText(/追尾中 \(tail -f\)/);
+            await expect(followButton).toHaveText(/リアルタイム追尾中/);
         }
         await followButton.click();
         if (isInitiallyFollowing) {
-            await expect(followButton).toHaveText(/追尾中 \(tail -f\)/);
+            await expect(followButton).toHaveText(/リアルタイム追尾中/);
         } else {
             await expect(followButton).toHaveText(/追尾停止中/);
         }

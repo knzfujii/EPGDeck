@@ -1392,6 +1392,7 @@
                                     <div class="flex items-center gap-2 shrink-0">
                                         <button
                                             type="button"
+                                            data-testid="select-all-channels-btn"
                                             onclick={selectAllChannels}
                                             class="h-9 rounded-xl bg-blue-50 px-3.5 text-sm font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer transition-colors"
                                         >
@@ -1400,6 +1401,7 @@
                                         {#if selectedChannelIds.length > 0}
                                             <button
                                                 type="button"
+                                                data-testid="clear-channels-btn"
                                                 onclick={clearAllChannels}
                                                 class="h-9 rounded-xl bg-amber-50 px-3.5 text-sm font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer transition-colors"
                                             >

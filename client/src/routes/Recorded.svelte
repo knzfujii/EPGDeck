@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -169,22 +169,24 @@
         const qPage = q.page ? parseInt(q.page, 10) : 1;
 
         let hasChanged = false;
-        if (qKeyword !== keyword) {
-            keyword = qKeyword;
-            hasChanged = true;
-        }
-        if (qGenre !== selectedGenre) {
-            selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
-            hasChanged = true;
-        }
-        if (qRuleId !== selectedRuleId) {
-            selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
-            hasChanged = true;
-        }
-        if (qPage !== currentPage) {
-            currentPage = Number.isNaN(qPage) ? 1 : qPage;
-            hasChanged = true;
-        }
+        untrack(() => {
+            if (qKeyword !== keyword) {
+                keyword = qKeyword;
+                hasChanged = true;
+            }
+            if (qGenre !== selectedGenre) {
+                selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
+                hasChanged = true;
+            }
+            if (qRuleId !== selectedRuleId) {
+                selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
+                hasChanged = true;
+            }
+            if (qPage !== currentPage) {
+                currentPage = Number.isNaN(qPage) ? 1 : qPage;
+                hasChanged = true;
+            }
+        });
 
         if (hasChanged) {
             fetchRecorded();

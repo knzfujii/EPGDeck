@@ -326,4 +326,171 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should filter recorded items by rule and date (year/month), and allow clearing filters', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // モックルールと録画データ
+        await page.route('**/api/rules?*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    rules: [
+                        { id: 10, searchOption: { keyword: 'アニメ録画ルール' } },
+                        { id: 20, searchOption: { keyword: 'ドラマ録画ルール' } },
+                    ],
+                    total: 2,
+                }),
+            });
+        });
+
+        await page.route('**/api/recorded*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    records: [
+                        {
+                            id: 301,
+                            channelId: 1,
+                            startAt: Date.now() - 3600000,
+                            endAt: Date.now(),
+                            name: 'ルール対象アニメ番組',
+                            description: 'アニメ詳細',
+                            isRecording: false,
+                            isEncoding: false,
+                            isProtected: false,
+                            videoFiles: [],
+                        },
+                    ],
+                    total: 1,
+                }),
+            });
+        });
+
+        await page.goto('/recorded');
+        await page.waitForLoadState('networkidle');
+
+        // 1. ルール選択セレクトボックスの存在確認と選択
+        const ruleSelect = page.locator('select').first();
+        await expect(ruleSelect).toBeVisible();
+
+        // ルール10を選択
+        await ruleSelect.selectOption('10');
+        await page.waitForURL(/ruleId=10/);
+
+        // ルール絞り込み解除ボタン (X) が表示されることを確認
+        const clearRuleBtn = page.getByTitle('ルール絞り込みを解除').first();
+        await expect(clearRuleBtn).toBeVisible();
+
+        // 解除ボタンをクリックしてリセット
+        await clearRuleBtn.click();
+        await expect(clearRuleBtn).not.toBeVisible();
+
+        // 2. 年月選択セレクトボックスの操作
+        const yearSelect = page.locator('select').filter({ hasText: /年/ });
+        if (await yearSelect.isVisible()) {
+            const currentYear = new Date().getFullYear();
+            await yearSelect.selectOption(String(currentYear));
+
+            const clearDateBtn = page.getByTitle('年月指定を解除').first();
+            await expect(clearDateBtn).toBeVisible();
+            await clearDateBtn.click();
+            await expect(clearDateBtn).not.toBeVisible();
+        }
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should display drop logs and quality metrics on recorded detail page', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // モック録画詳細データ（ドロップログ付き）
+        const mockDetail = {
+            id: 501,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now(),
+            name: '品質検証対象番組 (ドロップあり)',
+            description: '番組詳細情報',
+            extended: { 詳細情報: 'テキスト' },
+            isRecording: false,
+            isEncoding: false,
+            isProtected: false,
+            videoFiles: [{ id: 1, name: 'TS', filename: 'drop_test.ts', type: 'ts', size: 1024 * 1024 * 50 }],
+            dropLogFile: {
+                id: 99,
+                dropCnt: 12,
+                errorCnt: 3,
+                scramblingCnt: 0,
+            },
+        };
+
+        await page.route('**/api/recorded/501*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockDetail),
+            });
+        });
+
+        await page.route('**/api/dropLogs/99', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'text/plain',
+                body: 'pid: 0x0100, drop: 12, error: 3',
+            });
+        });
+
+        await page.goto('/recorded/detail?recordedId=501');
+        await page.waitForLoadState('networkidle');
+
+        // 番組タイトルが表示されることを確認
+        await expect(page.locator('h1')).toContainText('品質検証対象番組 (ドロップあり)');
+
+        // ドロップログボタンをクリックしてモーダルを開く
+        const dropLogBtn = page.getByRole('button', { name: 'ドロップログ' });
+        await expect(dropLogBtn).toBeVisible();
+        await dropLogBtn.click();
+
+        // ドロップ情報モーダルの各メトリクスが表示されることを確認
+        const dropModal = page.getByRole('dialog');
+        await expect(dropModal).toBeVisible();
+        await expect(dropModal.getByText('ドロップ', { exact: true })).toBeVisible();
+        await expect(dropModal.getByText('12', { exact: true })).toBeVisible();
+        await expect(dropModal.getByText('エラー', { exact: true })).toBeVisible();
+        await expect(dropModal.getByText('3', { exact: true })).toBeVisible();
+        await expect(dropModal.locator('pre')).toContainText('pid: 0x0100, drop: 12, error: 3');
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

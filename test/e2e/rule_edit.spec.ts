@@ -40,9 +40,9 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(page.getByPlaceholder(/再放送/)).toBeVisible();
 
         // 4. 予約設定のチェックボックス
-        await expect(page.getByText('このルールを有効化する')).toBeVisible();
-        await expect(page.getByText('重複録画を回避する')).toBeVisible();
-        await expect(page.getByText('末尾切れを許可する')).toBeVisible();
+        await expect(page.getByText('ルールを有効にする')).toBeVisible();
+        await expect(page.getByText('同一番組の二重録画を防止')).toBeVisible();
+        await expect(page.getByText('チューナー競合時の末尾切れを許可')).toBeVisible();
 
         // 5. 保存先ストレージ
         await expect(page.getByText('親保存先ストレージ')).toBeVisible();
@@ -146,8 +146,8 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const detailBtn = page.getByRole('button', { name: /詳細条件/ });
         await detailBtn.click();
 
-        // 1. 初期状態: 放送波一括指定モード
-        await expect(page.getByText('放送波一括指定モード')).toBeVisible();
+        // 1. 初期状態: 放送波一括指定
+        await expect(page.getByText('対象放送波（一括指定）')).toBeVisible();
 
         const grCheckbox = page.getByLabel('地デジ (GR)');
         const bsCheckbox = page.getByLabel('BS');
@@ -162,12 +162,11 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(page.getByText('NHK総合1')).toBeVisible();
 
         // 2. 全選択ボタンをクリックして局を個別指定する
-        const selectAllBtn = page.getByRole('button', { name: '全選択' });
+        const selectAllBtn = page.getByTestId('select-all-channels-btn');
         await selectAllBtn.click();
 
-        // 個別指定モード優先中バッジが表示される
-        await expect(page.getByText(/個別指定モード優先中/)).toBeVisible();
-        await expect(page.getByText(/※ 下記で放送局が個別指定されているため無効/)).toBeVisible();
+        // 個別指定モードのメッセージ・バッジが表示される
+        await expect(page.getByText(/下記で放送局が個別指定されているため無効/)).toBeVisible();
 
         // 放送波チェックボックスが disabled になる
         await expect(grCheckbox).toBeDisabled();
@@ -175,12 +174,12 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(csCheckbox).toBeDisabled();
 
         // 3. クリアボタンで放送波指定モードに復帰する
-        const clearBtn = page.getByRole('button', { name: 'クリア (放送波指定に戻す)' });
+        const clearBtn = page.getByTestId('clear-channels-btn');
         await expect(clearBtn).toBeVisible();
         await clearBtn.click();
 
         // 放送波一括指定モードに戻り、チェックボックスが再び操作可能になる
-        await expect(page.getByText('放送波一括指定モード')).toBeVisible();
+        await expect(page.getByText('対象放送波（一括指定）')).toBeVisible();
         await expect(grCheckbox).toBeEnabled();
         await expect(bsCheckbox).toBeEnabled();
         await expect(csCheckbox).toBeEnabled();
@@ -212,27 +211,27 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const detailBtn = page.getByRole('button', { name: /詳細条件/ });
         await detailBtn.click();
 
-        // 1. 初期状態: 未選択（すべてのジャンルが対象）
-        await expect(page.getByText('※ 未選択時は「すべてのジャンル」が対象になります')).toBeVisible();
+        // 1. 初期状態: 未選択
+        await expect(page.getByText(/未選択時は全ジャンルが対象です/)).toBeVisible();
 
         // 2. 子ジャンルバッジの個別クリック: 「国内アニメ」をクリック
         const domesticAnimeBtn = page.getByRole('button', { name: '国内アニメ' });
         await domesticAnimeBtn.click();
         await expect(domesticAnimeBtn).toHaveClass(/border-blue-500/);
 
-        // 3. 親ジャンルの「一括選択 (すべて)」をクリック: 「映画」ジャンル
-        const movieCard = page.locator('div', { hasText: /^映画/ }).first();
-        const movieAllBtn = movieCard.getByRole('button', { name: '一括選択 (すべて)' });
+        // 3. 親ジャンルの一括選択: 「映画」ジャンル
+        const movieCard = page.locator('#rule-genre-container').locator('div', { hasText: '映画' }).first();
+        const movieAllBtn = movieCard.getByRole('button', { name: '全選択' });
         await movieAllBtn.click();
-        await expect(movieCard.getByRole('button', { name: 'ジャンル解除' })).toBeVisible();
+        await expect(movieCard.getByText('全選択中')).toBeVisible();
 
         // 4. 全解除ボタンをクリック
-        const clearBtn = page.getByRole('button', { name: '全解除 (すべて対象)' });
+        const clearBtn = page.getByRole('button', { name: '全解除' });
         await expect(clearBtn).toBeVisible();
         await clearBtn.click();
 
         // 5. 未選択状態に戻る
-        await expect(page.getByText('※ 未選択時は「すべてのジャンル」が対象になります')).toBeVisible();
+        await expect(page.getByText(/未選択時は全ジャンルが対象です/)).toBeVisible();
         await expect(clearBtn).not.toBeVisible();
 
         expect(pageErrors).toEqual([]);

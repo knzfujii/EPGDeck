@@ -15,6 +15,7 @@
         getGenreBadgeClass,
     } from '../lib/utils/format';
     import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
+    import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
@@ -26,7 +27,7 @@
         Unlock,
         Trash2,
         Download,
-        Share2,
+        ExternalLink,
         Clock,
         Tv,
         FileVideo,
@@ -46,6 +47,7 @@
     let isLoading = $state(true);
     let isStreamModalOpen = $state(false);
     let streamModalVideoFileId = $state<number | undefined>(undefined);
+    const isMobileDevice = isMobileOrTabletDevice();
 
     // エンコード追加モーダル
     interface EncodePresetSelection {
@@ -257,6 +259,23 @@
             console.error('Failed to delete video file', e);
             snackbar.open({ text: 'ファイルの削除に失敗しました', color: 'error' });
         }
+    }
+
+    // 外部プレイヤー起動 (VLC / インテント等)
+    function playWithExternalApp(fileId: number, filename?: string) {
+        void openWithExternalPlayer({
+            category: 'video',
+            path: `/api/videos/${fileId}`,
+            filename,
+            token: readOnlyStore.token,
+            config: readOnlyStore.serverConfig?.urlscheme,
+            onClipboardCopied: () => {
+                snackbar.open({
+                    text: 'ストリームURLをクリップボードにコピーしました（VLC等で開けます）',
+                    color: 'success',
+                });
+            },
+        });
     }
 
     // ドロップログ表示
@@ -732,6 +751,18 @@
                                 </button>
                             {/if}
 
+                            <!-- 外部プレーヤー起動 (スマホ・タブレットのみ) -->
+                            {#if isMobileDevice && readOnlyStore.canPlayRecorded([file])}
+                                <button
+                                    type="button"
+                                    onclick={() => playWithExternalApp(file.id, file.filename)}
+                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
+                                    title="外部プレーヤーで再生 (VLC等)"
+                                >
+                                    <ExternalLink size={13} /> 外部再生
+                                </button>
+                            {/if}
+
                             <!-- ダウンロード -->
                             {#if readOnlyStore.canDownload}
                                 <a
@@ -741,18 +772,6 @@
                                     title="ファイルをダウンロード"
                                 >
                                     <Download size={13} />
-                                </a>
-                            {/if}
-
-                            <!-- M3U プレイリスト -->
-                            {#if readOnlyStore.canDownload}
-                                <a
-                                    href={`/api/videos/${file.id}/playlist${readOnlyStore.token ? `?token=${readOnlyStore.token}` : ''}`}
-                                    download
-                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
-                                    title="VLC/Infuse 向け M3U プレイリスト"
-                                >
-                                    <Share2 size={13} /> M3U
                                 </a>
                             {/if}
 

@@ -52,3 +52,4 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 | **UI/UX・レスポンシブ** | 予約一覧のスマホ2段タブ最適化、ルール編集/削除ディバイダー、フォントサイズ統一、`no-scrollbar` | [画面変更仕様書](dev/epgdeck_change_spec.md#63-レスポンシブ--誤操作防止) |
 | **ドロップログ最適化** | 0件時ログ実ファイル自動削除（`deleteOnNoDrop`）、DB履歴永続保持、走査高速化（Set化） | [録画マニュアル](manual/recording.md#9-ドロップチェックとログ管理drop-log)、[アーキテクチャ](dev/architecture.md#3-バックエンド設計パターン) |
 | **スマホ動画操作改善** | 背景タップでのコントロール表示/非表示、誤停止防止、中央クイック操作ボタン群（-10s/再生/+30s） | [画面変更仕様書](dev/epgdeck_change_spec.md#37-統合動画プレーヤー-watchsvelte--videoplayersvelte) |
+| **外部プレイヤー連携** | M3U 導線廃止、iOS (VLC)・Android (インテント) 外部プレイヤー直接起動、録画詳細・再生モーダル連動 | [画面変更仕様書](dev/epgdeck_change_spec.md#65-外部プレイヤー連携urlスキーム--インテント起動と-m3u-導線廃止) |

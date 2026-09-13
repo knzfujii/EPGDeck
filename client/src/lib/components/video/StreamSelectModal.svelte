@@ -1,7 +1,7 @@
 <script lang="ts">
     import { router } from '../../router.svelte';
     import { readOnlyStore } from '../../stores/readOnly.svelte';
-    import { Play, Radio, FileVideo, Download, X, Zap, CheckCircle2, Lock } from '@lucide/svelte';
+    import { Play, Radio, FileVideo, X, Zap, CheckCircle2, Lock } from '@lucide/svelte';
     import { formatSize } from '../../utils/format';
 
     import type * as apid from '../../../../../api';
@@ -336,25 +336,6 @@
                         </div>
                     {/if}
                 </div>
-
-                <!-- 外部アプリ連携導線 -->
-                {#if recordedId && selectedFileId && readOnlyStore.canDownload}
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                        <div>
-                            <span class="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                                外部プレーヤーで開く
-                            </span>
-                            <p class="text-xs text-slate-400">VLC / Infuse 向けの M3U プレイリスト</p>
-                        </div>
-                        <a
-                            href={`/api/videos/${selectedFileId}/playlist${readOnlyStore.token ? `?token=${readOnlyStore.token}` : ''}`}
-                            download
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                        >
-                            <Download size={15} /> M3U 保存
-                        </a>
-                    </div>
-                {/if}
 
                 <!-- ライブ配信時のチューナー注意案内 -->
                 {#if channelId}

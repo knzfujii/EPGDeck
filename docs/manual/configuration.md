@@ -277,11 +277,13 @@ urlscheme:
     ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
   video:
-    ios: infuse://x-callback-url/play?url=PROTOCOL://ADDRESS
+    ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
   download:
     ios: vlc-x-callback://x-callback-url/download?url=PROTOCOL%3A%2F%2FADDRESS&filename=FILENAME
 ```
+
+> **Note**: iOS で Infuse を使用したい場合は、`video.ios` に `infuse://x-callback-url/play?url=PROTOCOL://ADDRESS` を設定してください。
 
 ---
 

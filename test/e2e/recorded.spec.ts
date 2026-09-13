@@ -493,4 +493,57 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should control external player button visibility based on mobile/PC and display it next to play on mobile', async ({
+        browser,
+    }) => {
+        // モック録画詳細データ
+        const mockDetail = {
+            id: 502,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now(),
+            name: '外部プレイヤー連携検証番組',
+            description: '番組詳細情報',
+            extended: { 詳細情報: 'テキスト' },
+            isRecording: false,
+            isEncoding: false,
+            isProtected: false,
+            videoFiles: [{ id: 10, name: 'TS', filename: 'external_test.ts', type: 'ts', size: 1024 * 1024 * 100 }],
+        };
+
+        // 1. PC環境（デスクトップ）では外部再生ボタンが非表示であることを確認
+        const pcContext = await browser.newContext();
+        const pcPage = await pcContext.newPage();
+        await pcPage.route('**/api/recorded/502*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDetail) });
+        });
+        await pcPage.goto('/recorded/detail?recordedId=502');
+        await pcPage.waitForLoadState('networkidle');
+        await expect(pcPage.getByRole('button', { name: /外部再生/ })).toHaveCount(0);
+        await pcContext.close();
+
+        // 2. モバイル環境（iPhone）では再生ボタンの次に外部再生ボタンが表示され、クリックできることを確認
+        const mobileContext = await browser.newContext({
+            userAgent:
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+            viewport: { width: 390, height: 844 },
+        });
+        await mobileContext.grantPermissions(['clipboard-read', 'clipboard-write']);
+        const mobilePage = await mobileContext.newPage();
+        await mobilePage.route('**/api/recorded/502*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDetail) });
+        });
+        await mobilePage.goto('/recorded/detail?recordedId=502');
+        await mobilePage.waitForLoadState('networkidle');
+
+        const playBtn = mobilePage.getByRole('button', { name: /再生/ }).first();
+        const externalPlayBtn = mobilePage.getByRole('button', { name: /外部再生/ }).first();
+
+        await expect(playBtn).toBeVisible();
+        await expect(externalPlayBtn).toBeVisible();
+        await externalPlayBtn.click();
+
+        await mobileContext.close();
+    });
 });

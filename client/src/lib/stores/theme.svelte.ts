@@ -35,8 +35,18 @@ class ThemeStore {
         }
     }
 
+    cycleMode() {
+        if (this.mode === 'auto') {
+            this.setMode('light');
+        } else if (this.mode === 'light') {
+            this.setMode('dark');
+        } else {
+            this.setMode('auto');
+        }
+    }
+
     toggle() {
-        this.setMode(this.isDark ? 'light' : 'dark');
+        this.cycleMode();
     }
 
     setDark(val: boolean) {

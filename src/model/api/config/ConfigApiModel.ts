@@ -43,6 +43,8 @@ export default class ConfigApiModel implements IConfigApiModel {
             return e.name;
         });
 
+        result.copyKeywordToDirectory = config.recording.copyKeywordToDirectory ?? false;
+
         result.urlscheme = config.urlscheme
             ? {
                   m2ts: {

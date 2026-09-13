@@ -6,7 +6,7 @@
     import { readOnlyStore } from '../../stores/readOnly.svelte';
     import { confirmDialog } from '../../stores/confirm.svelte';
     import { snackbar } from '../../stores/snackbar.svelte';
-    import { Moon, Sun, Menu, Lock, Unlock } from '@lucide/svelte';
+    import { Moon, Sun, Monitor, Menu, Lock, Unlock } from '@lucide/svelte';
 
     let { title = 'EPGDeck', onToggleDrawer }: { title?: string; onToggleDrawer?: () => void } = $props();
 
@@ -94,14 +94,21 @@
 
         <button
             type="button"
-            onclick={() => themeStore.toggle()}
+            onclick={() => themeStore.cycleMode()}
             class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
             aria-label="テーマ切り替え"
+            title={themeStore.mode === 'auto'
+                ? 'テーマ: 自動 (OS準拠) - クリックでライトに変更'
+                : themeStore.mode === 'light'
+                  ? 'テーマ: ライト - クリックでダークに変更'
+                  : 'テーマ: ダーク - クリックで自動に変更'}
         >
-            {#if themeStore.isDark}
-                <Sun size={20} class="text-amber-400" />
+            {#if themeStore.mode === 'auto'}
+                <Monitor size={20} class="text-blue-600 dark:text-blue-400" />
+            {:else if themeStore.mode === 'light'}
+                <Sun size={20} class="text-amber-500" />
             {:else}
-                <Moon size={20} class="text-slate-600" />
+                <Moon size={20} class="text-indigo-400" />
             {/if}
         </button>
     </div>

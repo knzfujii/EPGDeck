@@ -279,4 +279,36 @@ describe('Structured Config Schema', () => {
         } as any);
         expect(confTrue.recording.dropLog.deleteOnNoDrop).toBe(true);
     });
+
+    it('should configure copyKeywordToDirectory correctly (default: false)', () => {
+        // 未指定時はデフォルト false
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.recording.copyKeywordToDirectory).toBe(false);
+
+        // 明示的に true を指定した場合
+        const confTrue = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                copyKeywordToDirectory: true,
+            },
+        } as any);
+        expect(confTrue.recording.copyKeywordToDirectory).toBe(true);
+
+        // 明示的に false を指定した場合
+        const confFalse = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                copyKeywordToDirectory: false,
+            },
+        } as any);
+        expect(confFalse.recording.copyKeywordToDirectory).toBe(false);
+    });
 });

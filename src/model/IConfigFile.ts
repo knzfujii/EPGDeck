@@ -127,6 +127,7 @@ export interface RecordingConfig {
     thumbnail: ThumbnailConfig;
     dropLog: DropLogConfig;
     uploadTempDir: string;
+    copyKeywordToDirectory?: boolean;
 }
 
 export interface EncodeBinariesConfig {

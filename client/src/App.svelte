@@ -27,8 +27,6 @@
         '/rule': () => import('./routes/Rule.svelte'),
         '/rule/edit': () => import('./routes/RuleEdit.svelte'),
         '/encode': () => import('./routes/Encode.svelte'),
-        '/storages': () => import('./routes/Storages.svelte'),
-        '/settings': () => import('./routes/Settings.svelte'),
         '/logs': () => import('./routes/Logs.svelte'),
     };
 

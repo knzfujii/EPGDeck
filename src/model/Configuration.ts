@@ -205,6 +205,12 @@ class Configuration implements IConfiguration {
             uploadTempDir: Configuration.directoryFormatting(
                 recConf.uploadTempDir || raw.uploadTempDir || path.join(Configuration.ROOT_PATH, 'data', 'upload'),
             ),
+            copyKeywordToDirectory:
+                typeof recConf.copyKeywordToDirectory === 'boolean'
+                    ? recConf.copyKeywordToDirectory
+                    : typeof raw.copyKeywordToDirectory === 'boolean'
+                      ? raw.copyKeywordToDirectory
+                      : false,
         };
 
         if (options.checkDirectories) {

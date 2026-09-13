@@ -216,6 +216,9 @@ components:
                     type: array
                     items:
                         type: string
+                copyKeywordToDirectory:
+                    description: ルール新規作成時にキーワードを保存先サブディレクトリに自動設定するか
+                    type: boolean
                 urlscheme:
                     description: URL Scheme 情報
                     type: object

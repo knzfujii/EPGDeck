@@ -10,7 +10,6 @@
         Search,
         SlidersHorizontal,
         Film,
-        Settings,
         Terminal,
         X,
     } from '@lucide/svelte';
@@ -56,10 +55,7 @@
             items.push({ label: 'エンコード一覧', path: '/encode', icon: Film });
         }
         if (!readOnlyStore.isReadOnly) {
-            items.push(
-                { label: 'システムログ', path: '/logs', icon: Terminal },
-                { label: '設定', path: '/settings', icon: Settings },
-            );
+            items.push({ label: 'システムログ', path: '/logs', icon: Terminal });
         }
         return items;
     });

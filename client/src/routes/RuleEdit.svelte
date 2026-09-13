@@ -391,8 +391,10 @@
             storageList = items.map((i: any) => i.name);
             const encList = configRes.data?.encode || [];
             encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
+            return configRes.data;
         } catch (e) {
             console.error('Failed to load options', e);
+            return null;
         }
     }
 
@@ -551,7 +553,7 @@
             router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded');
             return;
         }
-        await initOptions();
+        const serverConfig = await initOptions();
 
         const idParam = router.current.query['ruleId'];
         if (idParam) {
@@ -569,6 +571,9 @@
             const q = router.current.query;
             if (q['keyword']) {
                 keyword = q['keyword'];
+                if (serverConfig?.copyKeywordToDirectory) {
+                    directory = q['keyword'].trim();
+                }
                 isName = q['name'] !== '0';
                 isDescription = q['description'] !== '0';
                 if (q['genre']) {

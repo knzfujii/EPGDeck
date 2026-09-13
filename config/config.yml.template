@@ -101,6 +101,7 @@ recording:
     path: '%ROOT%/drop'
     # deleteOnNoDrop: true                 # エラー・ドロップが0件の録画はログ実ファイルを自動削除 (省略時: true)
   uploadTempDir: '%ROOT%/data/upload'
+  # copyKeywordToDirectory: false         # ルール新規作成時に検索キーワードを保存先サブディレクトリ名に自動設定 (省略時: false)
 
 # ------------------------------------------------------------------------------
 # 6. エンコード設定 (Encode)

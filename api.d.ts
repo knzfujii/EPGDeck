@@ -488,6 +488,7 @@ export interface Config {
     broadcast: BroadcastStatus;
     recorded: string[];
     encode: string[];
+    copyKeywordToDirectory?: boolean;
     urlscheme: {
         m2ts: URLSchemeInfo;
         video: URLSchemeInfo;

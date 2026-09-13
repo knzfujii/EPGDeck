@@ -27,17 +27,5 @@ export async function syncPWAStatus(enabled: boolean) {
 
 export function initPWA() {
     if (typeof window === 'undefined') return;
-    try {
-        const saved = localStorage.getItem('epgdeck_settings');
-        let enabled = true;
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            if (typeof parsed.isPWA === 'boolean') {
-                enabled = parsed.isPWA;
-            }
-        }
-        syncPWAStatus(enabled);
-    } catch {
-        syncPWAStatus(true);
-    }
+    syncPWAStatus(true);
 }

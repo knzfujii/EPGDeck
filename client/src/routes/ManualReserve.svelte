@@ -6,6 +6,13 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
     import { Clock, Plus, ArrowLeft, Lock } from '@lucide/svelte';
+    import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
+    import {
+        getDefaultRecordingOptionState,
+        buildSaveOption,
+        buildEncodeOption,
+        type EncodeRow,
+    } from '@/lib/utils/recordingOptions';
 
     let selectedChannelId = $state<number | null>(null);
     let name = $state('');
@@ -13,6 +20,14 @@
     let startAtStr = $state('');
     let endAtStr = $state('');
     let isSubmitting = $state(false);
+
+    // 録画オプション状態
+    const defaultOptionState = getDefaultRecordingOptionState();
+    let saveParentDir = $state(defaultOptionState.saveParentDir);
+    let saveSubDir = $state(defaultOptionState.saveSubDir);
+    let encRows = $state<EncodeRow[]>(defaultOptionState.encRows);
+    let isDeleteOriginal = $state(defaultOptionState.isDeleteOriginal);
+    let allowEndLack = $state(defaultOptionState.allowEndLack);
 
     function toLocalISOString(date: Date): string {
         const offset = date.getTimezoneOffset() * 60000;
@@ -65,18 +80,22 @@
         isSubmitting = true;
         try {
             await http.post('/api/reserves', {
-                channelId: selectedChannelId,
-                name: name.trim(),
-                description: description.trim(),
-                startAt,
-                endAt,
-                isHalfWidth: true,
+                allowEndLack,
+                timeSpecifiedOption: {
+                    name: name.trim(),
+                    channelId: selectedChannelId,
+                    startAt,
+                    endAt,
+                },
+                saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
+                encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
             });
             snackbar.open({ text: '時間指定予約を作成しました', color: 'success' });
             router.push('/reserves');
-        } catch (e) {
+        } catch (e: any) {
             console.error('Manual reserve error', e);
-            snackbar.open({ text: '予約の作成に失敗しました', color: 'error' });
+            const errorMsg = e.response?.data?.message || '予約の作成に失敗しました';
+            snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isSubmitting = false;
         }
@@ -106,7 +125,7 @@
             <button
                 type="button"
                 onclick={() => router.push('/reserves')}
-                class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                 aria-label="戻る"
             >
                 <ArrowLeft size={18} />
@@ -204,6 +223,17 @@
                         class="form-input"
                     />
                 </div>
+            </div>
+
+            <!-- 録画オプション (TS保存先・エンコード設定等) -->
+            <div class="pt-2">
+                <RecordingOptionForm
+                    bind:saveParentDir
+                    bind:saveSubDir
+                    bind:encRows
+                    bind:isDeleteOriginal
+                    bind:allowEndLack
+                />
             </div>
 
             <div class="flex justify-end gap-3 pt-4">

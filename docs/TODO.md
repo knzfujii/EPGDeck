@@ -55,4 +55,5 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 | **スマホ動画操作改善** | 背景タップでのコントロール表示/非表示、誤停止防止、中央クイック操作ボタン群（-10s/再生/+30s） | [画面変更仕様書](dev/epgdeck_change_spec.md#37-統合動画プレーヤー-watchsvelte--videoplayersvelte) |
 | **外部プレイヤー連携** | M3U 導線廃止、iOS (VLC)・Android (インテント) 外部プレイヤー直接起動、録画詳細・再生モーダル連動 | [画面変更仕様書](dev/epgdeck_change_spec.md#65-外部プレイヤー連携urlスキーム--インテント起動と-m3u-導線廃止) |
 | **開発プロセス高速化** | `check:quick`（約3秒並列チェック）、ESLint/TypeScript キャッシュ、自律ワークフロー（リファクタ・自己レビュー・ドキュメント更新）制度化 | [AGENTS.md](../AGENTS.md)、[テスト仕様書](dev/testing.md) |
+| **手動予約の修正 & 録画オプション共通化** | 時間指定手動予約の API 仕様不一致バグ修正、TS保存先・エンコード最大3系統・元TS削除・末尾欠け許可の共通コンポーネント化（`RecordingOptionForm`）、Guide / Reserves / ManualReserve の操作統一 | [画面変更仕様書](dev/epgdeck_change_spec.md#2-画面一覧統廃合対比表) |
 

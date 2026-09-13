@@ -225,4 +225,92 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should submit manual reservation with full recording options successfully', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // 1. 手動予約ページへアクセス
+        await page.goto('/reserves/manual');
+        await page.waitForLoadState('networkidle');
+
+        await expect(page.locator('h1')).toContainText('時間指定手動予約');
+
+        // 2. フォーム入力
+        const nameInput = page.getByPlaceholder(/深夜アニメ/);
+        await nameInput.fill('E2E手動テスト特別番組');
+
+        const descInput = page.getByPlaceholder(/番組の詳細やメモ/);
+        await descInput.fill('手動予約のテスト概要です');
+
+        // 3. 録画オプション (TS保存先・末尾欠け許可・エンコード設定)
+        const subDirInput = page.getByPlaceholder(/サブディレクトリ \(任意\)/).first();
+        await subDirInput.fill('manual_test_dir');
+
+        const allowEndLackCheckbox = page.getByLabel('チューナー競合時の末尾切れを許可');
+        await allowEndLackCheckbox.check();
+        await expect(allowEndLackCheckbox).toBeChecked();
+
+        const deleteOriginalCheckbox = page.getByLabel('エンコード完了後に元TSファイルを自動削除');
+        await deleteOriginalCheckbox.check();
+        await expect(deleteOriginalCheckbox).toBeChecked();
+
+        // 4. 送信リクエストのインターセプト・検証
+        let submittedPayload: any = null;
+        await page.route('**/api/reserves', async route => {
+            if (route.request().method() === 'POST') {
+                submittedPayload = route.request().postDataJSON();
+                await route.fulfill({
+                    status: 201,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ reserveId: 8888 }),
+                });
+            } else {
+                await route.continue();
+            }
+        });
+
+        // 5. 予約追加ボタンをクリック
+        const submitBtn = page.getByRole('button', { name: /予約を追加/ });
+        await expect(submitBtn).toBeEnabled();
+        await submitBtn.click();
+
+        // 6. 送信ペイロードの構造チェック
+        await expect(async () => {
+            expect(submittedPayload).not.toBeNull();
+        }).toPass();
+
+        expect(submittedPayload.allowEndLack).toBe(true);
+        expect(submittedPayload.timeSpecifiedOption).toBeDefined();
+        expect(submittedPayload.timeSpecifiedOption.name).toBe('E2E手動テスト特別番組');
+        expect(typeof submittedPayload.timeSpecifiedOption.channelId).toBe('number');
+        expect(typeof submittedPayload.timeSpecifiedOption.startAt).toBe('number');
+        expect(typeof submittedPayload.timeSpecifiedOption.endAt).toBe('number');
+        expect(submittedPayload.timeSpecifiedOption.startAt).toBeLessThan(submittedPayload.timeSpecifiedOption.endAt);
+        expect(submittedPayload.saveOption).toEqual({
+            parentDirectoryName: undefined,
+            directory: 'manual_test_dir',
+        });
+        expect(submittedPayload.encodeOption).toBeDefined();
+        expect(submittedPayload.encodeOption.isDeleteOriginalAfterEncode).toBe(true);
+
+        // 7. 送信成功後に予約一覧へ遷移
+        await page.waitForURL(/\/reserves$/);
+
+        // エラーゼロの検証
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

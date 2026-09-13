@@ -33,4 +33,5 @@ blob-report
 scratch/
 *.m2ts
 *.ts.dummy
-
+.eslintcache
+*.tsbuildinfo*

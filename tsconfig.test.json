@@ -2,7 +2,9 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "noEmit": true,
-        "rootDir": "."
+        "rootDir": ".",
+        "incremental": true,
+        "tsBuildInfoFile": "./.tsbuildinfo.test"
     },
     "include": ["src/**/*", "test/**/*"]
 }

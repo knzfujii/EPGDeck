@@ -466,6 +466,20 @@
                                     {enc.mode1}
                                 </span>
                             {/if}
+                            {#if enc?.mode2}
+                                <span
+                                    class="rounded-md bg-amber-50 px-1.5 py-0.5 font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
+                                >
+                                    {enc.mode2}
+                                </span>
+                            {/if}
+                            {#if enc?.mode3}
+                                <span
+                                    class="rounded-md bg-amber-50 px-1.5 py-0.5 font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
+                                >
+                                    {enc.mode3}
+                                </span>
+                            {/if}
                             {#if enc?.isDeleteOriginalAfterEncode}
                                 <span
                                     class="rounded-md bg-rose-50 px-1.5 py-0.5 font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
@@ -744,6 +758,13 @@
                                                         class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
                                                     >
                                                         {enc.mode2}
+                                                    </span>
+                                                {/if}
+                                                {#if enc.mode3}
+                                                    <span
+                                                        class="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60"
+                                                    >
+                                                        {enc.mode3}
                                                     </span>
                                                 {/if}
                                                 {#if enc.isDeleteOriginalAfterEncode}

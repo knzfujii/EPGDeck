@@ -924,8 +924,9 @@
                             <div class="rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/60">
                                 <span class="text-slate-400 text-[11px] block">エンコード設定</span>
                                 <span class="font-bold text-slate-800 dark:text-slate-200">
-                                    {item.encodeMode1 || 'なし'}
-                                    {item.encodeMode2 ? `, ${item.encodeMode2}` : ''}
+                                    {[item.encodeMode1, item.encodeMode2, item.encodeMode3]
+                                        .filter(Boolean)
+                                        .join(', ') || 'なし'}
                                 </span>
                             </div>
                         </div>

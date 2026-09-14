@@ -208,6 +208,12 @@ test.describe('Search and Rules Management Pages', () => {
                 id: 3,
                 searchOption: { keyword: 'ニュース7' },
                 reserveOption: { enable: false },
+                encodeOption: {
+                    mode1: 'H.264',
+                    mode2: 'H.265',
+                    mode3: 'VP9',
+                    isDeleteOriginalAfterEncode: true,
+                },
             },
         ];
 
@@ -240,6 +246,10 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(table.getByText('機動戦士ガンダム')).toBeVisible();
         await expect(table.getByText('日曜朝アニメ')).toBeVisible();
         await expect(table.getByText('ニュース7')).toBeVisible();
+        await expect(table.getByText('H.264')).toBeVisible();
+        await expect(table.getByText('H.265')).toBeVisible();
+        await expect(table.getByText('VP9')).toBeVisible();
+        await expect(table.getByText('TS削除')).toBeVisible();
 
         const searchInput = page.getByPlaceholder('ルールを検索...');
         await expect(searchInput).toBeVisible();
@@ -301,9 +311,13 @@ test.describe('Search and Rules Management Pages', () => {
         await mobileSearchInput.fill('ニュース');
         await mobileSearchInput.press('Enter');
         await expect(page.locator('text=絞り込み結果: 1 件')).toBeVisible();
-        // モバイルカード内にニュース7が表示されていること
-        const mobileCard = page.locator('.md\\:hidden').getByText('ニュース7');
+        // モバイルカード内にニュース7およびエンコード3種バッジが表示されていること
+        const mobileCard = page.locator('.md\\:hidden').filter({ hasText: 'ニュース7' });
         await expect(mobileCard).toBeVisible();
+        await expect(mobileCard.getByText('H.264')).toBeVisible();
+        await expect(mobileCard.getByText('H.265')).toBeVisible();
+        await expect(mobileCard.getByText('VP9')).toBeVisible();
+        await expect(mobileCard.getByText('TS削除')).toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

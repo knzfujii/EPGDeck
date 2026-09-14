@@ -116,7 +116,7 @@ export function getPlaybackPreference(target: PlaybackTarget): PlaybackPreferenc
     const defaults: Record<PlaybackTarget, PlaybackPreference> = {
         live: { streamType: 'm2tsll', mode: 0 },
         recorded_mp4: { streamType: 'direct', mode: 0 },
-        recorded_ts: { streamType: 'hls', mode: 0 },
+        recorded_ts: { streamType: 'webm', mode: 0 },
     };
 
     if (typeof window === 'undefined' || !window.localStorage) {
@@ -181,64 +181,88 @@ export interface ProtocolOptionParams {
 export function getProtocolOptions(params: ProtocolOptionParams): ProtocolOption[] {
     const { channelId, recordedId, isCurrentFileMp4, hasSelectedFile, canLiveStream, canRecordedStream } = params;
 
-    // 1. 直接再生 (MP4)
-    const isDirectAvail = !!recordedId && hasSelectedFile && isCurrentFileMp4;
-    let directSub = '即時再生';
+    // 1. M2TS-LL
+    const isM2tsllAvail = !!channelId && canLiveStream;
+    let m2tsllSub = '超低遅延 (1-2秒)';
+    let m2tsllBadge: string | undefined = undefined;
     if (channelId) {
-        directSub = 'オンエアー非対応';
-    } else if (!isCurrentFileMp4) {
-        directSub = 'MP4のみ';
+        if (!canLiveStream) {
+            m2tsllSub = '🔒 制限中';
+        } else {
+            m2tsllBadge = '推奨';
+        }
+    } else if (recordedId) {
+        m2tsllSub = 'ライブ専用';
     }
 
-    // 2. M2TS-LL
-    const isM2tsllAvail = !!channelId && canLiveStream;
-    let m2tsllSub = '低遅延 (1-2秒)';
-    if (recordedId) {
-        m2tsllSub = 'オンエアー専用';
-    } else if (!canLiveStream) {
-        m2tsllSub = '🔒 制限中';
+    // 2. 直接再生
+    const isDirectAvail = !!recordedId && hasSelectedFile && isCurrentFileMp4;
+    let directSub = '負荷ゼロ';
+    let directBadge: string | undefined = undefined;
+    if (channelId) {
+        directSub = 'ライブ非対応';
+    } else if (recordedId) {
+        if (!isCurrentFileMp4) {
+            directSub = 'TS再生不可 (要MP4)';
+        } else {
+            directBadge = '推奨';
+        }
     }
 
     // 3. WebM
     let isWebmAvail = false;
-    let webmSub = '低負荷 (3-5秒)';
+    let webmSub = '軽量再生 (iOS不可)';
+    let webmBadge: string | undefined = undefined;
     if (channelId) {
         isWebmAvail = canLiveStream;
         if (!canLiveStream) webmSub = '🔒 制限中';
     } else if (recordedId) {
         isWebmAvail = canRecordedStream && hasSelectedFile;
-        webmSub = canRecordedStream ? '高速トランスコード' : '🔒 制限中';
+        if (!canRecordedStream) {
+            webmSub = '🔒 制限中';
+        } else if (!isCurrentFileMp4) {
+            webmBadge = '推奨';
+        }
     }
 
     // 4. HLS
     let isHlsAvail = false;
-    let hlsSub = '高互換・iOS';
+    let hlsSub = '全端末対応';
     if (channelId) {
         isHlsAvail = canLiveStream;
-        if (!canLiveStream) hlsSub = '🔒 制限中';
+        if (!canLiveStream) {
+            hlsSub = '🔒 制限中';
+        }
     } else if (recordedId) {
         isHlsAvail = canRecordedStream && hasSelectedFile;
-        hlsSub = canRecordedStream ? '高互換・シーク可' : '🔒 制限中';
+        if (!canRecordedStream) {
+            hlsSub = '🔒 制限中';
+        } else if (isCurrentFileMp4) {
+            hlsSub = '再変換 (全端末)';
+        } else {
+            hlsSub = '全端末対応';
+        }
     }
 
     return [
         {
-            type: 'direct',
-            label: '直接再生',
-            badge: 'MP4',
-            subText: directSub,
-            isAvailable: isDirectAvail,
-        },
-        {
             type: 'm2tsll',
             label: 'M2TS-LL',
+            badge: m2tsllBadge,
             subText: m2tsllSub,
             isAvailable: isM2tsllAvail,
         },
         {
+            type: 'direct',
+            label: '直接再生',
+            badge: directBadge,
+            subText: directSub,
+            isAvailable: isDirectAvail,
+        },
+        {
             type: 'webm',
             label: 'WebM',
-            badge: '字幕非対応',
+            badge: webmBadge,
             subText: webmSub,
             isAvailable: isWebmAvail,
         },

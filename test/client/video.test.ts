@@ -42,7 +42,7 @@ describe('video.ts playback preference tests', () => {
     it('returns default preferences when nothing is stored', () => {
         expect(getPlaybackPreference('live')).toEqual({ streamType: 'm2tsll', mode: 0 });
         expect(getPlaybackPreference('recorded_mp4')).toEqual({ streamType: 'direct', mode: 0 });
-        expect(getPlaybackPreference('recorded_ts')).toEqual({ streamType: 'hls', mode: 0 });
+        expect(getPlaybackPreference('recorded_ts')).toEqual({ streamType: 'webm', mode: 0 });
     });
 
     it('saves and retrieves preferences correctly for each target', () => {
@@ -51,7 +51,7 @@ describe('video.ts playback preference tests', () => {
         expect(getPlaybackPreference('live')).toEqual(livePref);
         // other targets remain untouched
         expect(getPlaybackPreference('recorded_mp4')).toEqual({ streamType: 'direct', mode: 0 });
-        expect(getPlaybackPreference('recorded_ts')).toEqual({ streamType: 'hls', mode: 0 });
+        expect(getPlaybackPreference('recorded_ts')).toEqual({ streamType: 'webm', mode: 0 });
 
         const mp4Pref: PlaybackPreference = { streamType: 'webm', mode: 2 };
         savePlaybackPreference('recorded_mp4', mp4Pref);
@@ -92,7 +92,7 @@ describe('video.ts playback preference tests', () => {
     });
 
     describe('getProtocolOptions', () => {
-        it('configures options for live broadcast properly', () => {
+        it('configures options for live broadcast properly with fixed order', () => {
             const options = getProtocolOptions({
                 channelId: 1,
                 recordedId: null,
@@ -102,23 +102,25 @@ describe('video.ts playback preference tests', () => {
                 canRecordedStream: true,
             });
 
-            const direct = options.find(o => o.type === 'direct')!;
+            expect(options.map(o => o.type)).toEqual(['m2tsll', 'direct', 'webm', 'hls']);
+
             const m2tsll = options.find(o => o.type === 'm2tsll')!;
+            const direct = options.find(o => o.type === 'direct')!;
             const webm = options.find(o => o.type === 'webm')!;
             const hls = options.find(o => o.type === 'hls')!;
 
-            expect(direct.isAvailable).toBe(false);
-            expect(direct.subText).toBe('オンエアー非対応');
-
             expect(m2tsll.isAvailable).toBe(true);
-            expect(m2tsll.subText).toBe('低遅延 (1-2秒)');
-            expect(m2tsll.badge).toBeUndefined();
+            expect(m2tsll.subText).toBe('超低遅延 (1-2秒)');
+            expect(m2tsll.badge).toBe('推奨');
+
+            expect(direct.isAvailable).toBe(false);
+            expect(direct.subText).toBe('ライブ非対応');
 
             expect(webm.isAvailable).toBe(true);
-            expect(webm.badge).toBe('字幕非対応');
+            expect(webm.subText).toBe('軽量再生 (iOS不可)');
 
             expect(hls.isAvailable).toBe(true);
-            expect(hls.badge).toBeUndefined();
+            expect(hls.subText).toBe('全端末対応');
         });
 
         it('configures options for recorded MP4 properly', () => {
@@ -131,19 +133,26 @@ describe('video.ts playback preference tests', () => {
                 canRecordedStream: true,
             });
 
+            expect(options.map(o => o.type)).toEqual(['m2tsll', 'direct', 'webm', 'hls']);
+
             const direct = options.find(o => o.type === 'direct')!;
             const m2tsll = options.find(o => o.type === 'm2tsll')!;
             const webm = options.find(o => o.type === 'webm')!;
             const hls = options.find(o => o.type === 'hls')!;
 
             expect(direct.isAvailable).toBe(true);
-            expect(direct.subText).toBe('即時再生');
+            expect(direct.subText).toBe('負荷ゼロ');
+            expect(direct.badge).toBe('推奨');
 
             expect(m2tsll.isAvailable).toBe(false);
-            expect(m2tsll.subText).toBe('オンエアー専用');
+            expect(m2tsll.subText).toBe('ライブ専用');
 
             expect(webm.isAvailable).toBe(true);
+            expect(webm.subText).toBe('軽量再生 (iOS不可)');
+
             expect(hls.isAvailable).toBe(true);
+            expect(hls.subText).toBe('再変換 (全端末)');
+            expect(hls.badge).toBeUndefined();
         });
 
         it('configures options for recorded TS properly', () => {
@@ -156,9 +165,23 @@ describe('video.ts playback preference tests', () => {
                 canRecordedStream: true,
             });
 
+            expect(options.map(o => o.type)).toEqual(['m2tsll', 'direct', 'webm', 'hls']);
+
             const direct = options.find(o => o.type === 'direct')!;
+            const webm = options.find(o => o.type === 'webm')!;
+            const hls = options.find(o => o.type === 'hls')!;
+
             expect(direct.isAvailable).toBe(false);
-            expect(direct.subText).toBe('MP4のみ');
+            expect(direct.subText).toBe('TS再生不可 (要MP4)');
+            expect(direct.badge).toBeUndefined();
+
+            expect(webm.isAvailable).toBe(true);
+            expect(webm.subText).toBe('軽量再生 (iOS不可)');
+            expect(webm.badge).toBe('推奨');
+
+            expect(hls.isAvailable).toBe(true);
+            expect(hls.subText).toBe('全端末対応');
+            expect(hls.badge).toBeUndefined();
         });
 
         it('handles read-only restrictions properly', () => {

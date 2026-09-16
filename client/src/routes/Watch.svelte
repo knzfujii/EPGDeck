@@ -5,7 +5,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { getTopMp4File } from '../lib/utils/video';
-    import { getChannelTypeBadgeClass } from '../lib/utils/format';
+    import { getChannelTypeBadgeClass, formatPlayerTime } from '../lib/utils/format';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
@@ -16,10 +16,13 @@
     let streamType = $state<'m2tsll' | 'm2ts' | 'webm' | 'mp4' | 'hls' | 'direct'>('direct');
     let isHls = $state(false);
     let isLive = $state(false);
+    let playbackOffset = $state(0);
+    let currentStreamMode = $state(0);
     let streamId = $state<number | null>(null);
     let keepAliveInterval: any = null;
     let isPreparingStream = $state(false);
     let statusText = $state('ストリームを準備中...');
+    let statusMessage = $state('');
 
     // 番組情報
     let programTitle = $state('');
@@ -51,6 +54,9 @@
         for (let i = 1; i <= 100; i++) {
             const sec = (i * 0.3).toFixed(1);
             statusText = `HLS 配信を準備中... (${sec}秒)`;
+            if (statusMessage) {
+                statusMessage = statusMessage.replace(/\s*\([\d.]+秒\)$/, '') + ` (${sec}秒)`;
+            }
             try {
                 // 1. API での isEnable チェック
                 const infoRes = await http.get('/api/streams?isHalfWidth=true');
@@ -102,7 +108,7 @@
 
         const isReady = await waitForStreamReady(sId);
         if (isReady) {
-            videoSrc = `/streamfiles/stream${sId}.m3u8`;
+            videoSrc = `/streamfiles/stream${sId}.m3u8?t=${Date.now()}`;
             isHls = true;
             return true;
         }
@@ -222,6 +228,7 @@
                 } else if (requestedStreamFile) {
                     currentVideoFile = requestedStreamFile;
                     vttSrc = undefined;
+                    currentStreamMode = mode;
                     if (reqType === 'mp4' || reqType === 'webm') {
                         // トランスコード MP4/WebM 直接ストリーム
                         streamType = reqType;
@@ -245,6 +252,7 @@
                     } else if (readOnlyStore.canRecordedStream) {
                         const firstFile = recordedData.videoFiles[0];
                         currentVideoFile = firstFile;
+                        currentStreamMode = 0;
                         await startHlsStream(
                             `/api/streams/recorded/${firstFile.id}/hls`,
                             { mode: 0 },
@@ -290,6 +298,54 @@
             } catch (e) {
                 console.error('Failed to stop stream', e);
             }
+        }
+    }
+
+    let isRestartingHls = false;
+    let pendingSeekTarget: number | null = null;
+
+    async function restartHlsAtPosition(targetTime: number) {
+        if (!currentVideoFile || isLive) return;
+        const seekSecond = Math.max(0, Math.floor(targetTime));
+        pendingSeekTarget = seekSecond;
+
+        if (isRestartingHls) return;
+        isRestartingHls = true;
+
+        try {
+            while (pendingSeekTarget !== null) {
+                const currentTarget = pendingSeekTarget;
+                pendingSeekTarget = null;
+
+                if (isHls || streamType === 'hls') {
+                    statusMessage = `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`;
+                    await stopStream();
+                    playbackOffset = currentTarget;
+
+                    await startHlsStream(
+                        `/api/streams/recorded/${currentVideoFile.id}/hls`,
+                        { mode: currentStreamMode, ss: currentTarget },
+                        `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`,
+                    );
+                } else if (streamType === 'webm' || streamType === 'mp4') {
+                    statusMessage = `${formatPlayerTime(currentTarget)} からストリームを再開中...`;
+                    videoSrc = '';
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    playbackOffset = currentTarget;
+                    videoSrc = withAuthToken(
+                        `/api/streams/recorded/${currentVideoFile.id}/${streamType}?mode=${currentStreamMode}&ss=${currentTarget}&t=${Date.now()}`,
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('Failed to restart HLS stream at position', e);
+            snackbar.open({ text: 'シーク先でのストリーム再生成に失敗しました', color: 'error' });
+        } finally {
+            isRestartingHls = false;
+            pendingSeekTarget = null;
+            isLoadingInfo = false;
+            isPreparingStream = false;
+            statusMessage = '';
         }
     }
 
@@ -353,11 +409,14 @@
                 {streamType}
                 {isHls}
                 {isLive}
+                {playbackOffset}
+                {statusMessage}
                 title={programTitle}
                 recordedId={recordedData?.id}
                 {totalDuration}
                 {vttSrc}
                 onStreamEnded={stopStream}
+                onHlsSeekRestart={restartHlsAtPosition}
             />
         {:else}
             <div

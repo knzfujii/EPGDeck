@@ -73,13 +73,24 @@ EPGDeck において、M2TS-LL では字幕が表示できる一方、HLS 配信
      **CaptionManagement を受信していない場合、すべての CaptionStatement をスキップ（破棄）する** 仕様になっています。
    - このため、HLS から ID3 メタデータを受信しても、管理データが存在しないため `aribb24.js` v2 が全て読み飛ばしてしまっていました。
 
-### 3.3 解決策（`SubtitleManager.ts` での補完）
+### 3.3 解決策（`SubtitleManager.ts` での動的補完とシーク保護）
 日本の地上波・BS・CS デジタル放送における字幕規格は一意に定まっています（第1言語: `jpn`, 文字コード体系: `JIS8`）。
-そこで、`SubtitleManager.ts` の初期化時（`attach` 時）に、標準的な CaptionManagement パケット（Group 0: Aプロファイル、Group 1: Bプロファイル）を合成し、`feeder.feedB24()` で事前注入する設計を採用しました：
+そこで、`SubtitleManager.ts` において標準的な CaptionManagement パケット（Group 0: Aプロファイル、Group 1: Bプロファイル）を合成し、`feeder.feedB24()` で注入する設計を採用しています。
+
+#### 初回初期化注入から「動的注入＋シーク保護」への発展
+単にプレイヤー初期化時に 1 度だけ `PTS: 0` で注入するだけでは、以下の理由で字幕が表示されなくなる問題が発生しました：
+1. **シーク時の状態リセット**: `aribb24.js` の `onSeeking` ハンドラは、プレイヤーのシーク時に `disappearance()` を呼び出し、内部の `priviousManagementData` を `null` に破棄・リセットする。
+2. **PTS 不整合**: シーク先やセグメントの PTS と初期注入時刻（0秒）が乖離していると、レンダラーの表示区間外とみなされ管理データが有効化されない。
+
+このため、以下の動的注入アーキテクチャを実装しています：
+- **各セグメント先頭での動的先行注入 (`feedHlsMetadata`)**:
+  HLS の ID3 メタデータ（`FRAG_PARSING_METADATA`）を受信した際、各セグメント内の最初のサンプルの PTS（`dtsSec`）直前（`dtsSec - 0.001`）をタイムスタンプとして `injectDefaultCaptionManagement(timeSec)` を先行注入する。
+- **シーク時の即時再注入復元 (`hookFeederOnSeeking` / `notifySeek`)**:
+  ユーザーがシークを行った際、`aribb24.js` の `onSeeking` による破棄直後に現在の `videoElement.currentTime` を用いて `injectDefaultCaptionManagement` を再注入し、シーク直後の字幕本文も即座にレンダリング可能にする。
 
 ```typescript
 // SubtitleManager.ts
-private injectDefaultCaptionManagement(): void {
+private injectDefaultCaptionManagement(timeSec = 0): void {
     for (const grp of [0, 1]) {
         const dataGroupId = grp << 5;
         const dgByte0 = (dataGroupId << 2) & 0xfc;
@@ -96,17 +107,18 @@ private injectDefaultCaptionManagement(): void {
             0x00, 0x00, // CRC16
         ]);
 
+        const ptsMs = Math.max(0, Math.floor(timeSec * 1000));
         // Caption (0x80)
         const captionPES = new Uint8Array([0x80, 0xff, 0xf0, ...dgPayload]);
-        this.captionFeeder?.feedB24(captionPES, 0, 0);
+        this.captionFeeder?.feedB24(captionPES, ptsMs, ptsMs);
 
         // Superimpose (0x81)
         const superPES = new Uint8Array([0x81, 0xff, 0xf0, ...dgPayload]);
-        this.superimposeFeeder?.feedB24(superPES, 0, 0);
+        this.superimposeFeeder?.feedB24(superPES, ptsMs, ptsMs);
     }
 }
 ```
-これにより、`aribb24.js` v2 の最新アーキテクチャ（Controller / Feeder / Renderer 分離、高速レンダリング）を維持したまま、HLS 配信でも即座に字幕が正常表示されるようになりました。
+これにより、初回再生開始時はもちろん、任意位置へのシーク後やレジューム再生後も途切れることなく ARIB 字幕が即時かつ安定して表示されます。
 
 ---
 
@@ -125,6 +137,18 @@ private injectDefaultCaptionManagement(): void {
 ### 4.3 セグメント時間と GOP 境界の制御
 - **セグメント時間**: `hls_time 2`（2秒）はエンコード・mux のオーバーヘッドが大きくリアルタイム維持のマージンが少ないため、**`hls_time 3`（3秒）** を標準とする。
 - **Closed GOP**: libx264 の場合、`-flags +cgop` を指定して各 GOP を独立完結させ、セグメント境界での映像の乱れやタイムスタンプのずれを防止する。
+
+### 4.4 HTTP パイプ配信（WebM / ライブ配信等）におけるプロセスクリーンアップの厳格化
+- **課題（ffmpeg プロセスの残留と多重上限到達エラー）**:
+  - Hono / Node.js サーバー環境において、WebM やライブ配信（M2TS-LL 等）の HTTP レスポンスパイプラインにおいて、ブラウザ側のタブクローズやページ離脱、シークによる切断が発生した際、AbortSignal や Stream end が正常に伝搬せず、ffmpeg プロセスが生存し続ける事象が発生していた。
+  - プロセス生存中にサーバー側 keepAlive タイマーが周回して延長され続けた結果、トランスコード多重上限（`maxProcesses: 2`）に達し、後続の再生要求で `CreateStreamProcessError`（HTTP 500）が発生する原因となっていた。
+- **対策（ソケット close と Web Streams cancel の多重フック）**:
+  - `src/model/service/hono/routes/streams.ts` の `handleLiveStream` において、以下の多重イベントをフックして切断を即座に検知し、`streamApiModel.stop(streamId, true)` を強制実行：
+    1. `c.req.raw.signal` の `abort` イベント
+    2. Node.js ソケットレイヤーの `c.env.incoming.on('close')` および `c.env.outgoing.on('close')`
+    3. Web Streams `ReadableStream` の `cancel()` コールバック
+    4. 子プロセスパイプの `data` (enqueue 失敗時), `end`, `error`, `close`
+  - これにより、ユーザーが再生停止・シーク・離脱した瞬間に 100% 確実にバックエンドの ffmpeg プロセスが破棄（SIGKILL）され、リソース枯渇が完全に防止されます。
 
 ---
 
@@ -234,6 +258,33 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
   - これにより、CSS の透過（`opacity-0`）だけでなく、ブラウザのヒットテスト・キーボードフォーカス・スクリーンリーダーから完全に除外され、不可視パーツの誤爆を防止します。
 - **シーク・スライダー操作中のタイマー保護**:
   - シークバーや音量スライダーのドラッグ中（`onpointerdown` から `onpointerup` / `onchange` まで）は、自動非表示タイマーを一時停止（`pauseHideControlsTimer()`）し、指を離すまでコントロールが勝手に消えないよう保護します。
+
+### 8.4 録画 HLS のシーク最適化とエンコードバッファ表示（即時シークとストリーム再起動）
+- **課題（未エンコード領域へのシークでの巻き戻り）**:
+  - 録画番組の HLS 配信は、リクエスト開始時に先頭から順次リアルタイムエンコード・セグメント化されます。
+  - 再生開始後数分の段階でユーザーがシークバーで 10 分以降などの未生成領域を指定すると、`hls.js` はプレイリスト（m3u8）内に存在する最新セグメントの末尾（2分など）に再生位置を強制吸着（スナップ）させてしまい、意図した位置へシークできません。
+- **解決策（バッファ内即時シーク ＋ バッファ外ストリーム再起動）**:
+  - **エンコード済みバッファ管理 (`bufferedEnd`)**:
+    - `VideoPlayer.svelte` は `hls.on(Hls.Events.LEVEL_UPDATED)` および `FRAG_BUFFERED` を監視し、現在サーバー側で生成完了している最大セグメント時刻（`playbackOffset + level.details.totalduration`）をリアルタイムに算出します。
+  - **シーク分岐判定と即時ローディング遷移 (`seekTo`)**:
+    - 指定時刻が生成済みバッファ内の場合: `<video>` の通常シーク（`videoElement.currentTime = targetTime - playbackOffset`）を実行し、ロード済みセグメントから即時再生。
+    - 指定時刻が生成済みバッファ外の場合:
+      - `<video>` の再生を即時一時停止（`videoElement.pause()`）し、旧 HLS インスタンスを破棄（`cleanupEngines()`）して旧ストリームのセグメント取得を完全停止。
+      - 再生表示時刻をシーク先時刻へ即座に移動（`currentTime = clampedTime`）させ、シークバーのつまみと時間をジャンプ。
+      - `isLoading = true` に即座に切り替え、中央にスピナー（くるくる）を表示して「XX:XX から HLS 配信を再生成中... (○秒)」とリアルタイム経過を表示。
+      - `onHlsSeekRestart(targetTime)` コールバックを発火。
+      - 再生成待機中は `ontimeupdate` / `onseeked` に `!isLoading` ガードを設けることで、旧要素の遅延イベントによる意図しないタイムスタンプ巻き戻りを完全防止。
+  - **サーバー連携によるストリーム再起動と多重シーク制御 (`restartHlsAtPosition`)**:
+    - `Watch.svelte` は旧ストリームを停止し、サーバー API `GET /api/streams/recorded/:videoFileId/hls?ss=${seekSecond}` を呼び出して指定位置からエンコードを開始する新ストリームを立ち上げます。
+    - 連続シーク時の多重リクエストを防止するため、キュー方式（最新ターゲット保持＆ループ処理）を採用。
+    - 新ストリーム準備完了時、`videoSrc` にタイムスタンプクエリ（`?t=${Date.now()}`）を付与してマニフェスト URL を更新し、同一 streamId の再利用時でも Svelte 5 `$effect` が確実にリロードを検知・再生成を実行。
+    - クライアント側は `playbackOffset = seekSecond` を保持し、番組全体の実尺に対する絶対再生時刻（`playbackOffset + videoElement.currentTime`）を一貫して管理・表示します。
+  - **エンコード進行バーの視覚化 (`VideoControls.svelte`)**:
+    - シークバーの背景に、生成済みバッファ範囲（`bufferedEnd / duration`）をグレーバー（`bg-slate-500/60`）として重畳描画。
+    - ユーザーは「どこまでが即座にシーク可能か」「どこ以降がストリーム再起動になるか」を一目で直感的に把握できます。
+  - **WebM / MP4 トランスコードとの住み分け**:
+    - WebM やトランスコード MP4 等の HTTP パイプ配信は、シークごとのプロセス再起動を行わずブラウザ標準の `<video>` シーク（`currentTime` 操作）に委ねることで、FFmpeg プロセスの過剰生成・上限到達を防止します。広範囲のシークを行いたいユースケースでは HLS または録画済み MP4 の直接再生を推奨します。
+
 
 
 

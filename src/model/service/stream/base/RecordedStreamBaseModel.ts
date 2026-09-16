@@ -227,16 +227,23 @@ export default abstract class RecordedStreamBaseModel
         }
 
         const streamFileDir = this.config.streaming?.tempDir || '';
-        let cmd = this.processOption.cmd
-            .replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg)
-            .replace(/%SS%/g, this.videoFileType === 'ts' ? '' : this.processOption.playPosition.toString(10));
+        let cmd = this.processOption.cmd.replace(/%FFMPEG%/g, this.config.encode.binaries.ffmpeg);
+        if (this.videoFileType === 'ts') {
+            cmd = cmd.replace(/\s*-ss\s+%SS%\s*/g, ' ').replace(/%SS%/g, '');
+        } else {
+            cmd = cmd.replace(/%SS%/g, this.processOption.playPosition.toString(10));
+        }
 
         if (this.getStreamType() === 'RecordedHLS') {
             cmd = cmd.replace(/%streamFileDir%/g, streamFileDir).replace(/%streamNum%/g, streamId.toString(10));
         }
 
+        const usePipe = this.videoFileType === 'ts';
+        if (usePipe) {
+            cmd = cmd.replace(/%INPUT%/g, 'pipe:0');
+        }
         const option: CreateProcessOption = {
-            input: this.isRecording === true ? null : this.videoFilePath,
+            input: usePipe ? null : this.videoFilePath,
             output:
                 this.getStreamType() === 'RecordedHLS' ? `${streamFileDir}/stream${streamId.toString(10)}.m3u8` : null,
             cmd: cmd,

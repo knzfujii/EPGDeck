@@ -17,7 +17,10 @@
         recordedId?: number;
         totalDuration?: number;
         vttSrc?: string;
+        playbackOffset?: number;
+        statusMessage?: string;
         onStreamEnded?: () => void;
+        onHlsSeekRestart?: (targetTime: number) => void | Promise<void>;
     }
 
     let props: Props = $props();
@@ -40,6 +43,7 @@
     let isLoading = $state(true);
     let currentTime = $state(0);
     let duration = $state(0);
+    let bufferedEnd = $state(0);
     let isFullscreen = $state(false);
     let showControls = $state(true);
     let errorMessage = $state<string | null>(null);
@@ -49,6 +53,7 @@
     let streamType = $derived(props.streamType || 'direct');
     let isHls = $derived(props.isHls ?? false);
     let isLive = $derived(props.isLive ?? false);
+    let playbackOffset = $derived(props.playbackOffset ?? 0);
     let title = $derived(props.title || '');
     let recordedId = $derived(props.recordedId);
     let src = $derived(props.src);
@@ -138,18 +143,71 @@
     }
 
     // シーク
-    function seekRelative(offsetSeconds: number) {
+    function seekTo(targetTime: number) {
         if (!videoElement || isLive) return;
-        videoElement.currentTime = Math.max(0, Math.min(duration, videoElement.currentTime + offsetSeconds));
+        const clampedTime = Math.max(0, Math.min(displayDuration, targetTime));
+
+        // トランスコードストリーム (HLS, WebM, トランスコード MP4) の判定
+        const isTranscodeStream =
+            !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
+
+        if (isTranscodeStream && props.onHlsSeekRestart) {
+            const localTarget = clampedTime - playbackOffset;
+
+            // バッファ内か判定
+            let isWithinBuffer = false;
+            if (isHls || streamType === 'hls') {
+                isWithinBuffer = localTarget >= 0 && localTarget <= Math.max(0, bufferedEnd - playbackOffset + 2);
+            } else if (videoElement.buffered.length > 0) {
+                for (let i = 0; i < videoElement.buffered.length; i++) {
+                    if (localTarget >= videoElement.buffered.start(i) && localTarget <= videoElement.buffered.end(i)) {
+                        isWithinBuffer = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isWithinBuffer) {
+                videoElement.currentTime = localTarget;
+            } else {
+                // バッファ外へのシーク時は cleanupEngines() (unloadVideo) により旧ストリームを即時完全切断し、
+                // サーバーの旧 ffmpeg を確実に停止させた上でシーク先 URL でストリームを再開
+                cleanupEngines();
+                currentTime = clampedTime;
+                isLoading = true;
+                bufferedEnd = clampedTime;
+                resetHideControlsTimer();
+
+                try {
+                    const restartPromise = props.onHlsSeekRestart(clampedTime);
+                    if (restartPromise && typeof restartPromise.catch === 'function') {
+                        restartPromise.catch((err: any) => {
+                            console.error('Stream seek restart failed:', err);
+                            isLoading = false;
+                            errorMessage = 'シーク先でのストリーム再生成に失敗しました';
+                        });
+                    }
+                } catch (err) {
+                    console.error('Stream seek restart failed synchronously:', err);
+                    isLoading = false;
+                    errorMessage = 'シーク先でのストリーム再生成に失敗しました';
+                }
+                return;
+            }
+        } else {
+            // 静的ファイル直接再生 (Direct) 等
+            videoElement.currentTime = clampedTime;
+        }
         resetHideControlsTimer();
     }
 
+    function seekRelative(offsetSeconds: number) {
+        seekTo(currentTime + offsetSeconds);
+    }
+
     function handleSeekChange(e: Event) {
-        if (!videoElement || isLive) return;
         const target = e.target as HTMLInputElement;
-        const targetTime = parseFloat(target.value);
-        videoElement.currentTime = targetTime;
-        resetHideControlsTimer();
+        seekTo(parseFloat(target.value));
     }
 
     // 音量
@@ -307,7 +365,7 @@
     // レジューム位置の適用
     function resumeFromSaved() {
         if (resumeNotice && videoElement) {
-            videoElement.currentTime = resumeNotice.position;
+            seekTo(resumeNotice.position);
             resumeNotice.visible = false;
         }
     }
@@ -315,6 +373,17 @@
     function dismissResume() {
         if (resumeNotice) {
             resumeNotice.visible = false;
+        }
+    }
+
+    function unloadVideo() {
+        if (!videoElement) return;
+        try {
+            videoElement.pause();
+            videoElement.removeAttribute('src');
+            videoElement.load();
+        } catch {
+            // ignore
         }
     }
 
@@ -333,6 +402,7 @@
             mpegtsInstance.destroy();
             mpegtsInstance = null;
         }
+        unloadVideo();
     }
 
     // 動画ソースの初期化 (M2TS-LL, HLS, WebM/MP4直接ストリーム)
@@ -343,6 +413,7 @@
         isLoading = true;
         errorMessage = null;
         hasSubtitle = false;
+        bufferedEnd = playbackOffset;
 
         // 設定の復元
         videoElement.volume = playerState.volume;
@@ -425,6 +496,19 @@
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     isLoading = false;
                     videoElement?.play().catch(e => console.log('Autoplay prevented:', e));
+                });
+
+                hlsInstance.on(Hls.Events.LEVEL_UPDATED, (_event, data) => {
+                    if (data.details?.totalduration) {
+                        bufferedEnd = Math.max(bufferedEnd, playbackOffset + data.details.totalduration);
+                    }
+                });
+
+                hlsInstance.on(Hls.Events.FRAG_BUFFERED, () => {
+                    if (videoElement && videoElement.buffered.length > 0) {
+                        const nativeBufEnd = videoElement.buffered.end(videoElement.buffered.length - 1);
+                        bufferedEnd = Math.max(bufferedEnd, playbackOffset + nativeBufEnd);
+                    }
                 });
 
                 hlsInstance.on(Hls.Events.FRAG_PARSING_METADATA, (_event, data) => {
@@ -560,13 +644,23 @@
             }
         }}
         ontimeupdate={() => {
-            if (videoElement) {
-                currentTime = videoElement.currentTime;
+            if (videoElement && !isLoading) {
+                const isTranscodeStream =
+                    !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
+                currentTime = isTranscodeStream ? playbackOffset + videoElement.currentTime : videoElement.currentTime;
                 const currentSec = Math.floor(currentTime);
                 if (recordedId && currentSec % 5 === 0 && currentSec !== lastSavedSecond) {
                     lastSavedSecond = currentSec;
                     playerState.savePosition(recordedId, currentTime);
                 }
+            }
+        }}
+        onseeked={() => {
+            if (videoElement && !isLoading) {
+                const isTranscodeStream =
+                    !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
+                currentTime = isTranscodeStream ? playbackOffset + videoElement.currentTime : videoElement.currentTime;
+                subtitleManager.notifySeek(videoElement.currentTime);
             }
         }}
         onended={() => {
@@ -609,9 +703,12 @@
     <!-- ローディングスピナー -->
     {#if isLoading && !errorMessage}
         <div
-            class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/30 backdrop-blur-2xs"
+            class="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-2xs gap-3 p-4 text-center"
         >
             <Loader2 size={48} class="animate-spin text-blue-500" />
+            {#if props.statusMessage}
+                <p class="text-xs font-bold text-white/90 drop-shadow">{props.statusMessage}</p>
+            {/if}
         </div>
     {/if}
 
@@ -733,6 +830,7 @@
         {canSeek}
         {currentTime}
         {displayDuration}
+        {bufferedEnd}
         {isLive}
         {streamType}
         {isHls}

@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { Readable } from 'stream';
 import IStreamApiModel from '../../../api/stream/IStreamApiModel';
 import container from '../../../ModelContainer';
 import * as api from '../HonoApiUtil';
@@ -126,8 +125,11 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
             }
         }, 10 * 1000);
 
+        let isCleanedUp = false;
         const nodeStream = result.stream;
         const cleanup = async () => {
+            if (isCleanedUp) return;
+            isCleanedUp = true;
             if (keepTimer) {
                 clearInterval(keepTimer);
                 keepTimer = null;
@@ -137,15 +139,62 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
                 streamId = null;
                 await streamApiModel.stop(sId, true).catch(() => {});
             }
+            try {
+                if (!nodeStream.destroyed) {
+                    nodeStream.destroy();
+                }
+            } catch {
+                // ignore
+            }
         };
 
-        nodeStream.on('close', cleanup);
-        nodeStream.on('end', cleanup);
-        nodeStream.on('error', cleanup);
+        c.req.raw.signal?.addEventListener('abort', () => {
+            void cleanup();
+        });
+        if (c.env?.incoming) {
+            c.env.incoming.on('close', () => {
+                void cleanup();
+            });
+        }
+        if (c.env?.outgoing) {
+            c.env.outgoing.on('close', () => {
+                void cleanup();
+            });
+        }
 
-        const webStream = Readable.toWeb(nodeStream);
-
-        c.req.raw.signal?.addEventListener('abort', cleanup);
+        const webStream = new ReadableStream({
+            start(controller) {
+                nodeStream.on('data', (chunk: Buffer | Uint8Array) => {
+                    try {
+                        controller.enqueue(chunk);
+                    } catch {
+                        void cleanup();
+                    }
+                });
+                nodeStream.on('end', () => {
+                    try {
+                        controller.close();
+                    } catch {
+                        // ignore
+                    }
+                    void cleanup();
+                });
+                nodeStream.on('error', (err: any) => {
+                    try {
+                        controller.error(err);
+                    } catch {
+                        // ignore
+                    }
+                    void cleanup();
+                });
+                nodeStream.on('close', () => {
+                    void cleanup();
+                });
+            },
+            cancel() {
+                void cleanup();
+            },
+        });
 
         return new Response(webStream as any, {
             status: 200,

@@ -9,6 +9,7 @@
         canSeek: boolean;
         currentTime: number;
         displayDuration: number;
+        bufferedEnd?: number;
         isLive: boolean;
         streamType: string;
         isHls: boolean;
@@ -32,6 +33,7 @@
         canSeek,
         currentTime,
         displayDuration,
+        bufferedEnd = 0,
         isLive,
         streamType,
         isHls,
@@ -55,6 +57,13 @@
         isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts' || streamType === 'direct',
     );
 
+    let progressPercent = $derived(
+        displayDuration > 0 ? Math.min(100, Math.max(0, (currentTime / displayDuration) * 100)) : 0,
+    );
+    let bufferedPercent = $derived(
+        displayDuration > 0 ? Math.min(100, Math.max(0, (bufferedEnd / displayDuration) * 100)) : 0,
+    );
+
     function handleSliderEnd(e: Event) {
         (e.currentTarget as HTMLElement)?.blur();
         onSeekEnd?.();
@@ -63,12 +72,9 @@
 
 <!-- コントロールバー (下部オーバーレイ) -->
 <div
-    class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
-        ? 'opacity-100 pointer-events-auto'
-        : 'opacity-0 pointer-events-none'}"
-    onclick={e => e.stopPropagation()}
-    onkeydown={e => e.stopPropagation()}
-    role="presentation"
+    class="pointer-events-auto absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
+        ? 'opacity-100'
+        : 'opacity-0'}"
     inert={!showControls || undefined}
     aria-hidden={!showControls}
 >
@@ -78,7 +84,16 @@
             <span class="text-xs font-medium text-slate-300 min-w-[36px] text-right">
                 {formatPlayerTime(currentTime)}
             </span>
-            <div class="flex-1 flex items-center py-2 cursor-pointer">
+            <div class="relative flex-1 flex items-center py-2 cursor-pointer">
+                <!-- トラック背景 ＆ バッファバー (エンコード生成済み範囲) -->
+                <div class="absolute inset-x-0 h-2 rounded-full bg-slate-700 overflow-hidden pointer-events-none">
+                    {#if bufferedPercent > 0}
+                        <div
+                            class="h-full bg-slate-500/60 transition-all duration-300"
+                            style="width: {bufferedPercent}%;"
+                        ></div>
+                    {/if}
+                </div>
                 <input
                     type="range"
                     min="0"
@@ -90,7 +105,8 @@
                     onpointerup={handleSliderEnd}
                     onchange={handleSliderEnd}
                     tabindex="-1"
-                    class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-600 accent-blue-500 transition hover:h-2.5 touch-none"
+                    class="relative z-10 h-2 w-full cursor-pointer appearance-none rounded-full bg-transparent accent-blue-500 transition hover:h-2.5 touch-none"
+                    style="background: linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) {progressPercent}%, transparent {progressPercent}%, transparent 100%);"
                 />
             </div>
             <span class="text-xs font-medium text-slate-300 min-w-[36px]">{formatPlayerTime(displayDuration)}</span>

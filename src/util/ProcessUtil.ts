@@ -11,23 +11,63 @@ namespace ProcessUtil {
     export const kill = (child: ChildProcess, wait = 500): Promise<void> => {
         return new Promise<void>((resolve: () => void, reject: (err: Error) => void) => {
             try {
-                if (child.stdin !== null) {
-                    child.stdin.end();
-                }
-                if (child.stdout !== null) {
-                    child.stdout.unpipe();
-                    child.stdout.destroy();
-                    child.stdout.removeAllListeners('data');
-                }
-                if (child.stderr !== null) {
-                    child.stderr.unpipe();
-                    child.stderr.destroy();
-                    child.stderr.removeAllListeners('data');
+                if (isExited(child)) {
+                    resolve();
+                    return;
                 }
 
-                setTimeout(() => {
+                if (child.stdin !== null) {
+                    try {
+                        child.stdin.end();
+                    } catch {}
+                }
+                if (child.stdout !== null) {
+                    try {
+                        child.stdout.unpipe();
+                        child.stdout.destroy();
+                        child.stdout.removeAllListeners('data');
+                    } catch {}
+                }
+                if (child.stderr !== null) {
+                    try {
+                        child.stderr.unpipe();
+                        child.stderr.destroy();
+                        child.stderr.removeAllListeners('data');
+                    } catch {}
+                }
+
+                let isDone = false;
+                let forceKillTimer: NodeJS.Timeout | null = null;
+                const done = () => {
+                    if (!isDone) {
+                        isDone = true;
+                        if (forceKillTimer !== null) {
+                            clearTimeout(forceKillTimer);
+                            forceKillTimer = null;
+                        }
+                        resolve();
+                    }
+                };
+
+                child.once('exit', done);
+                child.once('close', done);
+
+                // まず SIGINT で優雅な終了を試みる
+                try {
                     child.kill('SIGINT');
-                    resolve();
+                } catch {
+                    done();
+                    return;
+                }
+
+                // wait 時間内に終了しなければ SIGKILL で強制停止
+                forceKillTimer = setTimeout(() => {
+                    if (!isDone && !isExited(child)) {
+                        try {
+                            child.kill('SIGKILL');
+                        } catch {}
+                    }
+                    done();
                 }, wait);
             } catch (err: any) {
                 reject(err);

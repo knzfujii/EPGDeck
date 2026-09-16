@@ -4,6 +4,52 @@ export interface SubtitleManagerOptions {
     onSubtitleDetected?: () => void;
 }
 
+// ARIB STD-B24 のデフォルト字幕管理データ (CaptionManagement) の事前構築済みバイナリ
+function createDefaultPesTemplates() {
+    const templates: { caption: Uint8Array[]; super: Uint8Array[] } = {
+        caption: [],
+        super: [],
+    };
+    for (const grp of [0, 1]) {
+        const dataGroupId = grp << 5;
+        const dgByte0 = (dataGroupId << 2) & 0xfc;
+        const dgPayload = new Uint8Array([
+            dgByte0,
+            0x00,
+            0x00,
+            0x00,
+            0x0b,
+            0x00,
+            0x01,
+            0x00,
+            0x6a,
+            0x70,
+            0x6e, // "jpn"
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]);
+
+        const captionHeader = new Uint8Array([0x80, 0xff, 0xf0]);
+        const cap = new Uint8Array(captionHeader.length + dgPayload.length);
+        cap.set(captionHeader, 0);
+        cap.set(dgPayload, captionHeader.length);
+        templates.caption.push(cap);
+
+        const superHeader = new Uint8Array([0x81, 0xff, 0xf0]);
+        const sup = new Uint8Array(superHeader.length + dgPayload.length);
+        sup.set(superHeader, 0);
+        sup.set(dgPayload, superHeader.length);
+        templates.super.push(sup);
+    }
+    return templates;
+}
+
+const DEFAULT_PES_TEMPLATES = createDefaultPesTemplates();
+
 /**
  * ARIB STD-B24 字幕・文字スーパーのライフサイクルおよび描画を統括するマネージャー
  */
@@ -68,7 +114,9 @@ export class SubtitleManager {
             this.superimposeController.attachMedia(this.videoElement, this.containerElement);
 
             // HLS ID3 配信では CaptionManagement が届かないため、標準の初期管理データを注入
-            this.injectDefaultCaptionManagement();
+            this.hookFeederOnSeeking(this.captionFeeder);
+            this.hookFeederOnSeeking(this.superimposeFeeder);
+            this.injectDefaultCaptionManagement(this.videoElement?.currentTime ?? 0);
 
             if (this.isEnabled) {
                 this.captionController.show();
@@ -83,6 +131,19 @@ export class SubtitleManager {
     }
 
     /**
+     * feeder の onSeeking をフックし、シークで消失する CaptionManagement を即時復帰
+     */
+    private hookFeederOnSeeking(feeder: aribb24.MPEGTSFeeder | null): void {
+        if (!feeder) return;
+        const originalOnSeeking = feeder.onSeeking.bind(feeder);
+        feeder.onSeeking = () => {
+            originalOnSeeking();
+            const cur = this.videoElement?.currentTime ?? 0;
+            this.injectDefaultCaptionManagement(cur);
+        };
+    }
+
+    /**
      * ARIB STD-B24 のデフォルト字幕管理データ (CaptionManagement) を feeder に注入
      *
      * 背景:
@@ -92,46 +153,23 @@ export class SubtitleManager {
      * data_group_id != 1 (CaptionManagement) を破棄して CaptionStatement のみを流すため、
      * HLS 配信では管理データが届かず字幕が表示されません。
      * そこで、日本のデジタル放送標準（言語: jpn, 文字コード: JIS8）の CaptionManagement
-     * (グループ0 / グループ1) を初期データとして注入することで、aribb24.js v2 のデコードを成立させます。
+     * (グループ0 / グループ1) を指定タイムスタンプの直前に注入し、aribb24.js v2 のデコードを成立させます。
      */
-    private injectDefaultCaptionManagement(): void {
-        for (const grp of [0, 1]) {
-            const dataGroupId = grp << 5;
-            const dgByte0 = (dataGroupId << 2) & 0xfc;
-            const dgPayload = new Uint8Array([
-                dgByte0,
-                0x00,
-                0x00,
-                0x00,
-                0x0b,
-                0x00,
-                0x01,
-                0x00,
-                0x6a,
-                0x70,
-                0x6e, // "jpn"
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-            ]);
-
-            // 通常字幕 (Caption: 0x80)
-            const captionHeader = new Uint8Array([0x80, 0xff, 0xf0]);
-            const captionPES = new Uint8Array(captionHeader.length + dgPayload.length);
-            captionPES.set(captionHeader, 0);
-            captionPES.set(dgPayload, captionHeader.length);
-            this.captionFeeder?.feedB24(captionPES, 0, 0);
-
-            // 文字スーパー (Superimpose: 0x81)
-            const superHeader = new Uint8Array([0x81, 0xff, 0xf0]);
-            const superPES = new Uint8Array(superHeader.length + dgPayload.length);
-            superPES.set(superHeader, 0);
-            superPES.set(dgPayload, superHeader.length);
-            this.superimposeFeeder?.feedB24(superPES, 0, 0);
+    public injectDefaultCaptionManagement(timeSec: number = 0): void {
+        const dts = Math.max(0, timeSec - 0.001);
+        for (const cap of DEFAULT_PES_TEMPLATES.caption) {
+            this.captionFeeder?.feedB24(cap, dts, dts);
         }
+        for (const sup of DEFAULT_PES_TEMPLATES.super) {
+            this.superimposeFeeder?.feedB24(sup, dts, dts);
+        }
+    }
+
+    /**
+     * シーク発生時の即時復元
+     */
+    public notifySeek(currentTime: number): void {
+        this.injectDefaultCaptionManagement(currentTime);
     }
 
     /**
@@ -153,7 +191,7 @@ export class SubtitleManager {
     }
 
     /**
-     * 字幕レンダラーの破棄とリソース解放
+     * 字幕レンダラーの破棄
      */
     public detach(): void {
         if (this.captionRenderer) {
@@ -191,26 +229,41 @@ export class SubtitleManager {
     }
 
     /**
+     * タイムスタンプを秒単位に正規化 (90kHz クロック値対応)
+     */
+    private normalizeTimestamp(time?: number): number | undefined {
+        if (time === undefined || Number.isNaN(time)) return undefined;
+        return time > 100000 ? time / 90000 : time;
+    }
+
+    /**
      * HLS から届いた ID3 Timed Metadata サンプル群をフィード
      */
     public feedHlsMetadata(samples: Array<{ pts: number; dts?: number; data: Uint8Array }>): void {
         if (!samples || samples.length === 0) return;
         let detected = false;
 
-        for (const sample of samples) {
-            if (sample.data && sample.pts !== undefined) {
-                detected = true;
-                // 通常は秒(seconds)で渡されるが、90kHz(クロック値)で渡された場合の安全策
-                let ptsSec = sample.pts;
-                if (ptsSec > 100000) {
-                    ptsSec = ptsSec / 90000;
+        // セグメント内の最若タイムスタンプを特定し、その直前に CaptionManagement を先行注入
+        let firstSampleTime: number | null = null;
+        const normalizedSamples = samples
+            .filter(sample => sample.data && sample.pts !== undefined)
+            .map(sample => {
+                const ptsSec = this.normalizeTimestamp(sample.pts)!;
+                const dtsSec = this.normalizeTimestamp(sample.dts) ?? ptsSec;
+                if (firstSampleTime === null || dtsSec < firstSampleTime) {
+                    firstSampleTime = dtsSec;
                 }
-                const dtsSec =
-                    sample.dts !== undefined ? (sample.dts > 100000 ? sample.dts / 90000 : sample.dts) : ptsSec;
+                return { data: sample.data, ptsSec, dtsSec };
+            });
 
-                this.captionFeeder?.feedID3(sample.data, ptsSec, dtsSec);
-                this.superimposeFeeder?.feedID3(sample.data, ptsSec, dtsSec);
-            }
+        if (firstSampleTime !== null) {
+            this.injectDefaultCaptionManagement(firstSampleTime);
+        }
+
+        for (const sample of normalizedSamples) {
+            detected = true;
+            this.captionFeeder?.feedID3(sample.data, sample.ptsSec, sample.dtsSec);
+            this.superimposeFeeder?.feedID3(sample.data, sample.ptsSec, sample.dtsSec);
         }
 
         if (detected) {

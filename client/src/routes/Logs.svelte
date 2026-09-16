@@ -420,7 +420,7 @@
 
         <!-- ログコンソールエリア -->
         <div
-            class="relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-xl overflow-hidden font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-200"
+            class="relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-xl overflow-hidden font-mono text-xs text-slate-800 dark:text-slate-200"
         >
             <!-- 上部ステータスバー -->
             <div
@@ -443,36 +443,38 @@
             <div
                 bind:this={logContainer}
                 onscroll={handleScroll}
-                class="h-[calc(100dvh-280px)] min-h-[360px] overflow-y-auto p-3 sm:p-4 space-y-1.5 select-text scroll-smooth"
+                class="h-[calc(100dvh-280px)] min-h-[360px] overflow-y-auto p-1.5 sm:p-2 space-y-0.5 select-text scroll-smooth"
             >
                 {#if isLoading}
                     <div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
-                        <RefreshCw class="w-6 h-6 animate-spin mr-2" />
+                        <RefreshCw class="w-5 h-5 animate-spin mr-2" />
                         <span>ログを読み込み中...</span>
                     </div>
                 {:else if filteredLogs.length === 0}
                     <div class="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
-                        <Terminal class="w-10 h-10 mb-2 opacity-40" />
+                        <Terminal class="w-8 h-8 mb-2 opacity-40" />
                         <span>表示するログがありません</span>
                     </div>
                 {:else}
                     {#each filteredLogs as log, i (`${log.process}-${log.id}-${log.timestamp}-${i}`)}
                         <div
-                            class="group flex items-start gap-2 py-1 px-2 rounded hover:bg-slate-100 dark:hover:bg-slate-900/80 transition-colors leading-relaxed break-all font-mono {log.level ===
+                            class="group flex items-start gap-1.5 py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900/80 transition-colors leading-snug break-all font-mono {log.level ===
                                 'error' || log.level === 'fatal'
-                                ? 'bg-rose-50 text-rose-800 border-l-2 border-rose-500 pl-2.5 dark:bg-rose-950/25 dark:text-rose-300'
+                                ? 'bg-rose-50/70 text-rose-800 border-l-2 border-rose-500 pl-1.5 dark:bg-rose-950/25 dark:text-rose-300'
                                 : log.level === 'warn'
-                                  ? 'bg-amber-50 text-amber-800 border-l-2 border-amber-500 pl-2.5 dark:bg-amber-950/25 dark:text-amber-200'
+                                  ? 'bg-amber-50/70 text-amber-800 border-l-2 border-amber-500 pl-1.5 dark:bg-amber-950/25 dark:text-amber-200'
                                   : ''}"
                         >
                             <!-- タイムスタンプ -->
-                            <span class="text-slate-400 dark:text-slate-500 shrink-0 select-none text-xs">
+                            <span
+                                class="text-slate-400 dark:text-slate-500 shrink-0 select-none text-xs tabular-nums leading-snug"
+                            >
                                 {formatTime(log.timestamp)}
                             </span>
 
                             <!-- プロセスバッジ -->
                             <span
-                                class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded border {log.process ===
+                                class="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded leading-none border self-start mt-0.5 {log.process ===
                                 'Operator'
                                     ? 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800/60'
                                     : log.process === 'Service'
@@ -484,7 +486,8 @@
 
                             <!-- レベルバッジ -->
                             <span
-                                class="shrink-0 text-xs font-bold px-2 py-0.5 rounded {log.level === 'fatal'
+                                class="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded leading-none self-start mt-0.5 {log.level ===
+                                'fatal'
                                     ? 'bg-rose-600 text-white'
                                     : log.level === 'error'
                                       ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
@@ -498,13 +501,14 @@
                             </span>
 
                             <!-- カテゴリ -->
-                            <span class="text-slate-500 dark:text-slate-400 shrink-0 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400 shrink-0 text-xs leading-snug">
                                 [{log.category}]
                             </span>
 
                             <!-- メッセージ -->
                             <span
-                                class="flex-1 whitespace-pre-wrap {log.level === 'error' || log.level === 'fatal'
+                                class="flex-1 whitespace-pre-wrap leading-snug text-xs {log.level === 'error' ||
+                                log.level === 'fatal'
                                     ? 'text-rose-700 dark:text-rose-300 font-medium'
                                     : log.level === 'warn'
                                       ? 'text-amber-700 dark:text-amber-200 font-medium'
@@ -518,11 +522,11 @@
                             <!-- ホバー時行コピーボタン -->
                             <button
                                 type="button"
-                                class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:text-white dark:hover:bg-slate-800 rounded transition-all cursor-pointer shrink-0"
+                                class="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:text-white dark:hover:bg-slate-800 rounded transition-all cursor-pointer shrink-0"
                                 onclick={() => copySingleLog(log)}
                                 title="この行をコピー"
                             >
-                                <Copy class="w-3.5 h-3.5" />
+                                <Copy class="w-3 h-3" />
                             </button>
                         </div>
                     {/each}

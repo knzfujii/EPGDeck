@@ -189,3 +189,10 @@ render:x:107:
 | **Samba から録画ファイルが削除できない** | ファイルが `0644` かつ所有者が別ユーザーになっている | systemd に `UMask=0002` を設定するか、Samba 側の `create mask = 0664` を設定する |
 | **コンテナ起動時にログやデータ保存で Permission denied** | ホスト側のボリュームマウントディレクトリの権限がコンテナ実行ユーザーと不一致 | ホスト側で `chown -R 1000:1000 ./recorded ./thumbnail ./data ./logs` を実行する |
 | **外部コマンドや ffmpeg が裏で残存する** | 親プロセスの突然死または init プロセスの不在 | 今回導入した `killAll()` / `cleanExit` および Docker の `init: true`（tini）を使用する |
+
+---
+
+## 6. 関連ドキュメント
+
+- **[RAM ディスク (`/dev/shm`) 活用ガイド](./ramdisk.md)**: HLS ストリーミング一時ファイルやトランスコード中間領域に RAM ディスクを適用し、SSD 寿命保護とディスク I/O 負荷を軽減する設定ガイドです。
+- **[config.yml 設定マニュアル](./configuration.md)**: 各種ディレクトリ設定の詳細リファレンスです。

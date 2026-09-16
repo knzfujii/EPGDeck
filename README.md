@@ -162,6 +162,9 @@ npm run migrate-thumbnails [-- --dry-run]
 
 ## Tips
 
+### RAM ディスク（`/dev/shm`）の活用による SSD 寿命保護
+HLS ストリーミング配信やトランスコード時の一時ファイルを RAM ディスク上に配置することで、SSD への書き込み負荷（TBW 消耗）をゼロに抑え、快適な応答性を実現できます。詳細は **[RAM ディスク活用ガイド](docs/manual/ramdisk.md)** を参照してください。
+
 ### Kodi との連携
 
 [Kodi](https://kodi.tv/) との連携に対応しています。詳細は [Kodi 連携ガイド](docs/manual/client-integration/kodi.md) を参照してください。

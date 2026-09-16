@@ -172,6 +172,8 @@ recording:
       path: '%ROOT%/recorded'
       limitThreshold: 107374182400 # 100GB以下になったら古い録画を自動削除(バイト)
   tempDir: '%ROOT%/recorded_tmp'   # 一時録画ディレクトリ（指定時は録画完了後に正規ディレクトリへ移動）
+  # ※ 録画一時ディレクトリを RAM ディスク (/dev/shm) や SSD に配置するベストプラクティスについては
+  #    [RAM ディスク活用ガイド](./ramdisk.md#6-録画一時ディレクトリ-recordingtempdir-への適用について) を参照してください。
   historyRetentionDays: 90         # 二重録画防止のための録画履歴保持日数（0で無期限保持・自動削除無効）
   storageCheckIntervalSeconds: 60  # ディスク空き容量チェック間隔(秒)
   priority:
@@ -293,7 +295,22 @@ urlscheme:
 
 ## 9. 配信・ストリーミング設定 (`streaming`)
 
-EPGDeck には高品質なデフォルト配信コマンド群が内蔵されているため、通常は設定不要です。独自に FFmpeg オプションをカスタマイズしたい場合のみ指定します。
+EPGDeck には高品質なデフォルト配信コマンド群が内蔵されているため、通常はコマンドの詳細設定は不要です。独自に FFmpeg オプションをカスタマイズしたい場合や、一時バッファの保存先を変更したい場合に指定します。
+
+### 一時バッファディレクトリ (`streaming.tempDir`)
+
+HLS 配信時のセグメントファイル（`.ts`）およびプレイリスト（`.m3u8`）を出力する一時ディレクトリです（省略時は `%ROOT%/data/streamfiles`）。
+
+> [!TIP]
+> **SSD 寿命保護と I/O 負荷軽減のためのベストプラクティス**:
+> HLS 配信は数秒単位で一時ファイルを作成・削除するため、SSD に大きな書き込み負荷（TBW 消耗）を与えます。RAM ディスク（`/dev/shm`）上に配置することで、ディスク書き込み量をゼロに抑え、快適な応答性を得ることができます。
+> 
+> ```yaml
+> streaming:
+>   tempDir: '/dev/shm/epgdeck/streamfiles'
+> ```
+> 
+> 詳細な設定手順・注意点・Docker 環境での対処法については **[RAM ディスク活用ガイド](./ramdisk.md)** を参照してください。
 
 ---
 

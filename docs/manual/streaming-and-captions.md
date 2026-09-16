@@ -31,6 +31,10 @@ iOS Safari を含むフルプラットフォームに対応しています。
 3. **推奨セグメント設定**:
    セグメント時間は `-hls_time 3`（3秒）、ライブ配信時のプレイリスト件数は `-hls_list_size 17` を推奨します。また、映像には Closed GOP (`-flags +cgop`) を指定してください。
 
+> [!TIP]
+> **HLS 一時セグメントの RAM ディスク（/dev/shm）配置**:
+> HLS 配信は頻繁にセグメントの作成・削除を行うため、SSD に大きな書き込み負荷（TBW 消耗）を与えます。`config.yml` の `streaming.tempDir` に `/dev/shm/epgdeck/streamfiles` などのメモリ領域を指定することで、ディスク摩耗を完全に防ぐことができます。詳細は **[RAM ディスク活用ガイド](./ramdisk.md)** を参照してください。
+
 ### HLS 720p の標準サンプル設定 (config.yml)
 
 ```bash

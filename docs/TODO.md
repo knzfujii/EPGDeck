@@ -30,9 +30,7 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 
 ## 3. ドキュメント & ガイド (Documentation)
 
-- [ ] **`/dev/shm`（RAM ディスク）活用ガイドの作成**
-  - ストリーミング一時バッファ（HLS セグメント等）やトランスコード一時領域へのメモリファイルシステム適用手順
-  - SSD/HDD の書き込み寿命保護とディスク I/O 負荷軽減のためのベストプラクティスを `docs/manual/` に整備
+- （現在進行中の未完了タスクはありません）
 
 ---
 
@@ -56,4 +54,4 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 | **外部プレイヤー連携** | M3U 導線廃止、iOS (VLC)・Android (インテント) 外部プレイヤー直接起動、録画詳細・再生モーダル連動 | [画面変更仕様書](dev/epgdeck_change_spec.md#65-外部プレイヤー連携urlスキーム--インテント起動と-m3u-導線廃止) |
 | **開発プロセス高速化** | `check:quick`（約3秒並列チェック）、ESLint/TypeScript キャッシュ、自律ワークフロー（リファクタ・自己レビュー・ドキュメント更新）制度化 | [AGENTS.md](../AGENTS.md)、[テスト仕様書](dev/testing.md) |
 | **手動予約の修正 & 録画オプション共通化** | 時間指定手動予約の API 仕様不一致バグ修正、TS保存先・エンコード最大3系統・元TS削除・末尾欠け許可の共通コンポーネント化（`RecordingOptionForm`）、Guide / Reserves / ManualReserve の操作統一 | [画面変更仕様書](dev/epgdeck_change_spec.md#2-画面一覧統廃合対比表) |
-
+| **RAM ディスク (`/dev/shm`) 活用ガイド** | HLS ストリーミング一時バッファやトランスコード一時領域への `/dev/shm`（tmpfs）適用手順、SSD 書き込み寿命保護（TBW 削減）・ディスク I/O 負荷軽減のベストプラクティス、Docker 64MB 制限回避策、録画一時領域のサイジング注意点 | [RAM ディスク活用ガイド](manual/ramdisk.md)、[設定マニュアル](manual/configuration.md#9-配信ストリーミング設定-streaming) |

@@ -11,6 +11,7 @@
     interface Props {
         src: string;
         streamType?: 'm2tsll' | 'm2ts' | 'webm' | 'mp4' | 'hls' | 'direct';
+        videoFileType?: 'ts' | 'encoded';
         isHls?: boolean;
         isLive?: boolean;
         title?: string;
@@ -51,6 +52,7 @@
 
     // props のエイリアス
     let streamType = $derived(props.streamType || 'direct');
+    let videoFileType = $derived(props.videoFileType);
     let isHls = $derived(props.isHls ?? false);
     let isLive = $derived(props.isLive ?? false);
     let playbackOffset = $derived(props.playbackOffset ?? 0);
@@ -58,6 +60,16 @@
     let recordedId = $derived(props.recordedId);
     let src = $derived(props.src);
     let vttSrc = $derived(props.vttSrc);
+
+    let canShowSubtitle = $derived(
+        !!vttSrc ||
+            ((isLive || videoFileType !== 'encoded') &&
+                (isHls ||
+                    streamType === 'hls' ||
+                    streamType === 'm2tsll' ||
+                    streamType === 'm2ts' ||
+                    streamType === 'direct')),
+    );
 
     // 表示用の動画全体の長さ (秒)
     // 直接再生（direct / mp4）の時はブラウザの videoElement.duration（実尺）を最優先。
@@ -836,6 +848,7 @@
         {isHls}
         {isSubtitleOn}
         {isFullscreen}
+        {canShowSubtitle}
         onTogglePlay={togglePlay}
         onSeekChange={handleSeekChange}
         onSeekStart={pauseHideControlsTimer}

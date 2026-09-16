@@ -15,6 +15,7 @@
         isHls: boolean;
         isSubtitleOn: boolean;
         isFullscreen: boolean;
+        canShowSubtitle: boolean;
         onTogglePlay: () => void;
         onSeekChange: (e: Event) => void;
         onSeekStart?: () => void;
@@ -39,6 +40,7 @@
         isHls,
         isSubtitleOn,
         isFullscreen,
+        canShowSubtitle,
         onTogglePlay,
         onSeekChange,
         onSeekStart,
@@ -52,10 +54,6 @@
     }: Props = $props();
 
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-
-    let canShowSubtitle = $derived(
-        isHls || streamType === 'hls' || streamType === 'm2tsll' || streamType === 'm2ts' || streamType === 'direct',
-    );
 
     let progressPercent = $derived(
         displayDuration > 0 ? Math.min(100, Math.max(0, (currentTime / displayDuration) * 100)) : 0,

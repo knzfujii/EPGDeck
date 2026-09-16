@@ -407,6 +407,7 @@
             <VideoPlayer
                 src={videoSrc}
                 {streamType}
+                videoFileType={currentVideoFile?.type}
                 {isHls}
                 {isLive}
                 {playbackOffset}

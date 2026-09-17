@@ -1,12 +1,12 @@
 import { execFile } from 'child_process';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import * as apid from '../../../../api';
-import VideoFile from '../../../db/entities/VideoFile';
-import IVideoFileDB from '../../db/IVideoFileDB';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import IVideoUtil, { VideoInfo } from './IVideoUtil';
+import * as apid from '../../../../api.js';
+import VideoFile from '../../../db/entities/VideoFile.js';
+import IVideoFileDB from '../../db/IVideoFileDB.js';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import IVideoUtil, { VideoInfo } from './IVideoUtil.js';
 
 @injectable()
 export default class VideoUtil implements IVideoUtil {

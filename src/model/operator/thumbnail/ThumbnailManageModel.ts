@@ -2,21 +2,21 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import * as apid from '../../../../api';
-import Thumbnail from '../../../db/entities/Thumbnail';
-import FileUtil from '../../../util/FileUtil';
-import ProcessUtil from '../../../util/ProcessUtil';
-import IVideoUtil from '../../api/video/IVideoUtil';
-import IRecordedDB from '../../db/IRecordedDB';
-import IThumbnailDB from '../../db/IThumbnailDB';
-import IVideoFileDB from '../../db/IVideoFileDB';
-import IThumbnailEvent from '../../event/IThumbnailEvent';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import { IPromiseQueue } from '../../IPromiseQueue';
-import IThumbnailManageModel from './IThumbnailManageModel';
+import * as apid from '../../../../api.js';
+import Thumbnail from '../../../db/entities/Thumbnail.js';
+import FileUtil from '../../../util/FileUtil.js';
+import ProcessUtil from '../../../util/ProcessUtil.js';
+import IVideoUtil from '../../api/video/IVideoUtil.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IThumbnailDB from '../../db/IThumbnailDB.js';
+import IVideoFileDB from '../../db/IVideoFileDB.js';
+import IThumbnailEvent from '../../event/IThumbnailEvent.js';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import { IPromiseQueue } from '../../IPromiseQueue.js';
+import IThumbnailManageModel from './IThumbnailManageModel.js';
 
 @injectable()
 export default class ThumbnailManageModel implements IThumbnailManageModel {

@@ -1,4 +1,4 @@
-import * as apid from '../../../../api';
+import * as apid from '../../../../api.js';
 
 export default interface IRuleApiModel {
     add(rule: apid.AddRuleOption): Promise<apid.RuleId>;

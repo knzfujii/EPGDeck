@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IConfigApiModel from '../../../api/config/IConfigApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IConfigApiModel from '../../../api/config/IConfigApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

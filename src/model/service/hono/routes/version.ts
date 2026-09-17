@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as api from '../HonoApiUtil';
+import * as api from '../HonoApiUtil.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = new Hono();
 

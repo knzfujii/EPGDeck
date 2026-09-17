@@ -3,7 +3,7 @@ import { createClient } from '@libsql/client';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/libsql';
 import { describe, expect, it } from 'vitest';
-import * as sqliteSchema from '../../src/db/schema/sqlite';
+import * as sqliteSchema from '../../src/db/schema/sqlite/index.js';
 
 describe('Drizzle ORM SQLite Schema Tests', () => {
     const client = createClient({ url: ':memory:' });
@@ -127,7 +127,7 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
             }),
         };
 
-        const operator = new (await import('../../src/model/db/DrizzleOperator')).default(dummyConfig);
+        const operator = new (await import('../../src/model/db/DrizzleOperator.js')).default(dummyConfig);
         await operator.checkConnection();
 
         const dbInstance = operator.getDB();

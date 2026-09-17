@@ -1,13 +1,13 @@
 import { injectable } from 'inversify';
-import mirakurun from 'mirakurun';
-import IMirakurunClientModel from '../../src/model/IMirakurunClientModel';
+import type { Client } from 'mirakurun';
+import IMirakurunClientModel from '../../src/model/IMirakurunClientModel.js';
 
 /**
  * E2E テスト・CI 環境向けの完全密閉型（Hermetic）Mirakurun クライアントモック
  */
 @injectable()
 export default class MockMirakurunClientModel implements IMirakurunClientModel {
-    private dummyClient: mirakurun;
+    private dummyClient: Client;
 
     constructor() {
         this.dummyClient = {
@@ -33,10 +33,10 @@ export default class MockMirakurunClientModel implements IMirakurunClientModel {
             getPrograms: async () => [],
             getTuners: async () => [],
             getLogoImage: async () => Buffer.from(''),
-        } as unknown as mirakurun;
+        } as unknown as Client;
     }
 
-    public getClient(): mirakurun {
+    public getClient(): Client {
         return this.dummyClient;
     }
 }

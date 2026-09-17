@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import * as mapid from '../../node_modules/mirakurun/api';
-import Program from '../../src/db/entities/Program';
-import Reserve from '../../src/db/entities/Reserve';
-import ReservationManageModel from '../../src/model/operator/reservation/ReservationManageModel';
+import * as mapid from '../../node_modules/mirakurun/api.js';
+import Program from '../../src/db/entities/Program.js';
+import Reserve from '../../src/db/entities/Reserve.js';
+import ReservationManageModel from '../../src/model/operator/reservation/ReservationManageModel.js';
 
 describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
     const dummyLogger: any = {

@@ -1,4 +1,4 @@
-import * as mapid from 'mirakurun/api';
+import * as mapid from 'mirakurun/api.js';
 
 /**
  * 番組情報を insert するときに使用する局索引情報

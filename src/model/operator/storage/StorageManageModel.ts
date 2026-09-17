@@ -1,16 +1,16 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
-import Recorded from '../../../db/entities/Recorded';
-import ProcessUtil from '../../../util/ProcessUtil';
-import Util from '../../../util/Util';
-import IRecordedDB from '../../db/IRecordedDB';
-import IConfigFile, { RecordedDirInfo } from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import IRecordedManageModel from '../recorded/IRecordedManageModel';
-import IStorageManageModel from './IStorageManageModel';
+import Recorded from '../../../db/entities/Recorded.js';
+import ProcessUtil from '../../../util/ProcessUtil.js';
+import Util from '../../../util/Util.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IConfigFile, { RecordedDirInfo } from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import IRecordedManageModel from '../recorded/IRecordedManageModel.js';
+import IStorageManageModel from './IStorageManageModel.js';
 
 @injectable()
 export default class StorageManageModel implements IStorageManageModel {

@@ -4,7 +4,7 @@ import {
     loadRecordingOptionState,
     buildSaveOption,
     buildEncodeOption,
-} from '../../client/src/lib/utils/recordingOptions';
+} from '../../client/src/lib/utils/recordingOptions.js';
 
 describe('recordingOptions utility', () => {
     it('returns correct default state', () => {

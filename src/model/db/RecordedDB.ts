@@ -1,16 +1,16 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import DropLogFile from '../../db/entities/DropLogFile';
-import Recorded from '../../db/entities/Recorded';
-import RecordedTag from '../../db/entities/RecordedTag';
-import Thumbnail from '../../db/entities/Thumbnail';
-import VideoFile from '../../db/entities/VideoFile';
-import StrUtil from '../../util/StrUtil';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
-import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB';
+import * as apid from '../../../api.js';
+import DropLogFile from '../../db/entities/DropLogFile.js';
+import Recorded from '../../db/entities/Recorded.js';
+import RecordedTag from '../../db/entities/RecordedTag.js';
+import Thumbnail from '../../db/entities/Thumbnail.js';
+import VideoFile from '../../db/entities/VideoFile.js';
+import StrUtil from '../../util/StrUtil.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
+import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB.js';
 
 @injectable()
 export default class RecordedDB implements IRecordedDB {

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IChannelApiModel, { IChannelApiModelError } from '../../../api/channel/IChannelApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IChannelApiModel, { IChannelApiModelError } from '../../../api/channel/IChannelApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

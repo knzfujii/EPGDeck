@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import { describe, expect, it, beforeEach } from 'vitest';
-import createHonoApp from '../../src/model/service/hono/createHonoApp';
-import IConfigFile from '../../src/model/IConfigFile';
-import ILogger from '../../src/model/ILogger';
-import container from '../../src/model/ModelContainer';
-import { AuthManager } from '../../src/model/service/hono/AuthManager';
-import IConfiguration from '../../src/model/IConfiguration';
+import createHonoApp from '../../src/model/service/hono/createHonoApp.js';
+import IConfigFile from '../../src/model/IConfigFile.js';
+import ILogger from '../../src/model/ILogger.js';
+import container from '../../src/model/ModelContainer.js';
+import { AuthManager } from '../../src/model/service/hono/AuthManager.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
 
 describe('Read-Only Mode & Auth Integration Tests', () => {
     const createConfig = (readOnly?: IConfigFile['readOnly']): IConfigFile =>

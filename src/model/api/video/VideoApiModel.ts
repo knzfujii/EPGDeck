@@ -1,16 +1,16 @@
 import { spawn } from 'child_process';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import * as apid from '../../../../api';
-import IRecordedDB from '../../db/IRecordedDB';
-import IVideoFileDB from '../../db/IVideoFileDB';
-import IConfiguration from '../../IConfiguration';
-import IIPCClient from '../../ipc/IIPCClient';
-import FileUtil from '../../../util/FileUtil';
-import IApiUtil from '../IApiUtil';
-import IPlayList from '../IPlayList';
-import IVideoApiModel, { VideoFilePathInfo } from './IVideoApiModel';
-import IVideoUtil from './IVideoUtil';
+import * as apid from '../../../../api.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IVideoFileDB from '../../db/IVideoFileDB.js';
+import IConfiguration from '../../IConfiguration.js';
+import IIPCClient from '../../ipc/IIPCClient.js';
+import FileUtil from '../../../util/FileUtil.js';
+import IApiUtil from '../IApiUtil.js';
+import IPlayList from '../IPlayList.js';
+import IVideoApiModel, { VideoFilePathInfo } from './IVideoApiModel.js';
+import IVideoUtil from './IVideoUtil.js';
 
 @injectable()
 export default class VideoApiModel implements IVideoApiModel {

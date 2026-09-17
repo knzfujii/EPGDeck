@@ -1,11 +1,11 @@
 import { and, asc, eq, like, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import StrUtil from '../../util/StrUtil';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
-import IRuleDB, { RuleWithCnt } from './IRuleDB';
+import * as apid from '../../../api.js';
+import StrUtil from '../../util/StrUtil.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
+import IRuleDB, { RuleWithCnt } from './IRuleDB.js';
 
 @injectable()
 export default class RuleDB implements IRuleDB {

@@ -1,20 +1,20 @@
 import { spawn } from 'child_process';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import Recorded from '../../../db/entities/Recorded';
-import Reserve from '../../../db/entities/Reserve';
-import ProcessUtil from '../../../util/ProcessUtil';
-import IVideoUtil from '../../api/video/IVideoUtil';
-import IChannelDB from '../../db/IChannelDB';
-import IRecordedDB from '../../db/IRecordedDB';
-import { OperatorFinishEncodeInfo } from '../../event/IOperatorEncodeEvent';
-import { IReserveUpdateValues } from '../../event/IReserveEvent';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import { IPromiseQueue } from '../../IPromiseQueue';
-import IExternalCommandManageModel from './IExternalCommandManageModel';
+import Recorded from '../../../db/entities/Recorded.js';
+import Reserve from '../../../db/entities/Reserve.js';
+import ProcessUtil from '../../../util/ProcessUtil.js';
+import IVideoUtil from '../../api/video/IVideoUtil.js';
+import IChannelDB from '../../db/IChannelDB.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import { OperatorFinishEncodeInfo } from '../../event/IOperatorEncodeEvent.js';
+import { IReserveUpdateValues } from '../../event/IReserveEvent.js';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import { IPromiseQueue } from '../../IPromiseQueue.js';
+import IExternalCommandManageModel from './IExternalCommandManageModel.js';
 
 @injectable()
 export default class ExternalCommandManageModel implements IExternalCommandManageModel {

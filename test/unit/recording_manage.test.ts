@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import Reserve from '../../src/db/entities/Reserve';
-import RecordingManageModel from '../../src/model/operator/recording/RecordingManageModel';
+import Reserve from '../../src/db/entities/Reserve.js';
+import RecordingManageModel from '../../src/model/operator/recording/RecordingManageModel.js';
 
 describe('RecordingManageModel Lifecycle Tests', () => {
     let dummyLogger: any;

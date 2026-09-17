@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
-import LoggerModel from '../../src/model/LoggerModel';
-import LogManageModel from '../../src/model/service/log/LogManageModel';
-import { LogEntry } from '../../src/model/ILogger';
+import LoggerModel from '../../src/model/LoggerModel.js';
+import LogManageModel from '../../src/model/service/log/LogManageModel.js';
+import { LogEntry } from '../../src/model/ILogger.js';
 
 describe('Logger & LogManageModel Tests', () => {
     it('LoggerModel should output logs and notify listeners', () => {

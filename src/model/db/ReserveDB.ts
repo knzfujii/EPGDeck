@@ -1,18 +1,18 @@
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import Reserve from '../../db/entities/Reserve';
-import { IReserveUpdateValues } from '../event/IReserveEvent';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
+import * as apid from '../../../api.js';
+import Reserve from '../../db/entities/Reserve.js';
+import { IReserveUpdateValues } from '../event/IReserveEvent.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
 import IReserveDB, {
     IFindRuleOption,
     IFindTimeRangesOption,
     IFindTimeSpecificationOption,
     IGetManualIdsOption,
     RuleIdCountResult,
-} from './IReserveDB';
+} from './IReserveDB.js';
 
 @injectable()
 export default class ReserveDB implements IReserveDB {

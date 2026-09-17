@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IStreamApiModel from '../../../api/stream/IStreamApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IStreamApiModel from '../../../api/stream/IStreamApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

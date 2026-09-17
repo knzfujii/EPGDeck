@@ -3,10 +3,10 @@ import * as fs from 'fs';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import * as sqliteSchema from '../../src/db/schema/sqlite';
-import ProgramDB from '../../src/model/db/ProgramDB';
-import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
-import IPromiseRetry from '../../src/model/IPromiseRetry';
+import * as sqliteSchema from '../../src/db/schema/sqlite/index.js';
+import ProgramDB from '../../src/model/db/ProgramDB.js';
+import IDrizzleOperator from '../../src/model/db/IDrizzleOperator.js';
+import IPromiseRetry from '../../src/model/IPromiseRetry.js';
 
 describe('ProgramDB findRule Tests', () => {
     const testDbFile = 'test_program_db.db';

@@ -1,20 +1,20 @@
 import { ChildProcess } from 'child_process';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import IOperatorEncodeEvent, { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent';
+import * as apid from '../../../api.js';
+import IOperatorEncodeEvent, { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent.js';
 import IRecordedManageModel, {
     AddVideoFileOption,
     UploadedVideoFileOption,
-} from '../operator/recorded/IRecordedManageModel';
-import IRecordedTagManadeModel from '../operator/recordedTag/IRecordedTagManadeModel';
-import IRecordingManageModel from '../operator/recording/IRecordingManageModel';
-import IReservationManageModel from '../operator/reservation/IReservationManageModel';
-import IRuleManageModel from '../operator/rule/IRuleManageModel';
-import IThumbnailManageModel from '../operator/thumbnail/IThumbnailManageModel';
-import IRecordedDB from '../db/IRecordedDB';
-import IReserveDB from '../db/IReserveDB';
-import { LogEntry } from '../ILogger';
-import IIPCServer from './IIPCServer';
+} from '../operator/recorded/IRecordedManageModel.js';
+import IRecordedTagManadeModel from '../operator/recordedTag/IRecordedTagManadeModel.js';
+import IRecordingManageModel from '../operator/recording/IRecordingManageModel.js';
+import IReservationManageModel from '../operator/reservation/IReservationManageModel.js';
+import IRuleManageModel from '../operator/rule/IRuleManageModel.js';
+import IThumbnailManageModel from '../operator/thumbnail/IThumbnailManageModel.js';
+import IRecordedDB from '../db/IRecordedDB.js';
+import IReserveDB from '../db/IReserveDB.js';
+import { LogEntry } from '../ILogger.js';
+import IIPCServer from './IIPCServer.js';
 import {
     OperatorEncodeEventFunctions,
     ModelName,
@@ -29,7 +29,7 @@ import {
     RuleFuntions,
     SendMessage,
     ThumbnailFunctions,
-} from './IPCMessageDefine';
+} from './IPCMessageDefine.js';
 
 interface IFunctionIndex {
     [functionName: string]: (msg: SendMessage) => Promise<any>;

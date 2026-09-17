@@ -3,7 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { describe, expect, it } from 'vitest';
-import Configuration from '../../src/model/Configuration';
+import Configuration from '../../src/model/Configuration.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe('Structured Config Schema', () => {
     it('should successfully parse config.yml.template into new structured schema', () => {

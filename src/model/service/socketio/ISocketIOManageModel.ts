@@ -1,5 +1,5 @@
 import * as http from 'http';
-import { LogEntry } from '../../ILogger';
+import { LogEntry } from '../../ILogger.js';
 
 export default interface ISocketIOManageModel {
     initialize(servers: http.Server[]): void;

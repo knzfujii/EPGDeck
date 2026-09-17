@@ -3,13 +3,13 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import { inject, injectable } from 'inversify';
-import IConfigFile from '../IConfigFile';
-import IConfiguration from '../IConfiguration';
-import ILogger from '../ILogger';
-import ILoggerModel from '../ILoggerModel';
-import IServiceServer from './IServiceServer';
-import { createHonoApp } from './hono/createHonoApp';
-import ISocketIOManageModel from './socketio/ISocketIOManageModel';
+import IConfigFile from '../IConfigFile.js';
+import IConfiguration from '../IConfiguration.js';
+import ILogger from '../ILogger.js';
+import ILoggerModel from '../ILoggerModel.js';
+import IServiceServer from './IServiceServer.js';
+import { createHonoApp } from './hono/createHonoApp.js';
+import ISocketIOManageModel from './socketio/ISocketIOManageModel.js';
 
 @injectable()
 class ServiceServer implements IServiceServer {

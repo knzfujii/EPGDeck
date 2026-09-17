@@ -1,4 +1,4 @@
-import { DrizzleDB } from '../../db/drizzle';
+import { DrizzleDB } from '../../db/drizzle.js';
 
 export default interface IDrizzleOperator {
     getDB(): DrizzleDB;

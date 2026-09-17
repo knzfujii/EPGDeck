@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
-import Program from '../../src/db/entities/Program';
-import ReservationManageModel from '../../src/model/operator/reservation/ReservationManageModel';
+import Program from '../../src/db/entities/Program.js';
+import ReservationManageModel from '../../src/model/operator/reservation/ReservationManageModel.js';
 
 describe('ReservationManageModel', () => {
     const dummyLogger: any = {

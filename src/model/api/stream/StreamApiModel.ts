@@ -1,19 +1,19 @@
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../../api';
-import IChannelDB from '../../db/IChannelDB';
-import IProgramDB from '../../db/IProgramDB';
-import IRecordedDB from '../../db/IRecordedDB';
-import IVideoFileDB from '../../db/IVideoFileDB';
-import IConfiguration from '../../IConfiguration';
-import { LiveHLSStreamModelProvider, LiveStreamModelProvider } from '../../service/stream/base/ILiveStreamBaseModel';
+import * as apid from '../../../../api.js';
+import IChannelDB from '../../db/IChannelDB.js';
+import IProgramDB from '../../db/IProgramDB.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IVideoFileDB from '../../db/IVideoFileDB.js';
+import IConfiguration from '../../IConfiguration.js';
+import { LiveHLSStreamModelProvider, LiveStreamModelProvider } from '../../service/stream/base/ILiveStreamBaseModel.js';
 import {
     RecordedHLSStreamModelProvider,
     RecordedStreamModelProvider,
-} from '../../service/stream/base/IRecordedStreamBaseModel';
-import IStreamManageModel from '../../service/stream/manager/IStreamManageModel';
-import IApiUtil from '../IApiUtil';
-import IPlayList from '../IPlayList';
-import IStreamApiModel, { StreamResponse } from './IStreamApiModel';
+} from '../../service/stream/base/IRecordedStreamBaseModel.js';
+import IStreamManageModel from '../../service/stream/manager/IStreamManageModel.js';
+import IApiUtil from '../IApiUtil.js';
+import IPlayList from '../IPlayList.js';
+import IStreamApiModel, { StreamResponse } from './IStreamApiModel.js';
 
 interface StreamConfig {
     cmd?: string;

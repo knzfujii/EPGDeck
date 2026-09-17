@@ -6,7 +6,7 @@ import {
     generateUrlScheme,
     getDirectStreamUrl,
     openWithExternalPlayer,
-} from '../../client/src/lib/utils/urlScheme';
+} from '../../client/src/lib/utils/urlScheme.js';
 
 describe('urlScheme.ts utility tests', () => {
     describe('detectClientOS', () => {

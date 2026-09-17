@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import * as apid from '../../../../../api';
-import IRecordedTagApiModel from '../../../api/recordedTag/IRecordedTagApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import * as apid from '../../../../../api.js';
+import IRecordedTagApiModel from '../../../api/recordedTag/IRecordedTagApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

@@ -1,11 +1,11 @@
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../../api';
-import IRecordedDB, { FindAllOption } from '../../db/IRecordedDB';
-import IIPCClient from '../../ipc/IIPCClient';
-import { UploadedVideoFileOption } from '../../operator/recorded/IRecordedManageModel';
-import IEncodeManageModel from '../../service/encode/IEncodeManageModel';
-import IRecordedItemUtil from '../IRecordedItemUtil';
-import IRecordedApiModel from './IRecordedApiModel';
+import * as apid from '../../../../api.js';
+import IRecordedDB, { FindAllOption } from '../../db/IRecordedDB.js';
+import IIPCClient from '../../ipc/IIPCClient.js';
+import { UploadedVideoFileOption } from '../../operator/recorded/IRecordedManageModel.js';
+import IEncodeManageModel from '../../service/encode/IEncodeManageModel.js';
+import IRecordedItemUtil from '../IRecordedItemUtil.js';
+import IRecordedApiModel from './IRecordedApiModel.js';
 
 @injectable()
 export default class RecordedApiModel implements IRecordedApiModel {

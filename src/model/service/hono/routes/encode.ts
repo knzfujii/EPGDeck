@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IEncodeApiModel from '../../../api/encode/IEncodeApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IEncodeApiModel from '../../../api/encode/IEncodeApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

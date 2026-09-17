@@ -1,8 +1,8 @@
 import { MiddlewareHandler } from 'hono';
-import IConfiguration from '../../IConfiguration';
-import container from '../../ModelContainer';
-import { AuthManager } from './AuthManager';
-import * as api from './HonoApiUtil';
+import IConfiguration from '../../IConfiguration.js';
+import container from '../../ModelContainer.js';
+import { AuthManager } from './AuthManager.js';
+import * as api from './HonoApiUtil.js';
 
 export const readOnlyMiddleware: MiddlewareHandler = async (c, next) => {
     let configuration: IConfiguration;

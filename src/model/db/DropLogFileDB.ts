@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import DropLogFile from '../../db/entities/DropLogFile';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDropLogFileDB, { UpdateCntOption } from './IDropLogFileDB';
-import IDrizzleOperator from './IDrizzleOperator';
+import * as apid from '../../../api.js';
+import DropLogFile from '../../db/entities/DropLogFile.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDropLogFileDB, { UpdateCntOption } from './IDropLogFileDB.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
 
 @injectable()
 export default class DropLogFileDB implements IDropLogFileDB {

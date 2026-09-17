@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import IIPTVApiModel from '../../../api/iptv/IIPTVApiModel';
-import IConfiguration from '../../../IConfiguration';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IIPTVApiModel from '../../../api/iptv/IIPTVApiModel.js';
+import IConfiguration from '../../../IConfiguration.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

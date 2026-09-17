@@ -1,4 +1,4 @@
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 /**
  * EPGDeck 標準エンコードスクリプト (CPU H.264)

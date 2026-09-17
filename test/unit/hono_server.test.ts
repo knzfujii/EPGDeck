@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import createHonoApp from '../../src/model/service/hono/createHonoApp';
-import IConfigFile from '../../src/model/IConfigFile';
-import ILogger from '../../src/model/ILogger';
+import createHonoApp from '../../src/model/service/hono/createHonoApp.js';
+import IConfigFile from '../../src/model/IConfigFile.js';
+import ILogger from '../../src/model/ILogger.js';
 
 describe('Hono Server Endpoints', () => {
     const dummyConfig: IConfigFile = {

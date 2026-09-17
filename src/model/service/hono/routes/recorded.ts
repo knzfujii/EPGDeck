@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { GetRecordedOption } from '../../../../../api';
-import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import { GetRecordedOption } from '../../../../../api.js';
+import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

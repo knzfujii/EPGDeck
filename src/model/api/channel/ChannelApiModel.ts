@@ -1,15 +1,15 @@
 import { inject, injectable } from 'inversify';
-import mirakurun from 'mirakurun';
-import * as apid from '../../../../api';
-import StrUtil from '../../../util/StrUtil';
-import IChannelDB from '../../db/IChannelDB';
-import IMirakurunClientModel from '../../IMirakurunClientModel';
-import IChannelApiModel, { IChannelApiModelError } from './IChannelApiModel';
+import type { Client } from 'mirakurun';
+import * as apid from '../../../../api.js';
+import StrUtil from '../../../util/StrUtil.js';
+import IChannelDB from '../../db/IChannelDB.js';
+import IMirakurunClientModel from '../../IMirakurunClientModel.js';
+import IChannelApiModel, { IChannelApiModelError } from './IChannelApiModel.js';
 
 @injectable()
 class ChannelApiModel implements IChannelApiModel {
     private channelDB: IChannelDB;
-    private mirakurunClient: mirakurun;
+    private mirakurunClient: Client;
 
     constructor(
         @inject('IChannelDB') channelDB: IChannelDB,

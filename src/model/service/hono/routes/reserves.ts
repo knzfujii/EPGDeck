@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import * as apid from '../../../../../api';
-import IReserveApiModel from '../../../api/reserve/IReserveApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import * as apid from '../../../../../api.js';
+import IReserveApiModel from '../../../api/reserve/IReserveApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

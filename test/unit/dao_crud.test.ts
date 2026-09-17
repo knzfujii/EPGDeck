@@ -2,15 +2,15 @@ import 'reflect-metadata';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { beforeEach, describe, expect, it } from 'vitest';
-import * as sqliteSchema from '../../src/db/schema/sqlite';
-import Recorded from '../../src/db/entities/Recorded';
-import Reserve from '../../src/db/entities/Reserve';
-import RecordedDB from '../../src/model/db/RecordedDB';
-import ReserveDB from '../../src/model/db/ReserveDB';
-import RuleDB from '../../src/model/db/RuleDB';
-import ChannelDB from '../../src/model/db/ChannelDB';
-import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
-import IPromiseRetry from '../../src/model/IPromiseRetry';
+import * as sqliteSchema from '../../src/db/schema/sqlite/index.js';
+import Recorded from '../../src/db/entities/Recorded.js';
+import Reserve from '../../src/db/entities/Reserve.js';
+import RecordedDB from '../../src/model/db/RecordedDB.js';
+import ReserveDB from '../../src/model/db/ReserveDB.js';
+import RuleDB from '../../src/model/db/RuleDB.js';
+import ChannelDB from '../../src/model/db/ChannelDB.js';
+import IDrizzleOperator from '../../src/model/db/IDrizzleOperator.js';
+import IPromiseRetry from '../../src/model/IPromiseRetry.js';
 
 describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
     let client: ReturnType<typeof createClient>;

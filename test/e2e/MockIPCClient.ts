@@ -7,7 +7,7 @@ import IIPCClient, {
     IPCReservationManageModel,
     IPCRuleManageModel,
     IPCThumbnailManageModel,
-} from '../../src/model/ipc/IIPCClient';
+} from '../../src/model/ipc/IIPCClient.js';
 
 @injectable()
 export default class MockIPCClient implements IIPCClient {

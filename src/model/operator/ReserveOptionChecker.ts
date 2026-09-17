@@ -1,8 +1,8 @@
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import IConfigFile from '../IConfigFile';
-import IConfiguration from '../IConfiguration';
-import IReserveOptionChecker from './IReserveOptionChecker';
+import * as apid from '../../../api.js';
+import IConfigFile from '../IConfigFile.js';
+import IConfiguration from '../IConfiguration.js';
+import IReserveOptionChecker from './IReserveOptionChecker.js';
 
 export interface KeywordOption {
     cs: boolean;

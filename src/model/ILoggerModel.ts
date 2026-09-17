@@ -1,5 +1,5 @@
-import { LogConfig } from './IConfigFile';
-import ILogger, { LogEntry, LogProcess } from './ILogger';
+import { LogConfig } from './IConfigFile.js';
+import ILogger, { LogEntry, LogProcess } from './ILogger.js';
 
 export default interface ILoggerModel {
     initialize(processName?: LogProcess | string, logConfig?: LogConfig): void;

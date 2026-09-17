@@ -1,4 +1,4 @@
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 /**
  * NVIDIA NVENC ハードウェアアクセラレーション設定 (GeForce / Quadro GPU)

@@ -3,13 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
-import * as apid from '../../../../../api';
-import IConfiguration from '../../../IConfiguration';
-import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel';
-import IVideoApiModel from '../../../api/video/IVideoApiModel';
-import container from '../../../ModelContainer';
-import { UploadedVideoFileOption } from '../../../operator/recorded/IRecordedManageModel';
-import * as api from '../HonoApiUtil';
+import * as apid from '../../../../../api.js';
+import IConfiguration from '../../../IConfiguration.js';
+import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel.js';
+import IVideoApiModel from '../../../api/video/IVideoApiModel.js';
+import container from '../../../ModelContainer.js';
+import { UploadedVideoFileOption } from '../../../operator/recorded/IRecordedManageModel.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

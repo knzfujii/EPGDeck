@@ -1,4 +1,4 @@
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 /**
  * 軽量 720p エンコード設定 (スマホ・外出先視聴向け)

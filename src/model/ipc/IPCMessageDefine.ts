@@ -1,5 +1,5 @@
-import * as apid from '../../../api';
-import { LogEntry } from '../ILogger';
+import * as apid from '../../../api.js';
+import { LogEntry } from '../ILogger.js';
 
 export type MessageId = number;
 

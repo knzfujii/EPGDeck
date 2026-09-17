@@ -1,5 +1,5 @@
-import mirakurun from 'mirakurun';
+import { Client } from 'mirakurun';
 
 export default interface IMirakurunClientModel {
-    getClient(): mirakurun;
+    getClient(): Client;
 }

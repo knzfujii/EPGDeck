@@ -1,5 +1,5 @@
-import * as apid from '../../../../../api';
-import IStreamBaseModel from './IStreamBaseModel';
+import * as apid from '../../../../../api.js';
+import IStreamBaseModel from './IStreamBaseModel.js';
 
 export type RecordedStreamModelProvider = () => Promise<IRecordedStreamBaseModel>;
 export type RecordedHLSStreamModelProvider = () => Promise<IRecordedStreamBaseModel>;

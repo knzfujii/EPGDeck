@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import StrUtil from '../../src/util/StrUtil';
+import StrUtil from '../../src/util/StrUtil.js';
 
 describe('StrUtil', () => {
     describe('urlJoin', () => {

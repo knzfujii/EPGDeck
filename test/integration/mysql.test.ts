@@ -1,15 +1,15 @@
 import 'reflect-metadata';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import Recorded from '../../src/db/entities/Recorded';
-import Reserve from '../../src/db/entities/Reserve';
-import ChannelDB from '../../src/model/db/ChannelDB';
-import DrizzleOperator from '../../src/model/db/DrizzleOperator';
-import RecordedDB from '../../src/model/db/RecordedDB';
-import ReserveDB from '../../src/model/db/ReserveDB';
-import RuleDB from '../../src/model/db/RuleDB';
-import IConfigFile from '../../src/model/IConfigFile';
-import IConfiguration from '../../src/model/IConfiguration';
-import IPromiseRetry from '../../src/model/IPromiseRetry';
+import Recorded from '../../src/db/entities/Recorded.js';
+import Reserve from '../../src/db/entities/Reserve.js';
+import ChannelDB from '../../src/model/db/ChannelDB.js';
+import DrizzleOperator from '../../src/model/db/DrizzleOperator.js';
+import RecordedDB from '../../src/model/db/RecordedDB.js';
+import ReserveDB from '../../src/model/db/ReserveDB.js';
+import RuleDB from '../../src/model/db/RuleDB.js';
+import IConfigFile from '../../src/model/IConfigFile.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
+import IPromiseRetry from '../../src/model/IPromiseRetry.js';
 
 const isMySQLTest = process.env.TEST_MYSQL === 'true';
 

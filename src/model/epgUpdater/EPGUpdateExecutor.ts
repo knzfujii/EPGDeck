@@ -1,9 +1,9 @@
 import 'reflect-metadata';
-import IConfiguration from '../IConfiguration';
-import ILoggerModel from '../ILoggerModel';
-import container from '../ModelContainer';
-import * as containerSetter from '../ModelContainerSetter';
-import IEPGUpdater from './IEPGUpdater';
+import IConfiguration from '../IConfiguration.js';
+import ILoggerModel from '../ILoggerModel.js';
+import container from '../ModelContainer.js';
+import * as containerSetter from '../ModelContainerSetter.js';
+import IEPGUpdater from './IEPGUpdater.js';
 
 containerSetter.set(container);
 

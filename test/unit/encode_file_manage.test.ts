@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as path from 'path';
-import EncodeFileManageModel from '../../src/model/service/encode/EncodeFileManageModel';
-import FileUtil from '../../src/util/FileUtil';
+import EncodeFileManageModel from '../../src/model/service/encode/EncodeFileManageModel.js';
+import FileUtil from '../../src/util/FileUtil.js';
 
 describe('EncodeFileManageModel', () => {
     let encodeFileManageModel: EncodeFileManageModel;

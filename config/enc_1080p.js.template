@@ -1,4 +1,4 @@
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 /**
  * 高品質 1080p エンコード設定

@@ -1,8 +1,7 @@
-import { createRequire } from 'node:module';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-const require = createRequire(__filename);
-const { timeStrToSeconds, buildFFmpegArgs } = require('../../config/enc_helper.js');
+// @ts-expect-error no types for enc_helper
+import { timeStrToSeconds, buildFFmpegArgs } from '../../config/enc_helper.js';
 
 describe('enc_helper.js', () => {
     const originalEnv = process.env;

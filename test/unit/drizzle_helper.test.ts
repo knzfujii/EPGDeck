@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as fs from 'fs';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
-import * as sqliteSchema from '../../src/db/schema/sqlite';
-import { DrizzleHelper } from '../../src/model/db/DrizzleHelper';
+import * as sqliteSchema from '../../src/db/schema/sqlite/index.js';
+import { DrizzleHelper } from '../../src/model/db/DrizzleHelper.js';
 
 describe('DrizzleHelper', () => {
     const testDbFile = 'test_drizzle_helper.db';

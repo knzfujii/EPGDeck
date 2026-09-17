@@ -1,8 +1,8 @@
-import * as apid from '../../../api';
-import DropLogFile from './DropLogFile';
-import RecordedTag from './RecordedTag';
-import Thumbnail from './Thumbnail';
-import VideoFile from './VideoFile';
+import * as apid from '../../../api.js';
+import DropLogFile from './DropLogFile.js';
+import RecordedTag from './RecordedTag.js';
+import Thumbnail from './Thumbnail.js';
+import VideoFile from './VideoFile.js';
 
 export default class Recorded {
     public id!: apid.RecordedId;

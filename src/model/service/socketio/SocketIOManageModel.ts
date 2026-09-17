@@ -1,12 +1,12 @@
 import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as SocketIO from 'socket.io';
-import StrUtil from '../../../util/StrUtil';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import ILogger, { LogEntry } from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import ISocketIOManageModel from './ISocketIOManageModel';
+import StrUtil from '../../../util/StrUtil.js';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger, { LogEntry } from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import ISocketIOManageModel from './ISocketIOManageModel.js';
 
 @injectable()
 export default class SocketIOManageModel implements ISocketIOManageModel {

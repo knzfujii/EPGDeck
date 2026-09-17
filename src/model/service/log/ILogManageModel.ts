@@ -1,4 +1,4 @@
-import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger';
+import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger.js';
 
 export interface GetLogsOption {
     limit?: number;

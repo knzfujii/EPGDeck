@@ -1,6 +1,6 @@
-import * as apid from '../../../../api';
-import * as mapid from 'mirakurun/api';
-import { IReserveUpdateValues } from '../../event/IReserveEvent';
+import * as apid from '../../../../api.js';
+import * as mapid from 'mirakurun/api.js';
+import { IReserveUpdateValues } from '../../event/IReserveEvent.js';
 
 export default interface IRecordingManageModel {
     setTuner(tuners: mapid.TunerDevice[]): void;

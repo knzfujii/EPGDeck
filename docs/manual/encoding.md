@@ -121,7 +121,7 @@ encode:
 
 ### ① `enc.js` / `enc.js.template`（標準 CPU H.264）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'libx264',
@@ -135,7 +135,7 @@ runEncode({
 
 ### ② `enc_1080p.js.template`（高品質 1080p）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'libx264',
@@ -149,7 +149,7 @@ runEncode({
 
 ### ③ `enc_720p.js.template`（軽量 720p / 主音声のみ）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'libx264',
@@ -163,7 +163,7 @@ runEncode({
 
 ### ④ `enc_vaapi.js.template`（Linux VAAPI ハードウェア）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'h264_vaapi',
@@ -177,7 +177,7 @@ runEncode({
 
 ### ⑤ `enc_qsv.js.template`（Intel QuickSync Video）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'h264_qsv',
@@ -191,7 +191,7 @@ runEncode({
 
 ### ⑥ `enc_nvenc.js.template`（NVIDIA NVENC）
 ```javascript
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 runEncode({
     codec: 'h264_nvenc',

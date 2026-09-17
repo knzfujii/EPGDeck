@@ -1,11 +1,11 @@
 import { lt } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import RecordedHistory from '../../db/entities/RecordedHistory';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
-import IRecordedHistoryDB from './IRecordedHistoryDB';
+import * as apid from '../../../api.js';
+import RecordedHistory from '../../db/entities/RecordedHistory.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
+import IRecordedHistoryDB from './IRecordedHistoryDB.js';
 
 @injectable()
 export default class RecordedHistoryDB implements IRecordedHistoryDB {

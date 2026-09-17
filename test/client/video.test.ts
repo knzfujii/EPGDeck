@@ -8,7 +8,7 @@ import {
     getStreamModeDescription,
     PREF_KEY_PREFIX,
     type PlaybackPreference,
-} from '../../client/src/lib/utils/video';
+} from '../../client/src/lib/utils/video.js';
 
 describe('video.ts playback preference tests', () => {
     let mockStorage: Record<string, string> = {};

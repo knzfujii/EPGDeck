@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
-import StorageApiModel from '../../src/model/api/storage/StorageApiModel';
-import IConfiguration from '../../src/model/IConfiguration';
+import StorageApiModel from '../../src/model/api/storage/StorageApiModel.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
 
 describe('StorageApiModel', () => {
     describe('getInfo', () => {

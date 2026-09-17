@@ -1,12 +1,12 @@
 import { and, eq, like, notInArray, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import RecordedTag from '../../db/entities/RecordedTag';
-import StrUtil from '../../util/StrUtil';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
-import IRecordedTagDB from './IRecordedTagDB';
+import * as apid from '../../../api.js';
+import RecordedTag from '../../db/entities/RecordedTag.js';
+import StrUtil from '../../util/StrUtil.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
+import IRecordedTagDB from './IRecordedTagDB.js';
 
 @injectable()
 export default class RecordedTagDB implements IRecordedTagDB {

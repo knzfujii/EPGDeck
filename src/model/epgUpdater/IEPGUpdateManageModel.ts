@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import * as mapid from 'mirakurun/api';
+import * as mapid from 'mirakurun/api.js';
 
 export interface RemoveProgram {
     id: mapid.ProgramId;

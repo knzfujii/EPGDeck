@@ -101,5 +101,6 @@
       "npm --prefix client run format",
       "npm --prefix client run lint"
     ]
-  }
+  },
+  "type": "module"
 }

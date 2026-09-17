@@ -1,8 +1,8 @@
 import * as path from 'path';
 import { Hono } from 'hono';
-import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

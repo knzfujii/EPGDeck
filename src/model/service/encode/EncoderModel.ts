@@ -2,22 +2,22 @@ import { ChildProcess } from 'child_process';
 import * as events from 'events';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
-import * as apid from '../../../../api';
-import FileUtil from '../../../util/FileUtil';
-import ProcessUtil from '../../../util/ProcessUtil';
-import Util from '../../../util/Util';
-import IVideoUtil, { VideoInfo } from '../../api/video/IVideoUtil';
-import IChannelDB from '../../db/IChannelDB';
-import IRecordedDB from '../../db/IRecordedDB';
-import IVideoFileDB from '../../db/IVideoFileDB';
-import IEncodeEvent from '../../event/IEncodeEvent';
-import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import IEncodeFileManageModel from './IEncodeFileManageModel';
-import IEncodeProcessManageModel from './IEncodeProcessManageModel';
-import { EncodeOption, EncodeProgressInfo, IEncoderModel } from './IEncoderModel';
-import IRecordingUtilModel from '../../operator/recording/IRecordingUtilModel';
+import * as apid from '../../../../api.js';
+import FileUtil from '../../../util/FileUtil.js';
+import ProcessUtil from '../../../util/ProcessUtil.js';
+import Util from '../../../util/Util.js';
+import IVideoUtil, { VideoInfo } from '../../api/video/IVideoUtil.js';
+import IChannelDB from '../../db/IChannelDB.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IVideoFileDB from '../../db/IVideoFileDB.js';
+import IEncodeEvent from '../../event/IEncodeEvent.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import IEncodeFileManageModel from './IEncodeFileManageModel.js';
+import IEncodeProcessManageModel from './IEncodeProcessManageModel.js';
+import { EncodeOption, EncodeProgressInfo, IEncoderModel } from './IEncoderModel.js';
+import IRecordingUtilModel from '../../operator/recording/IRecordingUtilModel.js';
 
 @injectable()
 class EncoderModel implements IEncoderModel {

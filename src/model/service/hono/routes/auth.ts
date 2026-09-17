@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import IConfiguration from '../../../IConfiguration';
-import container from '../../../ModelContainer';
-import { AuthManager } from '../AuthManager';
-import * as api from '../HonoApiUtil';
+import IConfiguration from '../../../IConfiguration.js';
+import container from '../../../ModelContainer.js';
+import { AuthManager } from '../AuthManager.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSecureProtocol } from '../../src/model/service/hono/HonoApiUtil';
+import { isSecureProtocol } from '../../src/model/service/hono/HonoApiUtil.js';
 
 describe('Hono API Utils', () => {
     describe('isSecureProtocol', () => {

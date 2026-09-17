@@ -1,17 +1,17 @@
 import * as path from 'path';
 import { parseArgs } from 'util';
 import 'reflect-metadata';
-import IDrizzleOperator from '../model/db/IDrizzleOperator';
-import IThumbnailDB from '../model/db/IThumbnailDB';
-import IConfigFile from '../model/IConfigFile';
-import IConfiguration from '../model/IConfiguration';
-import IConnectionCheckModel from '../model/IConnectionCheckModel';
-import ILogger from '../model/ILogger';
-import ILoggerModel from '../model/ILoggerModel';
-import container from '../model/ModelContainer';
-import * as containerSetter from '../model/ModelContainerSetter';
-import ThumbnailManageModel from '../model/operator/thumbnail/ThumbnailManageModel';
-import FileUtil from '../util/FileUtil';
+import IDrizzleOperator from '../model/db/IDrizzleOperator.js';
+import IThumbnailDB from '../model/db/IThumbnailDB.js';
+import IConfigFile from '../model/IConfigFile.js';
+import IConfiguration from '../model/IConfiguration.js';
+import IConnectionCheckModel from '../model/IConnectionCheckModel.js';
+import ILogger from '../model/ILogger.js';
+import ILoggerModel from '../model/ILoggerModel.js';
+import container from '../model/ModelContainer.js';
+import * as containerSetter from '../model/ModelContainerSetter.js';
+import ThumbnailManageModel from '../model/operator/thumbnail/ThumbnailManageModel.js';
+import FileUtil from '../util/FileUtil.js';
 
 containerSetter.set(container);
 

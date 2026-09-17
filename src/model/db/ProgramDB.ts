@@ -1,23 +1,23 @@
 import { and, asc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import * as mapid from 'mirakurun/api';
-import Program from '../../db/entities/Program';
-import DateUtil from '../../util/DateUtil';
-import StrUtil from '../../util/StrUtil';
-import IConfigFile from '../IConfigFile';
-import IConfiguration from '../IConfiguration';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IChannelTypeIndex from './IChannelTypeHash';
-import IDrizzleOperator from './IDrizzleOperator';
+import * as apid from '../../../api.js';
+import * as mapid from 'mirakurun/api.js';
+import Program from '../../db/entities/Program.js';
+import DateUtil from '../../util/DateUtil.js';
+import StrUtil from '../../util/StrUtil.js';
+import IConfigFile from '../IConfigFile.js';
+import IConfiguration from '../IConfiguration.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IChannelTypeIndex from './IChannelTypeHash.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
 import IProgramDB, {
     FindRuleOption,
     FindScheduleIdOption,
     FindScheduleOption,
     ProgramUpdateValues,
     ProgramWithOverlap,
-} from './IProgramDB';
+} from './IProgramDB.js';
 
 @injectable()
 export default class ProgramDB implements IProgramDB {

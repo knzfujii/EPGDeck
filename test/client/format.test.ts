@@ -6,7 +6,7 @@ import {
     getGenreName,
     getGenreBadgeClass,
     formatTimeRemaining,
-} from '../../client/src/lib/utils/format';
+} from '../../client/src/lib/utils/format.js';
 
 describe('format utils', () => {
     describe('extractFirstSearchWord', () => {

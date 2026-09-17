@@ -1,4 +1,4 @@
-// import * as Enums from '../Enums';
+// import * as Enums from '../Enums.js';
 
 /**
  * 文字周りの Util

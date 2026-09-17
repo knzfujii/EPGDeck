@@ -9,7 +9,7 @@ import {
     DISPLAY_HOURS,
     GRID_HEIGHT,
     HEADER_HEIGHT,
-} from '../../client/src/lib/utils/guide';
+} from '../../client/src/lib/utils/guide.js';
 
 describe('guide utils', () => {
     describe('constants', () => {

@@ -1,7 +1,11 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import FileUtil from '../../src/util/FileUtil';
+import FileUtil from '../../src/util/FileUtil.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe('FileUtil', () => {
     describe('mkdir', () => {

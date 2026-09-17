@@ -1,6 +1,6 @@
 import { ChildProcess } from 'child_process';
-import * as apid from '../../../api';
-import { LogEntry } from '../ILogger';
+import * as apid from '../../../api.js';
+import { LogEntry } from '../ILogger.js';
 
 export default interface IIPCServer {
     register(child: ChildProcess): void;

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IStorageApiModel from '../../../api/storage/IStorageApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IStorageApiModel from '../../../api/storage/IStorageApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

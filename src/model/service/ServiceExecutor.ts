@@ -1,11 +1,11 @@
 import 'reflect-metadata';
-import IConfiguration from '../IConfiguration';
-import IIPCClient from '../ipc/IIPCClient';
-import ILoggerModel from '../ILoggerModel';
-import container from '../ModelContainer';
-import * as containerSetter from '../ModelContainerSetter';
-import IEncodeFinishModel from './encode/IEncodeFinishModel';
-import IServiceServer from './IServiceServer';
+import IConfiguration from '../IConfiguration.js';
+import IIPCClient from '../ipc/IIPCClient.js';
+import ILoggerModel from '../ILoggerModel.js';
+import container from '../ModelContainer.js';
+import * as containerSetter from '../ModelContainerSetter.js';
+import IEncodeFinishModel from './encode/IEncodeFinishModel.js';
+import IServiceServer from './IServiceServer.js';
 
 containerSetter.set(container);
 
@@ -25,8 +25,8 @@ process.on('unhandledRejection', err => {
     log.system.fatal(`unhandledRejection: ${err}`);
 });
 
-import IEncodeProcessManageModel from './encode/IEncodeProcessManageModel';
-import IStreamManageModel from './stream/manager/IStreamManageModel';
+import IEncodeProcessManageModel from './encode/IEncodeProcessManageModel.js';
+import IStreamManageModel from './stream/manager/IStreamManageModel.js';
 
 let isExiting = false;
 const cleanExit = async (reason: string) => {

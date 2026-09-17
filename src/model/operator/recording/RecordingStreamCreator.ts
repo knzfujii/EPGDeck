@@ -1,17 +1,17 @@
 import * as http from 'http';
 import { inject, injectable } from 'inversify';
-import Mirakurun from 'mirakurun';
+import type { Client } from 'mirakurun';
 import { finished } from 'stream';
-import * as apid from '../../../../api';
-import * as mapid from 'mirakurun/api';
-import Reserve from '../../../db/entities/Reserve';
-import Util from '../../../util/Util';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import IMirakurunClientModel from '../../IMirakurunClientModel';
-import IRecordingStreamCreator from './IRecordingStreamCreator';
+import * as apid from '../../../../api.js';
+import * as mapid from 'mirakurun/api.js';
+import Reserve from '../../../db/entities/Reserve.js';
+import Util from '../../../util/Util.js';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import IMirakurunClientModel from '../../IMirakurunClientModel.js';
+import IRecordingStreamCreator from './IRecordingStreamCreator.js';
 
 interface TunerProgram {
     reserve: Reserve;
@@ -259,7 +259,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
      */
     private async getTimeSpecifiedStream(
         reserve: Reserve,
-        mirakurun: Mirakurun,
+        mirakurun: Client,
         abortSignal?: AbortSignal,
     ): Promise<http.IncomingMessage> {
         const now = new Date().getTime();

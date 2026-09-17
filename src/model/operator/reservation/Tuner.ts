@@ -1,6 +1,6 @@
-import * as apid from '../../../../api';
-import * as mapid from 'mirakurun/api';
-import Reserve from '../../../db/entities/Reserve';
+import * as apid from '../../../../api.js';
+import * as mapid from 'mirakurun/api.js';
+import Reserve from '../../../db/entities/Reserve.js';
 
 export default class Tuner {
     private types: apid.ChannelType[];

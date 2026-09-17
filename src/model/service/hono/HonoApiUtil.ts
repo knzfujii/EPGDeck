@@ -2,7 +2,7 @@ import { Context } from 'hono';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
-import IPlayList from '../../api/IPlayList';
+import IPlayList from '../../api/IPlayList.js';
 
 export interface IError {
     readonly code: number;

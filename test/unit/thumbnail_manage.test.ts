@@ -4,13 +4,17 @@ import * as path from 'path';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as sqliteSchema from '../../src/db/schema/sqlite';
-import Thumbnail from '../../src/db/entities/Thumbnail';
-import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
-import ThumbnailDB from '../../src/model/db/ThumbnailDB';
-import IPromiseRetry from '../../src/model/IPromiseRetry';
-import ThumbnailManageModel from '../../src/model/operator/thumbnail/ThumbnailManageModel';
-import FileUtil from '../../src/util/FileUtil';
+import * as sqliteSchema from '../../src/db/schema/sqlite/index.js';
+import Thumbnail from '../../src/db/entities/Thumbnail.js';
+import IDrizzleOperator from '../../src/model/db/IDrizzleOperator.js';
+import ThumbnailDB from '../../src/model/db/ThumbnailDB.js';
+import IPromiseRetry from '../../src/model/IPromiseRetry.js';
+import ThumbnailManageModel from '../../src/model/operator/thumbnail/ThumbnailManageModel.js';
+import FileUtil from '../../src/util/FileUtil.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe('Thumbnail Management & Sharding Tests', () => {
     describe('getSubDir Sharding Rule', () => {

@@ -1,11 +1,15 @@
 import * as fs from 'fs';
 import { injectable } from 'inversify';
-import * as log4js from 'log4js';
+import log4js from 'log4js';
 import * as path from 'path';
 import * as util from 'util';
-import { LogConfig } from './IConfigFile';
-import ILogger, { ILoggerCategory, LogCategory, LogEntry, LogEntryLevel, LogProcess } from './ILogger';
-import ILoggerModel from './ILoggerModel';
+import { LogConfig } from './IConfigFile.js';
+import ILogger, { ILoggerCategory, LogCategory, LogEntry, LogEntryLevel, LogProcess } from './ILogger.js';
+import ILoggerModel from './ILoggerModel.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const LEVEL_PRIORITY: Record<LogEntryLevel, number> = {
     debug: 1,

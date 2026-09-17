@@ -1,10 +1,10 @@
 import 'reflect-metadata';
 import * as path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DropLogFile from '../../src/db/entities/DropLogFile';
-import Recorded from '../../src/db/entities/Recorded';
-import RecordedManageModel from '../../src/model/operator/recorded/RecordedManageModel';
-import FileUtil from '../../src/util/FileUtil';
+import DropLogFile from '../../src/db/entities/DropLogFile.js';
+import Recorded from '../../src/db/entities/Recorded.js';
+import RecordedManageModel from '../../src/model/operator/recorded/RecordedManageModel.js';
+import FileUtil from '../../src/util/FileUtil.js';
 
 describe('Drop log cleanup and zero-drop retention tests', () => {
     let dummyLogger: any;

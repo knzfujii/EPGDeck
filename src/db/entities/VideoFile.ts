@@ -1,5 +1,5 @@
-import * as apid from '../../../api';
-import Recorded from './Recorded';
+import * as apid from '../../../api.js';
+import Recorded from './Recorded.js';
 
 export default class VideoFile {
     public id!: apid.VideoFileId;

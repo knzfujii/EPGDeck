@@ -1,4 +1,4 @@
-import * as apid from '../../../../api';
+import * as apid from '../../../../api.js';
 
 export interface EncodeOption extends apid.AddEncodeProgramOption {
     encodeId: apid.EncodeId;

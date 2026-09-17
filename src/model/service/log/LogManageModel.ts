@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
-import IConfigFile from '../../IConfigFile';
-import IConfiguration from '../../IConfiguration';
-import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import ISocketIOManageModel from '../socketio/ISocketIOManageModel';
-import ILogManageModel, { GetLogsOption } from './ILogManageModel';
+import IConfigFile from '../../IConfigFile.js';
+import IConfiguration from '../../IConfiguration.js';
+import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import ISocketIOManageModel from '../socketio/ISocketIOManageModel.js';
+import ILogManageModel, { GetLogsOption } from './ILogManageModel.js';
 
 const LEVEL_PRIORITY: Record<LogEntryLevel, number> = {
     debug: 1,

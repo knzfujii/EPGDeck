@@ -1,4 +1,4 @@
-import * as apid from '../../../api';
+import * as apid from '../../../api.js';
 
 export default class DropLogFile {
     public id!: apid.DropLogFileId;

@@ -1,4 +1,5 @@
-const { spawn, execFile } = require('child_process');
+import { spawn, execFile } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 /**
  * ffprobe を用いてメディア情報（動画長、解像度、有効な音声ストリーム）を取得する
@@ -467,7 +468,7 @@ async function runEncode(options = {}) {
 }
 
 // CLI エントリポイント (node enc_helper.js [resolution/preset] [codec])
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const rawArgs = process.argv.slice(2);
     const cliOptions = {};
 
@@ -492,7 +493,7 @@ if (require.main === module) {
     });
 }
 
-module.exports = {
+export {
     runEncode,
     buildFFmpegArgs,
     getMediaInfo,

@@ -8,16 +8,16 @@ import { Server as SocketIOServer } from 'socket.io';
 // ==============================================================================
 process.env.NODE_ENV = 'test';
 
-import container from '../../src/model/ModelContainer';
-import * as containerSetter from '../../src/model/ModelContainerSetter';
-import IConfiguration from '../../src/model/IConfiguration';
-import ILoggerModel from '../../src/model/ILoggerModel';
-import IDrizzleOperator from '../../src/model/db/IDrizzleOperator';
-import IIPCClient from '../../src/model/ipc/IIPCClient';
-import IMirakurunClientModel from '../../src/model/IMirakurunClientModel';
-import MockIPCClient from './MockIPCClient';
-import MockMirakurunClientModel from './MockMirakurunClientModel';
-import { createHonoApp } from '../../src/model/service/hono/createHonoApp';
+import container from '../../src/model/ModelContainer.js';
+import * as containerSetter from '../../src/model/ModelContainerSetter.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
+import ILoggerModel from '../../src/model/ILoggerModel.js';
+import IDrizzleOperator from '../../src/model/db/IDrizzleOperator.js';
+import IIPCClient from '../../src/model/ipc/IIPCClient.js';
+import IMirakurunClientModel from '../../src/model/IMirakurunClientModel.js';
+import MockIPCClient from './MockIPCClient.js';
+import MockMirakurunClientModel from './MockMirakurunClientModel.js';
+import { createHonoApp } from '../../src/model/service/hono/createHonoApp.js';
 
 // DI コンテナの初期化
 containerSetter.set(container);

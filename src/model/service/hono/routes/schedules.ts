@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import * as apid from '../../../../../api';
-import IScheduleApiModel from '../../../api/schedule/IScheduleApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import * as apid from '../../../../../api.js';
+import IScheduleApiModel from '../../../api/schedule/IScheduleApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

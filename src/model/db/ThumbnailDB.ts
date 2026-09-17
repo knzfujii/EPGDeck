@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import Thumbnail from '../../db/entities/Thumbnail';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IDrizzleOperator from './IDrizzleOperator';
-import IThumbnailDB from './IThumbnailDB';
+import * as apid from '../../../api.js';
+import Thumbnail from '../../db/entities/Thumbnail.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
+import IThumbnailDB from './IThumbnailDB.js';
 
 @injectable()
 export default class ThumbnailDB implements IThumbnailDB {

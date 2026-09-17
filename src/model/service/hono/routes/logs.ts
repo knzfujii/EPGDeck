@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import container from '../../../ModelContainer';
-import { LogCategory, LogEntryLevel, LogProcess } from '../../../ILogger';
-import ILogManageModel from '../../log/ILogManageModel';
-import * as api from '../HonoApiUtil';
+import container from '../../../ModelContainer.js';
+import { LogCategory, LogEntryLevel, LogProcess } from '../../../ILogger.js';
+import ILogManageModel from '../../log/ILogManageModel.js';
+import * as api from '../HonoApiUtil.js';
 import * as fs from 'fs';
 
 const app = new Hono();

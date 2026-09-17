@@ -1,18 +1,22 @@
 import * as child_process from 'child_process';
 import * as path from 'path';
 import 'reflect-metadata';
-import IEPGUpdateExecutorManageModel from './model/epgUpdater/IEPGUpdateExecutorManageModel';
-import IEventSetter from './model/event/IEventSetter';
-import IConfiguration from './model/IConfiguration';
-import IConnectionCheckModel from './model/IConnectionCheckModel';
-import ILoggerModel from './model/ILoggerModel';
-import IMirakurunClientModel from './model/IMirakurunClientModel';
-import IIPCServer from './model/ipc/IIPCServer';
-import container from './model/ModelContainer';
-import * as containerSetter from './model/ModelContainerSetter';
-import IRecordingManageModel from './model/operator/recording/IRecordingManageModel';
-import IReservationManageModel from './model/operator/reservation/IReservationManageModel';
-import IStorageManageModel from './model/operator/storage/IStorageManageModel';
+import IEPGUpdateExecutorManageModel from './model/epgUpdater/IEPGUpdateExecutorManageModel.js';
+import IEventSetter from './model/event/IEventSetter.js';
+import IConfiguration from './model/IConfiguration.js';
+import IConnectionCheckModel from './model/IConnectionCheckModel.js';
+import ILoggerModel from './model/ILoggerModel.js';
+import IMirakurunClientModel from './model/IMirakurunClientModel.js';
+import IIPCServer from './model/ipc/IIPCServer.js';
+import container from './model/ModelContainer.js';
+import * as containerSetter from './model/ModelContainerSetter.js';
+import IRecordingManageModel from './model/operator/recording/IRecordingManageModel.js';
+import IReservationManageModel from './model/operator/reservation/IReservationManageModel.js';
+import IStorageManageModel from './model/operator/storage/IStorageManageModel.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 containerSetter.set(container);
 

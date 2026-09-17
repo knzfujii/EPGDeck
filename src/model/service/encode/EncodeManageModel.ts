@@ -1,14 +1,14 @@
 import * as path from 'path';
 import * as events from 'events';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../../api';
-import IEncodeEvent from '../../event/IEncodeEvent';
-import IConfiguration from '../../IConfiguration';
-import IExecutionManagementModel from '../../IExecutionManagementModel';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import IEncodeManageModel, { EncodeInfoItem, EncodeQueueInfo, EncodeRecordedIdIndex } from './IEncodeManageModel';
-import { EncodeOption, EncoderModelProvider, IEncoderModel } from './IEncoderModel';
+import * as apid from '../../../../api.js';
+import IEncodeEvent from '../../event/IEncodeEvent.js';
+import IConfiguration from '../../IConfiguration.js';
+import IExecutionManagementModel from '../../IExecutionManagementModel.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import IEncodeManageModel, { EncodeInfoItem, EncodeQueueInfo, EncodeRecordedIdIndex } from './IEncodeManageModel.js';
+import { EncodeOption, EncoderModelProvider, IEncoderModel } from './IEncoderModel.js';
 
 @injectable()
 class EncodeManageModel implements IEncodeManageModel {

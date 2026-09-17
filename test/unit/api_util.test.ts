@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as http from 'http';
-import ApiUtil from '../../src/model/api/ApiUtil';
-import IConfiguration from '../../src/model/IConfiguration';
-import { KodiInfo } from '../../src/model/IConfigFile';
+import ApiUtil from '../../src/model/api/ApiUtil.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
+import { KodiInfo } from '../../src/model/IConfigFile.js';
 
 describe('ApiUtil', () => {
     describe('getHost', () => {

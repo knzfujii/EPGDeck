@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import RecorderModel from '../../src/model/operator/recording/RecorderModel';
-import FileUtil from '../../src/util/FileUtil';
+import RecorderModel from '../../src/model/operator/recording/RecorderModel.js';
+import FileUtil from '../../src/util/FileUtil.js';
 
 describe('RecorderModel Drop Log Handling Tests', () => {
     let dummyLogger: any;

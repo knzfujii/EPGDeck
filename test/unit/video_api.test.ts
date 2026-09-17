@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'events';
 import * as childProcess from 'child_process';
-import VideoApiModel from '../../src/model/api/video/VideoApiModel';
-import FileUtil from '../../src/util/FileUtil';
+import VideoApiModel from '../../src/model/api/video/VideoApiModel.js';
+import FileUtil from '../../src/util/FileUtil.js';
 
 vi.mock('child_process');
 

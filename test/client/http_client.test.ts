@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import http, { buildUrl, HttpError } from '../../client/src/lib/httpClient';
+import http, { buildUrl, HttpError } from '../../client/src/lib/httpClient.js';
 import { createServer, type Server } from 'node:http';
 
 describe('httpClient', () => {

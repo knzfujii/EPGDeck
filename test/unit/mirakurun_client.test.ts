@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
-import MirakurunClientModel from '../../src/model/MirakurunClientModel';
-import IConfiguration from '../../src/model/IConfiguration';
+import MirakurunClientModel from '../../src/model/MirakurunClientModel.js';
+import IConfiguration from '../../src/model/IConfiguration.js';
 
 describe('MirakurunClientModel', () => {
     const createModel = (mirakurunPath: string) => {

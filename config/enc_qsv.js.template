@@ -1,4 +1,4 @@
-const { runEncode } = require('./enc_helper');
+import { runEncode } from './enc_helper.js';
 
 /**
  * Intel QuickSync Video (QSV) ハードウェアアクセラレーション設定

@@ -2,11 +2,15 @@ import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
-import StrUtil from '../util/StrUtil';
-import IConfigFile, { ReadOnlyOperation, StreamingConfig } from './IConfigFile';
-import IConfiguration from './IConfiguration';
-import ILogger from './ILogger';
-import ILoggerModel from './ILoggerModel';
+import StrUtil from '../util/StrUtil.js';
+import IConfigFile, { ReadOnlyOperation, StreamingConfig } from './IConfigFile.js';
+import IConfiguration from './IConfiguration.js';
+import ILogger from './ILogger.js';
+import ILoggerModel from './ILoggerModel.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Configuration

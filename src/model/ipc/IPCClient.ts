@@ -1,13 +1,13 @@
 import * as events from 'events';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent';
-import ILogger from '../ILogger';
-import ILoggerModel from '../ILoggerModel';
-import { AddVideoFileOption, UploadedVideoFileOption } from '../operator/recorded/IRecordedManageModel';
-import IEncodeManageModel from '../service/encode/IEncodeManageModel';
-import ILogManageModel from '../service/log/ILogManageModel';
-import ISocketIOManageModel from '../service/socketio/ISocketIOManageModel';
+import * as apid from '../../../api.js';
+import { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent.js';
+import ILogger from '../ILogger.js';
+import ILoggerModel from '../ILoggerModel.js';
+import { AddVideoFileOption, UploadedVideoFileOption } from '../operator/recorded/IRecordedManageModel.js';
+import IEncodeManageModel from '../service/encode/IEncodeManageModel.js';
+import ILogManageModel from '../service/log/ILogManageModel.js';
+import ISocketIOManageModel from '../service/socketio/ISocketIOManageModel.js';
 import IIPCClient, {
     IPCOperatorEncodeEvent,
     IPCRecordedManageModel,
@@ -16,7 +16,7 @@ import IIPCClient, {
     IPCReservationManageModel,
     IPCRuleManageModel,
     IPCThumbnailManageModel,
-} from './IIPCClient';
+} from './IIPCClient.js';
 import {
     ClientMessageOption,
     OperatorEncodeEventFunctions,
@@ -32,7 +32,7 @@ import {
     RuleFuntions,
     SendMessage,
     ThumbnailFunctions,
-} from './IPCMessageDefine';
+} from './IPCMessageDefine.js';
 
 @injectable()
 export default class IPCClient implements IIPCClient {

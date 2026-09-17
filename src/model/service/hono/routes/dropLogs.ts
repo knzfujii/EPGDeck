@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import IDropLogApiModel, { DropLogApiErrors } from '../../../api/dropLog/IDropLogApiModel';
-import container from '../../../ModelContainer';
-import * as api from '../HonoApiUtil';
+import IDropLogApiModel, { DropLogApiErrors } from '../../../api/dropLog/IDropLogApiModel.js';
+import container from '../../../ModelContainer.js';
+import * as api from '../HonoApiUtil.js';
 
 const app = new Hono();
 

@@ -1,14 +1,14 @@
 import { asc, eq, inArray } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../api';
-import * as mapid from 'mirakurun/api';
-import Channel from '../../db/entities/Channel';
-import StrUtil from '../../util/StrUtil';
-import IConfiguration from '../IConfiguration';
-import IPromiseRetry from '../IPromiseRetry';
-import { DrizzleHelper } from './DrizzleHelper';
-import IChannelDB, { ChannelUpdateValues } from './IChannelDB';
-import IDrizzleOperator from './IDrizzleOperator';
+import * as apid from '../../../api.js';
+import * as mapid from 'mirakurun/api.js';
+import Channel from '../../db/entities/Channel.js';
+import StrUtil from '../../util/StrUtil.js';
+import IConfiguration from '../IConfiguration.js';
+import IPromiseRetry from '../IPromiseRetry.js';
+import { DrizzleHelper } from './DrizzleHelper.js';
+import IChannelDB, { ChannelUpdateValues } from './IChannelDB.js';
+import IDrizzleOperator from './IDrizzleOperator.js';
 
 @injectable()
 export default class ChannelDB implements IChannelDB {

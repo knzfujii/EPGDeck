@@ -1,21 +1,25 @@
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
-import mirakurun from 'mirakurun';
+import { Client } from 'mirakurun';
 import * as path from 'path';
-import IConfigFile from './IConfigFile';
-import IConfiguration from './IConfiguration';
-import IMirakurunClientModel from './IMirakurunClientModel';
+import IConfigFile from './IConfigFile.js';
+import IConfiguration from './IConfiguration.js';
+import IMirakurunClientModel from './IMirakurunClientModel.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * mirakurun client のインスタンスを生成する
  */
 @injectable()
 export default class MirakurunClientModel implements IMirakurunClientModel {
-    private client: mirakurun;
+    private client: Client;
     private config: IConfigFile;
 
     constructor(@inject('IConfiguration') conf: IConfiguration) {
-        this.client = new mirakurun();
+        this.client = new Client();
         this.config = conf.getConfig();
 
         this.setClient();
@@ -63,7 +67,7 @@ export default class MirakurunClientModel implements IMirakurunClientModel {
      * mirakurun client を返す
      * @return mirakurun client
      */
-    public getClient(): mirakurun {
+    public getClient(): Client {
         return this.client;
     }
 }

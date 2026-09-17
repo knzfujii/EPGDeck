@@ -1,7 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createDrizzleClient } from '../../src/db/drizzle';
-import { channels } from '../../src/db/schema/sqlite/channels';
+import { createDrizzleClient } from '../../src/db/drizzle.js';
+import { channels } from '../../src/db/schema/sqlite/channels.js';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function seedTestData(): Promise<void> {
     process.env.NODE_ENV = 'test';
@@ -90,7 +94,7 @@ export async function seedTestData(): Promise<void> {
 }
 
 // 直接実行された場合はシードを実行
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     seedTestData().catch(err => {
         console.error('[E2E Seed] Failed to seed test data:', err);
         process.exit(1);

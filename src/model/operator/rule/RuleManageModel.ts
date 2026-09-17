@@ -1,11 +1,11 @@
 import { inject, injectable } from 'inversify';
-import * as apid from '../../../../api';
-import IRuleDB from '../../db/IRuleDB';
-import IRuleEvent from '../../event/IRuleEvent';
-import ILogger from '../../ILogger';
-import ILoggerModel from '../../ILoggerModel';
-import IReserveOptionChecker from '../IReserveOptionChecker';
-import IRuleManageModel from './IRuleManageModel';
+import * as apid from '../../../../api.js';
+import IRuleDB from '../../db/IRuleDB.js';
+import IRuleEvent from '../../event/IRuleEvent.js';
+import ILogger from '../../ILogger.js';
+import ILoggerModel from '../../ILoggerModel.js';
+import IReserveOptionChecker from '../IReserveOptionChecker.js';
+import IRuleManageModel from './IRuleManageModel.js';
 
 @injectable()
 export default class RuleManageModel implements IRuleManageModel {

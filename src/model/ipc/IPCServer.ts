@@ -380,16 +380,12 @@ export default class IPCServer implements IIPCServer {
         // stop (中断して保存・未完了扱い)
         index[RecordingFunctions.stop] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
-            await this.reservationManage.cancel(reserveId);
             // 録画ストリームを未完了フラグ (isPlanToDelete = false, isNeedDeleteReservation = false) で停止
             if (this.recordingManage.hasReserve(reserveId)) {
                 await this.recordingManage.cancel(reserveId, false);
             }
             // 予約テーブル側も安全にキャンセル（手動なら削除、ルールならスキップ）
-            const reserve = await this.reserveDB.findId(reserveId).catch(() => null);
-            if (reserve !== null) {
-                await this.reservationManage.cancel(reserveId).catch(() => {});
-            }
+            await this.cancelReserveIfExists(reserveId);
         };
 
         // discard (取り消し・ファイルを破棄)
@@ -406,21 +402,23 @@ export default class IPCServer implements IIPCServer {
                 await this.recordedManage.delete(target.id);
             } else if (this.recordingManage.hasReserve(reserveId)) {
                 await this.recordingManage.cancel(reserveId, true);
-            } else {
-                // 録画準備中などでまだ recorded レコードが作成されていない場合
-                if (this.recordingManage.hasReserve(reserveId)) {
-                    await this.recordingManage.cancel(reserveId, true);
-                }
-                const reserve = await this.reserveDB.findId(reserveId).catch(() => null);
-                if (reserve !== null) {
-                    await this.reservationManage.cancel(reserveId).catch(() => {});
-                }
             }
-            // 予約テーブルからも削除・スキップ
-            await this.reservationManage.cancel(reserveId);
+
+            // 録画準備中や上記で予約が残っている場合に備えて、安全に予約をキャンセル（すでに削除済みの場合は何もしない）
+            await this.cancelReserveIfExists(reserveId);
         };
 
         return index;
+    }
+
+    /**
+     * 指定された予約が存在する場合のみ安全にキャンセル（削除または除外）を実行する
+     */
+    private async cancelReserveIfExists(reserveId: apid.ReserveId): Promise<void> {
+        const reserve = await this.reserveDB.findId(reserveId).catch(() => null);
+        if (reserve !== null) {
+            await this.reservationManage.cancel(reserveId).catch(() => {});
+        }
     }
 
     /**

@@ -4,9 +4,11 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { snackbar } from '../lib/stores/snackbar.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import http from '@/lib/httpClient';
     import type * as apid from '../../../api';
     import {
@@ -22,6 +24,7 @@
         CheckCircle2,
         AlertCircle,
         Lock,
+        Square,
     } from '@lucide/svelte';
 
     interface DashboardReserve extends apid.ReserveItem {
@@ -34,6 +37,10 @@
         used: number;
         total: number;
     }
+
+    let recordingActionItem = $state<DashboardReserve | null>(null);
+    let isRecordingActionModalOpen = $state(false);
+    let isRecordingActionProcessing = $state(false);
 
     let recordedTotal = $state(0);
     let reservesTotal = $state(0);
@@ -91,6 +98,35 @@
             console.error('Failed to fetch dashboard data', e);
         } finally {
             if (!isSilent) isLoading = false;
+        }
+    }
+
+    async function handleRecordingAction(action: 'finish' | 'stop' | 'discard') {
+        if (!recordingActionItem) return;
+        const target = recordingActionItem;
+        isRecordingActionProcessing = true;
+
+        try {
+            if (action === 'finish') {
+                await http.post(`/api/recording/${target.id}/finish`);
+                snackbar.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
+            } else if (action === 'stop') {
+                await http.post(`/api/recording/${target.id}/stop`);
+                snackbar.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
+            } else if (action === 'discard') {
+                await http.post(`/api/recording/${target.id}/discard`);
+                snackbar.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
+            }
+
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+            await fetchDashboard(true);
+        } catch (e: any) {
+            console.error(`Failed to execute recording action: ${action}`, e);
+            const msg = e.response?.data?.message || '録画操作の実行に失敗しました';
+            snackbar.open({ text: msg, color: 'error' });
+        } finally {
+            isRecordingActionProcessing = false;
         }
     }
 
@@ -219,7 +255,7 @@
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
-        <!-- ストレージ使用状況カード (最上部に配置 / デフォルト折りたたみ) -->
+        <!-- ストレージ使用状況カード (デフォルト折りたたみ) -->
         {#if storages.length > 0}
             <div
                 class="rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 transition overflow-hidden"
@@ -605,20 +641,33 @@
                                         </h3>
                                     </div>
 
-                                    <div class="shrink-0 text-right">
-                                        {#if item.isRecording && readOnlyStore.canLiveStream}
-                                            <button
-                                                type="button"
-                                                onclick={() =>
-                                                    router.push(
-                                                        `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
-                                                    )}
-                                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
-                                            >
-                                                <Play size={13} fill="currentColor" /> 視聴
-                                            </button>
-                                        {:else if item.isRecording}
-                                            <span class="text-xs font-bold text-rose-500">録画中</span>
+                                    <div class="shrink-0 text-right flex items-center gap-2">
+                                        {#if item.isRecording}
+                                            {#if readOnlyStore.canLiveStream}
+                                                <button
+                                                    type="button"
+                                                    onclick={() =>
+                                                        router.push(
+                                                            `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
+                                                        )}
+                                                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+                                                >
+                                                    <Play size={13} fill="currentColor" /> 視聴
+                                                </button>
+                                            {/if}
+                                            {#if !readOnlyStore.isReadOnly}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => {
+                                                        recordingActionItem = item;
+                                                        isRecordingActionModalOpen = true;
+                                                    }}
+                                                    class="flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                                    title="録画を停止・破棄"
+                                                >
+                                                    <Square size={12} fill="currentColor" /> 停止
+                                                </button>
+                                            {/if}
                                         {:else}
                                             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                                 {formatDate(item.startAt)}
@@ -752,5 +801,19 @@
             isStreamModalOpen = false;
             selectedItemForStream = null;
         }}
+    />
+{/if}
+
+<!-- 録画中番組の操作モーダル -->
+{#if isRecordingActionModalOpen && recordingActionItem}
+    <RecordingActionModal
+        isOpen={isRecordingActionModalOpen}
+        item={recordingActionItem}
+        isProcessing={isRecordingActionProcessing}
+        onClose={() => {
+            isRecordingActionModalOpen = false;
+            recordingActionItem = null;
+        }}
+        onAction={handleRecordingAction}
     />
 {/if}

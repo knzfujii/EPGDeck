@@ -35,6 +35,7 @@
         SlidersHorizontal,
         Ban,
         RotateCcw,
+        Square,
     } from '@lucide/svelte';
 
     import {
@@ -514,9 +515,10 @@
             recordingActionItem = null;
             if (isModalOpen) isModalOpen = false;
             await refreshReservesMap();
-        } catch (e) {
+        } catch (e: any) {
             console.error(`Failed to execute recording action: ${action}`, e);
-            snackbar.open({ text: '録画操作の実行に失敗しました', color: 'error' });
+            const msg = e.response?.data?.message || '録画操作の実行に失敗しました';
+            snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
         }
@@ -1072,8 +1074,9 @@
                                         isRecordingActionModalOpen = true;
                                     }}
                                     class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer whitespace-nowrap shrink-0"
+                                    title="録画を停止・破棄"
                                 >
-                                    <Trash2 size={14} /> 録画を停止 / 操作
+                                    <Square size={14} fill="currentColor" /> 停止
                                 </button>
                             {:else if selectedProgram.reserve.isSkip}
                                 <button

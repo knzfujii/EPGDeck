@@ -38,6 +38,7 @@
         CircleDot,
         Check,
         Filter,
+        Square,
     } from '@lucide/svelte';
 
     interface OnAirProgram extends apid.ScheduleProgramItem {
@@ -359,9 +360,10 @@
             isRecordingActionModalOpen = false;
             recordingActionItem = null;
             await fetchOnAir(true);
-        } catch (e) {
+        } catch (e: any) {
             console.error(`Failed to execute recording action ${action}`, e);
-            snackbar.open({ text: '録画の停止操作に失敗しました', color: 'error' });
+            const msg = e.response?.data?.message || '録画の停止操作に失敗しました';
+            snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
         }
@@ -600,8 +602,9 @@
                                                 type="button"
                                                 onclick={() => openRecordingAction(item)}
                                                 class="h-10 px-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950 dark:text-rose-300 text-sm font-bold cursor-pointer transition-colors flex items-center gap-1.5"
+                                                title="録画を停止・破棄"
                                             >
-                                                <CircleDot size={14} /> 録画中
+                                                <Square size={14} fill="currentColor" /> 停止
                                             </button>
                                         {:else}
                                             <button
@@ -778,9 +781,9 @@
                                                                     type="button"
                                                                     onclick={() => openRecordingAction(item)}
                                                                     class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
-                                                                    title="録画中の操作 (完了・中断・破棄)"
+                                                                    title="録画を停止・破棄"
                                                                 >
-                                                                    <CircleDot size={13} /> 録画中
+                                                                    <Square size={13} fill="currentColor" /> 停止
                                                                 </button>
                                                             {:else}
                                                                 <button
@@ -1061,8 +1064,9 @@
                                     if (item) openRecordingAction(item);
                                 }}
                                 class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer"
+                                title="録画を停止・破棄"
                             >
-                                <CircleDot size={14} /> 録画操作 (3択)
+                                <Square size={14} fill="currentColor" /> 停止
                             </button>
                         {:else if isNext && p.isReserved}
                             <button

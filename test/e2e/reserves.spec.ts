@@ -168,14 +168,14 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await expect(modal.getByText(/50% 進行中/)).toBeVisible();
         await expect(modal.getByRole('button', { name: 'ライブ視聴' })).toBeVisible();
 
-        // モーダル内の「録画を停止 / 操作」ボタンをクリックすると 3択モーダルが表示されることを確認
+        // モーダル内の「停止」ボタンをクリックすると 3択モーダルが表示されることを確認
         let finishCalled = false;
         await page.route('**/api/recording/*/finish', async route => {
             finishCalled = true;
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
         });
 
-        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await modal.getByRole('button', { name: '停止' }).click();
 
         // 3択モーダル（録画中番組の操作）の表示検証
         const actionModal = page.getByRole('dialog').filter({ hasText: '録画中番組の操作' });
@@ -188,13 +188,13 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await actionModal.getByRole('button', { name: /何もしない（閉じる）/ }).click();
         await expect(actionModal).not.toBeVisible();
 
-        // 再度「録画を停止 / 操作」を開いて「中断して保存」をテスト
+        // 再度「停止」を開いて「中断して保存」をテスト
         let stopCalled = false;
         await page.route('**/api/recording/*/stop', async route => {
             stopCalled = true;
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
         });
-        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await modal.getByRole('button', { name: '停止' }).click();
         await expect(actionModal).toBeVisible();
         await actionModal.getByRole('button', { name: /中断して保存/ }).click();
         await expect(actionModal).not.toBeVisible();
@@ -207,7 +207,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200 }) });
         });
         await table.getByText('現在録画中アニメ番組').click();
-        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await modal.getByRole('button', { name: '停止' }).click();
         await expect(actionModal).toBeVisible();
         await actionModal.getByRole('button', { name: /録画を取り消し（ファイルを破棄）/ }).click();
         await expect(actionModal).not.toBeVisible();
@@ -215,7 +215,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
 
         // 再度展開して「完了として保存」をテスト
         await table.getByText('現在録画中アニメ番組').click();
-        await modal.getByRole('button', { name: '録画を停止 / 操作' }).click();
+        await modal.getByRole('button', { name: '停止' }).click();
         await expect(actionModal).toBeVisible();
         await actionModal.getByRole('button', { name: /完了として保存/ }).click();
         await expect(actionModal).not.toBeVisible();

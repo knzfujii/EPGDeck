@@ -28,6 +28,7 @@
         Ban,
         RotateCcw,
         Play,
+        Square,
     } from '@lucide/svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
@@ -258,9 +259,10 @@
             recordingActionItem = null;
             if (isDetailModalOpen) isDetailModalOpen = false;
             fetchReserves();
-        } catch (e) {
+        } catch (e: any) {
             console.error(`Failed to execute recording action: ${action}`, e);
-            snackbar.open({ text: '録画操作の実行に失敗しました', color: 'error' });
+            const msg = e.response?.data?.message || '録画操作の実行に失敗しました';
+            snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
         }
@@ -543,7 +545,7 @@
                                         e.stopPropagation();
                                         router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
                                     }}
-                                    class="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer"
+                                    class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition cursor-pointer"
                                 >
                                     <Play size={12} fill="currentColor" /> 視聴
                                 </button>
@@ -562,8 +564,17 @@
                                         type="button"
                                         onclick={e => cancelReserve(item, e)}
                                         class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 transition cursor-pointer"
+                                        title={item.isRecording
+                                            ? '録画を停止・破棄'
+                                            : item.ruleId
+                                              ? 'この回の録画をスキップ'
+                                              : '予約を取り消し'}
                                     >
-                                        <Trash2 size={12} /> キャンセル
+                                        {#if item.isRecording}
+                                            <Square size={12} fill="currentColor" /> 停止
+                                        {:else}
+                                            <Trash2 size={12} /> キャンセル
+                                        {/if}
                                     </button>
                                 {/if}
                             {/if}
@@ -721,7 +732,7 @@
                                                         `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
                                                     );
                                                 }}
-                                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-sm font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-sm font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
                                                 title="放送中の番組を視聴"
                                             >
                                                 <Play size={14} fill="currentColor" /> 視聴
@@ -743,12 +754,16 @@
                                                     onclick={e => cancelReserve(item, e)}
                                                     class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-1.5 text-sm font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
                                                     title={item.isRecording
-                                                        ? '録画中の予約を取り消し（録画を停止）'
+                                                        ? '録画を停止・破棄'
                                                         : item.ruleId
                                                           ? 'この回の録画をスキップ'
                                                           : '予約を取り消し'}
                                                 >
-                                                    <Trash2 size={14} /> キャンセル
+                                                    {#if item.isRecording}
+                                                        <Square size={14} fill="currentColor" /> 停止
+                                                    {:else}
+                                                        <Trash2 size={14} /> キャンセル
+                                                    {/if}
                                                 </button>
                                             {/if}
                                         {:else if !item.isRecording}
@@ -968,7 +983,7 @@
                                 isDetailModalOpen = false;
                                 router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
                             }}
-                            class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
                         >
                             <Play size={14} fill="currentColor" /> ライブ視聴
                         </button>
@@ -1013,12 +1028,12 @@
                                 onclick={() => cancelReserve(item)}
                                 class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                             >
-                                <Trash2 size={14} />
-                                {item.isRecording
-                                    ? '録画を停止 / 操作'
-                                    : item.ruleId
-                                      ? 'この回をスキップ (キャンセル)'
-                                      : '予約をキャンセル'}
+                                {#if item.isRecording}
+                                    <Square size={14} fill="currentColor" /> 停止
+                                {:else}
+                                    <Trash2 size={14} />
+                                    {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
+                                {/if}
                             </button>
                         {/if}
                     {/if}

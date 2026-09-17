@@ -11,11 +11,13 @@
         type LogCategory,
     } from '../lib/stores/socket.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
+    import { confirmDialog } from '../lib/stores/confirm.svelte';
     import {
         Terminal,
         Search,
         Download,
         Trash2,
+        Eraser,
         Copy,
         ArrowDown,
         RefreshCw,
@@ -184,13 +186,36 @@
 
     // ログファイルダウンロード
     function downloadLogFile() {
-        window.open('/api/logs/download', '_blank');
+        const token = readOnlyStore.token;
+        const url = token ? `/api/logs/download?token=${encodeURIComponent(token)}` : '/api/logs/download';
+        window.open(url, '_blank');
     }
 
     // 画面上の一時クリア
     function clearScreen() {
         rawLogs = [];
         snackbar.open({ text: '画面上のログを消去しました', color: 'info' });
+    }
+
+    // サーバーログ消去（確認ダイアログ付きでサーバー側バッファと画面表示を消去）
+    async function clearServerLogs() {
+        const ok = await confirmDialog({
+            title: 'サーバーログの消去',
+            message: 'サーバーのログバッファおよび画面上のログを消去しますか？（消去したログは元に戻せません）',
+            confirmText: '消去する',
+            cancelText: 'キャンセル',
+            isDestructive: true,
+        });
+        if (!ok) return;
+
+        try {
+            await http.post('/api/logs/clear');
+            rawLogs = [];
+            snackbar.open({ text: 'サーバーログを消去しました', color: 'success' });
+        } catch (e) {
+            console.error('Failed to clear logs:', e);
+            snackbar.open({ text: 'サーバーログの消去に失敗しました', color: 'error' });
+        }
     }
 
     function formatTime(timestamp: number): string {
@@ -346,9 +371,19 @@
                     <!-- 画面クリア -->
                     <button
                         type="button"
-                        class="h-10 w-10 flex items-center justify-center text-rose-600 hover:text-rose-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        class="h-10 w-10 flex items-center justify-center text-slate-500 hover:text-slate-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         onclick={clearScreen}
                         title="画面上のログを消去"
+                    >
+                        <Eraser class="w-4 h-4" />
+                    </button>
+
+                    <!-- サーバーログ消去 -->
+                    <button
+                        type="button"
+                        class="h-10 w-10 flex items-center justify-center text-rose-600 hover:text-rose-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        onclick={clearServerLogs}
+                        title="サーバーログを消去"
                     >
                         <Trash2 class="w-4 h-4" />
                     </button>

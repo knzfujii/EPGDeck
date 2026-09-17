@@ -5,12 +5,16 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import http from '@/lib/httpClient';
-    import { getChannelTypeBadgeClass } from '../lib/utils/format';
-    import { Search as SearchIcon, Plus, Lock } from '@lucide/svelte';
+    import type * as apid from '../../../api';
+    import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
+    import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles } from '@lucide/svelte';
 
     let keyword = $state(router.current.query.keyword || '');
-    let searchResults = $state<any[]>([]);
+    let searchResults = $state<apid.ScheduleProgramItem[]>([]);
     let isLoading = $state(false);
+    let hasSearched = $state(false);
+    let reservingProgramId = $state<number | null>(null);
+    let reservedProgramIds = $state<Set<number>>(new Set());
 
     $effect(() => {
         if (!readOnlyStore.canViewSearch) {
@@ -67,6 +71,7 @@
                 executeSearch({ replace: true });
             } else if (hasChanged && !keyword.trim()) {
                 searchResults = [];
+                hasSearched = false;
             }
         });
     });
@@ -83,6 +88,19 @@
         { id: 2, name: '情報' },
     ];
 
+    async function fetchExistingReserves() {
+        try {
+            const res = await http.get('/api/reserves?isHalfWidth=true&limit=1000');
+            const ids = new Set<number>();
+            for (const r of res.data.reserves || []) {
+                if (r.programId) ids.add(r.programId);
+            }
+            reservedProgramIds = ids;
+        } catch (e) {
+            console.error('Failed to fetch reserves', e);
+        }
+    }
+
     async function executeSearch(options: { replace?: boolean } = { replace: false }) {
         if (!keyword.trim()) return;
 
@@ -97,8 +115,9 @@
         );
 
         isLoading = true;
+        hasSearched = true;
         try {
-            await channelStore.fetch();
+            await Promise.all([channelStore.fetch(), fetchExistingReserves()]);
             const res = await http.post('/api/schedules/search', {
                 option: {
                     keyword: keyword.trim(),
@@ -118,21 +137,55 @@
         }
     }
 
+    async function reserveProgram(program: apid.ScheduleProgramItem) {
+        if (readOnlyStore.isReadOnly) return;
+        reservingProgramId = program.id;
+        try {
+            await http.post('/api/reserves', {
+                programId: program.id,
+            });
+            const nextSet = new Set(reservedProgramIds);
+            nextSet.add(program.id);
+            reservedProgramIds = nextSet;
+            snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
+        } catch (e: any) {
+            console.error('Failed to reserve program', e);
+            const msg = e.response?.data?.message || '予約の登録に失敗しました';
+            snackbar.open({ text: msg, color: 'error' });
+        } finally {
+            reservingProgramId = null;
+        }
+    }
+
     onMount(() => {
         if (!readOnlyStore.canViewSearch) {
             router.replace('/recorded');
+            return;
         }
+        fetchExistingReserves();
     });
 
     function openCreateRuleModal() {
         if (!keyword.trim()) return;
-        // 検索条件をクエリパラメータで渡してルール作成ページへ遷移
         const params = new URLSearchParams({
             keyword: keyword.trim(),
             name: isName ? '1' : '0',
             description: isDescription ? '1' : '0',
         });
         if (selectedGenre !== null) params.set('genre', String(selectedGenre));
+        router.push(`/rule/edit?${params.toString()}`);
+    }
+
+    function openCreateRuleWithProgram(program: apid.ScheduleProgramItem) {
+        const extractedKeyword = extractFirstSearchWord(program.name);
+        const params = new URLSearchParams({
+            keyword: extractedKeyword,
+            name: '1',
+            description: '0',
+        });
+        if (program.genre1 !== null && typeof program.genre1 !== 'undefined') {
+            params.set('genre', String(program.genre1));
+        }
         router.push(`/rule/edit?${params.toString()}`);
     }
 
@@ -273,9 +326,81 @@
                                     {p.description}
                                 </p>
                             {/if}
+
+                            <!-- アクションエリア -->
+                            <div
+                                class="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2 flex-wrap"
+                            >
+                                <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                    {#if p.endAt < Date.now()}
+                                        <span
+                                            class="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold text-[11px]"
+                                        >
+                                            放映終了
+                                        </span>
+                                    {:else if reservedProgramIds.has(p.id)}
+                                        <span
+                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-xs"
+                                        >
+                                            <Check size={13} /> 予約済み
+                                        </span>
+                                    {/if}
+                                </div>
+
+                                <div class="flex items-center gap-2 shrink-0">
+                                    {#if !readOnlyStore.isReadOnly}
+                                        <button
+                                            type="button"
+                                            onclick={() => openCreateRuleWithProgram(p)}
+                                            class="btn-secondary h-8 px-2.5 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                            title="この番組名でルール作成"
+                                        >
+                                            <Plus size={13} /> ルール作成
+                                        </button>
+                                        {#if p.endAt >= Date.now() && !reservedProgramIds.has(p.id)}
+                                            <button
+                                                type="button"
+                                                disabled={reservingProgramId === p.id}
+                                                onclick={() => reserveProgram(p)}
+                                                class="btn-primary h-8 px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                                title="この番組を予約"
+                                            >
+                                                {#if reservingProgramId === p.id}
+                                                    <Loader2 size={13} class="animate-spin" />
+                                                    <span>予約中...</span>
+                                                {:else}
+                                                    <CalendarPlus size={13} />
+                                                    <span>予約</span>
+                                                {/if}
+                                            </button>
+                                        {/if}
+                                    {/if}
+                                </div>
+                            </div>
                         </div>
                     {/each}
                 </div>
+            </div>
+        {:else if hasSearched && searchResults.length === 0}
+            <div
+                class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900"
+            >
+                <SearchIcon size={40} class="text-slate-300 dark:text-slate-600 mb-3" />
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">
+                    一致する番組が見つかりませんでした
+                </h3>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-md">
+                    検索キーワードの誤字・脱字がないか確認するか、ジャンルや検索対象の絞り込み条件を広げてお試しください。
+                </p>
+                {#if !readOnlyStore.isReadOnly}
+                    <button
+                        type="button"
+                        onclick={openCreateRuleModal}
+                        class="btn-primary mt-4 flex items-center gap-1.5 h-10 px-4 text-xs font-bold cursor-pointer"
+                    >
+                        <Plus size={16} /> このキーワードで自動録画ルールを作成
+                    </button>
+                {/if}
             </div>
         {/if}
     </div>

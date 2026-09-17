@@ -124,12 +124,7 @@
         if (!recordedId) return;
         if (!isSilent) isLoading = true;
         try {
-            const [, res] = await Promise.all([
-                channelStore.fetch(),
-                http.get(
-                    `/api/recorded/${recordedId}?isNeedVideoFiles=true&isNeedThumbnails=true&isNeedsDropLog=true&isNeedTags=true`,
-                ),
-            ]);
+            const [, res] = await Promise.all([channelStore.fetch(), http.get(`/api/recorded/${recordedId}`)]);
             recorded = res.data;
 
             if (recorded?.ruleId) {

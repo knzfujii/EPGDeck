@@ -2,6 +2,7 @@ import * as path from 'path';
 import { injectable } from 'inversify';
 import * as apid from '../../../api';
 import Recorded from '../../db/entities/Recorded';
+import StrUtil from '../../util/StrUtil';
 import { EncodeRecordedIdIndex } from '../service/encode/IEncodeManageModel';
 import IRecordedItemUtil from './IRecordedItemUtil';
 
@@ -22,7 +23,7 @@ export default class RecordedItemUtil implements IRecordedItemUtil {
             channelId: recorded.channelId,
             startAt: recorded.startAt,
             endAt: recorded.endAt,
-            name: isHalfWidth === true ? recorded.halfWidthName : recorded.name,
+            name: StrUtil.getHalfOrFull(recorded.name, recorded.halfWidthName, isHalfWidth),
             isRecording: recorded.isRecording,
             isEncoding: typeof encodeIndex[recorded.id] !== 'undefined',
             isProtected: recorded.isProtected,
@@ -36,33 +37,28 @@ export default class RecordedItemUtil implements IRecordedItemUtil {
             item.programId = recorded.programId;
         }
 
-        if (recorded.description !== null) {
-            if (isHalfWidth === true) {
-                if (typeof recorded.halfWidthDescription === 'string') {
-                    item.description = recorded.halfWidthDescription;
-                }
-            } else {
-                item.description = recorded.description;
-            }
+        const description = StrUtil.getHalfOrFullNullable(
+            recorded.description,
+            recorded.halfWidthDescription,
+            isHalfWidth,
+        );
+        if (description !== null) {
+            item.description = description;
         }
 
-        if (recorded.extended !== null) {
-            if (isHalfWidth === true) {
-                if (typeof recorded.halfWidthExtended === 'string') {
-                    item.extended = recorded.halfWidthExtended;
-                }
-            } else {
-                item.extended = recorded.extended;
-            }
+        const extended = StrUtil.getHalfOrFullNullable(recorded.extended, recorded.halfWidthExtended, isHalfWidth);
+        if (extended !== null) {
+            item.extended = extended;
         }
 
-        if (recorded.rawExtended !== null) {
-            if (isHalfWidth === true) {
-                if (typeof recorded.rawHalfWidthExtended === 'string') {
-                    item.rawExtended = JSON.parse(recorded.rawHalfWidthExtended);
-                } else {
-                    item.rawExtended = JSON.parse(recorded.rawExtended);
-                }
+        const rawExtStr = isHalfWidth
+            ? (recorded.rawHalfWidthExtended ?? recorded.rawExtended)
+            : (recorded.rawExtended ?? recorded.rawHalfWidthExtended);
+        if (typeof rawExtStr === 'string' && rawExtStr.length > 0) {
+            try {
+                item.rawExtended = JSON.parse(rawExtStr);
+            } catch {
+                // ignore parse error
             }
         }
 

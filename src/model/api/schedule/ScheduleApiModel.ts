@@ -2,6 +2,7 @@ import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api';
 import Channel from '../../../db/entities/Channel';
 import Program from '../../../db/entities/Program';
+import StrUtil from '../../../util/StrUtil';
 import IChannelDB from '../../db/IChannelDB';
 import IProgramDB, { ProgramWithOverlap } from '../../db/IProgramDB';
 import IScheduleApiModel from './IScheduleApiModel';
@@ -205,36 +206,33 @@ export default class ScheduleApiModel implements IScheduleApiModel {
             startAt: program.startAt,
             endAt: program.endAt,
             isFree: program.isFree,
-            name: isHalfWidth ? program.halfWidthName : program.name,
+            name: StrUtil.getHalfOrFull(program.name, program.halfWidthName, isHalfWidth),
         };
 
-        if (program.description !== null) {
-            if (isHalfWidth === true) {
-                if (program.halfWidthDescription !== null) {
-                    result.description = program.halfWidthDescription;
-                }
-            } else {
-                result.description = program.description;
-            }
+        const description = StrUtil.getHalfOrFullNullable(
+            program.description,
+            program.halfWidthDescription,
+            isHalfWidth,
+        );
+        if (description !== null) {
+            result.description = description;
         }
 
-        if (program.extended !== null) {
-            if (isHalfWidth === true) {
-                if (program.halfWidthExtended !== null) {
-                    result.extended = program.halfWidthExtended;
-                }
-            } else {
-                result.extended = program.extended;
-            }
+        const extended = StrUtil.getHalfOrFullNullable(program.extended, program.halfWidthExtended, isHalfWidth);
+        if (extended !== null) {
+            result.extended = extended;
         }
 
-        if (needsRawExtended === true && program.rawExtended !== null) {
-            if (isHalfWidth === true) {
-                if (program.rawHalfWidthExtended !== null) {
-                    result.rawExtended = JSON.parse(program.rawHalfWidthExtended);
+        if (needsRawExtended === true) {
+            const rawExtStr = isHalfWidth
+                ? (program.rawHalfWidthExtended ?? program.rawExtended)
+                : (program.rawExtended ?? program.rawHalfWidthExtended);
+            if (typeof rawExtStr === 'string' && rawExtStr.length > 0) {
+                try {
+                    result.rawExtended = JSON.parse(rawExtStr);
+                } catch {
+                    // ignore parse error
                 }
-            } else {
-                result.rawExtended = JSON.parse(program.rawExtended);
             }
         }
 

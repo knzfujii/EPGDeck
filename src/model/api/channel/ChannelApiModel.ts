@@ -1,6 +1,7 @@
 import { inject, injectable } from 'inversify';
 import mirakurun from 'mirakurun';
 import * as apid from '../../../../api';
+import StrUtil from '../../../util/StrUtil';
 import IChannelDB from '../../db/IChannelDB';
 import IMirakurunClientModel from '../../IMirakurunClientModel';
 import IChannelApiModel, { IChannelApiModelError } from './IChannelApiModel';
@@ -31,7 +32,7 @@ class ChannelApiModel implements IChannelApiModel {
                 serviceId: c.serviceId,
                 networkId: c.networkId,
                 name: c.name,
-                halfWidthName: c.halfWidthName,
+                halfWidthName: c.halfWidthName ?? StrUtil.toHalf(c.name),
                 hasLogoData: c.hasLogoData,
                 channelType: <any>c.channelType,
                 channel: c.channel,

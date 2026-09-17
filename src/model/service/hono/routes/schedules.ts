@@ -15,7 +15,7 @@ app.get('/', async c => {
         const option: apid.ScheduleOption = {
             startAt: parseInt(query.startAt, 10),
             endAt: parseInt(query.endAt, 10),
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
             needsRawExtended: query.needsRawExtended === 'true',
             GR: query.GR === 'true',
             BS: query.BS === 'true',
@@ -39,7 +39,7 @@ app.get('/broadcasting', async c => {
     try {
         const query = c.req.query();
         const option: apid.BroadcastingScheduleOption = {
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
         };
         if (typeof query.time !== 'undefined') {
             option.time = parseInt(query.time, 10);
@@ -58,7 +58,8 @@ app.post('/search', async c => {
 
     try {
         const body = await c.req.json();
-        const result = await scheduleApiModel.search(body.option, body.isHalfWidth, body.limit);
+        const isHalfWidth = body.isHalfWidth !== false;
+        const result = await scheduleApiModel.search(body.option, isHalfWidth, body.limit);
         return api.responseJSON(c, 200, result);
     } catch (err: any) {
         return api.responseServerError(c, err.message);
@@ -69,7 +70,7 @@ app.post('/search', async c => {
 app.get('/detail/:programId', async c => {
     const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
     const programId = parseInt(c.req.param('programId'), 10);
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const program = await scheduleApiModel.getSchedule(programId, isHalfWidth);
@@ -95,7 +96,7 @@ app.get('/:channelId', async c => {
         const option: apid.ChannelScheduleOption = {
             startAt: parseInt(query.startAt, 10),
             days: parseInt(query.days, 10),
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
             needsRawExtended: query.needsRawExtended === 'true',
             channelId,
         };

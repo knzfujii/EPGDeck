@@ -8,7 +8,7 @@ const app = new Hono();
 // GET /api/streams
 app.get('/', async c => {
     const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const infos = await streamApiModel.getStreamInfos(isHalfWidth);

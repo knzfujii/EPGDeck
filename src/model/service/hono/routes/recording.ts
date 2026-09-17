@@ -13,7 +13,7 @@ app.get('/', async c => {
 
     try {
         const option: GetRecordedOption = {
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
         };
         if (typeof query.offset !== 'undefined') {
             option.offset = parseInt(query.offset, 10);

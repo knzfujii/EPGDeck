@@ -13,7 +13,7 @@ app.get('/', async c => {
 
     try {
         const option: apid.GetReserveOption = {
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
         };
         if (typeof query.type !== 'undefined') {
             option.type = query.type as any;
@@ -123,7 +123,7 @@ app.post('/update', async c => {
 app.get('/:reserveId', async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
     const reserveId = parseInt(c.req.param('reserveId'), 10);
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const reserve = await reserveApiModel.get(reserveId, isHalfWidth);

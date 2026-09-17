@@ -8,7 +8,7 @@ const app = new Hono();
 // GET /api/encode
 app.get('/', async c => {
     const encodeApiModel = container.get<IEncodeApiModel>('IEncodeApiModel');
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const result = await encodeApiModel.getAll(isHalfWidth);

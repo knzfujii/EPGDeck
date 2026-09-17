@@ -13,7 +13,7 @@ app.get('/', async c => {
 
     try {
         const option: GetRecordedOption = {
-            isHalfWidth: query.isHalfWidth === 'true',
+            isHalfWidth: query.isHalfWidth !== 'false',
         };
         if (typeof query.offset !== 'undefined') {
             option.offset = parseInt(query.offset, 10);
@@ -81,7 +81,7 @@ app.post('/cleanup', async c => {
 app.get('/:recordedId', async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
     const recordedId = parseInt(c.req.param('recordedId'), 10);
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const recorded = await recordedApiModel.get(recordedId, isHalfWidth);

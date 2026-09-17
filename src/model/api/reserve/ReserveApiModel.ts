@@ -1,6 +1,7 @@
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api';
 import Reserve from '../../../db/entities/Reserve';
+import StrUtil from '../../../util/StrUtil';
 import IReserveDB from '../../db/IReserveDB';
 import IIPCClient from '../../ipc/IIPCClient';
 import IReserveApiModel from './IReserveApiModel';
@@ -80,7 +81,7 @@ export default class ReserveApiModel implements IReserveApiModel {
             channelId: reserve.channelId,
             startAt: reserve.startAt,
             endAt: reserve.endAt,
-            name: isHalfWidth ? reserve.halfWidthName : reserve.name,
+            name: StrUtil.getHalfOrFull(reserve.name, reserve.halfWidthName, isHalfWidth),
         };
 
         if (reserve.ruleId !== null) {
@@ -128,31 +129,28 @@ export default class ReserveApiModel implements IReserveApiModel {
         if (reserve.programId !== null) {
             item.programId = reserve.programId;
         }
-        if (reserve.description !== null) {
-            if (isHalfWidth === true) {
-                if (reserve.halfWidthDescription !== null) {
-                    item.description = reserve.halfWidthDescription;
-                }
-            } else {
-                item.description = reserve.description;
-            }
+        const description = StrUtil.getHalfOrFullNullable(
+            reserve.description,
+            reserve.halfWidthDescription,
+            isHalfWidth,
+        );
+        if (description !== null) {
+            item.description = description;
         }
-        if (reserve.extended !== null) {
-            if (isHalfWidth === true) {
-                if (reserve.halfWidthExtended !== null) {
-                    item.extended = reserve.halfWidthExtended;
-                }
-            } else {
-                item.extended = reserve.extended;
-            }
+
+        const extended = StrUtil.getHalfOrFullNullable(reserve.extended, reserve.halfWidthExtended, isHalfWidth);
+        if (extended !== null) {
+            item.extended = extended;
         }
-        if (reserve.rawExtended !== null) {
-            if (isHalfWidth === true) {
-                if (reserve.rawHalfWidthExtended !== null) {
-                    item.rawExtended = JSON.parse(reserve.rawHalfWidthExtended);
-                }
-            } else {
-                item.rawExtended = JSON.parse(reserve.rawExtended);
+
+        const rawExtStr = isHalfWidth
+            ? (reserve.rawHalfWidthExtended ?? reserve.rawExtended)
+            : (reserve.rawExtended ?? reserve.rawHalfWidthExtended);
+        if (typeof rawExtStr === 'string' && rawExtStr.length > 0) {
+            try {
+                item.rawExtended = JSON.parse(rawExtStr);
+            } catch {
+                // ignore parse error
             }
         }
         if (reserve.genre1 !== null) {

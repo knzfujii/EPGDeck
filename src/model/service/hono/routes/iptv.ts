@@ -18,7 +18,7 @@ app.get('/channel.m3u8', async c => {
         }
 
         const mode = parseInt(c.req.query('mode') || '0', 10);
-        const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+        const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
         const result = await iptvApiModel.getChannelList(
             host,
@@ -43,7 +43,7 @@ app.get('/channel.m3u8', async c => {
 app.get('/epg.xml', async c => {
     const iptvApiModel = container.get<IIPTVApiModel>('IIPTVApiModel');
     const days = parseInt(c.req.query('days') || '1', 10);
-    const isHalfWidth = c.req.query('isHalfWidth') === 'true';
+    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
 
     try {
         const result = await iptvApiModel.getEpg(days, isHalfWidth);

@@ -188,6 +188,59 @@ namespace StrUtil {
 
         return isLeadingSlash ? '/' + joined : joined;
     };
+
+    /**
+     * isHalfWidth に応じて半角または全角文字列を返す。
+     * 対象カラムが null/undefined の場合、もう一方のカラムから変換して補完する。
+     * 両方とも null/undefined の場合は空文字を返す。
+     *
+     * @param full 全角文字列
+     * @param half 半角文字列
+     * @param isHalfWidth 半角要求フラグ（デフォルト: true）
+     * @returns 補完された文字列
+     */
+    export const getHalfOrFull = (
+        full: string | null | undefined,
+        half: string | null | undefined,
+        isHalfWidth: boolean = true,
+    ): string => {
+        return getHalfOrFullNullable(full, half, isHalfWidth) ?? '';
+    };
+
+    /**
+     * isHalfWidth に応じて半角または全角文字列を返す（null 許容）。
+     * 対象カラムが null/undefined の場合、もう一方のカラムから変換して補完する。
+     * 両方とも null または undefined の場合は null を返す。
+     *
+     * @param full 全角文字列
+     * @param half 半角文字列
+     * @param isHalfWidth 半角要求フラグ（デフォルト: true）
+     * @returns 補完された文字列、または null
+     */
+    export const getHalfOrFullNullable = (
+        full: string | null | undefined,
+        half: string | null | undefined,
+        isHalfWidth: boolean = true,
+    ): string | null => {
+        const hasFull = typeof full === 'string';
+        const hasHalf = typeof half === 'string';
+
+        if (!hasFull && !hasHalf) {
+            return null;
+        }
+
+        if (isHalfWidth) {
+            if (hasHalf) {
+                return half as string;
+            }
+            return toHalf(full as string);
+        } else {
+            if (hasFull) {
+                return full as string;
+            }
+            return toDouble(half as string);
+        }
+    };
 }
 
 export default StrUtil;

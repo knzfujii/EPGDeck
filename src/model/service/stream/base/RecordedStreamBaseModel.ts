@@ -131,7 +131,7 @@ export default abstract class RecordedStreamBaseModel
             // ts が入力かつ、HLS 配信の場合は arib-subtitle-timedmetadater を通す
             if (this.videoFileType === 'ts' && this.getStreamType() === 'RecordedHLS') {
                 this.log.stream.info('use arib-subtitle-timedmetadater');
-                this.id3MetadataTransoform = new ID3MetadataTransform();
+                this.id3MetadataTransoform = this.createID3MetadataTransform();
                 this.fileStream.pipe(this.id3MetadataTransoform);
                 this.id3MetadataTransoform.pipe(this.streamProcess.stdin);
             } else {

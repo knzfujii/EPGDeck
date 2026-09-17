@@ -280,4 +280,56 @@ describe('enc_helper.js', () => {
             expect(args).toContain('-sn');
         });
     });
+
+    describe('encoding templates ESM compliance', () => {
+        const templateFiles = [
+            'config/enc.js.template',
+            'config/enc_1080p.js.template',
+            'config/enc_720p.js.template',
+            'config/enc_nvenc.js.template',
+            'config/enc_qsv.js.template',
+            'config/enc_vaapi.js.template',
+        ];
+
+        it('should use ESM import syntax and avoid require in all template files', async () => {
+            const fs = await import('fs');
+            const path = await import('path');
+
+            for (const file of templateFiles) {
+                const fullPath = path.resolve(process.cwd(), file);
+                expect(fs.existsSync(fullPath)).toBe(true);
+
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                expect(content).toContain("import { runEncode } from './enc_helper.js';");
+                expect(content).not.toContain('require(');
+            }
+        });
+
+        it('should ensure enc_helper.js uses ESM imports and has no require calls', async () => {
+            const fs = await import('fs');
+            const path = await import('path');
+
+            const helperPath = path.resolve(process.cwd(), 'config/enc_helper.js');
+            const content = fs.readFileSync(helperPath, 'utf-8');
+
+            expect(content).toContain("import { spawn, execFile } from 'node:child_process';");
+            expect(content).not.toContain('require(');
+        });
+
+        it('should ensure any existing active config/enc*.js scripts use ESM and do not contain require', async () => {
+            const fs = await import('fs');
+            const path = await import('path');
+
+            const configDir = path.resolve(process.cwd(), 'config');
+            const files = fs.readdirSync(configDir);
+            const activeEncFiles = files.filter(f => f.startsWith('enc') && f.endsWith('.js') && f !== 'enc_helper.js');
+
+            for (const file of activeEncFiles) {
+                const fullPath = path.join(configDir, file);
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                expect(content).toContain("import { runEncode } from './enc_helper.js';");
+                expect(content).not.toContain('require(');
+            }
+        });
+    });
 });

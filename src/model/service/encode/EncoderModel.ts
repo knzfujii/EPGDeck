@@ -400,8 +400,10 @@ class EncoderModel implements IEncoderModel {
                 await Util.sleep(1000);
 
                 await FileUtil.unlink(outputFilePath).catch(err => {
-                    this.log.encode.error(`delete encode output file failed: ${outputFilePath}`);
-                    this.log.encode.error(err);
+                    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+                        this.log.encode.error(`delete encode output file failed: ${outputFilePath}`);
+                        this.log.encode.error(err);
+                    }
                 });
             }
         }

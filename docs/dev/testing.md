@@ -20,8 +20,9 @@ graph TD
 
 | テスト層 | 対象範囲 | 実行環境 | 実行時間 | 実行コマンド |
 | :--- | :--- | :--- | :--- | :--- |
-| **超高速チェック** | サーバー型検査＋単体テスト＋クライアント構文検査（並列実行） | Node.js + Vitest + Svelte Check | 約 3〜5 秒 | `npm run check:quick` |
+| **超高速チェック** | サーバー型検査＋単体テスト＋ESMスモーク＋クライアント構文検査（並列実行） | Node.js + Vitest + Svelte Check | 約 3〜5 秒 | `npm run check:quick` |
 | **単体テスト** | ビジネスロジック、Hono ルート、Drizzle Helper、設定パース、Client HTTP | Node.js + Vitest (SQLite インメモリ `:memory:`) | 約 1.8 秒 | `npm test` |
+| **ESM スモークテスト** | Node.js ネイティブでの CJS/ESM 相互運用、全外部依存のインスタンス化、CLI 構文検査 | Node.js 直接実行（Vitest 非経由） | 約 0.05 秒 | `npm run test:esm` |
 | **実機結合テスト** | MySQL / MariaDB 固有の方言、インデックス作成、Auto-Increment ID、主要 DAO CRUD | Node.js + Vitest (Docker コンテナ: ポート 13306) | 約 3 秒 | `npm run test:mysql` |
 | **E2E テスト** | 全画面（12画面）、ユーザー導線、フォーム入力、モーダル、リアルタイム更新 | Playwright + Chromium (スタンドアロン E2E サーバー) | 約 8 秒 | `npm run test:e2e` |
 | **総合チェック (DoD)** | サーバー・クライアント並列検証 ＋ E2E テスト | 全レイヤー | 約 30〜40 秒 | `npm run check` |

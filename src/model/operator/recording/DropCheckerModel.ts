@@ -10,6 +10,8 @@ import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import IDropCheckerModel from './IDropCheckerModel.js';
 
+const aribtsCtor = ((aribts as any).default || aribts) as typeof aribts;
+
 @injectable()
 class DropCheckerModel implements IDropCheckerModel {
     private log: ILogger;
@@ -57,13 +59,13 @@ class DropCheckerModel implements IDropCheckerModel {
             },
         });
 
-        this.tsReadableConnector = new aribts.TsReadableConnector();
-        this.tsPacketParser = new aribts.TsPacketParser();
-        this.tsPacketAnalyzer = new aribts.TsPacketAnalyzer();
-        this.tsSectionParser = new aribts.TsSectionParser();
-        this.tsSectionAnalyzer = new aribts.TsSectionAnalyzer();
-        this.tsSectionUpdater = new aribts.TsSectionUpdater();
-        this.tsPacketSelector = new aribts.TsPacketSelector({
+        this.tsReadableConnector = new aribtsCtor.TsReadableConnector();
+        this.tsPacketParser = new aribtsCtor.TsPacketParser();
+        this.tsPacketAnalyzer = new aribtsCtor.TsPacketAnalyzer();
+        this.tsSectionParser = new aribtsCtor.TsSectionParser();
+        this.tsSectionAnalyzer = new aribtsCtor.TsSectionAnalyzer();
+        this.tsSectionUpdater = new aribtsCtor.TsSectionUpdater();
+        this.tsPacketSelector = new aribtsCtor.TsPacketSelector({
             pids: new Array(0x30).fill(0).map((_, index) => index),
             programNumbers: [],
         });

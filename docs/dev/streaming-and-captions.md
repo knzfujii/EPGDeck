@@ -45,6 +45,7 @@ EPGDeck は以下のストリーミング配信方式をサポートしていま
 - FFmpeg は字幕ストリームを無効化（`-sn`）しつつ、データストリームをコピー（`-map 0 -c:d copy`）して TS セグメントを出力します。
 - クライアント側（`hls.js`）は、セグメントから ID3 メタデータを抽出し、`Hls.Events.FRAG_PARSING_METADATA` イベントを発火します。
 - クライアントの `SubtitleManager.ts` が ID3 ペイロードを受け取り、`feeder.feedID3()` に渡して描画します。
+- ※ **Node.js ESM 相互運用**: `arib-subtitle-timedmetadater` は CJS 形式で `exports.default` にクラスが格納されるため、`StreamBaseModel.createID3MetadataTransform()` ファクトリ経由で防衛的にアンラップしてインスタンス化します。
 
 ---
 

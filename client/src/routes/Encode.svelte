@@ -173,6 +173,10 @@
                                         ></div>
                                     </div>
                                 </div>
+                            {:else}
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    この動画は進捗の表示はできません
+                                </p>
                             {/if}
                         </div>
                     {/each}

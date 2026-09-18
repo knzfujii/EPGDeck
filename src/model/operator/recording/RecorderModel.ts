@@ -775,6 +775,12 @@ class RecorderModel implements IRecorderModel {
                 this.log.system.error(`update drop cnt error: ${this.dropLogFileId}`);
                 this.log.system.error(err);
             });
+
+        // dropChecker リソース解放を確実に完了させる
+        await this.dropChecker.stop().catch(err => {
+            this.log.system.error(`stop drop checker error: ${this.dropLogFileId}`);
+            this.log.system.error(err);
+        });
     }
 
     /**

@@ -57,4 +57,38 @@ describe('DropCheckerModel Unit Tests', () => {
         expect(result).toBeDefined();
         expect(typeof result).toBe('object');
     });
+
+    it('should ensure all writing is complete when getResult resolves, and not recreate after unlink', async () => {
+        const dropChecker = new DropCheckerModel(dummyLogger);
+
+        const dummyStream = new Readable({
+            read() {
+                this.push(null);
+            },
+        });
+
+        await dropChecker.start(testDir, 'test_race_condition.ts', dummyStream);
+        const logPath = dropChecker.getFilePath();
+        expect(logPath).not.toBeNull();
+
+        // stop() をバックグラウンドで開始（await しない）
+        const stopPromise = dropChecker.stop();
+
+        // getResult() はファイル書き込み完了を待機して解決するはず
+        const result = await dropChecker.getResult();
+        expect(result).toBeDefined();
+
+        // getResult() 解決直後にファイルを削除する（0ドロップ時の RecorderModel の挙動をシミュレート）
+        if (logPath && fs.existsSync(logPath)) {
+            fs.unlinkSync(logPath);
+        }
+        expect(fs.existsSync(logPath!)).toBe(false);
+
+        // stopPromise の完了および後続タイマーを待機
+        await stopPromise;
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 書き込み完了後に unlink されているため、ファイルが再生成されていないこと
+        expect(fs.existsSync(logPath!)).toBe(false);
+    });
 });

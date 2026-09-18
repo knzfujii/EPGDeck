@@ -93,6 +93,8 @@ describe('RecorderModel Drop Log Handling Tests', () => {
 
         // ログ実ファイルが削除されたこと
         expect(unlinkSpy).toHaveBeenCalledWith(MOCK_DROP_FILE);
+        // dropChecker.stop が完了まで呼ばれたこと
+        expect(dummyDropChecker.stop).toHaveBeenCalled();
         // DB上のカウントは0で更新されたこと
         expect(dummyDropLogFileDB.updateCnt).toHaveBeenCalledWith({
             id: 42,

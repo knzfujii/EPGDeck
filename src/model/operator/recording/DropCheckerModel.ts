@@ -22,6 +22,7 @@ class DropCheckerModel implements IDropCheckerModel {
     private time: Date | null = null;
     private hasError: boolean = false; // パケットチェック中にエラーを検知したか？
     private isFinished: boolean = false; // 終了処理が終わっているか？
+    private onFinishPromise: Promise<void> | null = null; // 終了処理の待機用 Promise
 
     private transformStream: stream.Transform | null = null;
     private tsReadableConnector: aribts.TsReadableConnector | null = null;
@@ -133,41 +134,49 @@ class DropCheckerModel implements IDropCheckerModel {
      * 終了処理
      * @returns Promise<void>
      */
-    private async onFinish(): Promise<void> {
-        if (this.isFinished === true) {
-            return;
-        }
-        this.isFinished = true;
-
-        if (this.tsPacketAnalyzer === null) {
-            return;
-        }
-        this.tsPacketAnalyzer.removeAllListeners('finish');
-
-        const result = this.tsPacketAnalyzer.getResult();
-        this.result = result;
-
-        if (this.hasError) {
-            await this.appendFile('\n').catch(err => {
-                this.log.system.error(`append error: ${this.dest}`);
-                this.log.system.error(err);
-            });
-        }
-        for (const pid of Object.keys(result)) {
-            const pidNum = parseInt(pid, 10);
-            await this.appendFile(
-                `pid: ${this.pidToString(pidNum)}, error: ${result[pid as any].error}, drop: ${
-                    result[pid as any].drop
-                }, scrambling: ${result[pid as any].scrambling}, packet: ${
-                    result[pid as any].packet
-                }, name: ${this.getPIDName(pidNum)}\n`,
-            ).catch(err => {
-                this.log.system.error(`append error: ${this.dest}`);
-                this.log.system.error(err);
-            });
+    private onFinish(): Promise<void> {
+        if (this.onFinishPromise !== null) {
+            return this.onFinishPromise;
         }
 
-        this.listener.emit(DropCheckerModel.FINISH_EVENT);
+        this.onFinishPromise = (async () => {
+            if (this.isFinished === true) {
+                return;
+            }
+            this.isFinished = true;
+
+            if (this.tsPacketAnalyzer === null) {
+                return;
+            }
+            this.tsPacketAnalyzer.removeAllListeners('finish');
+
+            const result = this.tsPacketAnalyzer.getResult();
+
+            if (this.hasError) {
+                await this.appendFile('\n').catch(err => {
+                    this.log.system.error(`append error: ${this.dest}`);
+                    this.log.system.error(err);
+                });
+            }
+            for (const pid of Object.keys(result)) {
+                const pidNum = parseInt(pid, 10);
+                await this.appendFile(
+                    `pid: ${this.pidToString(pidNum)}, error: ${result[pid as any].error}, drop: ${
+                        result[pid as any].drop
+                    }, scrambling: ${result[pid as any].scrambling}, packet: ${
+                        result[pid as any].packet
+                    }, name: ${this.getPIDName(pidNum)}\n`,
+                ).catch(err => {
+                    this.log.system.error(`append error: ${this.dest}`);
+                    this.log.system.error(err);
+                });
+            }
+
+            this.result = result;
+            this.listener.emit(DropCheckerModel.FINISH_EVENT);
+        })();
+
+        return this.onFinishPromise;
     }
 
     /**
@@ -423,20 +432,32 @@ class DropCheckerModel implements IDropCheckerModel {
     /**
      * finish を待って結果を result へ格納する
      */
-    private setResult(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+    private async setResult(): Promise<void> {
+        if (this.result !== null) {
+            return;
+        }
+
+        if (this.onFinishPromise !== null) {
+            await this.onFinishPromise;
+
+            return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
             if (this.result !== null) {
                 resolve();
-            } else {
-                this.listener.once(DropCheckerModel.FINISH_EVENT, () => {
-                    resolve();
-                });
 
-                setTimeout(() => {
-                    this.listener.removeAllListeners();
-                    reject(new Error('GetResultTimeout'));
-                }, 10 * 1000);
+                return;
             }
+
+            this.listener.once(DropCheckerModel.FINISH_EVENT, () => {
+                resolve();
+            });
+
+            setTimeout(() => {
+                this.listener.removeAllListeners();
+                reject(new Error('GetResultTimeout'));
+            }, 10 * 1000);
         });
     }
 }

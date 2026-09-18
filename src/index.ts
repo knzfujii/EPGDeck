@@ -11,6 +11,7 @@ import IIPCServer from './model/ipc/IIPCServer.js';
 import container from './model/ModelContainer.js';
 import * as containerSetter from './model/ModelContainerSetter.js';
 import IRecordingManageModel from './model/operator/recording/IRecordingManageModel.js';
+import IRecordedManageModel from './model/operator/recorded/IRecordedManageModel.js';
 import IReservationManageModel from './model/operator/reservation/IReservationManageModel.js';
 import IStorageManageModel from './model/operator/storage/IStorageManageModel.js';
 import { fileURLToPath } from 'url';
@@ -90,6 +91,14 @@ const runOperator = async () => {
 
     const storageManageModel = container.get<IStorageManageModel>('IStorageManageModel');
     storageManageModel.start();
+
+    // 起動時に孤立・0件ドロップログファイルをバックグラウンドでクリーンアップ
+    const recordedManageModel = container.get<IRecordedManageModel>('IRecordedManageModel');
+    void recordedManageModel.dropLogFileCleanup().catch(err => {
+        const logger = container.get<ILoggerModel>('ILoggerModel');
+        logger.getLogger().system.error('initial dropLogFileCleanup failed');
+        logger.getLogger().system.error(err);
+    });
 };
 
 let serviceChild: child_process.ChildProcess | null = null;

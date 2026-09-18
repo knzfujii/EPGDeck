@@ -344,4 +344,11 @@ describe('Hono REST API Integration Tests', () => {
         expect(res.headers.get('Pragma')).toBe('no-cache');
         expect(res.headers.get('Cache-Control')).toContain('no-cache');
     });
+
+    it('applies no-cache headers to any JSON response via middleware even if c.json() is used directly', async () => {
+        const res = await app.request('/api/config');
+        expect(res.headers.get('Pragma')).toBe('no-cache');
+        expect(res.headers.get('Cache-Control')).toBe('private, no-cache, no-store, must-revalidate');
+        expect(res.headers.get('Expires')).toBe('-1');
+    });
 });

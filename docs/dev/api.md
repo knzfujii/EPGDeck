@@ -107,3 +107,32 @@ API 呼び出し時に以下のいずれかの方法でトークンを渡すこ�
 ```
 
 詳細は [設定マニュアル](../manual/configuration.md#11-リードオンリーモード設定-readonly) を参照してください。
+
+---
+
+## エラーハンドリングとレスポンス仕様
+
+EPGDeck の API は、Hono のグローバルエラーハンドラー（`app.onError`）と `resolveApiError` により標準化された JSON エラーレスポンスを返却します。
+
+### エラーレスポンス形式
+```json
+{
+  "code": 409,
+  "message": "この番組はすでに予約されています",
+  "errors": "ReservationManageModelReservedError"
+}
+```
+
+- **400 Bad Request**: パラメータ不正、放送終了済み番組の予約など
+- **403 Forbidden**: リードオンリーモードによる制限
+- **404 Not Found**: 指定リソース（番組・予約・録画・動画ファイル等）の不存在
+- **409 Conflict**: 予約重複、競合
+- **503 Service Unavailable**: チューナー枯渇・ビジー
+- **500 Internal Server Error**: サーバー内部例外
+
+### キャッシュ制御
+`/api/*` 配下の JSON レスポンスには、ミドルウェアにより以下のキャッシュ無効化ヘッダーが自動的に付与されます。
+- `Cache-Control: private, no-cache, no-store, must-revalidate`
+- `Expires: -1`
+- `Pragma: no-cache`
+

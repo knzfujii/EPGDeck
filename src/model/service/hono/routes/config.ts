@@ -10,7 +10,7 @@ app.get('/', async c => {
 
     try {
         const result = await configApiModel.getConfig(api.isSecureProtocol(c));
-        return api.responseJSON(c, 200, result);
+        return c.json(result);
     } catch (err: any) {
         return api.responseServerError(c, err.message);
     }

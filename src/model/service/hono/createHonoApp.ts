@@ -30,6 +30,7 @@ import authRoute from './routes/auth.js';
 import { readOnlyMiddleware } from './readOnlyMiddleware.js';
 import * as api from './HonoApiUtil.js';
 import ProcessUtil from '../../../util/ProcessUtil.js';
+import { resolveApiError } from '../../error/ApiError.js';
 
 export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     const app = new Hono();
@@ -52,9 +53,19 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
 
     // Global Error Handler
     app.onError((err, c) => {
-        log.system.error(`[Unhandled Error] ${c.req.method} ${c.req.path}`);
-        log.system.error(err.stack || err.message);
-        return api.responseServerError(c, err.message || 'Internal Server Error');
+        const resolved = resolveApiError(err);
+        if (resolved.code >= 500) {
+            log.system.error(`[Unhandled Error] ${c.req.method} ${c.req.path}`);
+            log.system.error(err.stack || err.message);
+        }
+        return c.json(
+            {
+                code: resolved.code,
+                message: resolved.message,
+                ...(resolved.errors ? { errors: resolved.errors } : {}),
+            },
+            resolved.code as any,
+        );
     });
 
     // Helper for URL with subDirectory
@@ -116,6 +127,23 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     // 4. API Routes
     const apiPrefix = createUrl('/api');
     const apiApp = new Hono();
+
+    // Cache control middleware for API JSON responses
+    apiApp.use('*', async (c, next) => {
+        await next();
+        const contentType = c.res.headers.get('Content-Type');
+        if (contentType && contentType.includes('application/json')) {
+            if (!c.res.headers.has('Cache-Control')) {
+                c.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+            }
+            if (!c.res.headers.has('Expires')) {
+                c.header('Expires', '-1');
+            }
+            if (!c.res.headers.has('Pragma')) {
+                c.header('Pragma', 'no-cache');
+            }
+        }
+    });
 
     apiApp.use('*', readOnlyMiddleware);
 

@@ -62,8 +62,12 @@ export const integerQuery = () =>
  */
 export const integerParam = () =>
     z
-        .string()
-        .refine(val => /^-?\d+$/.test(val), {
-            message: 'Must be a valid integer',
-        })
-        .transform(val => parseInt(val, 10));
+        .union([z.string(), z.number()])
+        .refine(
+            val =>
+                (typeof val === 'number' && Number.isInteger(val)) || (typeof val === 'string' && /^-?\d+$/.test(val)),
+            {
+                message: 'Must be a valid integer',
+            },
+        )
+        .transform(val => (typeof val === 'number' ? val : parseInt(val, 10)));

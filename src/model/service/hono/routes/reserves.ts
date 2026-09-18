@@ -4,7 +4,12 @@ import * as apid from '../../../../../api.js';
 import IReserveApiModel from '../../../api/reserve/IReserveApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
-import { getReserveListsQuerySchema, getReservesQuerySchema, reserveIdParamSchema } from '../schemas/reserves.js';
+import {
+    editReserveJsonSchema,
+    getReserveListsQuerySchema,
+    getReservesQuerySchema,
+    reserveIdParamSchema,
+} from '../schemas/reserves.js';
 
 const app = new Hono()
     // GET /api/reserves
@@ -55,13 +60,18 @@ const app = new Hono()
         return c.json(reserve);
     })
     // PUT /api/reserves/:reserveId
-    .put('/:reserveId', zValidator('param', reserveIdParamSchema), async c => {
-        const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-        const { reserveId } = c.req.valid('param');
-        const body = await c.req.json();
-        await reserveApiModel.edit(reserveId, body);
-        return c.json({ code: 201, message: 'ok' }, 201);
-    })
+    .put(
+        '/:reserveId',
+        zValidator('param', reserveIdParamSchema),
+        zValidator('json', editReserveJsonSchema),
+        async c => {
+            const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
+            const { reserveId } = c.req.valid('param');
+            const body = c.req.valid('json');
+            await reserveApiModel.edit(reserveId, body as any);
+            return c.json({ code: 201, message: 'ok' }, 201);
+        },
+    )
     // DELETE /api/reserves/:reserveId
     .delete('/:reserveId', zValidator('param', reserveIdParamSchema), async c => {
         const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');

@@ -13,7 +13,7 @@
         formatDuration,
         extractFirstSearchWord,
     } from '../lib/utils/format';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
         Clock,
@@ -87,10 +87,13 @@
         if (!item || isUpdating) return;
         isUpdating = true;
         try {
-            await http.put(`/api/reserves/${item.id}`, {
-                allowEndLack,
-                saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+            await api.reserves[':reserveId'].$put({
+                param: { reserveId: String(item.id) },
+                json: {
+                    allowEndLack,
+                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
+                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                } as any,
             });
             snackbar.open({ text: `「${item.name}」の予約設定を更新しました`, color: 'success' });
             fetchReserves();
@@ -122,13 +125,18 @@
         try {
             await channelStore.fetch();
             const [reservesRes, recordingRes] = await Promise.all([
-                http.get('/api/reserves?limit=100&isHalfWidth=true'),
-                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
+                api.reserves
+                    .$get({ query: { limit: 100, isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { reserves: [], total: 0 })),
+                api.recording
+                    .$get({ query: { isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { records: [] }))
+                    .catch(() => ({ records: [] })),
             ]);
 
-            const recordingList = recordingRes.data.records || [];
+            const recordingList = recordingRes.records || [];
             const now = Date.now();
-            const rawReserves: apid.ReserveItem[] = reservesRes.data.reserves || [];
+            const rawReserves: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
 
             reserves = rawReserves.map(r => {
                 const isCurrentlyRecording =
@@ -145,7 +153,7 @@
                     isRecording: isCurrentlyRecording,
                 };
             });
-            total = reservesRes.data.total || 0;
+            total = reservesRes.total || 0;
         } catch (e) {
             console.error('Failed to fetch reserves', e);
             if (!isSilent) snackbar.open({ text: '予約一覧の取得に失敗しました', color: 'error' });
@@ -168,10 +176,14 @@
         fetchReserves();
 
         // エンコードプリセット名と保存先ディレクトリ名を取得
-        http.get('/api/config')
-            .then(res => {
-                encodeModes = res.data.encode || [];
-                storageDirs = res.data.recorded || [];
+        api.config
+            .$get()
+            .then(async res => {
+                if (res.ok) {
+                    const data = (await res.json()) as any;
+                    encodeModes = (data.encode as string[]) || [];
+                    storageDirs = (data.recorded as string[]) || [];
+                }
             })
             .catch(e => console.error('Failed to fetch config', e));
 
@@ -225,7 +237,7 @@
 
         isCanceling = true;
         try {
-            await http.delete(`/api/reserves/${item.id}`);
+            await api.reserves[':reserveId'].$delete({ param: { reserveId: String(item.id) } });
             snackbar.open({ text: `${actionLabel}しました`, color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
             fetchReserves();
@@ -245,13 +257,13 @@
 
         try {
             if (action === 'finish') {
-                await http.post(`/api/recording/${target.id}/finish`);
+                await api.recording[':reserveId'].finish.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
             } else if (action === 'stop') {
-                await http.post(`/api/recording/${target.id}/stop`);
+                await api.recording[':reserveId'].stop.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
             } else if (action === 'discard') {
-                await http.post(`/api/recording/${target.id}/discard`);
+                await api.recording[':reserveId'].discard.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
             }
 
@@ -261,7 +273,7 @@
             fetchReserves();
         } catch (e: any) {
             console.error(`Failed to execute recording action: ${action}`, e);
-            const msg = e.response?.data?.message || '録画操作の実行に失敗しました';
+            const msg = e.message || '録画操作の実行に失敗しました';
             snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
@@ -272,7 +284,7 @@
     async function restoreSkip(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
         try {
-            await http.delete(`/api/reserves/${item.id}/skip`);
+            await api.reserves[':reserveId'].skip.$delete({ param: { reserveId: String(item.id) } });
             snackbar.open({ text: '予約を復活しました', color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
             fetchReserves();

@@ -9,7 +9,7 @@
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
         Video,
@@ -64,20 +64,32 @@
         try {
             await channelStore.fetch();
             const [recordingRes, recordedRes, reservesRes, storagesRes] = await Promise.all([
-                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
-                http.get('/api/recorded?limit=8&isHalfWidth=true').catch(() => ({ data: { records: [], total: 0 } })),
-                http.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [], total: 0 } })),
-                http.get('/api/storages').catch(() => ({ data: { items: [] } })),
+                api.recording
+                    .$get({ query: { isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { records: [] }))
+                    .catch(() => ({ records: [] })),
+                api.recorded
+                    .$get({ query: { limit: 8, isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { records: [], total: 0 }))
+                    .catch(() => ({ records: [], total: 0 })),
+                api.reserves
+                    .$get({ query: { isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { reserves: [], total: 0 }))
+                    .catch(() => ({ reserves: [], total: 0 })),
+                api.storages
+                    .$get()
+                    .then(async r => (r.ok ? await r.json() : { items: [] }))
+                    .catch(() => ({ items: [] })),
             ]);
 
-            const recordingList = recordingRes.data.records || [];
-            latestRecorded = recordedRes.data.records || [];
-            recordedTotal = recordedRes.data.total || 0;
-            storages = storagesRes.data?.items || [];
+            const recordingList = recordingRes.records || [];
+            latestRecorded = (recordedRes.records as apid.RecordedItem[]) || [];
+            recordedTotal = recordedRes.total || 0;
+            storages = (storagesRes.items as StorageItem[]) || [];
 
             // 予約一覧に録画中フラグを付与
             const now = Date.now();
-            const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
+            const reservesList: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
             upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
                 const isCurrentlyRecording =
                     recordingList.some(
@@ -93,7 +105,7 @@
                     isRecording: isCurrentlyRecording,
                 };
             });
-            reservesTotal = reservesRes.data.total || 0;
+            reservesTotal = reservesRes.total || 0;
         } catch (e) {
             console.error('Failed to fetch dashboard data', e);
         } finally {
@@ -108,13 +120,13 @@
 
         try {
             if (action === 'finish') {
-                await http.post(`/api/recording/${target.id}/finish`);
+                await api.recording[':reserveId'].finish.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
             } else if (action === 'stop') {
-                await http.post(`/api/recording/${target.id}/stop`);
+                await api.recording[':reserveId'].stop.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
             } else if (action === 'discard') {
-                await http.post(`/api/recording/${target.id}/discard`);
+                await api.recording[':reserveId'].discard.$post({ param: { reserveId: String(target.id) } });
                 snackbar.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
             }
 
@@ -123,7 +135,7 @@
             await fetchDashboard(true);
         } catch (e: any) {
             console.error(`Failed to execute recording action: ${action}`, e);
-            const msg = e.response?.data?.message || '録画操作の実行に失敗しました';
+            const msg = e.message || '録画操作の実行に失敗しました';
             snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;

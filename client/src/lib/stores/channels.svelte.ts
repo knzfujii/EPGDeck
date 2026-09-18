@@ -1,4 +1,4 @@
-import http from '@/lib/httpClient';
+import api from '@/lib/apiClient';
 
 export interface Channel {
     id: number;
@@ -32,9 +32,11 @@ class ChannelStore {
     public async fetch() {
         if (this.isFetched && this.channels.length > 0) return;
         try {
-            const res = await http.get('/api/channels');
-            this.channels = res.data || [];
-            this.isFetched = true;
+            const res = await api.channels.$get();
+            if (res.ok) {
+                this.channels = ((await res.json()) as Channel[]) || [];
+                this.isFetched = true;
+            }
         } catch (e) {
             console.error('Failed to fetch channels', e);
         }

@@ -17,3 +17,5 @@ export const getReserveListsQuerySchema = z.object({
 export const reserveIdParamSchema = z.object({
     reserveId: integerParam(),
 });
+
+export const editReserveJsonSchema = z.record(z.string(), z.any());

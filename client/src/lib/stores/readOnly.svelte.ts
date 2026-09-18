@@ -1,4 +1,4 @@
-import http from '../httpClient';
+import api from '../apiClient';
 import type * as apid from '../../../../api';
 
 const TOKEN_KEY = 'epgdeck_auth_token';
@@ -77,32 +77,37 @@ class ReadOnlyStore {
 
         try {
             // サーバーのコンフィグ取得
-            const res = await http.get<apid.Config>('/api/config');
-            this.serverConfig = res.data;
-            if (res.data.readOnly && res.data.readOnly.enabled) {
-                this.enabled = true;
-                this.allowedOperations = res.data.readOnly.allowedOperations || [];
+            const res = await api.config.$get();
+            if (res.ok) {
+                const configData = (await res.json()) as unknown as apid.Config;
+                this.serverConfig = configData;
+                if (configData.readOnly && configData.readOnly.enabled) {
+                    this.enabled = true;
+                    this.allowedOperations = configData.readOnly.allowedOperations || [];
 
-                // 保存済みトークンの有効性確認
-                if (this.token) {
-                    try {
-                        const statusRes = await http.get<{
-                            isUnlocked: boolean;
-                            isReadOnlyEnabled: boolean;
-                        }>('/api/auth/status');
-                        if (statusRes.data.isUnlocked) {
-                            this.unlocked = true;
-                        } else {
+                    // 保存済みトークンの有効性確認
+                    if (this.token) {
+                        try {
+                            const statusRes = await api.auth.status.$get();
+                            if (statusRes.ok) {
+                                const statusData = (await statusRes.json()) as any;
+                                if (statusData.isUnlocked) {
+                                    this.unlocked = true;
+                                } else {
+                                    this.clearToken();
+                                }
+                            } else {
+                                this.clearToken();
+                            }
+                        } catch {
                             this.clearToken();
                         }
-                    } catch {
-                        this.clearToken();
                     }
+                } else {
+                    this.enabled = false;
+                    this.unlocked = true;
+                    this.allowedOperations = ['liveStream', 'recordedStream', 'download'];
                 }
-            } else {
-                this.enabled = false;
-                this.unlocked = true;
-                this.allowedOperations = ['liveStream', 'recordedStream', 'download'];
             }
         } catch (e) {
             console.error('Failed to init readOnlyStore', e);
@@ -120,24 +125,27 @@ class ReadOnlyStore {
     }
 
     async unlock(password: string): Promise<void> {
-        const res = await http.post<{ token: string }>('/api/auth/unlock', {
-            password,
+        const res = await api.auth.unlock.$post({
+            json: { password },
         });
-        if (res.data && res.data.token) {
-            this.token = res.data.token;
-            this.unlocked = true;
-            this.isModalOpen = false;
-            try {
-                localStorage.setItem(TOKEN_KEY, res.data.token);
-            } catch (e) {
-                // ignore
+        if (res.ok) {
+            const data = (await res.json()) as any;
+            if (data && data.token) {
+                this.token = data.token;
+                this.unlocked = true;
+                this.isModalOpen = false;
+                try {
+                    localStorage.setItem(TOKEN_KEY, data.token);
+                } catch (e) {
+                    // ignore
+                }
             }
         }
     }
 
     async lock(): Promise<void> {
         try {
-            await http.post('/api/auth/lock');
+            await api.auth.lock.$post();
         } catch {
             // ignore
         }

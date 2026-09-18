@@ -4,7 +4,7 @@ import * as apid from '../../../../../api.js';
 import IRuleApiModel from '../../../api/rule/IRuleApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
-import { getRulesQuerySchema, ruleIdParamSchema } from '../schemas/rules.js';
+import { editRuleJsonSchema, getRulesQuerySchema, ruleIdParamSchema } from '../schemas/rules.js';
 
 const app = new Hono()
     // GET /api/rules
@@ -39,12 +39,12 @@ const app = new Hono()
         return c.json(rule);
     })
     // PUT /api/rules/:ruleId
-    .put('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
+    .put('/:ruleId', zValidator('param', ruleIdParamSchema), zValidator('json', editRuleJsonSchema), async c => {
         const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
         const { ruleId } = c.req.valid('param');
-        const body = await c.req.json();
-        body.id = ruleId;
-        await ruleApiModel.update(body);
+        const body = c.req.valid('json');
+        (body as any).id = ruleId;
+        await ruleApiModel.update(body as any);
         return c.json({ code: 200 });
     })
     // DELETE /api/rules/:ruleId

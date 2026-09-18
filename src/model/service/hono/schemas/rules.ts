@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { integerParam, integerQuery } from './common.js';
+import { integerParam, integerQuery, optionalBooleanQuery } from './common.js';
 
 export const getRulesQuerySchema = z.object({
+    isHalfWidth: optionalBooleanQuery(),
     offset: integerQuery(),
     limit: integerQuery(),
     type: z.enum(['all', 'reserve', 'conflict']).optional(),
@@ -11,3 +12,5 @@ export const getRulesQuerySchema = z.object({
 export const ruleIdParamSchema = z.object({
     ruleId: integerParam(),
 });
+
+export const editRuleJsonSchema = z.record(z.string(), z.any());

@@ -6,6 +6,7 @@ export const getRecordedQuerySchema = z.object({
     offset: integerQuery(),
     limit: integerQuery(),
     isReverse: optionalBooleanQuery(),
+    reverse: optionalBooleanQuery(),
     ruleId: integerQuery(),
     channelId: integerQuery(),
     genre: integerQuery(),
@@ -17,4 +18,12 @@ export const getRecordedQuerySchema = z.object({
 
 export const recordedIdParamSchema = z.object({
     recordedId: integerParam(),
+});
+
+export const getRecordedItemQuerySchema = z.object({
+    isHalfWidth: optionalBooleanQuery(),
+});
+
+export const deleteRecordedQuerySchema = z.object({
+    isDeleteFile: optionalBooleanQuery(),
 });

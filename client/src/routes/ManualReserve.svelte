@@ -4,7 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { Clock, Plus, ArrowLeft, Lock } from '@lucide/svelte';
     import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
     import {
@@ -79,22 +79,24 @@
 
         isSubmitting = true;
         try {
-            await http.post('/api/reserves', {
-                allowEndLack,
-                timeSpecifiedOption: {
-                    name: name.trim(),
-                    channelId: selectedChannelId,
-                    startAt,
-                    endAt,
-                },
-                saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+            await api.reserves.$post({
+                json: {
+                    allowEndLack,
+                    timeSpecifiedOption: {
+                        name: name.trim(),
+                        channelId: selectedChannelId,
+                        startAt,
+                        endAt,
+                    },
+                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
+                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                } as any,
             });
             snackbar.open({ text: '時間指定予約を作成しました', color: 'success' });
             router.push('/reserves');
         } catch (e: any) {
             console.error('Manual reserve error', e);
-            const errorMsg = e.response?.data?.message || '予約の作成に失敗しました';
+            const errorMsg = e.message || '予約の作成に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isSubmitting = false;

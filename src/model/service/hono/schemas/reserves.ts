@@ -19,3 +19,4 @@ export const reserveIdParamSchema = z.object({
 });
 
 export const editReserveJsonSchema = z.record(z.string(), z.any());
+export const createReserveJsonSchema = z.record(z.string(), z.any());

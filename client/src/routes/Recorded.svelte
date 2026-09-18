@@ -9,7 +9,7 @@
     import { getSmartWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
         Video,
@@ -104,31 +104,33 @@
         if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
-            const params: Record<string, any> = {
-                offset: (currentPage - 1) * limit,
-                limit,
+            const query: any = {
                 isHalfWidth: true,
+                limit,
+                offset: (currentPage - 1) * limit,
             };
-
-            if (keyword.trim()) params.keyword = keyword.trim();
-            if (selectedGenre !== null) params.genre = selectedGenre;
-            if (selectedRuleId !== null) params.ruleId = selectedRuleId;
+            if (keyword.trim()) query.keyword = keyword.trim();
+            if (selectedGenre !== null) query.genre = selectedGenre;
+            if (selectedRuleId !== null) query.ruleId = selectedRuleId;
 
             if (selectedYear !== null && selectedMonth !== null) {
                 const startDate = new Date(selectedYear, selectedMonth - 1, 1);
                 const endDate = new Date(selectedYear, selectedMonth, 1);
-                params.startAt = startDate.getTime();
-                params.endAt = endDate.getTime();
+                query.startAt = startDate.getTime();
+                query.endAt = endDate.getTime();
             } else if (selectedYear !== null) {
                 const startDate = new Date(selectedYear, 0, 1);
                 const endDate = new Date(selectedYear + 1, 0, 1);
-                params.startAt = startDate.getTime();
-                params.endAt = endDate.getTime();
+                query.startAt = startDate.getTime();
+                query.endAt = endDate.getTime();
             }
 
-            const res = await http.get('/api/recorded', { params });
-            recorded = res.data.records || [];
-            total = res.data.total || 0;
+            const res = await api.recorded.$get({ query });
+            if (res.ok) {
+                const data = await res.json();
+                recorded = (data.records as apid.RecordedItem[]) || [];
+                total = data.total || 0;
+            }
         } catch (e) {
             console.error('Failed to fetch recorded', e);
             if (!isSilent) snackbar.open({ text: '録画データの取得に失敗しました', color: 'error' });
@@ -139,12 +141,15 @@
 
     async function fetchRules() {
         try {
-            const res = await http.get('/api/rules?limit=1000&isHalfWidth=true');
-            const rawRules = res.data.rules || [];
-            rulesList = rawRules.map((r: any) => ({
-                id: r.id,
-                name: r.searchOption?.keyword || r.reserveOption?.name || `ルール #${r.id}`,
-            }));
+            const res = await api.rules.$get({ query: { limit: 1000, isHalfWidth: true } });
+            if (res.ok) {
+                const data = await res.json();
+                const rawRules = data.rules || [];
+                rulesList = rawRules.map((r: any) => ({
+                    id: r.id,
+                    name: r.searchOption?.keyword || r.reserveOption?.name || `ルール #${r.id}`,
+                }));
+            }
         } catch (e) {
             console.error('Failed to fetch rules', e);
         }
@@ -273,11 +278,11 @@
     async function toggleProtect(item: apid.RecordedItem) {
         try {
             if (item.isProtected) {
-                await http.put(`/api/recorded/${item.id}/unprotect`);
+                await api.recorded[':recordedId'].unprotect.$put({ param: { recordedId: String(item.id) } });
                 item.isProtected = false;
                 snackbar.open({ text: '保護を解除しました', color: 'success' });
             } else {
-                await http.put(`/api/recorded/${item.id}/protect`);
+                await api.recorded[':recordedId'].protect.$put({ param: { recordedId: String(item.id) } });
                 item.isProtected = true;
                 snackbar.open({ text: '番組を保護しました', color: 'success' });
             }
@@ -298,7 +303,10 @@
         if (!ok) return;
 
         try {
-            await http.delete(`/api/recorded/${id}?isDeleteFile=true`);
+            await api.recorded[':recordedId'].$delete({
+                param: { recordedId: String(id) },
+                query: { isDeleteFile: true },
+            });
             snackbar.open({ text: '録画を削除しました', color: 'success' });
             fetchRecorded();
         } catch (e) {
@@ -378,7 +386,10 @@
         try {
             for (const id of [...selectedIds]) {
                 try {
-                    await http.delete(`/api/recorded/${id}?isDeleteFile=true`);
+                    await api.recorded[':recordedId'].$delete({
+                        param: { recordedId: String(id) },
+                        query: { isDeleteFile: true },
+                    });
                     successCount++;
                 } catch (e) {
                     console.error(`Failed to delete recorded id: ${id}`, e);

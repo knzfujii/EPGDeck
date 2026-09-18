@@ -5,6 +5,7 @@ import IReserveApiModel from '../../../api/reserve/IReserveApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
 import {
+    createReserveJsonSchema,
     editReserveJsonSchema,
     getReserveListsQuerySchema,
     getReservesQuerySchema,
@@ -20,10 +21,10 @@ const app = new Hono()
         return c.json(result);
     })
     // POST /api/reserves
-    .post('/', async c => {
+    .post('/', zValidator('json', createReserveJsonSchema), async c => {
         const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-        const body = await c.req.json();
-        const reserveId = await reserveApiModel.add(body);
+        const body = c.req.valid('json');
+        const reserveId = await reserveApiModel.add(body as any);
         return c.json({ reserveId }, 201);
     })
     // GET /api/reserves/cnts

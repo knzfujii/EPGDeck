@@ -5,7 +5,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
@@ -39,40 +39,47 @@
     async function fetchRules(kw: string = activeKeyword) {
         isLoading = true;
         try {
-            const params: Record<string, any> = {
+            const query: any = {
                 limit: 100,
                 isHalfWidth: true,
                 type: 'all',
             };
             const trimmed = kw.trim();
             if (trimmed) {
-                params.keyword = trimmed;
+                query.keyword = trimmed;
             }
 
             const [rulesRes, reservesRes] = await Promise.all([
-                http.get('/api/rules', { params }),
+                api.rules.$get({ query }).then(async r => (r.ok ? await r.json() : { rules: [], total: 0 })),
                 Object.keys(ruleReservesMap).length === 0
-                    ? http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } }))
+                    ? api.reserves
+                          .$get({ query: { limit: 1000, isHalfWidth: true } })
+                          .then(async r => (r.ok ? await r.json() : { reserves: [] }))
+                          .catch(() => ({ reserves: [] }))
                     : Promise.resolve(null),
             ]);
 
-            rules = rulesRes.data.rules || [];
-            total = rulesRes.data.total || 0;
+            rules = (rulesRes.rules as apid.Rule[]) || [];
+            total = rulesRes.total || 0;
             if (!trimmed) {
                 totalAllRules = total;
             } else if (totalAllRules === 0) {
                 // 初回アクセス時にキーワード付きで開かれた場合、全件数を非同期で取得
-                http.get('/api/rules?limit=1&isHalfWidth=true')
-                    .then(res => {
-                        totalAllRules = res.data.total || 0;
+                api.rules
+                    .$get({ query: { limit: 1, isHalfWidth: true } })
+                    .then(async res => {
+                        if (res.ok) {
+                            const data = await res.json();
+                            totalAllRules = data.total || 0;
+                        }
                     })
                     .catch(() => {});
             }
 
             // ルールIDごとの予約数を集計
-            if (reservesRes?.data?.reserves) {
+            if (reservesRes?.reserves) {
                 const counts: Record<number, number> = {};
-                for (const res of reservesRes.data.reserves) {
+                for (const res of reservesRes.reserves) {
                     if (res.ruleId) {
                         counts[res.ruleId] = (counts[res.ruleId] || 0) + 1;
                     }
@@ -157,9 +164,9 @@
         const isEnable = !rule.reserveOption?.enable;
         try {
             if (isEnable) {
-                await http.put(`/api/rules/${rule.id}/enable`);
+                await api.rules[':ruleId'].enable.$put({ param: { ruleId: String(rule.id) } });
             } else {
-                await http.put(`/api/rules/${rule.id}/disable`);
+                await api.rules[':ruleId'].disable.$put({ param: { ruleId: String(rule.id) } });
             }
             rule.reserveOption.enable = isEnable;
             snackbar.open({ text: `ルールを${isEnable ? '有効' : '無効'}にしました`, color: 'success' });
@@ -183,7 +190,7 @@
         if (!ok) return;
 
         try {
-            await http.delete(`/api/rules/${rule.id}`);
+            await api.rules[':ruleId'].$delete({ param: { ruleId: String(rule.id) } });
             snackbar.open({ text: 'ルールを削除しました', color: 'success' });
             if (totalAllRules > 0) totalAllRules--;
             fetchRules(activeKeyword);

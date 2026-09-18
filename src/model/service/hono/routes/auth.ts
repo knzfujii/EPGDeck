@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import IConfiguration from '../../../IConfiguration.js';
 import container from '../../../ModelContainer.js';
 import { AuthManager } from '../AuthManager.js';
 import { ApiError, BadRequestError } from '../../../error/ApiError.js';
+import { unlockJsonSchema } from '../schemas/auth.js';
 
 const app = new Hono()
     // POST /api/auth/unlock
-    .post('/unlock', async c => {
+    .post('/unlock', zValidator('json', unlockJsonSchema), async c => {
         const configuration = container.get<IConfiguration>('IConfiguration');
         const config = configuration.getConfig();
         const readOnly = config.readOnly;
@@ -23,10 +25,7 @@ const app = new Hono()
             throw new BadRequestError('passwordNotConfigured');
         }
 
-        const body = await c.req.json().catch(() => {
-            throw new BadRequestError('invalidRequest');
-        });
-        const inputPassword = typeof body?.password === 'string' ? body.password : '';
+        const { password: inputPassword } = c.req.valid('json');
 
         if (inputPassword !== expectedPassword) {
             throw new ApiError(401, 'incorrectPassword');

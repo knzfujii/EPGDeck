@@ -1,80 +1,56 @@
 import * as path from 'path';
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel.js';
 import container from '../../../ModelContainer.js';
 import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { thumbnailParamSchema, videoFileParamSchema } from '../schemas/thumbnails.js';
 
 const app = new Hono();
 
 // POST /api/thumbnails/cleanup
 app.post('/cleanup', async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-
-    try {
-        await thumbnailApiModel.fileCleanup();
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    await thumbnailApiModel.fileCleanup();
+    return c.json({ code: 200 });
 });
 
 // POST /api/thumbnails/regenerate
 app.post('/regenerate', async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-
-    try {
-        await thumbnailApiModel.regenerate();
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    await thumbnailApiModel.regenerate();
+    return c.json({ code: 200 });
 });
 
 // POST /api/thumbnails/videos/:videoFileId
-app.post('/videos/:videoFileId', async c => {
+app.post('/videos/:videoFileId', zValidator('param', videoFileParamSchema), async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-    const videoFileId = parseInt(c.req.param('videoFileId'), 10);
-
-    try {
-        await thumbnailApiModel.add(videoFileId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { videoFileId } = c.req.valid('param');
+    await thumbnailApiModel.add(videoFileId);
+    return c.json({ code: 200 });
 });
 
 // GET /api/thumbnails/:thumbnailId
-app.get('/:thumbnailId', async c => {
+app.get('/:thumbnailId', zValidator('param', thumbnailParamSchema), async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-    const thumbnailId = parseInt(c.req.param('thumbnailId'), 10);
+    const { thumbnailId } = c.req.valid('param');
 
-    try {
-        const filePath = await thumbnailApiModel.getIdFilePath(thumbnailId);
-        if (filePath === null) {
-            return api.responseError(c, {
-                code: 404,
-                message: 'thumbnail is not Found',
-            });
-        }
-        const ext = path.extname(filePath).toLowerCase();
-        const mimeType = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
-        return await api.responseFile(c, filePath, mimeType, false);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const filePath = await thumbnailApiModel.getIdFilePath(thumbnailId);
+    if (filePath === null) {
+        throw new NotFoundError('thumbnail is not Found');
     }
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeType = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
+    return await api.responseFile(c, filePath, mimeType, false);
 });
 
 // DELETE /api/thumbnails/:thumbnailId
-app.delete('/:thumbnailId', async c => {
+app.delete('/:thumbnailId', zValidator('param', thumbnailParamSchema), async c => {
     const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-    const thumbnailId = parseInt(c.req.param('thumbnailId'), 10);
-
-    try {
-        await thumbnailApiModel.delete(thumbnailId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { thumbnailId } = c.req.valid('param');
+    await thumbnailApiModel.delete(thumbnailId);
+    return c.json({ code: 200 });
 });
 
 export default app;

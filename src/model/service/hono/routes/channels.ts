@@ -1,26 +1,23 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import IChannelApiModel, { IChannelApiModelError } from '../../../api/channel/IChannelApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { channelIdParamSchema } from '../schemas/channels.js';
 
 const app = new Hono();
 
 // GET /api/channels
 app.get('/', async c => {
     const channelApiModel = container.get<IChannelApiModel>('IChannelApiModel');
-
-    try {
-        const result = await channelApiModel.getChannels();
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const result = await channelApiModel.getChannels();
+    return c.json(result);
 });
 
 // GET /api/channels/:channelId/logo
-app.get('/:channelId/logo', async c => {
+app.get('/:channelId/logo', zValidator('param', channelIdParamSchema), async c => {
     const channelApiModel = container.get<IChannelApiModel>('IChannelApiModel');
-    const channelId = parseInt(c.req.param('channelId'), 10);
+    const { channelId } = c.req.valid('param');
 
     try {
         const result = await channelApiModel.getLogo(channelId);
@@ -32,12 +29,9 @@ app.get('/:channelId/logo', async c => {
         });
     } catch (err: any) {
         if (err.message === IChannelApiModelError.NOT_FOUND) {
-            return api.responseError(c, {
-                code: 404,
-                message: 'log file is not found',
-            });
+            throw new NotFoundError('log file is not found');
         }
-        return api.responseServerError(c, err.message);
+        throw err;
     }
 });
 

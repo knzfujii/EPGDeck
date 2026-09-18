@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import IConfiguration from '../../../IConfiguration.js';
 import container from '../../../ModelContainer.js';
 import { AuthManager } from '../AuthManager.js';
-import * as api from '../HonoApiUtil.js';
+import { ApiError, BadRequestError } from '../../../error/ApiError.js';
 
 const app = new Hono();
 
@@ -13,8 +13,7 @@ app.post('/unlock', async c => {
     const readOnly = config.readOnly;
 
     if (!readOnly || !readOnly.enabled) {
-        // リードオンリーが無効な場合はすでにアンロック状態
-        return api.responseJSON(c, 200, {
+        return c.json({
             unlocked: true,
             isReadOnlyEnabled: false,
         });
@@ -22,34 +21,23 @@ app.post('/unlock', async c => {
 
     const expectedPassword = readOnly.password;
     if (!expectedPassword) {
-        return api.responseError(c, {
-            code: 400,
-            message: 'passwordNotConfigured',
-        });
+        throw new BadRequestError('passwordNotConfigured');
     }
 
-    try {
-        const body = await c.req.json();
-        const inputPassword = typeof body.password === 'string' ? body.password : '';
+    const body = await c.req.json().catch(() => {
+        throw new BadRequestError('invalidRequest');
+    });
+    const inputPassword = typeof body?.password === 'string' ? body.password : '';
 
-        if (inputPassword !== expectedPassword) {
-            return api.responseError(c, {
-                code: 401,
-                message: 'incorrectPassword',
-            });
-        }
-
-        const token = AuthManager.generateToken(expectedPassword);
-        return api.responseJSON(c, 200, {
-            unlocked: true,
-            token,
-        });
-    } catch {
-        return api.responseError(c, {
-            code: 400,
-            message: 'invalidRequest',
-        });
+    if (inputPassword !== expectedPassword) {
+        throw new ApiError(401, 'incorrectPassword');
     }
+
+    const token = AuthManager.generateToken(expectedPassword);
+    return c.json({
+        unlocked: true,
+        token,
+    });
 });
 
 // GET /api/auth/status
@@ -59,7 +47,7 @@ app.get('/status', async c => {
     const readOnly = config.readOnly;
 
     if (!readOnly || !readOnly.enabled) {
-        return api.responseJSON(c, 200, {
+        return c.json({
             isReadOnlyEnabled: false,
             isUnlocked: true,
             allowedOperations: ['liveStream', 'recordedStream', 'download'],
@@ -73,7 +61,7 @@ app.get('/status', async c => {
         isUnlocked = AuthManager.verifyToken(token, readOnly.password);
     }
 
-    return api.responseJSON(c, 200, {
+    return c.json({
         isReadOnlyEnabled: true,
         isUnlocked,
         allowedOperations: readOnly.allowedOperations || [],
@@ -82,7 +70,7 @@ app.get('/status', async c => {
 
 // POST /api/auth/lock
 app.post('/lock', async c => {
-    return api.responseJSON(c, 200, {
+    return c.json({
         result: 'locked',
     });
 });

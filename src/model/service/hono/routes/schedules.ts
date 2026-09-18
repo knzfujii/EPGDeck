@@ -1,113 +1,97 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import * as apid from '../../../../../api.js';
 import IScheduleApiModel from '../../../api/schedule/IScheduleApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import {
+    channelScheduleParamSchema,
+    getBroadcastingQuerySchema,
+    getChannelScheduleQuerySchema,
+    getSchedulesQuerySchema,
+    programIdParamSchema,
+} from '../schemas/schedules.js';
 
 const app = new Hono();
 
 // GET /api/schedules
-app.get('/', async c => {
+app.get('/', zValidator('query', getSchedulesQuerySchema), async c => {
     const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-
-    try {
-        const query = c.req.query();
-        const option: apid.ScheduleOption = {
-            startAt: parseInt(query.startAt, 10),
-            endAt: parseInt(query.endAt, 10),
-            isHalfWidth: query.isHalfWidth !== 'false',
-            needsRawExtended: query.needsRawExtended === 'true',
-            GR: query.GR === 'true',
-            BS: query.BS === 'true',
-            CS: query.CS === 'true',
-            SKY: query.SKY === 'true',
-        };
-        if (typeof query.isFree !== 'undefined') {
-            option.isFree = query.isFree === 'true';
-        }
-        const result = await scheduleApiModel.getSchedules(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const query = c.req.valid('query');
+    const option: apid.ScheduleOption = {
+        startAt: query.startAt!,
+        endAt: query.endAt!,
+        isHalfWidth: query.isHalfWidth,
+        needsRawExtended: query.needsRawExtended,
+        GR: query.GR,
+        BS: query.BS,
+        CS: query.CS,
+        SKY: query.SKY,
+    };
+    if (typeof query.isFree !== 'undefined') {
+        option.isFree = query.isFree;
     }
+    const result = await scheduleApiModel.getSchedules(option);
+    return c.json(result);
 });
 
 // GET /api/schedules/broadcasting
-app.get('/broadcasting', async c => {
+app.get('/broadcasting', zValidator('query', getBroadcastingQuerySchema), async c => {
     const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-
-    try {
-        const query = c.req.query();
-        const option: apid.BroadcastingScheduleOption = {
-            isHalfWidth: query.isHalfWidth !== 'false',
-        };
-        if (typeof query.time !== 'undefined') {
-            option.time = parseInt(query.time, 10);
-        }
-
-        const result = await scheduleApiModel.getBroadcastingSchedule(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const query = c.req.valid('query');
+    const option: apid.BroadcastingScheduleOption = {
+        isHalfWidth: query.isHalfWidth,
+    };
+    if (typeof query.time !== 'undefined') {
+        option.time = query.time;
     }
+    const result = await scheduleApiModel.getBroadcastingSchedule(option);
+    return c.json(result);
 });
 
 // POST /api/schedules/search
 app.post('/search', async c => {
     const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-
-    try {
-        const body = await c.req.json();
-        const isHalfWidth = body.isHalfWidth !== false;
-        const result = await scheduleApiModel.search(body.option, isHalfWidth, body.limit);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const body = await c.req.json();
+    const isHalfWidth = body.isHalfWidth !== false;
+    const result = await scheduleApiModel.search(body.option, isHalfWidth, body.limit);
+    return c.json(result);
 });
 
 // GET /api/schedules/detail/:programId
-app.get('/detail/:programId', async c => {
+app.get('/detail/:programId', zValidator('param', programIdParamSchema), async c => {
     const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-    const programId = parseInt(c.req.param('programId'), 10);
+    const { programId } = c.req.valid('param');
     const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
-
-    try {
-        const program = await scheduleApiModel.getSchedule(programId, isHalfWidth);
-        if (program === null) {
-            return api.responseError(c, {
-                code: 404,
-                message: 'program is not found',
-            });
-        }
-        return api.responseJSON(c, 200, program);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const program = await scheduleApiModel.getSchedule(programId, isHalfWidth);
+    if (program === null) {
+        throw new NotFoundError('program is not found');
     }
+    return c.json(program);
 });
 
 // GET /api/schedules/:channelId
-app.get('/:channelId', async c => {
-    const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-    const channelId = parseInt(c.req.param('channelId'), 10);
-    const query = c.req.query();
-
-    try {
+app.get(
+    '/:channelId',
+    zValidator('param', channelScheduleParamSchema),
+    zValidator('query', getChannelScheduleQuerySchema),
+    async c => {
+        const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
+        const { channelId } = c.req.valid('param');
+        const query = c.req.valid('query');
         const option: apid.ChannelScheduleOption = {
-            startAt: parseInt(query.startAt, 10),
-            days: parseInt(query.days, 10),
-            isHalfWidth: query.isHalfWidth !== 'false',
-            needsRawExtended: query.needsRawExtended === 'true',
+            startAt: query.startAt!,
+            days: query.days!,
+            isHalfWidth: query.isHalfWidth,
+            needsRawExtended: query.needsRawExtended,
             channelId,
         };
         if (typeof query.isFree !== 'undefined') {
-            option.isFree = query.isFree === 'true';
+            option.isFree = query.isFree;
         }
         const result = await scheduleApiModel.getChannelSchedule(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
-});
+        return c.json(result);
+    },
+);
 
 export default app;

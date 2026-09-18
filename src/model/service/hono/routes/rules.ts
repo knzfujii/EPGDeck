@@ -1,147 +1,80 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import * as apid from '../../../../../api.js';
 import IRuleApiModel from '../../../api/rule/IRuleApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { getRulesQuerySchema, ruleIdParamSchema } from '../schemas/rules.js';
 
 const app = new Hono();
 
 // GET /api/rules
-app.get('/', async c => {
+app.get('/', zValidator('query', getRulesQuerySchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const query = c.req.query();
-
-    try {
-        const option: apid.GetRuleOption = {};
-        if (typeof query.offset !== 'undefined') {
-            option.offset = parseInt(query.offset, 10);
-        }
-        if (typeof query.limit !== 'undefined') {
-            option.limit = parseInt(query.limit, 10);
-        }
-        if (typeof query.type !== 'undefined') {
-            option.type = query.type as any;
-        }
-        if (typeof query.keyword === 'string') {
-            option.keyword = query.keyword;
-        }
-
-        const result = await ruleApiModel.gets(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const query = c.req.valid('query');
+    const result = await ruleApiModel.gets(query as apid.GetRuleOption);
+    return c.json(result);
 });
 
 // POST /api/rules
 app.post('/', async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-
-    try {
-        const body = await c.req.json();
-        const ruleId = await ruleApiModel.add(body);
-        return api.responseJSON(c, 201, { ruleId });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const body = await c.req.json();
+    const ruleId = await ruleApiModel.add(body);
+    return c.json({ ruleId }, 201);
 });
 
 // GET /api/rules/keyword
-app.get('/keyword', async c => {
+app.get('/keyword', zValidator('query', getRulesQuerySchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const query = c.req.query();
-
-    try {
-        const option: apid.GetRuleOption = {};
-        if (typeof query.offset !== 'undefined') {
-            option.offset = parseInt(query.offset, 10);
-        }
-        if (typeof query.limit !== 'undefined') {
-            option.limit = parseInt(query.limit, 10);
-        }
-        if (typeof query.keyword === 'string') {
-            option.keyword = query.keyword;
-        }
-
-        const items = await ruleApiModel.searchKeyword(option);
-        return api.responseJSON(c, 200, { items });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const query = c.req.valid('query');
+    const items = await ruleApiModel.searchKeyword(query as apid.GetRuleOption);
+    return c.json({ items });
 });
 
 // GET /api/rules/:ruleId
-app.get('/:ruleId', async c => {
+app.get('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const ruleId = parseInt(c.req.param('ruleId'), 10);
-
-    try {
-        const rule = await ruleApiModel.get(ruleId);
-        if (rule !== null) {
-            return api.responseJSON(c, 200, rule);
-        } else {
-            return api.responseError(c, {
-                code: 404,
-                message: 'Rule is not Found',
-            });
-        }
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const { ruleId } = c.req.valid('param');
+    const rule = await ruleApiModel.get(ruleId);
+    if (rule === null) {
+        throw new NotFoundError('Rule is not Found');
     }
+    return c.json(rule);
 });
 
 // PUT /api/rules/:ruleId
-app.put('/:ruleId', async c => {
+app.put('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const ruleId = parseInt(c.req.param('ruleId'), 10);
-
-    try {
-        const body = await c.req.json();
-        body.id = ruleId;
-        await ruleApiModel.update(body);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { ruleId } = c.req.valid('param');
+    const body = await c.req.json();
+    body.id = ruleId;
+    await ruleApiModel.update(body);
+    return c.json({ code: 200 });
 });
 
 // DELETE /api/rules/:ruleId
-app.delete('/:ruleId', async c => {
+app.delete('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const ruleId = parseInt(c.req.param('ruleId'), 10);
-
-    try {
-        await ruleApiModel.delete(ruleId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { ruleId } = c.req.valid('param');
+    await ruleApiModel.delete(ruleId);
+    return c.json({ code: 200 });
 });
 
 // PUT /api/rules/:ruleId/enable
-app.put('/:ruleId/enable', async c => {
+app.put('/:ruleId/enable', zValidator('param', ruleIdParamSchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const ruleId = parseInt(c.req.param('ruleId'), 10);
-
-    try {
-        await ruleApiModel.enable(ruleId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { ruleId } = c.req.valid('param');
+    await ruleApiModel.enable(ruleId);
+    return c.json({ code: 200 });
 });
 
 // PUT /api/rules/:ruleId/disable
-app.put('/:ruleId/disable', async c => {
+app.put('/:ruleId/disable', zValidator('param', ruleIdParamSchema), async c => {
     const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-    const ruleId = parseInt(c.req.param('ruleId'), 10);
-
-    try {
-        await ruleApiModel.disable(ruleId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { ruleId } = c.req.valid('param');
+    await ruleApiModel.disable(ruleId);
+    return c.json({ code: 200 });
 });
 
 export default app;

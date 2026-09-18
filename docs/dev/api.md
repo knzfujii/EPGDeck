@@ -136,3 +136,16 @@ EPGDeck の API は、Hono のグローバルエラーハンドラー（`app.onE
 - `Expires: -1`
 - `Pragma: no-cache`
 
+---
+
+## リクエストバリデーションと型安全アーキテクチャ
+
+EPGDeck の API ルーティングは、[Zod](https://zod.dev/) と `@hono/zod-validator` を用いた宣言的なスキーマ定義により保護されています。
+
+- **クエリ・パスパラメータの自動検証 & 型変換**:
+  - `src/model/service/hono/schemas/` 配下で定義されたスキーマに従い、文字列クエリが安全に数値・真偽値へ型変換（coerce/transform）されます。
+  - 不正なパラメータ（数値項目への文字列混入、不正な enum 値など）はハンドラ実行前に即座に HTTP 400 Bad Request として遮断されます。
+- **合成型 `ApiRoutesType` のエクスポート**:
+  - `src/model/service/hono/apiRoutes.ts` で全 API ルートをチェーン合成し、`ApiRoutesType` をエクスポート。フロントエンドの Hono RPC (`hc`) との型安全な連携基盤を提供します。
+
+

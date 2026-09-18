@@ -1,47 +1,33 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import IEncodeApiModel from '../../../api/encode/IEncodeApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { encodeIdParamSchema, getEncodeQuerySchema } from '../schemas/encode.js';
 
 const app = new Hono();
 
 // GET /api/encode
-app.get('/', async c => {
+app.get('/', zValidator('query', getEncodeQuerySchema), async c => {
     const encodeApiModel = container.get<IEncodeApiModel>('IEncodeApiModel');
-    const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
-
-    try {
-        const result = await encodeApiModel.getAll(isHalfWidth);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { isHalfWidth } = c.req.valid('query');
+    const result = await encodeApiModel.getAll(isHalfWidth);
+    return c.json(result);
 });
 
 // POST /api/encode
 app.post('/', async c => {
     const encodeApiModel = container.get<IEncodeApiModel>('IEncodeApiModel');
-
-    try {
-        const body = await c.req.json();
-        const encodeId = await encodeApiModel.add(body);
-        return api.responseJSON(c, 201, { encodeId });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const body = await c.req.json();
+    const encodeId = await encodeApiModel.add(body);
+    return c.json({ encodeId }, 201);
 });
 
 // DELETE /api/encode/:encodeId
-app.delete('/:encodeId', async c => {
+app.delete('/:encodeId', zValidator('param', encodeIdParamSchema), async c => {
     const encodeApiModel = container.get<IEncodeApiModel>('IEncodeApiModel');
-    const encodeId = parseInt(c.req.param('encodeId'), 10);
-
-    try {
-        await encodeApiModel.cancel(encodeId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { encodeId } = c.req.valid('param');
+    await encodeApiModel.cancel(encodeId);
+    return c.json({ code: 200 });
 });
 
 export default app;

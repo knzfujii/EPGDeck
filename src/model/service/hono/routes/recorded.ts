@@ -1,158 +1,77 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import { GetRecordedOption } from '../../../../../api.js';
 import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { getRecordedQuerySchema, recordedIdParamSchema } from '../schemas/recorded.js';
 
 const app = new Hono();
 
 // GET /api/recorded
-app.get('/', async c => {
+app.get('/', zValidator('query', getRecordedQuerySchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const query = c.req.query();
-
-    try {
-        const option: GetRecordedOption = {
-            isHalfWidth: query.isHalfWidth !== 'false',
-        };
-        if (typeof query.offset !== 'undefined') {
-            option.offset = parseInt(query.offset, 10);
-        }
-        if (typeof query.limit !== 'undefined') {
-            option.limit = parseInt(query.limit, 10);
-        }
-        if (typeof query.isReverse !== 'undefined') {
-            option.isReverse = query.isReverse === 'true';
-        }
-        if (typeof query.ruleId !== 'undefined') {
-            option.ruleId = parseInt(query.ruleId, 10);
-        }
-        if (typeof query.channelId !== 'undefined') {
-            option.channelId = parseInt(query.channelId, 10);
-        }
-        if (typeof query.genre !== 'undefined') {
-            option.genre = parseInt(query.genre, 10);
-        }
-        if (typeof query.keyword === 'string') {
-            option.keyword = query.keyword;
-        }
-        if (typeof query.hasOriginalFile !== 'undefined') {
-            option.hasOriginalFile = query.hasOriginalFile === 'true';
-        }
-        if (typeof query.startAt !== 'undefined') {
-            option.startAt = parseInt(query.startAt, 10);
-        }
-        if (typeof query.endAt !== 'undefined') {
-            option.endAt = parseInt(query.endAt, 10);
-        }
-
-        const result = await recordedApiModel.gets(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const query = c.req.valid('query');
+    const result = await recordedApiModel.gets(query as GetRecordedOption);
+    return c.json(result);
 });
 
 // GET /api/recorded/options
 app.get('/options', async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-
-    try {
-        const list = await recordedApiModel.getSearchOptionList();
-        return api.responseJSON(c, 200, list);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const list = await recordedApiModel.getSearchOptionList();
+    return c.json(list);
 });
 
 // POST /api/recorded/cleanup
 app.post('/cleanup', async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-
-    try {
-        await recordedApiModel.fileCleanup();
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    await recordedApiModel.fileCleanup();
+    return c.json({ code: 200 });
 });
 
 // GET /api/recorded/:recordedId
-app.get('/:recordedId', async c => {
+app.get('/:recordedId', zValidator('param', recordedIdParamSchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const recordedId = parseInt(c.req.param('recordedId'), 10);
+    const { recordedId } = c.req.valid('param');
     const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
-
-    try {
-        const recorded = await recordedApiModel.get(recordedId, isHalfWidth);
-        if (recorded === null) {
-            return api.responseError(c, {
-                code: 404,
-                message: 'recorded is not Found',
-            });
-        }
-        return api.responseJSON(c, 200, recorded);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const recorded = await recordedApiModel.get(recordedId, isHalfWidth);
+    if (recorded === null) {
+        throw new NotFoundError('recorded is not Found');
     }
+    return c.json(recorded);
 });
 
 // DELETE /api/recorded/:recordedId
-app.delete('/:recordedId', async c => {
+app.delete('/:recordedId', zValidator('param', recordedIdParamSchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const recordedId = parseInt(c.req.param('recordedId'), 10);
-
-    try {
-        await recordedApiModel.delete(recordedId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        if (err.message === 'RecordedIsProtected') {
-            return api.responseError(c, {
-                code: 409,
-                message: 'Recorded is protected',
-            });
-        }
-        return api.responseServerError(c, err.message);
-    }
+    const { recordedId } = c.req.valid('param');
+    await recordedApiModel.delete(recordedId);
+    return c.json({ code: 200 });
 });
 
 // PUT /api/recorded/:recordedId/protect
-app.put('/:recordedId/protect', async c => {
+app.put('/:recordedId/protect', zValidator('param', recordedIdParamSchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const recordedId = parseInt(c.req.param('recordedId'), 10);
-
-    try {
-        await recordedApiModel.changeProtect(recordedId, true);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { recordedId } = c.req.valid('param');
+    await recordedApiModel.changeProtect(recordedId, true);
+    return c.json({ code: 200 });
 });
 
 // PUT /api/recorded/:recordedId/unprotect
-app.put('/:recordedId/unprotect', async c => {
+app.put('/:recordedId/unprotect', zValidator('param', recordedIdParamSchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const recordedId = parseInt(c.req.param('recordedId'), 10);
-
-    try {
-        await recordedApiModel.changeProtect(recordedId, false);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { recordedId } = c.req.valid('param');
+    await recordedApiModel.changeProtect(recordedId, false);
+    return c.json({ code: 200 });
 });
 
 // DELETE /api/recorded/:recordedId/encode
-app.delete('/:recordedId/encode', async c => {
+app.delete('/:recordedId/encode', zValidator('param', recordedIdParamSchema), async c => {
     const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-    const recordedId = parseInt(c.req.param('recordedId'), 10);
-
-    try {
-        await recordedApiModel.stopEncode(recordedId);
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { recordedId } = c.req.valid('param');
+    await recordedApiModel.stopEncode(recordedId);
+    return c.json({ code: 200 });
 });
 
 export default app;

@@ -8,25 +8,7 @@ import StrUtil from '../../../util/StrUtil.js';
 import { OpenAPIV3 } from 'openapi-types';
 import IConfigFile from '../../IConfigFile.js';
 import ILogger from '../../ILogger.js';
-
-import channelsRoute from './routes/channels.js';
-import configRoute from './routes/config.js';
-import dropLogsRoute from './routes/dropLogs.js';
-import logsRoute from './routes/logs.js';
-import encodeRoute from './routes/encode.js';
-import iptvRoute from './routes/iptv.js';
-import recordedRoute from './routes/recorded.js';
-import recordingRoute from './routes/recording.js';
-import reservesRoute from './routes/reserves.js';
-import rulesRoute from './routes/rules.js';
-import schedulesRoute from './routes/schedules.js';
-import storagesRoute from './routes/storages.js';
-import streamsRoute from './routes/streams.js';
-import tagsRoute from './routes/tags.js';
-import thumbnailsRoute from './routes/thumbnails.js';
-import versionRoute from './routes/version.js';
-import videosRoute from './routes/videos.js';
-import authRoute from './routes/auth.js';
+import { createApiRoutes } from './apiRoutes.js';
 import { readOnlyMiddleware } from './readOnlyMiddleware.js';
 import * as api from './HonoApiUtil.js';
 import ProcessUtil from '../../../util/ProcessUtil.js';
@@ -147,24 +129,7 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
 
     apiApp.use('*', readOnlyMiddleware);
 
-    apiApp.route('/auth', authRoute);
-    apiApp.route('/version', versionRoute);
-    apiApp.route('/config', configRoute);
-    apiApp.route('/channels', channelsRoute);
-    apiApp.route('/schedules', schedulesRoute);
-    apiApp.route('/reserves', reservesRoute);
-    apiApp.route('/rules', rulesRoute);
-    apiApp.route('/recorded', recordedRoute);
-    apiApp.route('/recording', recordingRoute);
-    apiApp.route('/tags', tagsRoute);
-    apiApp.route('/thumbnails', thumbnailsRoute);
-    apiApp.route('/videos', videosRoute);
-    apiApp.route('/dropLogs', dropLogsRoute);
-    apiApp.route('/logs', logsRoute);
-    apiApp.route('/encode', encodeRoute);
-    apiApp.route('/iptv', iptvRoute);
-    apiApp.route('/storages', storagesRoute);
-    apiApp.route('/streams', streamsRoute);
+    apiApp.route('/', createApiRoutes());
 
     app.route(apiPrefix, apiApp);
 

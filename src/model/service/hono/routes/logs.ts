@@ -1,33 +1,29 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import * as fs from 'fs';
 import container from '../../../ModelContainer.js';
 import { LogCategory, LogEntryLevel, LogProcess } from '../../../ILogger.js';
 import ILogManageModel from '../../log/ILogManageModel.js';
 import * as api from '../HonoApiUtil.js';
-import * as fs from 'fs';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { getLogsQuerySchema } from '../schemas/logs.js';
 
 const app = new Hono();
 
 // GET /api/logs
-app.get('/', async c => {
+app.get('/', zValidator('query', getLogsQuerySchema), async c => {
     const logManage = container.get<ILogManageModel>('ILogManageModel');
-
-    const limitStr = c.req.query('limit');
-    const levelStr = c.req.query('level') as LogEntryLevel | undefined;
-    const processStr = c.req.query('process') as LogProcess | undefined;
-    const categoryStr = c.req.query('category') as LogCategory | undefined;
-    const searchStr = c.req.query('search');
-
-    const limit = limitStr ? parseInt(limitStr, 10) : 500;
+    const { limit, level, process, category, search } = c.req.valid('query');
 
     const logs = logManage.getLogs({
-        limit: isNaN(limit) ? 500 : limit,
-        level: levelStr,
-        process: processStr,
-        category: categoryStr,
-        search: searchStr,
+        limit: limit ?? 500,
+        level: level as LogEntryLevel | undefined,
+        process: process as LogProcess | undefined,
+        category: category as LogCategory | undefined,
+        search,
     });
 
-    return api.responseJSON(c, 200, {
+    return c.json({
         logs,
         total: logs.length,
         bufferSize: logManage.getBufferSize(),
@@ -40,10 +36,7 @@ app.get('/download', async c => {
     const filePath = logManage.getLogFilePath();
 
     if (!filePath || !fs.existsSync(filePath)) {
-        return api.responseError(c, {
-            code: 404,
-            message: 'Log file not found',
-        });
+        throw new NotFoundError('Log file not found');
     }
 
     return await api.responseFile(c, filePath, 'text/plain; charset=utf-8', true);
@@ -53,7 +46,7 @@ app.get('/download', async c => {
 app.post('/clear', async c => {
     const logManage = container.get<ILogManageModel>('ILogManageModel');
     logManage.clear();
-    return api.responseJSON(c, 200, { message: 'ok' });
+    return c.json({ message: 'ok' });
 });
 
 export default app;

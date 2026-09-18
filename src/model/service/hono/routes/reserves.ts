@@ -1,38 +1,19 @@
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import * as apid from '../../../../../api.js';
 import IReserveApiModel from '../../../api/reserve/IReserveApiModel.js';
 import container from '../../../ModelContainer.js';
-import * as api from '../HonoApiUtil.js';
+import { NotFoundError } from '../../../error/ApiError.js';
+import { getReserveListsQuerySchema, getReservesQuerySchema, reserveIdParamSchema } from '../schemas/reserves.js';
 
 const app = new Hono();
 
 // GET /api/reserves
-app.get('/', async c => {
+app.get('/', zValidator('query', getReservesQuerySchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const query = c.req.query();
-
-    try {
-        const option: apid.GetReserveOption = {
-            isHalfWidth: query.isHalfWidth !== 'false',
-        };
-        if (typeof query.type !== 'undefined') {
-            option.type = query.type as any;
-        }
-        if (typeof query.ruleId !== 'undefined') {
-            option.ruleId = parseInt(query.ruleId, 10);
-        }
-        if (typeof query.offset !== 'undefined') {
-            option.offset = parseInt(query.offset, 10);
-        }
-        if (typeof query.limit !== 'undefined') {
-            option.limit = parseInt(query.limit, 10);
-        }
-
-        const result = await reserveApiModel.gets(option);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const query = c.req.valid('query');
+    const result = await reserveApiModel.gets(query as apid.GetReserveOption);
+    return c.json(result);
 });
 
 // POST /api/reserves
@@ -46,117 +27,71 @@ app.post('/', async c => {
 // GET /api/reserves/cnts
 app.get('/cnts', async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-
-    try {
-        const result = await reserveApiModel.getCnts();
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const result = await reserveApiModel.getCnts();
+    return c.json(result);
 });
 
 // GET /api/reserves/lists
-app.get('/lists', async c => {
+app.get('/lists', zValidator('query', getReserveListsQuerySchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const query = c.req.query();
-
-    try {
-        const result = await reserveApiModel.getLists({
-            startAt: parseInt(query.startAt, 10),
-            endAt: parseInt(query.endAt, 10),
-        });
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const query = c.req.valid('query');
+    const result = await reserveApiModel.getLists({
+        startAt: query.startAt!,
+        endAt: query.endAt!,
+    });
+    return c.json(result);
 });
 
 // POST /api/reserves/update
 app.post('/update', async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-
-    try {
-        await reserveApiModel.updateAll();
-        return api.responseJSON(c, 200, { code: 200 });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    await reserveApiModel.updateAll();
+    return c.json({ code: 200 });
 });
 
 // GET /api/reserves/:reserveId
-app.get('/:reserveId', async c => {
+app.get('/:reserveId', zValidator('param', reserveIdParamSchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const reserveId = parseInt(c.req.param('reserveId'), 10);
+    const { reserveId } = c.req.valid('param');
     const isHalfWidth = c.req.query('isHalfWidth') !== 'false';
-
-    try {
-        const reserve = await reserveApiModel.get(reserveId, isHalfWidth);
-        if (reserve === null) {
-            return api.responseError(c, {
-                code: 404,
-                message: 'reserve is not found',
-            });
-        }
-        return api.responseJSON(c, 200, reserve);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
+    const reserve = await reserveApiModel.get(reserveId, isHalfWidth);
+    if (reserve === null) {
+        throw new NotFoundError('reserve is not found');
     }
+    return c.json(reserve);
 });
 
 // PUT /api/reserves/:reserveId
-app.put('/:reserveId', async c => {
+app.put('/:reserveId', zValidator('param', reserveIdParamSchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const reserveId = parseInt(c.req.param('reserveId'), 10);
-
-    try {
-        const body = await c.req.json();
-        await reserveApiModel.edit(reserveId, body);
-        return api.responseJSON(c, 201, {
-            code: 201,
-            message: 'ok',
-        });
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { reserveId } = c.req.valid('param');
+    const body = await c.req.json();
+    await reserveApiModel.edit(reserveId, body);
+    return c.json({ code: 201, message: 'ok' }, 201);
 });
 
 // DELETE /api/reserves/:reserveId
-app.delete('/:reserveId', async c => {
+app.delete('/:reserveId', zValidator('param', reserveIdParamSchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const reserveId = parseInt(c.req.param('reserveId'), 10);
-
-    try {
-        const result = await reserveApiModel.cancel(reserveId);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { reserveId } = c.req.valid('param');
+    const result = await reserveApiModel.cancel(reserveId);
+    return c.json(result);
 });
 
 // DELETE /api/reserves/:reserveId/skip
-app.delete('/:reserveId/skip', async c => {
+app.delete('/:reserveId/skip', zValidator('param', reserveIdParamSchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const reserveId = parseInt(c.req.param('reserveId'), 10);
-
-    try {
-        const result = await reserveApiModel.removeSkip(reserveId);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { reserveId } = c.req.valid('param');
+    const result = await reserveApiModel.removeSkip(reserveId);
+    return c.json(result);
 });
 
 // DELETE /api/reserves/:reserveId/overlap
-app.delete('/:reserveId/overlap', async c => {
+app.delete('/:reserveId/overlap', zValidator('param', reserveIdParamSchema), async c => {
     const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
-    const reserveId = parseInt(c.req.param('reserveId'), 10);
-
-    try {
-        const result = await reserveApiModel.removeOverlap(reserveId);
-        return api.responseJSON(c, 200, result);
-    } catch (err: any) {
-        return api.responseServerError(c, err.message);
-    }
+    const { reserveId } = c.req.valid('param');
+    const result = await reserveApiModel.removeOverlap(reserveId);
+    return c.json(result);
 });
 
 export default app;

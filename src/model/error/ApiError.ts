@@ -71,6 +71,13 @@ export function resolveApiError(err: any): ResolvedApiError {
                 errors: 'ReservationManageModelReservedError',
             };
         }
+        if (msg === 'RecordedIsProtected') {
+            return {
+                code: 409,
+                message: 'Recorded is protected',
+                errors: 'RecordedIsProtected',
+            };
+        }
         if (msg === 'ReservationManageModelAddReserveConflict' || msg === 'AddReservationConflictError') {
             return {
                 code: 409,
@@ -87,17 +94,24 @@ export function resolveApiError(err: any): ResolvedApiError {
             msg === 'RecordedIsNotFound' ||
             msg === 'FileIsNotFound' ||
             msg === 'ChannelLogoNotFound' ||
+            msg === 'VideoFileIsUndefined' ||
             msg.includes('is not found')
         ) {
             return {
                 code: 404,
-                message: '指定されたリソースが見つかりません',
+                message:
+                    msg === 'VideoFileIsUndefined' ? 'video file is not found' : '指定されたリソースが見つかりません',
                 errors: msg,
             };
         }
 
         // 400 Bad Request
-        if (msg === 'ProgramIsAlreadyEnded' || msg === 'InvalidOption' || msg === 'InvalidParam') {
+        if (
+            msg === 'ProgramIsAlreadyEnded' ||
+            msg === 'InvalidOption' ||
+            msg === 'InvalidParam' ||
+            msg === 'HostIsUndefined'
+        ) {
             return {
                 code: 400,
                 message: '不正なリクエストパラメータです',
@@ -105,8 +119,22 @@ export function resolveApiError(err: any): ResolvedApiError {
             };
         }
 
+        // 416 File Too Large
+        if (msg === 'FileIsTooLarge') {
+            return {
+                code: 416,
+                message: 'log file is too large',
+                errors: msg,
+            };
+        }
+
         // 503 Tuner unavailable
-        if (msg.includes('Tuner') || msg.includes('Cannot get tuner') || msg.includes('tuner is not found')) {
+        if (
+            msg.includes('Tuner') ||
+            msg.includes('Cannot get tuner') ||
+            msg.includes('tuner is not found') ||
+            msg.includes('503')
+        ) {
             return {
                 code: 503,
                 message: 'Tuner Resource Unavailable',

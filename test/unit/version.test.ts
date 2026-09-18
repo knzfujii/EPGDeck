@@ -13,7 +13,7 @@ describe('Version Consistency', () => {
             fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'package.json'), 'utf-8'),
         );
 
-        expect(rootPkg.version).toBe('0.1.0-alpha.2');
+        expect(rootPkg.version).toBe('0.1.0-beta.1');
         expect(clientPkg.version).toBe(rootPkg.version);
         expect(rootPkg.name).toBe('epgdeck');
         expect(clientPkg.name).toBe('epgdeck-client');

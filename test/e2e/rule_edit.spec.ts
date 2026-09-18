@@ -26,8 +26,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         // 2. 各セクション見出し (縦長レイアウト)
         await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /予約設定/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /保存先ストレージ/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /録画オプション/ })).toBeVisible();
 
         // 詳細条件アコーディオンを展開して確認
         const detailBtn = page.getByRole('button', { name: /詳細条件/ });
@@ -42,17 +41,14 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         // 4. 予約設定のチェックボックス
         await expect(page.getByText('ルールを有効にする')).toBeVisible();
         await expect(page.getByText('同一番組の二重録画を防止')).toBeVisible();
+
+        // 5. 録画オプション (TS保存先・エンコード設定)
+        await expect(page.getByText('TS保存先 (親)')).toBeVisible();
+        await expect(page.getByText('TS保存先 (サブ)')).toBeVisible();
         await expect(page.getByText('チューナー競合時の末尾切れを許可')).toBeVisible();
-
-        // 5. 保存先ストレージ
-        await expect(page.getByText('親保存先ストレージ')).toBeVisible();
-        await expect(page.getByText('保存サブディレクトリ')).toBeVisible();
+        await expect(page.getByText('エンコード完了後に元TSファイルを自動削除')).toBeVisible();
+        await expect(page.getByText('エンコード設定')).toBeVisible();
         await expect(page.locator('#rule-recorded-format')).toBeVisible();
-
-        // 6. 自動エンコード設定 (3つ)
-        await expect(page.getByText('エンコード設定 1')).toBeVisible();
-        await expect(page.getByText('エンコード設定 2')).toBeVisible();
-        await expect(page.getByText('エンコード設定 3')).toBeVisible();
 
         // 7. 操作ボタン
         await expect(page.getByRole('button', { name: '新規ルールを作成する' })).toBeVisible();

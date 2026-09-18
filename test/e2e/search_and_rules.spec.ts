@@ -156,8 +156,7 @@ test.describe('Search and Rules Management Pages', () => {
         // 6. 各セクション見出しの確認 (縦長レイアウト)
         await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: /予約設定/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /保存先ストレージ/ })).toBeVisible();
-        await expect(page.getByRole('heading', { name: /自動エンコード/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /録画オプション/ })).toBeVisible();
 
         // 詳細条件アコーディオンを展開して確認
         const detailBtn = page.getByRole('button', { name: /詳細条件/ });

@@ -10,6 +10,7 @@
         encRows = $bindable<EncodeRow[]>([{ mode: '', parentDir: '', subDir: '' }]),
         isDeleteOriginal = $bindable(false),
         allowEndLack = $bindable(false),
+        showHeading = true,
         encodeModes: propEncodeModes,
         storageDirs: propStorageDirs,
     }: {
@@ -18,6 +19,7 @@
         encRows?: EncodeRow[];
         isDeleteOriginal?: boolean;
         allowEndLack?: boolean;
+        showHeading?: boolean;
         encodeModes?: string[];
         storageDirs?: string[];
     } = $props();
@@ -60,9 +62,11 @@
 </script>
 
 <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-700 dark:bg-slate-800/30">
-    <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
-        <SlidersHorizontal size={13} /> 録画オプション
-    </h4>
+    {#if showHeading}
+        <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">
+            <SlidersHorizontal size={13} /> 録画オプション
+        </h4>
+    {/if}
 
     <!-- TS保存先 -->
     <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

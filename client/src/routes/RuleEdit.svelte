@@ -13,8 +13,6 @@
         Search,
         Tv,
         CheckCircle2,
-        HardDrive,
-        Sparkles,
         Check,
         Save,
         Info,
@@ -27,6 +25,8 @@
         AlertTriangle,
         Lock,
     } from '@lucide/svelte';
+    import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
+    import { buildEncodeOption, type EncodeRow } from '@/lib/utils/recordingOptions';
 
     // 編集対象のルールID (?ruleId=<ruleId>)。未指定なら新規作成
     let ruleId = $state<number | null>(null);
@@ -35,8 +35,8 @@
     let isSaving = $state(false);
 
     // ストレージ一覧 & エンコード設定
-    let storageList = $state<string[]>([]);
-    let encodeModes = $state<any[]>([]);
+    let storageDirs = $state<string[]>([]);
+    let encodeModes = $state<string[]>([]);
 
     // フォーム状態
     // 1. 検索設定 (searchOption)
@@ -136,15 +136,7 @@
     let directory = $state<string>('');
 
     // 4. エンコード設定 (encodeOption)
-    let encodeMode1 = $state<string>('');
-    let encodeParentDir1 = $state<string>('');
-    let encodeDir1 = $state<string>('');
-    let encodeMode2 = $state<string>('');
-    let encodeParentDir2 = $state<string>('');
-    let encodeDir2 = $state<string>('');
-    let encodeMode3 = $state<string>('');
-    let encodeParentDir3 = $state<string>('');
-    let encodeDir3 = $state<string>('');
+    let encRows = $state<EncodeRow[]>([{ mode: '', parentDir: '', subDir: '' }]);
     let isDeleteOriginalAfterEncode = $state(false);
 
     interface SubGenreItem {
@@ -388,9 +380,9 @@
             ]);
 
             const items = storageRes.data?.items || [];
-            storageList = items.map((i: any) => i.name);
+            storageDirs = items.map((i: any) => i.name);
             const encList = configRes.data?.encode || [];
-            encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
+            encodeModes = encList.map((e: any) => (typeof e === 'string' ? e : e.name));
             return configRes.data;
         } catch (e) {
             console.error('Failed to load options', e);
@@ -511,15 +503,12 @@
         }
 
         const enc = r.encodeOption || {};
-        encodeMode1 = enc.mode1 || '';
-        encodeParentDir1 = enc.encodeParentDirectoryName1 || '';
-        encodeDir1 = enc.directory1 || '';
-        encodeMode2 = enc.mode2 || '';
-        encodeParentDir2 = enc.encodeParentDirectoryName2 || '';
-        encodeDir2 = enc.directory2 || '';
-        encodeMode3 = enc.mode3 || '';
-        encodeParentDir3 = enc.encodeParentDirectoryName3 || '';
-        encodeDir3 = enc.directory3 || '';
+        const loadedRows: EncodeRow[] = [
+            { mode: enc.mode1 || '', parentDir: enc.encodeParentDirectoryName1 || '', subDir: enc.directory1 || '' },
+            { mode: enc.mode2 || '', parentDir: enc.encodeParentDirectoryName2 || '', subDir: enc.directory2 || '' },
+            { mode: enc.mode3 || '', parentDir: enc.encodeParentDirectoryName3 || '', subDir: enc.directory3 || '' },
+        ].filter(row => row.mode || row.parentDir || row.subDir);
+        encRows = loadedRows.length > 0 ? loadedRows : [{ mode: '', parentDir: '', subDir: '' }];
         isDeleteOriginalAfterEncode = !!enc.isDeleteOriginalAfterEncode;
     }
 
@@ -787,25 +776,12 @@
             }
 
             // エンコードオプション
-            if (encodeMode1 || encodeMode2 || encodeMode3) {
-                payload.encodeOption = {
-                    isDeleteOriginalAfterEncode,
-                };
-                if (encodeMode1) {
-                    payload.encodeOption.mode1 = encodeMode1;
-                    if (encodeParentDir1) payload.encodeOption.encodeParentDirectoryName1 = encodeParentDir1;
-                    if (encodeDir1.trim()) payload.encodeOption.directory1 = encodeDir1.trim();
-                }
-                if (encodeMode2) {
-                    payload.encodeOption.mode2 = encodeMode2;
-                    if (encodeParentDir2) payload.encodeOption.encodeParentDirectoryName2 = encodeParentDir2;
-                    if (encodeDir2.trim()) payload.encodeOption.directory2 = encodeDir2.trim();
-                }
-                if (encodeMode3) {
-                    payload.encodeOption.mode3 = encodeMode3;
-                    if (encodeParentDir3) payload.encodeOption.encodeParentDirectoryName3 = encodeParentDir3;
-                    if (encodeDir3.trim()) payload.encodeOption.directory3 = encodeDir3.trim();
-                }
+            const filledEnc = encRows.filter(r => r.mode);
+            if (filledEnc.length > 0) {
+                payload.encodeOption = buildEncodeOption({
+                    encRows,
+                    isDeleteOriginal: isDeleteOriginalAfterEncode,
+                });
             }
 
             if (ruleId) {
@@ -1744,13 +1720,6 @@
                     {/if}
 
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" bind:checked={allowEndLack} class="form-checkbox" />
-                        <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">
-                            チューナー競合時の末尾切れを許可
-                        </span>
-                    </label>
-
-                    <label class="flex items-center gap-3 cursor-pointer">
                         <input type="checkbox" bind:checked={isFree} class="form-checkbox" />
                         <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">
                             無料放送（ノンスクランブル）のみ録画
@@ -1759,221 +1728,23 @@
                 </div>
             </section>
 
-            <!-- 5. 保存先ストレージ -->
+            <!-- 5. 録画オプション (TS保存先・エンコード設定) -->
             <section
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
                 <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
-                    <HardDrive size={16} class="text-blue-600 dark:text-blue-400" /> 保存先ストレージ
+                    <SlidersHorizontal size={16} class="text-blue-600 dark:text-blue-400" /> 録画オプション
                 </h2>
-                <div class="space-y-4">
-                    <div>
-                        <label
-                            for="rule-parent-dir"
-                            class="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5"
-                        >
-                            親保存先ストレージ / ドライブ (parentDirectoryName)
-                        </label>
-                        <select
-                            id="rule-parent-dir"
-                            bind:value={parentDirectoryName}
-                            class="form-select text-xs sm:text-sm"
-                        >
-                            <option value="">デフォルトストレージ</option>
-                            {#each storageList as st}
-                                <option value={st}>{st}</option>
-                            {/each}
-                        </select>
-                        <p class="mt-1 text-xs text-slate-400">
-                            EPGStation に登録されている保存先ストレージを指定します
-                        </p>
-                    </div>
-
-                    <div>
-                        <label
-                            for="rule-sub-dir"
-                            class="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5"
-                        >
-                            保存サブディレクトリ (directory)
-                        </label>
-                        <input
-                            id="rule-sub-dir"
-                            type="text"
-                            bind:value={directory}
-                            placeholder="例: アニメ / %TITLE%"
-                            class="form-input text-xs sm:text-sm"
-                        />
-                        <p class="mt-1 text-xs text-slate-400">親保存先の下に作成するサブフォルダのパスを指定します</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 6. 自動エンコード設定 -->
-            <section
-                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-            >
-                <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
-                    <Sparkles size={16} class="text-blue-600 dark:text-blue-400" /> 自動エンコード設定
-                </h2>
-                <div
-                    class="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                    <label class="flex items-center gap-3 cursor-pointer mb-4">
-                        <input
-                            type="checkbox"
-                            bind:checked={isDeleteOriginalAfterEncode}
-                            class="form-checkbox text-rose-600"
-                        />
-                        <span class="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400">
-                            エンコード成功後に元TSファイルを自動削除
-                        </span>
-                    </label>
-
-                    <!-- エンコード設定 1 -->
-                    <div class="space-y-3 border-t border-slate-200/60 pt-3 dark:border-slate-700/60">
-                        <p class="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">エンコード設定 1</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <div>
-                                <label for="rule-enc-mode1" class="block text-xs text-slate-500 mb-1">プリセット</label>
-                                <select
-                                    id="rule-enc-mode1"
-                                    bind:value={encodeMode1}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">なし</option>
-                                    {#each encodeModes as em}
-                                        <option value={em.name}>{em.name}{em.suffix ? ` (${em.suffix})` : ''}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-storage1" class="block text-xs text-slate-500 mb-1">
-                                    保存先ストレージ
-                                </label>
-                                <select
-                                    id="rule-enc-storage1"
-                                    bind:value={encodeParentDir1}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">デフォルト</option>
-                                    {#each storageList as st}
-                                        <option value={st}>{st}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-dir1" class="block text-xs text-slate-500 mb-1">
-                                    サブディレクトリ
-                                </label>
-                                <input
-                                    id="rule-enc-dir1"
-                                    type="text"
-                                    bind:value={encodeDir1}
-                                    placeholder="サブディレクトリ (任意)"
-                                    class="form-input text-xs sm:text-sm"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- エンコード設定 2 -->
-                    <div class="space-y-3 border-t border-slate-200/60 pt-3 mt-3 dark:border-slate-700/60">
-                        <p class="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                            エンコード設定 2 (追加)
-                        </p>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <div>
-                                <label for="rule-enc-mode2" class="block text-xs text-slate-500 mb-1">プリセット</label>
-                                <select
-                                    id="rule-enc-mode2"
-                                    bind:value={encodeMode2}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">なし</option>
-                                    {#each encodeModes as em}
-                                        <option value={em.name}>{em.name}{em.suffix ? ` (${em.suffix})` : ''}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-storage2" class="block text-xs text-slate-500 mb-1">
-                                    保存先ストレージ
-                                </label>
-                                <select
-                                    id="rule-enc-storage2"
-                                    bind:value={encodeParentDir2}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">デフォルト</option>
-                                    {#each storageList as st}
-                                        <option value={st}>{st}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-dir2" class="block text-xs text-slate-500 mb-1">
-                                    サブディレクトリ
-                                </label>
-                                <input
-                                    id="rule-enc-dir2"
-                                    type="text"
-                                    bind:value={encodeDir2}
-                                    placeholder="サブディレクトリ (任意)"
-                                    class="form-input text-xs sm:text-sm"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- エンコード設定 3 -->
-                    <div class="space-y-3 border-t border-slate-200/60 pt-3 mt-3 dark:border-slate-700/60">
-                        <p class="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                            エンコード設定 3 (追加)
-                        </p>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <div>
-                                <label for="rule-enc-mode3" class="block text-xs text-slate-500 mb-1">プリセット</label>
-                                <select
-                                    id="rule-enc-mode3"
-                                    bind:value={encodeMode3}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">なし</option>
-                                    {#each encodeModes as em}
-                                        <option value={em.name}>{em.name}{em.suffix ? ` (${em.suffix})` : ''}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-storage3" class="block text-xs text-slate-500 mb-1">
-                                    保存先ストレージ
-                                </label>
-                                <select
-                                    id="rule-enc-storage3"
-                                    bind:value={encodeParentDir3}
-                                    class="form-select text-xs sm:text-sm"
-                                >
-                                    <option value="">デフォルト</option>
-                                    {#each storageList as st}
-                                        <option value={st}>{st}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="rule-enc-dir3" class="block text-xs text-slate-500 mb-1">
-                                    サブディレクトリ
-                                </label>
-                                <input
-                                    id="rule-enc-dir3"
-                                    type="text"
-                                    bind:value={encodeDir3}
-                                    placeholder="サブディレクトリ (任意)"
-                                    class="form-input text-xs sm:text-sm"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <RecordingOptionForm
+                    bind:saveParentDir={parentDirectoryName}
+                    bind:saveSubDir={directory}
+                    bind:encRows
+                    bind:isDeleteOriginal={isDeleteOriginalAfterEncode}
+                    bind:allowEndLack
+                    {encodeModes}
+                    {storageDirs}
+                    showHeading={false}
+                />
             </section>
 
             <!-- フッター操作 -->

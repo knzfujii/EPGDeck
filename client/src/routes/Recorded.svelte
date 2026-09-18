@@ -307,8 +307,8 @@
         }
     }
 
-    function formatRecordedDuration(startAt: number, endAt: number): string {
-        return formatDuration(endAt - startAt);
+    function formatRecordedDuration(item: apid.RecordedItem): string {
+        return formatDuration(item.duration && item.duration > 0 ? item.duration : item.endAt - item.startAt);
     }
 
     // --- 複数選択一括削除ロジック ---
@@ -730,7 +730,7 @@
                                     {/if}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5 text-slate-500 dark:text-slate-400">
-                                    <div>{formatDuration(item.endAt - item.startAt)}</div>
+                                    <div>{formatRecordedDuration(item)}</div>
                                     <div class="text-xs text-slate-400">
                                         {formatSize(getTotalVideoFileSize(item.videoFiles))}
                                     </div>
@@ -889,7 +889,7 @@
                         <span
                             class="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none"
                         >
-                            {formatDuration(item.endAt - item.startAt)}
+                            {formatRecordedDuration(item)}
                         </span>
 
                         {#if item.isProtected}

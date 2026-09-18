@@ -23,6 +23,7 @@ export default class RecordedItemUtil implements IRecordedItemUtil {
             channelId: recorded.channelId,
             startAt: recorded.startAt,
             endAt: recorded.endAt,
+            duration: recorded.duration,
             name: StrUtil.getHalfOrFull(recorded.name, recorded.halfWidthName, isHalfWidth),
             isRecording: recorded.isRecording,
             isEncoding: typeof encodeIndex[recorded.id] !== 'undefined',

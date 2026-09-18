@@ -387,10 +387,29 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             const unprotectedItem = await recordedDB.findId(id1);
             expect(unprotectedItem?.isProtected).toBe(false);
 
+            // 録画終了 (removeRecording) テスト: 実録画時間と実測開始時刻の更新
+            const r3 = new Recorded();
+            r3.channelId = 1001;
+            r3.startAt = 1000000;
+            r3.endAt = 2000000;
+            r3.duration = 1000000;
+            r3.name = '途中録画テスト';
+            r3.halfWidthName = '途中録画テスト';
+            r3.isRecording = true;
+            r3.isProtected = false;
+
+            const id3 = await recordedDB.insertOnce(r3);
+            await recordedDB.removeRecording(id3, 500000, 2000000, 1500000);
+            const finishedItem = await recordedDB.findId(id3);
+            expect(finishedItem?.isRecording).toBe(false);
+            expect(finishedItem?.duration).toBe(500000);
+            expect(finishedItem?.startAt).toBe(1500000);
+            expect(finishedItem?.endAt).toBe(2000000);
+
             // 削除
             await recordedDB.deleteOnce(id1);
             const [, afterDeleteTotal] = await recordedDB.findAll({ isHalfWidth: true }, columnOption);
-            expect(afterDeleteTotal).toBe(1);
+            expect(afterDeleteTotal).toBe(2);
         });
     });
 

@@ -325,6 +325,13 @@ describe('Hono REST API Integration Tests', () => {
         expect(data).toEqual({ duration: 120 });
     });
 
+    it('GET /api/videos/:videoFileId/duration returns 404 when video is not found', async () => {
+        const res = await app.request('/api/videos/2/duration');
+        expect(res.status).toBe(404);
+        const data = await res.json();
+        expect(data.message).toBe('video file is not found');
+    });
+
     it('GET /api/recording returns currently active recordings', async () => {
         const res = await app.request('/api/recording');
         expect(res.status).toBe(200);

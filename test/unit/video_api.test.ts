@@ -230,3 +230,43 @@ describe('VideoApiModel - getFullFilePath', () => {
         await expect(videoApiModel.getFullFilePath(99)).rejects.toThrow('MimeTypeError');
     });
 });
+
+describe('VideoApiModel - getDuration', () => {
+    let mockVideoUtil: any;
+    let videoApiModel: VideoApiModel;
+
+    beforeEach(() => {
+        mockVideoUtil = {
+            getFullFilePathFromId: vi.fn(),
+            getInfo: vi.fn(),
+        };
+
+        videoApiModel = new VideoApiModel(
+            {} as any, // config
+            {} as any, // videoFileDB
+            {} as any, // recordedDB
+            {} as any, // apiUtil
+            mockVideoUtil,
+            {} as any, // ipc
+        );
+    });
+
+    it('should return duration in seconds from videoUtil.getInfo', async () => {
+        mockVideoUtil.getFullFilePathFromId.mockResolvedValue('/path/to/sample.ts');
+        mockVideoUtil.getInfo.mockResolvedValue({
+            duration: 1800.5,
+            size: 1000000,
+            bitRate: 15000000,
+        });
+
+        const duration = await videoApiModel.getDuration(1);
+        expect(duration).toBe(1800.5);
+        expect(mockVideoUtil.getFullFilePathFromId).toHaveBeenCalledWith(1);
+        expect(mockVideoUtil.getInfo).toHaveBeenCalledWith('/path/to/sample.ts');
+    });
+
+    it('should throw error when video file is not found', async () => {
+        mockVideoUtil.getFullFilePathFromId.mockResolvedValue(null);
+        await expect(videoApiModel.getDuration(999)).rejects.toThrow('VideoFileIsUndefined');
+    });
+});

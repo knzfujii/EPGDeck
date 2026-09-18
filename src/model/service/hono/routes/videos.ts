@@ -105,6 +105,12 @@ app.get('/:videoFileId/duration', async c => {
         const duration = await videoFileApiModel.getDuration(videoFileId);
         return api.responseJSON(c, 200, { duration });
     } catch (err: any) {
+        if (err.message === 'VideoFileIsUndefined') {
+            return api.responseError(c, {
+                code: 404,
+                message: 'video file is not found',
+            });
+        }
         return api.responseServerError(c, err.message);
     }
 });

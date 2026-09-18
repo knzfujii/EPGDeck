@@ -641,7 +641,12 @@ class RecorderModel implements IRecorderModel {
             const actualEndAt = new Date().getTime();
             const actualDuration =
                 this.actualStartAt !== null ? Math.max(0, actualEndAt - this.actualStartAt) : undefined;
-            await this.recordedDB.removeRecording(this.recordedId, actualDuration, actualEndAt);
+            // 録画開始が予定時刻より30秒以上遅れて開始した場合（途中録画・チューナー競合等）、startAt を実測開始時刻で補正
+            const actualStartAt =
+                this.actualStartAt !== null && this.actualStartAt - this.reserve.startAt > 30 * 1000
+                    ? this.actualStartAt
+                    : undefined;
+            await this.recordedDB.removeRecording(this.recordedId, actualDuration, actualEndAt, actualStartAt);
             this.isRecording = false;
 
             // tmp に録画していた場合は移動する

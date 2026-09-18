@@ -357,6 +357,7 @@ export interface RecordedItem {
     channelId: ChannelId;
     startAt: UnixtimeMS;
     endAt: UnixtimeMS;
+    duration?: number;
     name: string;
     description?: string;
     extended?: string;

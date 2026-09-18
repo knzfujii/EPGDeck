@@ -49,6 +49,7 @@
     let showControls = $state(true);
     let errorMessage = $state<string | null>(null);
     let resumeNotice = $state<{ position: number; visible: boolean } | null>(null);
+    let hlsFinalDuration = $state<number | null>(null);
 
     // props のエイリアス
     let streamType = $derived(props.streamType || 'direct');
@@ -61,6 +62,7 @@
     let src = $derived(props.src);
     let vttSrc = $derived(props.vttSrc);
 
+    // 字幕をサポートするかどうか
     let canShowSubtitle = $derived(
         !!vttSrc ||
             ((isLive || videoFileType !== 'encoded') &&
@@ -73,15 +75,19 @@
 
     // 表示用の動画全体の長さ (秒)
     // 直接再生（direct / mp4）の時はブラウザの videoElement.duration（実尺）を最優先。
-    // HLS や WebM などのストリーミング時は、DB上の totalDuration を優先しつつ、
+    // HLS や WebM などのストリーミング時は、DB/API 上の totalDuration を優先しつつ、
     // ネイティブ duration が totalDuration より大きい場合はネイティブを採用。
+    // HLS のプレイリスト全体が完了（live === false）した場合はその実測尺を優先。
     let displayDuration = $derived.by(() => {
         const nativeDur = Number.isFinite(duration) && duration > 0 ? duration : 0;
-        const total = props.totalDuration ?? 0;
-
         if (streamType === 'direct' && nativeDur > 0) {
             return nativeDur;
         }
+        if (hlsFinalDuration !== null && hlsFinalDuration > 0) {
+            return hlsFinalDuration;
+        }
+        const total = props.totalDuration ?? 0;
+
         if (total > 0) {
             return nativeDur > total ? nativeDur : total;
         }
@@ -401,6 +407,7 @@
 
     function cleanupEngines() {
         cleanupSubtitleRenderer();
+        hlsFinalDuration = null;
         if (hlsInstance) {
             hlsInstance.stopLoad();
             hlsInstance.detachMedia();
@@ -513,6 +520,9 @@
                 hlsInstance.on(Hls.Events.LEVEL_UPDATED, (_event, data) => {
                     if (data.details?.totalduration) {
                         bufferedEnd = Math.max(bufferedEnd, playbackOffset + data.details.totalduration);
+                    }
+                    if (data.details?.live === false && data.details?.totalduration && playbackOffset === 0) {
+                        hlsFinalDuration = data.details.totalduration;
                     }
                 });
 

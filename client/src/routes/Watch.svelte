@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -32,10 +32,17 @@
     let extended = $state('');
     let recordedData = $state<apid.RecordedItem | null>(null);
     let currentVideoFile = $state<apid.VideoFile | null>(null);
+    let videoFileDuration = $state<number | null>(null);
     let isLoadingInfo = $state(true);
 
     let totalDuration = $derived.by(() => {
+        if (videoFileDuration !== null && videoFileDuration > 0) {
+            return videoFileDuration;
+        }
         if (!recordedData) return 0;
+        if (recordedData.duration && recordedData.duration > 0) {
+            return Math.max(0, Math.floor(recordedData.duration / 1000));
+        }
         if (recordedData.startAt && recordedData.endAt) {
             return Math.max(0, Math.floor((recordedData.endAt - recordedData.startAt) / 1000));
         }
@@ -43,6 +50,26 @@
     });
 
     let activeVideoFile = $derived(currentVideoFile ?? recordedData?.videoFiles?.[0] ?? null);
+
+    async function fetchVideoFileDuration(fileId: number) {
+        try {
+            const res = await http.get(`/api/videos/${fileId}/duration`);
+            if (typeof res.data?.duration === 'number' && res.data.duration > 0) {
+                videoFileDuration = Math.floor(res.data.duration);
+            }
+        } catch {
+            // ignore error
+        }
+    }
+
+    $effect(() => {
+        const fileId = activeVideoFile?.id;
+        if (fileId) {
+            untrack(() => {
+                fetchVideoFileDuration(fileId);
+            });
+        }
+    });
 
     function withAuthToken(url: string): string {
         if (!readOnlyStore.token) return url;

@@ -506,7 +506,13 @@
                         >
                             <Clock size={16} />
                             <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
-                            <span>({formatDuration(recorded.endAt - recorded.startAt)})</span>
+                            <span>
+                                ({formatDuration(
+                                    recorded.duration && recorded.duration > 0
+                                        ? recorded.duration
+                                        : recorded.endAt - recorded.startAt,
+                                )})
+                            </span>
                         </div>
                     </div>
 
@@ -640,7 +646,11 @@
                                         <span
                                             class="absolute bottom-1.5 right-1.5 z-10 rounded bg-black/75 px-1 py-0.5 text-[9px] font-bold text-white leading-none"
                                         >
-                                            {formatDuration(item.endAt - item.startAt)}
+                                            {formatDuration(
+                                                item.duration && item.duration > 0
+                                                    ? item.duration
+                                                    : item.endAt - item.startAt,
+                                            )}
                                         </span>
                                         {#if item.thumbnails?.[0]}
                                             <img

@@ -85,6 +85,7 @@ export default class RecordedDB implements IRecordedDB {
         recordedId: apid.RecordedId,
         actualDuration?: number,
         actualEndAt?: number,
+        actualStartAt?: number,
     ): Promise<void> {
         const client = this.drizzleOp.getDB();
 
@@ -96,6 +97,9 @@ export default class RecordedDB implements IRecordedDB {
             }
             if (typeof actualEndAt === 'number' && actualEndAt > 0) {
                 updateValues.endAt = actualEndAt;
+            }
+            if (typeof actualStartAt === 'number' && actualStartAt > 0) {
+                updateValues.startAt = actualStartAt;
             }
             await (db as any).update(schema.recorded).set(updateValues).where(eq(schema.recorded.id, recordedId));
         });

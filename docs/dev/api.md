@@ -148,4 +148,41 @@ EPGDeck の API ルーティングは、[Zod](https://zod.dev/) と `@hono/zod-v
 - **合成型 `ApiRoutesType` のエクスポート**:
   - `src/model/service/hono/apiRoutes.ts` で全 API ルートをチェーン合成し、`ApiRoutesType` をエクスポート。フロントエンドの Hono RPC (`hc`) との型安全な連携基盤を提供します。
 
+---
+
+## 型安全 API クライアント (Hono RPC)
+
+クライアント側（`client/src/lib/apiClient.ts`）では、サーバー側の `ApiRoutesType` を利用した型安全な RPC クライアントを提供しています。
+
+### 特徴
+- **完全なエンドツーエンドの型補完**: URL 文字列のハードコードや `any` キャストが不要となり、パスパラメータ・クエリパラメータ・リクエストボディ・レスポンス JSON の型が TypeScript 上で完全に推論されます。
+- **認証トークンの自動透過注入**: `httpClient.ts` の認証機構（`localStorage` の Bearer トークン）と透過的に統合され、リードオンリーモードのロック解除時にも自動で `Authorization` ヘッダーが付与されます。
+
+### 使用例
+```typescript
+import api from '@/lib/apiClient';
+
+// GET /api/version (レスポンス型: { version: string })
+const res = await api.version.$get();
+const data = await res.json();
+console.log(data.version);
+
+// GET /api/rules (クエリ型安全)
+const rulesRes = await api.rules.$get({
+    query: {
+        limit: 20,
+        offset: 0,
+    },
+});
+const rulesData = await rulesRes.json();
+
+// POST /api/reserves (リクエストボディ型安全)
+const createRes = await api.reserves.$post({
+    json: {
+        programId: 12345,
+        option: { ... },
+    },
+});
+```
+
 

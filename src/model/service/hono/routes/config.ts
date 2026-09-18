@@ -3,9 +3,7 @@ import IConfigApiModel from '../../../api/config/IConfigApiModel.js';
 import container from '../../../ModelContainer.js';
 import * as api from '../HonoApiUtil.js';
 
-const app = new Hono();
-
-app.get('/', async c => {
+const app = new Hono().get('/', async c => {
     const configApiModel = container.get<IConfigApiModel>('IConfigApiModel');
 
     try {

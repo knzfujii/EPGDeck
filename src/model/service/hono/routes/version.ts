@@ -7,9 +7,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const app = new Hono();
-
-app.get('/', async c => {
+const app = new Hono().get('/', async c => {
     const pkg = JSON.parse(
         fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', '..', 'package.json'), 'utf-8'),
     );

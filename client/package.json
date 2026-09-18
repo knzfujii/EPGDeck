@@ -19,6 +19,7 @@
         "@lucide/svelte": "1.47.0",
         "aribb24.js": "2.0.25",
         "hls.js": "1.7.3",
+        "hono": "4.13.8",
         "mpegts.js": "1.8.2",
         "socket.io-client": "4.8.3",
         "svelte": "^5.0.0"
@@ -26,6 +27,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "7.3.0",
         "@tailwindcss/vite": "^4.0.0",
+        "@types/node": "26.6.1",
         "prettier": "3.9.8",
         "prettier-plugin-svelte": "4.1.1",
         "svelte-check": "^4.0.0",

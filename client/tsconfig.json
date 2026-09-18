@@ -13,7 +13,8 @@
             "@/*": ["src/*"]
         },
         "lib": ["esnext", "dom", "dom.iterable"],
-        "typeRoots": ["src/@types/"]
+        "types": ["node"],
+        "typeRoots": ["node_modules/@types", "src/@types/"]
     },
     "include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.svelte.ts", "src/**/*.d.ts"],
     "exclude": ["node_modules", "dist"]

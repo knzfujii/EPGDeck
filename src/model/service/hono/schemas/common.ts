@@ -5,10 +5,11 @@ import { z } from 'zod';
  */
 export const booleanQuery = (defaultValue = true) =>
     z
-        .string()
+        .union([z.string(), z.boolean()])
         .optional()
         .transform(val => {
             if (val === undefined) return defaultValue;
+            if (typeof val === 'boolean') return val;
             return val !== 'false';
         });
 
@@ -17,10 +18,11 @@ export const booleanQuery = (defaultValue = true) =>
  */
 export const strictBooleanQuery = (defaultValue = false) =>
     z
-        .string()
+        .union([z.string(), z.boolean()])
         .optional()
         .transform(val => {
             if (val === undefined) return defaultValue;
+            if (typeof val === 'boolean') return val;
             return val === 'true';
         });
 
@@ -29,24 +31,31 @@ export const strictBooleanQuery = (defaultValue = false) =>
  */
 export const optionalBooleanQuery = () =>
     z
-        .string()
+        .union([z.string(), z.boolean()])
         .optional()
         .transform(val => {
             if (val === undefined) return undefined;
+            if (typeof val === 'boolean') return val;
             return val === 'true';
         });
 
 /**
- * Integer query parameter that validates integer string and transforms to number
+ * Integer query parameter that validates integer string or number and transforms to number
  */
 export const integerQuery = () =>
     z
-        .string()
+        .union([z.string(), z.number()])
         .optional()
-        .refine(val => val === undefined || /^-?\d+$/.test(val), {
-            message: 'Must be a valid integer',
-        })
-        .transform(val => (val !== undefined ? parseInt(val, 10) : undefined));
+        .refine(
+            val =>
+                val === undefined ||
+                (typeof val === 'number' && Number.isInteger(val)) ||
+                (typeof val === 'string' && /^-?\d+$/.test(val)),
+            {
+                message: 'Must be a valid integer',
+            },
+        )
+        .transform(val => (val !== undefined ? (typeof val === 'number' ? val : parseInt(val, 10)) : undefined));
 
 /**
  * Required integer route parameter (e.g., :id)

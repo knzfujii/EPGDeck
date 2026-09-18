@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { router } from '../lib/router.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import {
@@ -79,8 +79,11 @@
     async function fetchLogs() {
         isLoading = true;
         try {
-            const res = await http.get('/api/logs?limit=1000');
-            rawLogs = res.data.logs || [];
+            const res = await api.logs.$get({ query: { limit: 1000 } });
+            if (res.ok) {
+                const data = await res.json();
+                rawLogs = (data.logs as LogEntry[]) || [];
+            }
         } catch (e) {
             console.error('Failed to fetch logs:', e);
             snackbar.open({ text: 'ログの取得に失敗しました', color: 'error' });
@@ -209,7 +212,7 @@
         if (!ok) return;
 
         try {
-            await http.post('/api/logs/clear');
+            await api.logs.clear.$post();
             rawLogs = [];
             snackbar.open({ text: 'サーバーログを消去しました', color: 'success' });
         } catch (e) {

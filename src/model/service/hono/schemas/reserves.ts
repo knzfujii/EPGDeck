@@ -3,10 +3,12 @@ import { booleanQuery, integerParam, integerQuery } from './common.js';
 
 export const getReservesQuerySchema = z.object({
     isHalfWidth: booleanQuery(true),
-    type: z.enum(['all', 'normal', 'conflict']).optional(),
+    type: z.enum(['all', 'normal', 'conflict', 'skip', 'overlap']).optional(),
     ruleId: integerQuery(),
     offset: integerQuery(),
     limit: integerQuery(),
+    startAt: integerQuery(),
+    endAt: integerQuery(),
 });
 
 export const getReserveListsQuerySchema = z.object({

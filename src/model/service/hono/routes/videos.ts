@@ -12,7 +12,7 @@ import container from '../../../ModelContainer.js';
 import { UploadedVideoFileOption } from '../../../operator/recorded/IRecordedManageModel.js';
 import * as api from '../HonoApiUtil.js';
 import { BadRequestError, NotFoundError } from '../../../error/ApiError.js';
-import { videoGetQuerySchema, videoParamSchema } from '../schemas/videos.js';
+import { kodiJsonSchema, videoGetQuerySchema, videoParamSchema } from '../schemas/videos.js';
 
 const app = new Hono()
     // POST /api/videos/upload
@@ -96,7 +96,7 @@ const app = new Hono()
         return api.responsePlayList(c, playlist);
     })
     // POST /api/videos/:videoFileId/kodi
-    .post('/:videoFileId/kodi', zValidator('param', videoParamSchema), async c => {
+    .post('/:videoFileId/kodi', zValidator('param', videoParamSchema), zValidator('json', kodiJsonSchema), async c => {
         const videoApiModel = container.get<IVideoApiModel>('IVideoApiModel');
         const { videoFileId } = c.req.valid('param');
         const host = c.req.header('host');
@@ -104,8 +104,8 @@ const app = new Hono()
             throw new BadRequestError('Host header is undefined', 'HostIsUndefined');
         }
 
-        const body = await c.req.json();
-        await videoApiModel.sendToKodi(host, api.isSecureProtocol(c), body.kodiName, videoFileId);
+        const { kodiName } = c.req.valid('json');
+        await videoApiModel.sendToKodi(host, api.isSecureProtocol(c), kodiName, videoFileId);
         return c.json({ code: 200 });
     })
     // GET /api/videos/:videoFileId/vtt

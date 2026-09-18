@@ -4,7 +4,13 @@ import * as apid from '../../../../../api.js';
 import IRuleApiModel from '../../../api/rule/IRuleApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
-import { editRuleJsonSchema, getRulesQuerySchema, ruleIdParamSchema } from '../schemas/rules.js';
+import {
+    createRuleJsonSchema,
+    editRuleJsonSchema,
+    getRuleQuerySchema,
+    getRulesQuerySchema,
+    ruleIdParamSchema,
+} from '../schemas/rules.js';
 
 const app = new Hono()
     // GET /api/rules
@@ -15,10 +21,10 @@ const app = new Hono()
         return c.json(result);
     })
     // POST /api/rules
-    .post('/', async c => {
+    .post('/', zValidator('json', createRuleJsonSchema), async c => {
         const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
-        const body = await c.req.json();
-        const ruleId = await ruleApiModel.add(body);
+        const body = c.req.valid('json');
+        const ruleId = await ruleApiModel.add(body as any);
         return c.json({ ruleId }, 201);
     })
     // GET /api/rules/keyword
@@ -29,7 +35,7 @@ const app = new Hono()
         return c.json({ items });
     })
     // GET /api/rules/:ruleId
-    .get('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
+    .get('/:ruleId', zValidator('param', ruleIdParamSchema), zValidator('query', getRuleQuerySchema), async c => {
         const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
         const { ruleId } = c.req.valid('param');
         const rule = await ruleApiModel.get(ruleId);

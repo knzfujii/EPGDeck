@@ -2,7 +2,7 @@
     import { onMount } from 'svelte';
     import { router } from '../../router.svelte';
     import { themeStore } from '../../stores/theme.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { readOnlyStore } from '../../stores/readOnly.svelte';
     import { confirmDialog } from '../../stores/confirm.svelte';
     import { snackbar } from '../../stores/snackbar.svelte';
@@ -14,9 +14,12 @@
 
     onMount(async () => {
         try {
-            const res = await http.get('/api/version');
-            if (res.data?.version) {
-                appVersion = res.data.version;
+            const res = await api.version.$get();
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.version) {
+                    appVersion = data.version;
+                }
             }
         } catch (e) {
             // ignore

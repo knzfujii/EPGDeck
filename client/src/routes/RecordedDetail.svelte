@@ -18,7 +18,7 @@
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
         ArrowLeft,
@@ -95,23 +95,27 @@
         if (!isSilent) isLoadingSameRule = true;
         try {
             const [recordsRes, ruleRes] = await Promise.allSettled([
-                http.get('/api/recorded', {
-                    params: {
-                        ruleId,
-                        limit: 24,
-                        isHalfWidth: true,
+                api.recorded.$get({
+                    query: {
+                        ruleId: ruleId as any,
+                        limit: 24 as any,
+                        isHalfWidth: true as any,
                     },
                 }),
-                http.get(`/api/rules/${ruleId}?isHalfWidth=true`),
+                api.rules[':ruleId'].$get({
+                    param: { ruleId: String(ruleId) },
+                    query: { isHalfWidth: true as any },
+                }),
             ]);
 
-            if (recordsRes.status === 'fulfilled') {
-                sameRuleRecords = recordsRes.value.data.records || [];
-                sameRuleTotal = recordsRes.value.data.total || 0;
+            if (recordsRes.status === 'fulfilled' && recordsRes.value.ok) {
+                const data = await recordsRes.value.json();
+                sameRuleRecords = (data as any).records || [];
+                sameRuleTotal = (data as any).total || 0;
             }
 
-            if (ruleRes.status === 'fulfilled') {
-                const ruleData = ruleRes.value.data;
+            if (ruleRes.status === 'fulfilled' && ruleRes.value.ok) {
+                const ruleData = (await ruleRes.value.json()) as any;
                 ruleKeyword = ruleData.searchOption?.keyword || ruleData.reserveOption?.name || '';
             }
             currentFetchedRuleId = ruleId;
@@ -126,8 +130,24 @@
         if (!recordedId) return;
         if (!isSilent) isLoading = true;
         try {
-            const [, res] = await Promise.all([channelStore.fetch(), http.get(`/api/recorded/${recordedId}`)]);
-            recorded = res.data;
+            const [, res] = await Promise.all([
+                channelStore.fetch(),
+                api.recorded[':recordedId'].$get({
+                    param: { recordedId: String(recordedId) },
+                    query: { isHalfWidth: 'true' },
+                }),
+            ]);
+
+            if (!res.ok) {
+                if (res.status === 404) {
+                    snackbar.open({ text: '番組情報が存在しないため、録画一覧に戻ります', color: 'warning' });
+                    router.push('/recorded');
+                    return;
+                }
+                throw new Error(`Failed to fetch recorded detail: ${res.status}`);
+            }
+
+            recorded = (await res.json()) as apid.RecordedItem;
 
             if (recorded?.ruleId) {
                 const isSameRule = recorded.ruleId === currentFetchedRuleId;
@@ -139,11 +159,14 @@
                 currentFetchedRuleId = null;
             }
 
-            http.get('/api/config')
-                .then(configRes => {
-                    const encList = configRes.data?.encode || [];
+            api.config
+                .$get()
+                .then(async configRes => {
+                    if (!configRes.ok) return;
+                    const configData = (await configRes.json()) as any;
+                    const encList = configData?.encode || [];
                     encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
-                    recordedDirs = configRes.data?.recorded || [];
+                    recordedDirs = configData?.recorded || [];
 
                     // 各プリセットの選択状態を初期化（既存があれば保持）
                     const defaultDir = recordedDirs[0] ?? '';
@@ -161,11 +184,6 @@
                 .catch(() => {});
         } catch (e: any) {
             console.error('Failed to fetch recorded detail', e);
-            if (e?.response?.status === 404) {
-                snackbar.open({ text: '番組情報が存在しないため、録画一覧に戻ります', color: 'warning' });
-                router.push('/recorded');
-                return;
-            }
             snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
         } finally {
             if (!isSilent) isLoading = false;
@@ -193,11 +211,17 @@
         if (!recorded) return;
         try {
             if (recorded.isProtected) {
-                await http.put(`/api/recorded/${recorded.id}/unprotect`);
+                const res = await api.recorded[':recordedId'].unprotect.$put({
+                    param: { recordedId: String(recorded.id) },
+                });
+                if (!res.ok) throw new Error(`Status ${res.status}`);
                 recorded.isProtected = false;
                 snackbar.open({ text: '保護を解除しました', color: 'success' });
             } else {
-                await http.put(`/api/recorded/${recorded.id}/protect`);
+                const res = await api.recorded[':recordedId'].protect.$put({
+                    param: { recordedId: String(recorded.id) },
+                });
+                if (!res.ok) throw new Error(`Status ${res.status}`);
                 recorded.isProtected = true;
                 snackbar.open({ text: '番組を保護しました', color: 'success' });
             }
@@ -220,7 +244,11 @@
         if (!ok) return;
 
         try {
-            await http.delete(`/api/recorded/${recorded.id}`);
+            const res = await api.recorded[':recordedId'].$delete({
+                param: { recordedId: String(recorded.id) },
+                query: {},
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
             snackbar.open({ text: '録画を削除しました', color: 'success' });
             router.push('/recorded');
         } catch (e) {
@@ -244,7 +272,10 @@
         if (!ok) return;
 
         try {
-            await http.delete(`/api/videos/${fileId}`);
+            const res = await api.videos[':videoFileId'].$delete({
+                param: { videoFileId: String(fileId) },
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
             if (isLastVideoFile) {
                 snackbar.open({ text: '動画ファイルおよび番組を削除しました', color: 'success' });
                 router.push('/recorded');
@@ -285,7 +316,11 @@
         sendingKodiFileId = videoFileId;
 
         try {
-            await http.post(`/api/videos/${videoFileId}/kodi`, { kodiName });
+            const res = await api.videos[':videoFileId'].kodi.$post({
+                param: { videoFileId: String(videoFileId) },
+                json: { kodiName },
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
             snackbar.open({ text: `「${kodiName}」へ再生リクエストを送信しました`, color: 'success' });
         } catch (e: any) {
             console.error('Failed to send to Kodi', e);
@@ -313,8 +348,12 @@
 
         isLoadingDropLog = true;
         try {
-            const res = await http.get(`/api/dropLogs/${recorded.dropLogFile.id}`, { responseType: 'text' });
-            dropLogContent = typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2);
+            const res = await api.dropLogs[':dropLogFileId'].$get({
+                param: { dropLogFileId: String(recorded.dropLogFile.id) },
+                query: {},
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            dropLogContent = await res.text();
         } catch (e) {
             console.error('Failed to fetch drop log', e);
             dropLogContent = null;
@@ -364,7 +403,10 @@
                         body.directory = sel.directory.trim();
                     }
                 }
-                await http.post('/api/encode', body);
+                const res = await api.encode.$post({
+                    json: body as any,
+                });
+                if (!res.ok) throw new Error(`Status ${res.status}`);
             }
             snackbar.open({ text: `${targets.length}件をエンコードキューに追加しました`, color: 'success' });
             isEncodeModalOpen = false;

@@ -4,7 +4,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
     import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles } from '@lucide/svelte';
@@ -90,12 +90,15 @@
 
     async function fetchExistingReserves() {
         try {
-            const res = await http.get('/api/reserves?isHalfWidth=true&limit=1000');
-            const ids = new Set<number>();
-            for (const r of res.data.reserves || []) {
-                if (r.programId) ids.add(r.programId);
+            const res = await api.reserves.$get({ query: { isHalfWidth: true as any, limit: 1000 as any } });
+            if (res.ok) {
+                const data = await res.json();
+                const ids = new Set<number>();
+                for (const r of (data as any).reserves || []) {
+                    if (r.programId) ids.add(r.programId);
+                }
+                reservedProgramIds = ids;
             }
-            reservedProgramIds = ids;
         } catch (e) {
             console.error('Failed to fetch reserves', e);
         }
@@ -118,17 +121,21 @@
         hasSearched = true;
         try {
             await Promise.all([channelStore.fetch(), fetchExistingReserves()]);
-            const res = await http.post('/api/schedules/search', {
-                option: {
-                    keyword: keyword.trim(),
-                    name: isName,
-                    description: isDescription,
-                    genres: selectedGenre !== null ? [{ lv1: selectedGenre }] : [],
-                },
-                isHalfWidth: true,
-                limit: 100,
+            const res = await api.schedules.search.$post({
+                json: {
+                    option: {
+                        keyword: keyword.trim(),
+                        name: isName,
+                        description: isDescription,
+                        genres: selectedGenre !== null ? [{ lv1: selectedGenre }] : [],
+                    },
+                    isHalfWidth: true,
+                    limit: 100,
+                } as any,
             });
-            searchResults = res.data || [];
+            if (res.ok) {
+                searchResults = ((await res.json()) as any) || [];
+            }
         } catch (e) {
             console.error('Search error', e);
             snackbar.open({ text: '検索に失敗しました', color: 'error' });
@@ -141,16 +148,22 @@
         if (readOnlyStore.isReadOnly) return;
         reservingProgramId = program.id;
         try {
-            await http.post('/api/reserves', {
-                programId: program.id,
+            const res = await api.reserves.$post({
+                json: {
+                    programId: program.id,
+                } as any,
             });
+            if (!res.ok) {
+                const errData = (await res.json().catch(() => ({}))) as any;
+                throw new Error(errData?.message || '予約の登録に失敗しました');
+            }
             const nextSet = new Set(reservedProgramIds);
             nextSet.add(program.id);
             reservedProgramIds = nextSet;
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
         } catch (e: any) {
             console.error('Failed to reserve program', e);
-            const msg = e.response?.data?.message || '予約の登録に失敗しました';
+            const msg = e.message || '予約の登録に失敗しました';
             snackbar.open({ text: msg, color: 'error' });
         } finally {
             reservingProgramId = null;

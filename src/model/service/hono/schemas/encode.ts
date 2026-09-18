@@ -8,3 +8,5 @@ export const encodeIdParamSchema = z.object({
 export const getEncodeQuerySchema = z.object({
     isHalfWidth: booleanQuery(true),
 });
+
+export const createEncodeJsonSchema = z.record(z.string(), z.any());

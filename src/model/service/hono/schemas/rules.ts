@@ -13,4 +13,9 @@ export const ruleIdParamSchema = z.object({
     ruleId: integerParam(),
 });
 
+export const getRuleQuerySchema = z.object({
+    isHalfWidth: optionalBooleanQuery(),
+});
+
 export const editRuleJsonSchema = z.record(z.string(), z.any());
+export const createRuleJsonSchema = z.record(z.string(), z.any());

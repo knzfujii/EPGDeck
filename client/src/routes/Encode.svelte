@@ -5,7 +5,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { Film, CheckCircle2, Trash2, RefreshCw, Lock } from '@lucide/svelte';
 
     let running = $state<any[]>([]);
@@ -23,9 +23,12 @@
     async function fetchEncode(isSilent = false) {
         if (!isSilent) isLoading = true;
         try {
-            const res = await http.get('/api/encode?isHalfWidth=true');
-            running = res.data.runningItems || [];
-            waitList = res.data.waitItems || [];
+            const res = await api.encode.$get({ query: { isHalfWidth: true } });
+            if (res.ok) {
+                const data = (await res.json()) as any;
+                running = data.runningItems || [];
+                waitList = data.waitItems || [];
+            }
         } catch (e) {
             console.error('Failed to fetch encode', e);
             if (!isSilent) snackbar.open({ text: 'エンコード情報の取得に失敗しました', color: 'error' });
@@ -70,7 +73,7 @@
         if (!ok) return;
 
         try {
-            await http.delete(`/api/encode/${id}`);
+            await api.encode[':encodeId'].$delete({ param: { encodeId: String(id) } });
             snackbar.open({ text: 'エンコードをキャンセルしました', color: 'success' });
             fetchEncode();
         } catch (e) {

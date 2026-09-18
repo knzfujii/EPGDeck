@@ -5,7 +5,7 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { getChannelTypeBadgeClass, getGenreBadgeClass } from '../lib/utils/format';
     import {
         ArrowLeft,
@@ -375,15 +375,21 @@
         try {
             await channelStore.fetch();
             const [storageRes, configRes] = await Promise.all([
-                http.get('/api/storages').catch(() => ({ data: { items: [] } })),
-                http.get('/api/config').catch(() => ({ data: {} })),
+                api.storages
+                    .$get()
+                    .then(async r => (r.ok ? await r.json() : { items: [] }))
+                    .catch(() => ({ items: [] })),
+                api.config
+                    .$get()
+                    .then(async r => (r.ok ? ((await r.json()) as any) : ({} as any)))
+                    .catch(() => ({}) as any),
             ]);
 
-            const items = storageRes.data?.items || [];
+            const items = (storageRes as any).items || [];
             storageDirs = items.map((i: any) => i.name);
-            const encList = configRes.data?.encode || [];
+            const encList = (configRes as any).encode || [];
             encodeModes = encList.map((e: any) => (typeof e === 'string' ? e : e.name));
-            return configRes.data;
+            return configRes;
         } catch (e) {
             console.error('Failed to load options', e);
             return null;
@@ -517,14 +523,17 @@
     async function refreshReservesSilently() {
         if (previewPrograms === null) return;
         try {
-            const res = await http.get('/api/reserves?limit=1000&isHalfWidth=true');
-            const map = new Map<number, any>();
-            for (const r of res.data?.reserves || []) {
-                if (r.programId) {
-                    map.set(r.programId, r);
+            const res = await api.reserves.$get({ query: { limit: 1000, isHalfWidth: true } });
+            if (res.ok) {
+                const data = await res.json();
+                const map = new Map<number, any>();
+                for (const r of (data as any).reserves || []) {
+                    if (r.programId) {
+                        map.set(r.programId, r);
+                    }
                 }
+                previewReservesMap = map;
             }
-            previewReservesMap = map;
         } catch (e) {
             console.error('Failed to silently refresh reserves', e);
         }
@@ -548,9 +557,14 @@
         if (idParam) {
             ruleId = parseInt(idParam, 10);
             try {
-                const res = await http.get(`/api/rules/${ruleId}?isHalfWidth=true`);
-                rule = res.data;
-                loadRule(rule);
+                const res = await api.rules[':ruleId'].$get({
+                    param: { ruleId: String(ruleId) },
+                    query: { isHalfWidth: true },
+                });
+                if (res.ok) {
+                    rule = await res.json();
+                    loadRule(rule);
+                }
             } catch (e) {
                 console.error('Failed to fetch rule', e);
                 snackbar.open({ text: 'ルールの取得に失敗しました', color: 'error' });
@@ -560,7 +574,7 @@
             const q = router.current.query;
             if (q['keyword']) {
                 keyword = q['keyword'];
-                if (serverConfig?.copyKeywordToDirectory) {
+                if ((serverConfig as any)?.copyKeywordToDirectory) {
                     directory = q['keyword'].trim();
                 }
                 isName = q['name'] !== '0';
@@ -693,18 +707,25 @@
             const searchOpt = buildSearchOptionPayload();
 
             const [searchRes, reservesRes] = await Promise.all([
-                http.post('/api/schedules/search', {
-                    option: searchOpt,
-                    isHalfWidth: true,
-                    limit: 100,
-                }),
-                http.get('/api/reserves?limit=1000&isHalfWidth=true').catch(() => ({ data: { reserves: [] } })),
+                api.schedules.search
+                    .$post({
+                        json: {
+                            option: searchOpt,
+                            isHalfWidth: true,
+                            limit: 100,
+                        } as any,
+                    })
+                    .then(async r => (r.ok ? await r.json() : [])),
+                api.reserves
+                    .$get({ query: { limit: 1000, isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { reserves: [] }))
+                    .catch(() => ({ reserves: [] })),
             ]);
 
-            previewPrograms = searchRes.data || [];
+            previewPrograms = (searchRes as any[]) || [];
 
             const map = new Map<number, any>();
-            for (const r of reservesRes.data?.reserves || []) {
+            for (const r of (reservesRes as any).reserves || []) {
                 if (r.programId) {
                     map.set(r.programId, r);
                 }
@@ -725,10 +746,10 @@
         const willSkip = !reserve.isSkip;
         try {
             if (willSkip) {
-                await http.delete(`/api/reserves/${reserve.id}`);
+                await api.reserves[':reserveId'].$delete({ param: { reserveId: String(reserve.id) } });
                 snackbar.open({ text: `「${program.name}」をスキップ設定しました`, color: 'success' });
             } else {
-                await http.delete(`/api/reserves/${reserve.id}/skip`);
+                await api.reserves[':reserveId'].skip.$delete({ param: { reserveId: String(reserve.id) } });
                 snackbar.open({ text: `「${program.name}」のスキップを解除しました`, color: 'success' });
             }
             // 新しいオブジェクト参照で Map を即座に更新（Svelte 5 のリアクティブ反映を保証）
@@ -785,10 +806,15 @@
             }
 
             if (ruleId) {
-                await http.put(`/api/rules/${ruleId}`, payload);
+                await api.rules[':ruleId'].$put({
+                    param: { ruleId: String(ruleId) },
+                    json: payload as any,
+                });
                 snackbar.open({ text: `ルール「${keyword}」を更新しました`, color: 'success' });
             } else {
-                await http.post('/api/rules', payload);
+                await api.rules.$post({
+                    json: payload as any,
+                });
                 snackbar.open({ text: `新規ルール「${keyword}」を作成しました`, color: 'success' });
             }
 

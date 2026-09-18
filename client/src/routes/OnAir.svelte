@@ -18,7 +18,7 @@
     } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
         Radio,
@@ -123,24 +123,32 @@
             const endAt = now + 6 * 60 * 60 * 1000;
 
             const [schedulesRes, recordingRes, reservesRes] = await Promise.all([
-                http.get('/api/schedules', {
-                    params: {
-                        startAt,
-                        endAt,
-                        isHalfWidth: true,
-                        GR: true,
-                        BS: true,
-                        CS: true,
-                        SKY: true,
-                    },
-                }),
-                http.get('/api/recording?isHalfWidth=true').catch(() => ({ data: { records: [] } })),
-                http.get('/api/reserves?isHalfWidth=true').catch(() => ({ data: { reserves: [] } })),
+                api.schedules
+                    .$get({
+                        query: {
+                            startAt,
+                            endAt,
+                            isHalfWidth: true,
+                            GR: true,
+                            BS: true,
+                            CS: true,
+                            SKY: true,
+                        },
+                    })
+                    .then(async r => (r.ok ? await r.json() : [])),
+                api.recording
+                    .$get({ query: { isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { records: [] }))
+                    .catch(() => ({ records: [] })),
+                api.reserves
+                    .$get({ query: { isHalfWidth: true } })
+                    .then(async r => (r.ok ? await r.json() : { reserves: [] }))
+                    .catch(() => ({ reserves: [] })),
             ]);
 
-            const schedules = schedulesRes.data || [];
-            const recordingList = recordingRes.data.records || [];
-            const reservesList: apid.ReserveItem[] = reservesRes.data.reserves || [];
+            const schedules = (schedulesRes as any[]) || [];
+            const recordingList = recordingRes.records || [];
+            const reservesList: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
 
             const list: OnAirItem[] = [];
 
@@ -305,9 +313,11 @@
 
         isReserving = true;
         try {
-            await http.post('/api/reserves', {
-                programId: program.id,
-                allowEndLack: true, // 途中からの録画を許可
+            await api.reserves.$post({
+                json: {
+                    programId: program.id,
+                    allowEndLack: true, // 途中からの録画を許可
+                } as any,
             });
             snackbar.open({ text: `「${program.name}」の録画を開始しました`, color: 'success' });
             await fetchOnAir(true);
@@ -348,13 +358,13 @@
 
         try {
             if (action === 'finish') {
-                await http.post(`/api/recording/${reserveId}/finish`);
+                await api.recording[':reserveId'].finish.$post({ param: { reserveId: String(reserveId) } });
                 snackbar.open({ text: `「${name}」を正常終了として保存しました`, color: 'success' });
             } else if (action === 'stop') {
-                await http.post(`/api/recording/${reserveId}/stop`);
+                await api.recording[':reserveId'].stop.$post({ param: { reserveId: String(reserveId) } });
                 snackbar.open({ text: `「${name}」を中断保存しました（録画履歴は未登録）`, color: 'info' });
             } else if (action === 'discard') {
-                await http.post(`/api/recording/${reserveId}/discard`);
+                await api.recording[':reserveId'].discard.$post({ param: { reserveId: String(reserveId) } });
                 snackbar.open({ text: `「${name}」の録画を取り消し、ファイルを破棄しました`, color: 'info' });
             }
             isRecordingActionModalOpen = false;
@@ -362,7 +372,7 @@
             await fetchOnAir(true);
         } catch (e: any) {
             console.error(`Failed to execute recording action ${action}`, e);
-            const msg = e.response?.data?.message || '録画の停止操作に失敗しました';
+            const msg = e.message || '録画の停止操作に失敗しました';
             snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
@@ -381,9 +391,11 @@
 
         isReserving = true;
         try {
-            await http.post('/api/reserves', {
-                programId: program.id,
-                allowEndLack: false,
+            await api.reserves.$post({
+                json: {
+                    programId: program.id,
+                    allowEndLack: false,
+                } as any,
             });
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;

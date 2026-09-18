@@ -33,3 +33,5 @@ export const getChannelScheduleQuerySchema = z.object({
     needsRawExtended: strictBooleanQuery(false),
     isFree: optionalBooleanQuery(),
 });
+
+export const searchScheduleJsonSchema = z.record(z.string(), z.any());

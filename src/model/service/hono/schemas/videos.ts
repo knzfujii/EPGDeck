@@ -8,3 +8,7 @@ export const videoParamSchema = z.object({
 export const videoGetQuerySchema = z.object({
     isDownload: optionalBooleanQuery(),
 });
+
+export const kodiJsonSchema = z.object({
+    kodiName: z.string(),
+});

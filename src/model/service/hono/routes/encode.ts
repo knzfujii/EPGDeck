@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import IEncodeApiModel from '../../../api/encode/IEncodeApiModel.js';
 import container from '../../../ModelContainer.js';
-import { encodeIdParamSchema, getEncodeQuerySchema } from '../schemas/encode.js';
+import { createEncodeJsonSchema, encodeIdParamSchema, getEncodeQuerySchema } from '../schemas/encode.js';
 
 const app = new Hono()
     // GET /api/encode
@@ -13,10 +13,10 @@ const app = new Hono()
         return c.json(result);
     })
     // POST /api/encode
-    .post('/', async c => {
+    .post('/', zValidator('json', createEncodeJsonSchema), async c => {
         const encodeApiModel = container.get<IEncodeApiModel>('IEncodeApiModel');
-        const body = await c.req.json();
-        const encodeId = await encodeApiModel.add(body);
+        const body = c.req.valid('json');
+        const encodeId = await encodeApiModel.add(body as any);
         return c.json({ encodeId }, 201);
     })
     // DELETE /api/encode/:encodeId

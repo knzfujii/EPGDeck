@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import http from '@/lib/httpClient';
+    import api from '@/lib/apiClient';
     import { SlidersHorizontal, Plus, Trash2 } from '@lucide/svelte';
     import type { EncodeRow } from '@/lib/utils/recordingOptions';
 
@@ -33,12 +33,15 @@
     onMount(async () => {
         if (!propEncodeModes || !propStorageDirs) {
             try {
-                const res = await http.get('/api/config');
-                if (!propEncodeModes) {
-                    internalEncodeModes = res.data.encode || [];
-                }
-                if (!propStorageDirs) {
-                    internalStorageDirs = res.data.recorded || [];
+                const res = await api.config.$get();
+                if (res.ok) {
+                    const data = (await res.json()) as any;
+                    if (!propEncodeModes) {
+                        internalEncodeModes = data.encode || [];
+                    }
+                    if (!propStorageDirs) {
+                        internalStorageDirs = data.recorded || [];
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch config in RecordingOptionForm', e);

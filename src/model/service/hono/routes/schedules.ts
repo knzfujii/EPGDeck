@@ -10,6 +10,7 @@ import {
     getChannelScheduleQuerySchema,
     getSchedulesQuerySchema,
     programIdParamSchema,
+    searchScheduleJsonSchema,
 } from '../schemas/schedules.js';
 
 const app = new Hono()
@@ -47,9 +48,9 @@ const app = new Hono()
         return c.json(result);
     })
     // POST /api/schedules/search
-    .post('/search', async c => {
+    .post('/search', zValidator('json', searchScheduleJsonSchema), async c => {
         const scheduleApiModel = container.get<IScheduleApiModel>('IScheduleApiModel');
-        const body = await c.req.json();
+        const body = c.req.valid('json');
         const isHalfWidth = body.isHalfWidth !== false;
         const result = await scheduleApiModel.search(body.option, isHalfWidth, body.limit);
         return c.json(result);

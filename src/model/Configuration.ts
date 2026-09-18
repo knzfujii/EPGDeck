@@ -323,9 +323,7 @@ class Configuration implements IConfiguration {
             },
             database: {
                 type: dbtype,
-                sqlite: db.sqlite || raw.sqlite,
                 mysql: db.mysql || raw.mysql,
-                postgres: db.postgres || raw.postgres,
             },
             log,
             epg,

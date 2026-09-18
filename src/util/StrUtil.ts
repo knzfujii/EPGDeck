@@ -47,13 +47,13 @@ namespace StrUtil {
 
     /**
      * 文字列をデータベース用文字列に変換する．
-     * PostgreSQL非対応文字の削除
+     * DB非対応・不正制御文字（NULLバイト）の削除
      * @param str: string
      * @return string
      */
     export const toDBStr = (str: string): string => {
         // eslint-disable-next-line no-control-regex
-        return str.replace(/\x00/g, ''); // PostgreSQL 非対応文字
+        return str.replace(/\x00/g, '');
     };
 
     /**

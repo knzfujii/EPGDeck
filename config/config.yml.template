@@ -22,27 +22,12 @@ server:
 # 2. データベース設定 (Database)
 # ------------------------------------------------------------------------------
 database:
-  type: sqlite   # sqlite | mysql | postgres
+  type: sqlite   # sqlite | mysql
 
-  # SQLite 設定
-  # sqlite:
-  #   extensions:
-  #     - '/path/to/regexp.so'
-  #   regexp: true
-
-  # MySQL 設定
+  # MySQL 設定 (type: mysql の場合に使用)
   # mysql:
   #   host: 127.0.0.1
   #   port: 3306
-  #   user: epgdeck
-  #   password: epgdeck_password
-  #   database: epgdeck
-  #   charset: utf8mb4
-
-  # PostgreSQL 設定
-  # postgres:
-  #   host: 127.0.0.1
-  #   port: 5432
   #   user: epgdeck
   #   password: epgdeck_password
   #   database: epgdeck

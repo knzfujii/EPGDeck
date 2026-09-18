@@ -40,6 +40,8 @@
         FileText,
         ChevronLeft,
         ChevronRight,
+        ChevronDown,
+        Loader2,
         Video,
     } from '@lucide/svelte';
 
@@ -271,6 +273,26 @@
                 });
             },
         });
+    }
+
+    // Kodi 再生送信
+    let sendingKodiFileId = $state<number | null>(null);
+    let activeKodiMenuFileId = $state<number | null>(null);
+
+    async function sendToKodi(videoFileId: number, kodiName: string) {
+        activeKodiMenuFileId = null;
+        if (sendingKodiFileId !== null) return;
+        sendingKodiFileId = videoFileId;
+
+        try {
+            await http.post(`/api/videos/${videoFileId}/kodi`, { kodiName });
+            snackbar.open({ text: `「${kodiName}」へ再生リクエストを送信しました`, color: 'success' });
+        } catch (e: any) {
+            console.error('Failed to send to Kodi', e);
+            snackbar.open({ text: `Kodi への送信に失敗しました: ${e.message || ''}`, color: 'error' });
+        } finally {
+            sendingKodiFileId = null;
+        }
     }
 
     // ドロップログ表示
@@ -754,6 +776,76 @@
                                 >
                                     <Play size={13} fill="currentColor" /> 再生
                                 </button>
+                            {/if}
+
+                            <!-- Kodi で再生 -->
+                            {#if (readOnlyStore.serverConfig?.kodiHosts?.length ?? 0) > 0 && readOnlyStore.canPlayRecorded( [file] )}
+                                {@const kodiHosts = readOnlyStore.serverConfig?.kodiHosts || []}
+                                {#if kodiHosts.length === 1}
+                                    <button
+                                        type="button"
+                                        disabled={sendingKodiFileId === file.id}
+                                        onclick={() => sendToKodi(file.id, kodiHosts[0])}
+                                        class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                        title={`Kodi (${kodiHosts[0]}) で再生`}
+                                    >
+                                        {#if sendingKodiFileId === file.id}
+                                            <Loader2 size={13} class="animate-spin text-blue-500" />
+                                        {:else}
+                                            <Tv size={13} class="text-blue-500" />
+                                        {/if}
+                                        <span>Kodi</span>
+                                    </button>
+                                {:else}
+                                    <div class="relative">
+                                        {#if activeKodiMenuFileId === file.id}
+                                            <div
+                                                class="fixed inset-0 z-20 cursor-default"
+                                                onclick={() => (activeKodiMenuFileId = null)}
+                                                role="presentation"
+                                            ></div>
+                                        {/if}
+                                        <button
+                                            type="button"
+                                            disabled={sendingKodiFileId === file.id}
+                                            onclick={() => {
+                                                activeKodiMenuFileId =
+                                                    activeKodiMenuFileId === file.id ? null : file.id;
+                                            }}
+                                            class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                            title="Kodi を選んで再生"
+                                        >
+                                            {#if sendingKodiFileId === file.id}
+                                                <Loader2 size={13} class="animate-spin text-blue-500" />
+                                            {:else}
+                                                <Tv size={13} class="text-blue-500" />
+                                            {/if}
+                                            <span>Kodi</span>
+                                            <ChevronDown size={11} />
+                                        </button>
+                                        {#if activeKodiMenuFileId === file.id}
+                                            <div
+                                                class="absolute right-0 top-full mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg z-30 dark:border-slate-700 dark:bg-slate-800"
+                                            >
+                                                <div
+                                                    class="px-2.5 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
+                                                >
+                                                    送信先の Kodi を選択
+                                                </div>
+                                                {#each kodiHosts as hostName}
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => sendToKodi(file.id, hostName)}
+                                                        class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-200 dark:hover:bg-slate-700/60 dark:hover:text-blue-400 text-left cursor-pointer"
+                                                    >
+                                                        <Tv size={12} class="text-slate-400" />
+                                                        <span class="truncate">{hostName}</span>
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/if}
                             {/if}
 
                             <!-- 外部プレーヤー起動 (スマホ・タブレットのみ) -->

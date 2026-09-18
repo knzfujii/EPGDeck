@@ -64,24 +64,12 @@ export interface ServerConfig {
 
 export interface DatabaseConfig {
     type: Enums.DBType;
-    sqlite?: {
-        extensions?: string[];
-        regexp?: boolean;
-    };
     mysql?: {
         host: string;
         user: string;
         port: number;
         password: string;
         database: string;
-        charset?: string;
-    };
-    postgres?: {
-        host: string;
-        user: string;
-        port: number;
-        database: string;
-        password: string;
     };
 }
 

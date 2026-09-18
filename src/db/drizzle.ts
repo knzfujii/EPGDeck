@@ -57,6 +57,7 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
             user: config.database.mysql.user,
             password: config.database.mysql.password,
             database: config.database.mysql.database,
+            charset: 'utf8mb4',
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,

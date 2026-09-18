@@ -93,27 +93,15 @@ server:
 ## 2. データベース設定 (`database`)
 
 ### `database.type`
-使用するデータベース種別を指定します（`sqlite` | `mysql` | `postgres`）。
+使用するデータベース種別を指定します（`sqlite` | `mysql`）。
 
 ```yaml
 database:
   type: sqlite
 ```
 
-### `database.sqlite`
-SQLite 固有のオプション設定です。
-
-```yaml
-database:
-  type: sqlite
-  sqlite:
-    extensions:
-      - '/path/to/regexp.so'
-    regexp: true
-```
-
-### `database.mysql` / `database.postgres`
-RDBMS の接続設定です。
+### `database.mysql`
+MySQL を使用する場合の接続設定です。文字コードには自動的に `utf8mb4` が適用されます。
 
 ```yaml
 database:
@@ -124,7 +112,6 @@ database:
     user: epgdeck
     password: password
     database: epgdeck
-    charset: utf8mb4
 ```
 
 ---
@@ -316,7 +303,7 @@ HLS 配信時のセグメントファイル（`.ts`）およびプレイリス�
 
 ## 10. Kodi 連携設定 (`kodi`)
 
-Kodi の Web インターフェースと連携し、EPGDeck から直接再生指示を送ることができます。
+Kodi の Web インターフェースと連携し、EPGDeck の録画詳細画面から直接テレビへ再生指示を送ることができます。設定されている場合、録画詳細の各ファイルに「Kodi」再生ボタンが表示されます。
 
 ```yaml
 kodi:

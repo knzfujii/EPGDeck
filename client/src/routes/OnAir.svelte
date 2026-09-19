@@ -41,6 +41,8 @@
         Square,
     } from '@lucide/svelte';
 
+    type OnAirChannel = apid.ScheduleChannleItem | apid.ChannelItem;
+
     interface OnAirProgram extends apid.ScheduleProgramItem {
         isRecording?: boolean;
         recordingReserveId?: number;
@@ -49,7 +51,7 @@
     }
 
     interface OnAirItem {
-        channel: apid.ChannelItem;
+        channel: apid.ScheduleChannleItem;
         current: OnAirProgram;
         next?: OnAirProgram;
     }
@@ -58,11 +60,10 @@
     let isLoading = $state(true);
     let selectedType = $state<string>('all');
     let selectedGenre = $state<number | null>(null);
-    let keyword = $state<string>('');
-    let currentTime = $state<number>(Date.now());
+    let keyword = $state('');
+    let currentTime = $state(Date.now());
 
-    // 配信設定モーダル状態
-    let selectedChannel = $state<apid.ChannelItem | null>(null);
+    let selectedChannel = $state<OnAirChannel | null>(null);
     let streamModalTitle = $state<string>('');
     let isStreamModalOpen = $state(false);
 
@@ -75,7 +76,7 @@
     let isDetailModalOpen = $state(false);
     let selectedDetailItem = $state<{
         program: OnAirProgram;
-        channel: apid.ChannelItem;
+        channel: OnAirChannel;
         isNext?: boolean;
     } | null>(null);
     let isReserving = $state(false);
@@ -104,7 +105,7 @@
 
     let channelTypes = $derived.by(() => {
         const active = new Set(channelStore.activeChannelTypes);
-        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as any));
+        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as apid.ChannelType));
     });
 
     $effect(() => {
@@ -146,24 +147,24 @@
                     .catch(() => ({ reserves: [] })),
             ]);
 
-            const schedules = (schedulesRes as any[]) || [];
+            const schedules = schedulesRes || [];
             const recordingList = recordingRes.records || [];
             const reservesList: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
 
             const list: OnAirItem[] = [];
 
             for (const item of schedules) {
-                const programs = (item.programs || []).sort((a: any, b: any) => a.startAt - b.startAt);
+                const programs = (item.programs || []).slice().sort((a, b) => a.startAt - b.startAt);
                 if (programs.length === 0) continue;
 
                 // 現在放映中の番組を特定
-                const rawCurrent = programs.find((p: any) => p.startAt <= now && p.endAt > now) || programs[0];
+                const rawCurrent = programs.find(p => p.startAt <= now && p.endAt > now) || programs[0];
                 // 次の番組を特定
-                const rawNext = programs.find((p: any) => p.startAt >= rawCurrent.endAt);
+                const rawNext = programs.find(p => p.startAt >= rawCurrent.endAt);
 
                 // 現在番組の録画中判定
                 const matchedRec = recordingList.find(
-                    (rec: any) =>
+                    rec =>
                         (rec.programId && rawCurrent.id && rec.programId === rawCurrent.id) ||
                         (rec.channelId === item.channel.id &&
                             Math.abs(rec.startAt - rawCurrent.startAt) < 60000 &&
@@ -173,7 +174,7 @@
                 // 録画中である場合、対応する予約 (ReserveItem) を特定
                 const matchedReserve = matchedRec
                     ? reservesList.find(
-                          (r: any) =>
+                          r =>
                               (r.programId && rawCurrent.id && r.programId === rawCurrent.id) ||
                               (r.channelId === item.channel.id &&
                                   Math.abs(r.startAt - rawCurrent.startAt) < 60000 &&
@@ -288,13 +289,13 @@
         return Math.min(100, Math.max(0, Math.round(((now - startAt) / (endAt - startAt)) * 100)));
     }
 
-    function openStreamModal(channel: apid.ChannelItem, programName?: string) {
+    function openStreamModal(channel: OnAirChannel, programName?: string) {
         selectedChannel = channel;
         streamModalTitle = programName || `${channel.name} ライブ視聴`;
         isStreamModalOpen = true;
     }
 
-    function openProgramDetail(program: OnAirProgram, channel: apid.ChannelItem, isNext: boolean = false) {
+    function openProgramDetail(program: OnAirProgram, channel: OnAirChannel, isNext: boolean = false) {
         selectedDetailItem = { program, channel, isNext };
         isDetailModalOpen = true;
     }
@@ -317,7 +318,7 @@
                 json: {
                     programId: program.id,
                     allowEndLack: true, // 途中からの録画を許可
-                } as any,
+                },
             });
             snackbar.open({ text: `「${program.name}」の録画を開始しました`, color: 'success' });
             await fetchOnAir(true);
@@ -395,7 +396,7 @@
                 json: {
                     programId: program.id,
                     allowEndLack: false,
-                } as any,
+                },
             });
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;

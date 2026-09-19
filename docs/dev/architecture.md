@@ -102,8 +102,10 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
   - ブラウザネイティブの `window.confirm()` を排除し、Svelte 5 `$state` を用いた非同期 Promise ベースの共通モーダル（`ConfirmModal.svelte`）を導入。ダークモードやキーボード操作（ESC/Enter）に対応。
 - **非ブロッキング通信と状態整合性**:
   - 画面遷移時やデータ取得時に直列 `await` で待機せず、`Promise.all` による並列フェッチや補助データのバックグラウンド非同期取得を徹底し、UI 描画のブロックを排除。
-- **HTTP / API クライアント**:
-  - `axios` を完全排除し、ブラウザ標準 `fetch` をベースとした軽量な HTTP クライアント（`client/src/lib/httpClient.ts`）を採用。
+- **HTTP / API クライアント & キャッシュ一元化**:
+  - レガシーな `axios` および `httpClient.ts` を完全廃止。型安全な Hono RPC クライアント（`hono/client` の `hc`）に完全一本化（`client/src/lib/apiClient.ts`）。
+  - 認証トークン管理を `client/src/lib/authStorage.ts` に独立化し、`apiClient` のカスタム fetch で Bearer トークンを透過的に自動注入。
+  - サーバー設定データのキャッシュと取得を一元化する `configStore`（`client/src/lib/stores/config.svelte.ts`）を導入し、画面遷移時の重複 API フェッチを完全抑止。
 
 ---
 

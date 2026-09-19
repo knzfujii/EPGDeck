@@ -1,6 +1,6 @@
 import { hc } from 'hono/client';
 import type { ApiRoutesType } from '../../../src/model/service/hono/apiRoutes.js';
-import { getAuthToken } from './httpClient.js';
+import { getAuthToken } from './authStorage.js';
 
 export type ApiClient = ReturnType<typeof hc<ApiRoutesType>>;
 

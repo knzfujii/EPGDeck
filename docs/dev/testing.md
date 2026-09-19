@@ -39,7 +39,7 @@ graph TD
 - **本番・開発環境の完全不可侵（DB 分離原則）**:
   テスト実行時、本番およびローカル開発用 DB（`data/database.db`）や設定ファイル（`config/config.yml`）には**絶対にアクセス・変更を行いません**。
 - **Web 標準 API の網羅的検証**:
-  `httpClient`（ブラウザ標準 `fetch` ラッパー）、`StrUtil.urlJoin`、`node:util.parseArgs`、組み込み `structuredClone` 等、Node.js / Web 標準 API へ移行した各モジュールの堅牢性を保証するテストを永続配備しています。
+  `authStorage`（`localStorage` ラッパー）、`StrUtil.urlJoin`、`node:util.parseArgs`、組み込み `structuredClone` 等、Node.js / Web 標準 API へ移行した各モジュールの堅牢性を保証するテストを永続配備しています。
 
 ### 2.2 クライアント純粋ロジック単体テスト (`test/client/`)
 UI コンポーネントに結合させるとテストが重厚化・不安定化しやすい複雑な計算・判定ロジックは、`client/src/lib/utils/` に純粋関数として集約し、Vitest で直接・網羅的に境界値テストを実施します。

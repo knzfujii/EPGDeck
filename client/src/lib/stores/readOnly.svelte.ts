@@ -1,7 +1,7 @@
 import api from '../apiClient';
 import type * as apid from '../../../../api';
-
-const TOKEN_KEY = 'epgdeck_auth_token';
+import { getAuthToken, setAuthToken, removeAuthToken } from '../authStorage';
+import { configStore } from './config.svelte';
 
 class ReadOnlyStore {
     enabled = $state(false);
@@ -67,19 +67,16 @@ class ReadOnlyStore {
     }
 
     constructor() {
-        if (typeof window !== 'undefined') {
-            this.token = localStorage.getItem(TOKEN_KEY);
-        }
+        this.token = getAuthToken();
     }
 
     async init() {
         if (typeof window === 'undefined') return;
 
         try {
-            // サーバーのコンフィグ取得
-            const res = await api.config.$get();
-            if (res.ok) {
-                const configData = (await res.json()) as unknown as apid.Config;
+            // サーバーのコンフィグ取得（キャッシュ有効）
+            const configData = await configStore.fetch();
+            if (configData) {
                 this.serverConfig = configData;
                 if (configData.readOnly && configData.readOnly.enabled) {
                     this.enabled = true;
@@ -90,7 +87,7 @@ class ReadOnlyStore {
                         try {
                             const statusRes = await api.auth.status.$get();
                             if (statusRes.ok) {
-                                const statusData = (await statusRes.json()) as any;
+                                const statusData = await statusRes.json();
                                 if (statusData.isUnlocked) {
                                     this.unlocked = true;
                                 } else {
@@ -129,16 +126,12 @@ class ReadOnlyStore {
             json: { password },
         });
         if (res.ok) {
-            const data = (await res.json()) as any;
-            if (data && data.token) {
+            const data = await res.json();
+            if ('token' in data && data.token) {
                 this.token = data.token;
                 this.unlocked = true;
                 this.isModalOpen = false;
-                try {
-                    localStorage.setItem(TOKEN_KEY, data.token);
-                } catch (e) {
-                    // ignore
-                }
+                setAuthToken(data.token);
             }
         }
     }
@@ -155,13 +148,7 @@ class ReadOnlyStore {
     private clearToken() {
         this.token = null;
         this.unlocked = false;
-        if (typeof window !== 'undefined') {
-            try {
-                localStorage.removeItem(TOKEN_KEY);
-            } catch (e) {
-                // ignore
-            }
-        }
+        removeAuthToken();
     }
 }
 

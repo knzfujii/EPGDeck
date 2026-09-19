@@ -25,7 +25,7 @@
         try {
             const res = await api.encode.$get({ query: { isHalfWidth: true } });
             if (res.ok) {
-                const data = (await res.json()) as any;
+                const data = await res.json();
                 running = data.runningItems || [];
                 waitList = data.waitItems || [];
             }

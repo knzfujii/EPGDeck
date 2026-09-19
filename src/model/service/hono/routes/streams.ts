@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import IStreamApiModel from '../../../api/stream/IStreamApiModel.js';
 import container from '../../../ModelContainer.js';
+import { ApiError } from '../../../error/ApiError.js';
 import * as api from '../HonoApiUtil.js';
 import {
     getStreamsQuerySchema,
@@ -136,48 +137,28 @@ const app = new Hono()
     .get('/', zValidator('query', getStreamsQuerySchema), async c => {
         const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
         const { isHalfWidth = true } = c.req.valid('query');
-
-        try {
-            const infos = await streamApiModel.getStreamInfos(isHalfWidth);
-            return api.responseJSON(c, 200, infos);
-        } catch (err: any) {
-            return api.responseServerError(c, err.message);
-        }
+        const infos = await streamApiModel.getStreamInfos(isHalfWidth);
+        return c.json(infos);
     })
     // DELETE /api/streams
     .delete('/', async c => {
         const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
-
-        try {
-            await streamApiModel.stopAll();
-            return api.responseJSON(c, 200, { code: 200 });
-        } catch (err: any) {
-            return api.responseServerError(c, err.message);
-        }
+        await streamApiModel.stopAll();
+        return c.json({ code: 200 });
     })
     // DELETE /api/streams/:streamId
     .delete('/:streamId', zValidator('param', streamIdParamSchema), async c => {
         const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
         const { streamId } = c.req.valid('param');
-
-        try {
-            await streamApiModel.stop(streamId);
-            return api.responseJSON(c, 200, { code: 200 });
-        } catch (err: any) {
-            return api.responseServerError(c, err.message);
-        }
+        await streamApiModel.stop(streamId);
+        return c.json({ code: 200 });
     })
     // PUT /api/streams/:streamId/keep
     .put('/:streamId/keep', zValidator('param', streamIdParamSchema), async c => {
         const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
         const { streamId } = c.req.valid('param');
-
-        try {
-            await streamApiModel.keep(streamId);
-            return api.responseJSON(c, 200, { code: 200 });
-        } catch (err: any) {
-            return api.responseServerError(c, err.message);
-        }
+        await streamApiModel.keep(streamId);
+        return c.json({ code: 200 });
     })
     // GET /api/streams/live/:channelId/hls
     .get(
@@ -191,16 +172,12 @@ const app = new Hono()
 
             try {
                 const streamId = await streamApiModel.startLiveHLSStream({ channelId, mode });
-                return api.responseJSON(c, 200, { streamId });
+                return c.json({ streamId });
             } catch (err: any) {
                 if (isTunerUnavailable(err)) {
-                    return api.responseError(c, {
-                        code: 503,
-                        message: 'Tuner Resource Unavailable',
-                        errors: err.message,
-                    });
+                    throw new ApiError(503, 'Tuner Resource Unavailable');
                 }
-                return api.responseServerError(c, err.message);
+                throw err;
             }
         },
     )
@@ -297,12 +274,8 @@ const app = new Hono()
             const { videoFileId } = c.req.valid('param');
             const { mode = 0, ss: playPosition = 0 } = c.req.valid('query');
 
-            try {
-                const streamId = await streamApiModel.startRecordedHLSStream({ videoFileId, playPosition, mode });
-                return api.responseJSON(c, 200, { streamId });
-            } catch (err: any) {
-                return api.responseServerError(c, err.message);
-            }
+            const streamId = await streamApiModel.startRecordedHLSStream({ videoFileId, playPosition, mode });
+            return c.json({ streamId });
         },
     )
     // GET /api/streams/recorded/:videoFileId/mp4

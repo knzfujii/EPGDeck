@@ -5,6 +5,8 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { configStore } from '../lib/stores/config.svelte';
+    import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
     import { getChannelTypeBadgeClass, getGenreBadgeClass } from '../lib/utils/format';
     import {
@@ -373,26 +375,17 @@
 
     async function initOptions() {
         try {
-            await channelStore.fetch();
-            const [storageRes, configRes] = await Promise.all([
-                api.storages
-                    .$get()
-                    .then(async r => (r.ok ? await r.json() : { items: [] }))
-                    .catch(() => ({ items: [] })),
-                api.config
-                    .$get()
-                    .then(async r => (r.ok ? ((await r.json()) as any) : ({} as any)))
-                    .catch(() => ({}) as any),
-            ]);
+            await Promise.all([channelStore.fetch(), configStore.fetch()]);
+            const storageRes = await api.storages
+                .$get()
+                .then(async r => (r.ok ? await r.json() : { items: [] }))
+                .catch(() => ({ items: [] }));
 
-            const items = (storageRes as any).items || [];
-            storageDirs = items.map((i: any) => i.name);
-            const encList = (configRes as any).encode || [];
-            encodeModes = encList.map((e: any) => (typeof e === 'string' ? e : e.name));
-            return configRes;
+            const items = storageRes.items || [];
+            storageDirs = items.map(i => i.name);
+            encodeModes = configStore.encodeModeNames;
         } catch (e) {
             console.error('Failed to load options', e);
-            return null;
         }
     }
 
@@ -526,8 +519,8 @@
             const res = await api.reserves.$get({ query: { limit: 1000, isHalfWidth: true } });
             if (res.ok) {
                 const data = await res.json();
-                const map = new Map<number, any>();
-                for (const r of (data as any).reserves || []) {
+                const map = new Map<number, apid.ReserveItem>();
+                for (const r of data.reserves || []) {
                     if (r.programId) {
                         map.set(r.programId, r);
                     }
@@ -551,7 +544,7 @@
             router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded');
             return;
         }
-        const serverConfig = await initOptions();
+        await initOptions();
 
         const idParam = router.current.query['ruleId'];
         if (idParam) {
@@ -574,7 +567,7 @@
             const q = router.current.query;
             if (q['keyword']) {
                 keyword = q['keyword'];
-                if ((serverConfig as any)?.copyKeywordToDirectory) {
+                if (configStore.copyKeywordToDirectory) {
                     directory = q['keyword'].trim();
                 }
                 isName = q['name'] !== '0';
@@ -713,7 +706,7 @@
                             option: searchOpt,
                             isHalfWidth: true,
                             limit: 100,
-                        } as any,
+                        },
                     })
                     .then(async r => (r.ok ? await r.json() : [])),
                 api.reserves
@@ -722,10 +715,10 @@
                     .catch(() => ({ reserves: [] })),
             ]);
 
-            previewPrograms = (searchRes as any[]) || [];
+            previewPrograms = searchRes || [];
 
-            const map = new Map<number, any>();
-            for (const r of (reservesRes as any).reserves || []) {
+            const map = new Map<number, apid.ReserveItem>();
+            for (const r of (reservesRes.reserves as apid.ReserveItem[]) || []) {
                 if (r.programId) {
                     map.set(r.programId, r);
                 }
@@ -774,7 +767,7 @@
         }
         isSaving = true;
         try {
-            const payload: any = {
+            const payload: apid.AddRuleOption = {
                 isTimeSpecification: false,
                 searchOption: buildSearchOptionPayload(),
                 reserveOption: {
@@ -808,12 +801,12 @@
             if (ruleId) {
                 await api.rules[':ruleId'].$put({
                     param: { ruleId: String(ruleId) },
-                    json: payload as any,
+                    json: payload,
                 });
                 snackbar.open({ text: `ルール「${keyword}」を更新しました`, color: 'success' });
             } else {
                 await api.rules.$post({
-                    json: payload as any,
+                    json: payload,
                 });
                 snackbar.open({ text: `新規ルール「${keyword}」を作成しました`, color: 'success' });
             }

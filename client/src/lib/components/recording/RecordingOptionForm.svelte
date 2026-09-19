@@ -1,8 +1,9 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import api from '@/lib/apiClient';
     import { SlidersHorizontal, Plus, Trash2 } from '@lucide/svelte';
     import type { EncodeRow } from '@/lib/utils/recordingOptions';
+
+    import { configStore } from '@/lib/stores/config.svelte';
 
     let {
         saveParentDir = $bindable(''),
@@ -24,28 +25,12 @@
         storageDirs?: string[];
     } = $props();
 
-    let internalEncodeModes = $state<string[]>([]);
-    let internalStorageDirs = $state<string[]>([]);
+    let effectiveEncodeModes = $derived(propEncodeModes ?? configStore.encodeModeNames);
+    let effectiveStorageDirs = $derived(propStorageDirs ?? configStore.recordedDirs);
 
-    let effectiveEncodeModes = $derived(propEncodeModes ?? internalEncodeModes);
-    let effectiveStorageDirs = $derived(propStorageDirs ?? internalStorageDirs);
-
-    onMount(async () => {
+    onMount(() => {
         if (!propEncodeModes || !propStorageDirs) {
-            try {
-                const res = await api.config.$get();
-                if (res.ok) {
-                    const data = (await res.json()) as any;
-                    if (!propEncodeModes) {
-                        internalEncodeModes = data.encode || [];
-                    }
-                    if (!propStorageDirs) {
-                        internalStorageDirs = data.recorded || [];
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to fetch config in RecordingOptionForm', e);
-            }
+            void configStore.fetch();
         }
     });
 

@@ -18,6 +18,7 @@
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { configStore } from '../lib/stores/config.svelte';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -97,26 +98,26 @@
             const [recordsRes, ruleRes] = await Promise.allSettled([
                 api.recorded.$get({
                     query: {
-                        ruleId: ruleId as any,
-                        limit: 24 as any,
-                        isHalfWidth: true as any,
+                        ruleId,
+                        limit: 24,
+                        isHalfWidth: true,
                     },
                 }),
                 api.rules[':ruleId'].$get({
                     param: { ruleId: String(ruleId) },
-                    query: { isHalfWidth: true as any },
+                    query: { isHalfWidth: true },
                 }),
             ]);
 
             if (recordsRes.status === 'fulfilled' && recordsRes.value.ok) {
                 const data = await recordsRes.value.json();
-                sameRuleRecords = (data as any).records || [];
-                sameRuleTotal = (data as any).total || 0;
+                sameRuleRecords = data.records || [];
+                sameRuleTotal = data.total || 0;
             }
 
             if (ruleRes.status === 'fulfilled' && ruleRes.value.ok) {
-                const ruleData = (await ruleRes.value.json()) as any;
-                ruleKeyword = ruleData.searchOption?.keyword || ruleData.reserveOption?.name || '';
+                const ruleData = await ruleRes.value.json();
+                ruleKeyword = ruleData.searchOption?.keyword || '';
             }
             currentFetchedRuleId = ruleId;
         } catch (e) {
@@ -159,11 +160,10 @@
                 currentFetchedRuleId = null;
             }
 
-            api.config
-                .$get()
-                .then(async configRes => {
-                    if (!configRes.ok) return;
-                    const configData = (await configRes.json()) as any;
+            configStore
+                .fetch()
+                .then(configData => {
+                    if (!configData) return;
                     const encList = configData?.encode || [];
                     encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
                     recordedDirs = configData?.recorded || [];
@@ -404,7 +404,7 @@
                     }
                 }
                 const res = await api.encode.$post({
-                    json: body as any,
+                    json: body,
                 });
                 if (!res.ok) throw new Error(`Status ${res.status}`);
             }

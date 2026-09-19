@@ -91,12 +91,12 @@
             }
             try {
                 // 1. API での isEnable チェック
-                const infoRes = await api.streams.$get({ query: { isHalfWidth: true as any } });
+                const infoRes = await api.streams.$get({ query: { isHalfWidth: true } });
                 if (infoRes.ok) {
-                    const infoData = (await infoRes.json()) as any;
+                    const infoData = await infoRes.json();
                     const items = infoData?.items || [];
-                    const stream = items.find((item: any) => Number(item.streamId) === Number(id));
-                    const isReady = stream?.info?.isEnable ?? stream?.isEnable;
+                    const stream = items.find(item => Number(item.streamId) === Number(id));
+                    const isReady = stream?.isEnable;
                     if (isReady === true) {
                         return true;
                     }
@@ -153,7 +153,7 @@
         const recordedId = query.recordedId ? parseInt(query.recordedId, 10) : null;
         const videoId = query.videoId ? parseInt(query.videoId, 10) : null;
         const videoFileId = query.videoFileId ? parseInt(query.videoFileId, 10) : null;
-        const reqType = (query.type as any) || 'm2tsll';
+        const reqType = (query.type as string) || 'm2tsll';
         const mode = query.mode ? parseInt(query.mode, 10) : 0;
 
         await channelStore.fetch();
@@ -165,10 +165,10 @@
 
             // 現在の放送中番組情報を取得
             try {
-                const onAirRes = await api.schedules.broadcasting.$get({ query: { isHalfWidth: true as any } });
+                const onAirRes = await api.schedules.broadcasting.$get({ query: { isHalfWidth: true } });
                 if (onAirRes.ok) {
                     const data = await onAirRes.json();
-                    const channelSchedule = ((data as any) || []).find((s: any) => s.channel?.id === channelId);
+                    const channelSchedule = (data || []).find(s => s.channel?.id === channelId);
                     if (channelSchedule?.programs?.[0]) {
                         const prog = channelSchedule.programs[0];
                         programTitle = prog.name;
@@ -206,7 +206,7 @@
                     await startHlsStream(async () => {
                         const res = await api.streams.live[':channelId'].hls.$get({
                             param: { channelId: String(channelId) },
-                            query: { mode: mode as any },
+                            query: { mode },
                         });
                         if (!res.ok) {
                             const err: any = new Error(`Failed to start live stream: ${res.status}`);
@@ -214,7 +214,7 @@
                             throw err;
                         }
                         const data = await res.json();
-                        return Number((data as any).streamId);
+                        return Number(data.streamId);
                     }, 'チューナーを確保してライブ配信を生成中...');
                 } catch (e: any) {
                     console.error('Failed to start live stream', e);
@@ -238,10 +238,10 @@
             try {
                 const recRes = await api.recorded[':recordedId'].$get({
                     param: { recordedId: String(recordedId) },
-                    query: { isHalfWidth: true as any },
+                    query: { isHalfWidth: true },
                 });
                 if (!recRes.ok) throw new Error('Recorded data not found');
-                recordedData = (await recRes.json()) as apid.RecordedItem;
+                recordedData = await recRes.json();
                 programTitle = recordedData.name;
                 channelName = channelStore.getChannelName(recordedData.channelId);
                 description = recordedData.description || '';
@@ -281,11 +281,11 @@
                         await startHlsStream(async () => {
                             const res = await api.streams.recorded[':videoFileId'].hls.$get({
                                 param: { videoFileId: String(requestedStreamFile.id) },
-                                query: { mode: mode as any, ss: 0 as any },
+                                query: { mode, ss: 0 },
                             });
                             if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
                             const data = await res.json();
-                            return Number((data as any).streamId);
+                            return Number(data.streamId);
                         }, 'トランスコード配信を生成中...');
                     }
                 } else if (recordedData.videoFiles?.[0]) {
@@ -300,11 +300,11 @@
                         await startHlsStream(async () => {
                             const res = await api.streams.recorded[':videoFileId'].hls.$get({
                                 param: { videoFileId: String(firstFile.id) },
-                                query: { mode: 0 as any, ss: 0 as any },
+                                query: { mode: 0, ss: 0 },
                             });
                             if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
                             const data = await res.json();
-                            return Number((data as any).streamId);
+                            return Number(data.streamId);
                         }, 'トランスコード配信を生成中...');
                     } else {
                         statusText = '閲覧専用モードのため、トランスコード配信は制限されています。';
@@ -379,11 +379,11 @@
                         async () => {
                             const res = await api.streams.recorded[':videoFileId'].hls.$get({
                                 param: { videoFileId: String(targetFile.id) },
-                                query: { mode: currentStreamMode as any, ss: currentTarget as any },
+                                query: { mode: currentStreamMode, ss: currentTarget },
                             });
                             if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
                             const data = await res.json();
-                            return Number((data as any).streamId);
+                            return Number(data.streamId);
                         },
                         `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`,
                     );

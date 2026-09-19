@@ -5,6 +5,7 @@
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { configStore } from '../lib/stores/config.svelte';
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
     import { extractFirstSearchWord, getChannelTypeBadgeClass } from '../lib/utils/format';
@@ -51,7 +52,7 @@
         MAX_DAYS_AHEAD,
     } from '../lib/utils/guide';
 
-    let schedules = $state<any[]>([]);
+    let schedules = $state<apid.Schedule[]>([]);
     let isLoading = $state(true);
     let selectedDate = $state(getBaseDate());
     let selectedType = $state<'all' | 'GR' | 'BS' | 'CS' | 'SKY'>('all');
@@ -153,7 +154,7 @@
 
     let channelTypes = $derived.by(() => {
         const active = new Set(channelStore.activeChannelTypes);
-        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as any));
+        return ALL_CHANNEL_TYPES.filter(t => t.id === 'all' || active.has(t.id as apid.ChannelType));
     });
 
     $effect(() => {
@@ -276,8 +277,11 @@
                     .catch(() => ({ records: [] })),
             ]);
 
-            schedules = (scheduleRes as any[]) || [];
-            reservesMap = createReservesMap((reservesRes as any).reserves || [], recordingRes.records || []);
+            schedules = scheduleRes || [];
+            reservesMap = createReservesMap(
+                (reservesRes.reserves as apid.ReserveItem[]) || [],
+                recordingRes.records || [],
+            );
 
             updateCurrentTimeLine();
         } catch (e) {
@@ -316,7 +320,10 @@
                     .catch(() => ({ records: [] })),
             ]);
 
-            reservesMap = createReservesMap((reservesRes as any).reserves || [], recordingRes.records || []);
+            reservesMap = createReservesMap(
+                (reservesRes.reserves as apid.ReserveItem[]) || [],
+                recordingRes.records || [],
+            );
         } catch (e) {
             console.error('Failed to refresh reserves map', e);
         }
@@ -341,14 +348,11 @@
     onMount(() => {
         fetchGuide(true);
         // エンコードプリセット名と保存先ディレクトリ名を取得
-        api.config
-            .$get()
-            .then(async res => {
-                if (res.ok) {
-                    const data = (await res.json()) as any;
-                    encodeModes = data.encode || [];
-                    storageDirs = data.recorded || [];
-                }
+        configStore
+            .fetch()
+            .then(() => {
+                encodeModes = configStore.encodeModeNames;
+                storageDirs = configStore.recordedDirs;
             })
             .catch(e => console.error('Failed to fetch config', e));
         const timer = setInterval(updateCurrentTimeLine, 30000);
@@ -413,7 +417,7 @@
     }
 
     // 予約追加
-    async function addReserve(program: any) {
+    async function addReserve(program: apid.ScheduleProgramItem) {
         if (!program || isReserving) return;
         isReserving = true;
         try {
@@ -424,7 +428,7 @@
                     allowEndLack: allowEndLack,
                     saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
                     encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
-                } as any,
+                },
             });
             snackbar.open({ text: `「${program.name}」を録画予約しました`, color: 'success' });
             await refreshReservesMap();
@@ -442,7 +446,7 @@
     }
 
     // 予約設定の更新
-    async function updateReserve(reserveId: number, program: any) {
+    async function updateReserve(reserveId: number, program: apid.ScheduleProgramItem) {
         if (!reserveId || isReserving) return;
         isReserving = true;
         try {
@@ -452,7 +456,7 @@
                     allowEndLack: allowEndLack,
                     saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
                     encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
-                } as any,
+                },
             });
             snackbar.open({ text: `「${program.name}」の予約設定を更新しました`, color: 'success' });
             await refreshReservesMap();
@@ -686,7 +690,7 @@
                     <button
                         type="button"
                         onclick={() => {
-                            selectedType = type.id as any;
+                            selectedType = type.id;
                             fetchGuide(true);
                         }}
                         class="rounded-lg px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer {selectedType ===

@@ -6,6 +6,7 @@
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { configStore } from '../lib/stores/config.svelte';
     import {
         formatDate,
         formatTime,
@@ -93,7 +94,7 @@
                     allowEndLack,
                     saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
                     encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
-                } as any,
+                },
             });
             snackbar.open({ text: `「${item.name}」の予約設定を更新しました`, color: 'success' });
             fetchReserves();
@@ -176,14 +177,11 @@
         fetchReserves();
 
         // エンコードプリセット名と保存先ディレクトリ名を取得
-        api.config
-            .$get()
-            .then(async res => {
-                if (res.ok) {
-                    const data = (await res.json()) as any;
-                    encodeModes = (data.encode as string[]) || [];
-                    storageDirs = (data.recorded as string[]) || [];
-                }
+        configStore
+            .fetch()
+            .then(() => {
+                encodeModes = configStore.encodeModeNames;
+                storageDirs = configStore.recordedDirs;
             })
             .catch(e => console.error('Failed to fetch config', e));
 

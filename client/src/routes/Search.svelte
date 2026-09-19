@@ -90,11 +90,11 @@
 
     async function fetchExistingReserves() {
         try {
-            const res = await api.reserves.$get({ query: { isHalfWidth: true as any, limit: 1000 as any } });
+            const res = await api.reserves.$get({ query: { isHalfWidth: true, limit: 1000 } });
             if (res.ok) {
                 const data = await res.json();
                 const ids = new Set<number>();
-                for (const r of (data as any).reserves || []) {
+                for (const r of data.reserves || []) {
                     if (r.programId) ids.add(r.programId);
                 }
                 reservedProgramIds = ids;
@@ -131,10 +131,10 @@
                     },
                     isHalfWidth: true,
                     limit: 100,
-                } as any,
+                },
             });
             if (res.ok) {
-                searchResults = ((await res.json()) as any) || [];
+                searchResults = (await res.json()) || [];
             }
         } catch (e) {
             console.error('Search error', e);
@@ -151,10 +151,10 @@
             const res = await api.reserves.$post({
                 json: {
                     programId: program.id,
-                } as any,
+                },
             });
             if (!res.ok) {
-                const errData = (await res.json().catch(() => ({}))) as any;
+                const errData = (await res.json().catch(() => ({}))) as { message?: string };
                 throw new Error(errData?.message || '予約の登録に失敗しました');
             }
             const nextSet = new Set(reservedProgramIds);

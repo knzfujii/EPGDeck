@@ -90,7 +90,7 @@
                     },
                     saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
                     encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
-                } as any,
+                },
             });
             snackbar.open({ text: '時間指定予約を作成しました', color: 'success' });
             router.push('/reserves');

@@ -156,7 +156,7 @@ EPGDeck の API ルーティングは、[Zod](https://zod.dev/) と `@hono/zod-v
 
 ### 特徴
 - **完全なエンドツーエンドの型補完**: URL 文字列のハードコードや `any` キャストが不要となり、パスパラメータ・クエリパラメータ・リクエストボディ・レスポンス JSON の型が TypeScript 上で完全に推論されます。
-- **認証トークンの自動透過注入**: `httpClient.ts` の認証機構（`localStorage` の Bearer トークン）と透過的に統合され、リードオンリーモードのロック解除時にも自動で `Authorization` ヘッダーが付与されます。
+- **認証トークンの自動透過注入**: 独立モジュール `authStorage.ts`（`localStorage` の Bearer トークン）と透過的に統合され、リードオンリーモードのロック解除時にも自動で `Authorization` ヘッダーが付与されます。
 
 ### 使用例
 ```typescript

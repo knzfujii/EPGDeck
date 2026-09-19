@@ -541,7 +541,8 @@
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR: {
-                                const statusCode = data.response?.code || (data.response as any)?.status;
+                                const response = data.response as { code?: number; status?: number } | undefined;
+                                const statusCode = response?.code || response?.status;
                                 if (statusCode === 503) {
                                     errorMessage =
                                         '利用可能なチューナーがありません（現在すべてのチューナーが録画等で使用されています）';

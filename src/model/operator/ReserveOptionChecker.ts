@@ -122,7 +122,7 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
                     // id 指定予約
                     if ((0 <= time.start && time.start <= 23) === false) {
                         return false;
-                    } else if ((1 <= time.range && time.range <= 23) === false) {
+                    } else if ((1 <= time.range && time.range <= 48) === false) {
                         return false;
                     }
                 }
@@ -154,28 +154,19 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
      * @return boolean 問題なければ true を返す
      */
     private checkKeywordOption(keyword: string | undefined, option: KeywordOption): boolean {
-        if (typeof keyword !== 'undefined') {
-            if (
-                option.cs === false &&
-                option.regExp === false &&
-                option.name === false &&
-                option.description === false &&
-                option.extended === false
-            ) {
+        const hasKeyword = typeof keyword === 'string' && keyword.trim().length > 0;
+        if (hasKeyword) {
+            if (option.name === false && option.description === false && option.extended === false) {
                 return false;
-            } else {
-                if (option.name === false && option.description === false && option.extended === false) {
+            }
+
+            if (option.regExp === true) {
+                try {
+                    new RegExp(keyword!);
+                } catch (e) {
                     return false;
                 }
             }
-        } else if (
-            option.cs === true ||
-            option.regExp === true ||
-            option.name === true ||
-            option.description === true ||
-            option.extended === true
-        ) {
-            return false;
         }
 
         return true;

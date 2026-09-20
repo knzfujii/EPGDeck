@@ -616,11 +616,12 @@
 
     function buildSearchOptionPayload() {
         const trimmedKeyword = keyword.trim();
+        const hasChannelIds = selectedChannelIds.length > 0;
         const opt: any = {
-            GR: isGR,
-            BS: isBS,
-            CS: isCS,
-            SKY: isSKY,
+            GR: hasChannelIds ? false : isGR,
+            BS: hasChannelIds ? false : isBS,
+            CS: hasChannelIds ? false : isCS,
+            SKY: hasChannelIds ? false : isSKY,
             isFree,
         };
 
@@ -798,17 +799,18 @@
                 });
             }
 
+            const ruleName = keyword.trim() || '(全番組)';
             if (ruleId) {
                 await api.rules[':ruleId'].$put({
                     param: { ruleId: String(ruleId) },
                     json: payload,
                 });
-                snackbar.open({ text: `ルール「${keyword}」を更新しました`, color: 'success' });
+                snackbar.open({ text: `ルール「${ruleName}」を更新しました`, color: 'success' });
             } else {
                 await api.rules.$post({
                     json: payload,
                 });
-                snackbar.open({ text: `新規ルール「${keyword}」を作成しました`, color: 'success' });
+                snackbar.open({ text: `新規ルール「${ruleName}」を作成しました`, color: 'success' });
             }
 
             router.push('/rule');
@@ -1066,7 +1068,7 @@
                                         class="form-select text-xs sm:text-sm"
                                     >
                                         <option value={null}>指定なし (終日)</option>
-                                        {#each Array.from({ length: 24 }, (_, i) => i + 1) as r}
+                                        {#each Array.from({ length: 48 }, (_, i) => i + 1) as r}
                                             <option value={r}>{r} 時間</option>
                                         {/each}
                                     </select>

@@ -11,6 +11,7 @@ import RuleDB from '../../src/model/db/RuleDB.js';
 import ChannelDB from '../../src/model/db/ChannelDB.js';
 import IDrizzleOperator from '../../src/model/db/IDrizzleOperator.js';
 import IPromiseRetry from '../../src/model/IPromiseRetry.js';
+import * as apid from '../../api.js';
 
 describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
     let client: ReturnType<typeof createClient>;
@@ -538,6 +539,33 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             ]);
             expect(advRule?.reserveOption.periodToAvoidDuplicate).toBe(90);
             expect(advRule?.saveOption?.recordedFormat).toBe('%YEAR%-%MONTH%-%DAY%_%TITLE%');
+        });
+
+        it('should correctly insert and retrieve a rule without keyword', async () => {
+            const noKeywordRuleOption: apid.AddRuleOption = {
+                isTimeSpecification: false,
+                searchOption: {
+                    GR: true,
+                    BS: false,
+                    CS: false,
+                    SKY: false,
+                    isFree: false,
+                    genres: [{ genre: 7 }],
+                },
+                reserveOption: {
+                    enable: true,
+                    avoidDuplicate: false,
+                    allowEndLack: true,
+                },
+            };
+
+            const ruleId = await ruleDB.insertOnce(noKeywordRuleOption);
+            expect(ruleId).toBeGreaterThan(0);
+
+            const fetched = await ruleDB.findId(ruleId, false);
+            expect(fetched).not.toBeNull();
+            expect(fetched?.searchOption.keyword).toBeUndefined();
+            expect(fetched?.searchOption.genres).toEqual([{ genre: 7 }]);
         });
     });
 });

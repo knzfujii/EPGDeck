@@ -39,6 +39,8 @@ export default class RuleManageModel implements IRuleManageModel {
 
         this.log.system.info('add rule');
 
+        this.sanitizeRule(rule);
+
         // check option
         if (this.optionChecker.checkRuleOption(rule) === false) {
             this.unlockExecution();
@@ -84,6 +86,8 @@ export default class RuleManageModel implements IRuleManageModel {
         }
 
         this.log.system.info(`update rule: ${rule.id}`);
+
+        this.sanitizeRule(rule);
 
         // check option
         if (this.optionChecker.checkRuleOption(rule) === false) {
@@ -219,5 +223,29 @@ export default class RuleManageModel implements IRuleManageModel {
     private unlockExecution(): void {
         this.isRunning = false;
         clearTimeout(<any>this.lockTimer);
+    }
+
+    /**
+     * searchOption の keyword / ignoreKeyword を正規化
+     */
+    private sanitizeRule(rule: apid.AddRuleOption | apid.Rule): void {
+        if (rule.searchOption) {
+            if (typeof rule.searchOption.keyword === 'string') {
+                const trimmed = rule.searchOption.keyword.trim();
+                if (trimmed.length === 0) {
+                    delete rule.searchOption.keyword;
+                } else {
+                    rule.searchOption.keyword = trimmed;
+                }
+            }
+            if (typeof rule.searchOption.ignoreKeyword === 'string') {
+                const trimmed = rule.searchOption.ignoreKeyword.trim();
+                if (trimmed.length === 0) {
+                    delete rule.searchOption.ignoreKeyword;
+                } else {
+                    rule.searchOption.ignoreKeyword = trimmed;
+                }
+            }
+        }
     }
 }

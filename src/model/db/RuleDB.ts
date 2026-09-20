@@ -249,18 +249,22 @@ export default class RuleDB implements IRuleDB {
     }
 
     private convertRuleToDBRow(rule: RuleWithCnt | apid.Rule | apid.AddRuleOption): any {
+        const keyword =
+            typeof rule.searchOption.keyword === 'string' && rule.searchOption.keyword.trim().length > 0
+                ? rule.searchOption.keyword.trim()
+                : null;
+        const ignoreKeyword =
+            typeof rule.searchOption.ignoreKeyword === 'string' && rule.searchOption.ignoreKeyword.trim().length > 0
+                ? rule.searchOption.ignoreKeyword.trim()
+                : null;
+
         const converted: any = {
             updateCnt: typeof (rule as any).updateCnt === 'number' ? (rule as any).updateCnt : 0,
             isTimeSpecification: rule.isTimeSpecification,
-            keyword: typeof rule.searchOption.keyword === 'undefined' ? null : rule.searchOption.keyword,
-            halfWidthKeyword:
-                typeof rule.searchOption.keyword === 'undefined' ? null : StrUtil.toHalf(rule.searchOption.keyword),
-            ignoreKeyword:
-                typeof rule.searchOption.ignoreKeyword === 'undefined' ? null : rule.searchOption.ignoreKeyword,
-            halfWidthIgnoreKeyword:
-                typeof rule.searchOption.ignoreKeyword === 'undefined'
-                    ? null
-                    : StrUtil.toHalf(rule.searchOption.ignoreKeyword),
+            keyword: keyword,
+            halfWidthKeyword: keyword === null ? null : StrUtil.toHalf(keyword),
+            ignoreKeyword: ignoreKeyword,
+            halfWidthIgnoreKeyword: ignoreKeyword === null ? null : StrUtil.toHalf(ignoreKeyword),
             keyCS: !!rule.searchOption.keyCS,
             keyRegExp: !!rule.searchOption.keyRegExp,
             name: !!rule.searchOption.name,

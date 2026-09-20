@@ -179,12 +179,13 @@
     });
 
     function openCreateRuleModal() {
-        if (!keyword.trim()) return;
-        const params = new URLSearchParams({
-            keyword: keyword.trim(),
-            name: isName ? '1' : '0',
-            description: isDescription ? '1' : '0',
-        });
+        if (!keyword.trim() && selectedGenre === null) return;
+        const params = new URLSearchParams();
+        if (keyword.trim()) {
+            params.set('keyword', keyword.trim());
+            params.set('name', isName ? '1' : '0');
+            params.set('description', isDescription ? '1' : '0');
+        }
         if (selectedGenre !== null) params.set('genre', String(selectedGenre));
         router.push(`/rule/edit?${params.toString()}`);
     }
@@ -285,7 +286,7 @@
                         </div>
                     </div>
 
-                    {#if keyword.trim() && !readOnlyStore.isReadOnly}
+                    {#if (keyword.trim() || selectedGenre !== null) && !readOnlyStore.isReadOnly}
                         <button
                             type="button"
                             onclick={openCreateRuleModal}
@@ -411,7 +412,7 @@
                         onclick={openCreateRuleModal}
                         class="btn-primary mt-4 flex items-center gap-1.5 h-10 px-4 text-xs font-bold cursor-pointer"
                     >
-                        <Plus size={16} /> このキーワードで自動録画ルールを作成
+                        <Plus size={16} /> この条件で自動録画ルールを作成
                     </button>
                 {/if}
             </div>

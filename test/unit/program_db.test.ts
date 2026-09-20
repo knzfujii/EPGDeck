@@ -433,4 +433,72 @@ describe('ProgramDB findRule Tests', () => {
         });
         expect(resultsExact.length).toBeGreaterThanOrEqual(2);
     });
+
+    it('handles RegExp keyword and ignoreKeyword search properly', async () => {
+        // 正規表現キーワード検索 (日曜ニュース7 と 月曜ドラマ にマッチ)
+        const regExpMatches = await programDB.findRule({
+            searchOption: {
+                keyword: '(ニュース|ドラマ)',
+                keyRegExp: true,
+                name: true,
+            },
+        });
+        expect(regExpMatches.length).toBe(2);
+
+        // 先頭一致正規表現
+        const startsWithMatches = await programDB.findRule({
+            searchOption: {
+                keyword: '^日曜',
+                keyRegExp: true,
+                name: true,
+            },
+        });
+        expect(startsWithMatches.length).toBe(1);
+        expect(startsWithMatches[0].name).toBe('日曜ニュース7');
+
+        // マッチしない正規表現
+        const regExpNoMatch = await programDB.findRule({
+            searchOption: {
+                keyword: '^アニメ[0-9]+$',
+                keyRegExp: true,
+                name: true,
+            },
+        });
+        expect(regExpNoMatch).toHaveLength(0);
+
+        // 除外キーワード正規表現検索 (ignoreKeyRegExp)
+        // '(ニュース|ドラマ)' から 'ドラマ' を除外
+        const filteredByIgnoreRegExp = await programDB.findRule({
+            searchOption: {
+                keyword: '(ニュース|ドラマ)',
+                keyRegExp: true,
+                ignoreKeyword: '.*ドラマ.*',
+                ignoreKeyRegExp: true,
+                ignoreName: true,
+            },
+        });
+        expect(filteredByIgnoreRegExp.length).toBe(1);
+        expect(filteredByIgnoreRegExp[0].name).toBe('日曜ニュース7');
+
+        // 複数キーワードあいまい検索: 局名または番組名内でAND、全体でOR
+        const multiWordMatch = await programDB.findRule({
+            searchOption: {
+                keyword: '日曜 ニュース',
+                keyRegExp: false,
+                name: true,
+            },
+        });
+        expect(multiWordMatch.length).toBe(1);
+        expect(multiWordMatch[0].name).toBe('日曜ニュース7');
+
+        // 片方の単語しか含まない場合はマッチしない
+        const multiWordMismatch = await programDB.findRule({
+            searchOption: {
+                keyword: '日曜 ドラマ',
+                keyRegExp: false,
+                name: true,
+            },
+        });
+        expect(multiWordMismatch).toHaveLength(0);
+    });
 });

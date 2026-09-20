@@ -68,6 +68,7 @@
     let selectedGenreKeys = $state<string[]>([]);
     let isFree = $state(false);
     let isTimeSpecification = $state(false);
+    let existingTags = $state<number[] | undefined>(undefined);
     let durationMin = $state<number | null>(null);
     let durationMax = $state<number | null>(null);
 
@@ -417,6 +418,7 @@
 
     function loadRule(r: any) {
         isTimeSpecification = !!r.isTimeSpecification;
+        existingTags = r.reserveOption?.tags;
         const s = r.searchOption || {};
         keyword = s.keyword || '';
         ignoreKeyword = s.ignoreKeyword || '';
@@ -809,6 +811,10 @@
                 payload.reserveOption.periodToAvoidDuplicate = periodToAvoidDuplicate;
             }
 
+            if (existingTags && existingTags.length > 0) {
+                payload.reserveOption.tags = existingTags;
+            }
+
             // 保存先オプション
             if (parentDirectoryName || directory.trim() || recordedFormat.trim()) {
                 payload.saveOption = {};
@@ -981,6 +987,16 @@
                             <label class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap">
                                 <input type="checkbox" bind:checked={isIgnoreExtended} class="form-checkbox" />
                                 <span>詳細</span>
+                            </label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer select-none py-1 sm:ml-2 whitespace-nowrap"
+                            >
+                                <input type="checkbox" bind:checked={ignoreKeyRegExp} class="form-checkbox" />
+                                <span>正規表現</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap">
+                                <input type="checkbox" bind:checked={ignoreKeyCS} class="form-checkbox" />
+                                <span>大小区別</span>
                             </label>
                         </div>
                     </div>

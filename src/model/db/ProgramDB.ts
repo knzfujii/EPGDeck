@@ -163,66 +163,37 @@ export default class ProgramDB implements IProgramDB {
             const conditions: any[] = [gte(client.schema.programs.endAt, now)];
 
             // キーワード検索
-            if (typeof searchOption.keyword !== 'undefined') {
-                const keywords = StrUtil.toHalf(searchOption.keyword).split(/ /);
-                for (const kw of keywords) {
-                    if (kw.length > 0) {
-                        const kwPattern = `%${kw}%`;
-                        const kwOr: any[] = [];
-                        if (searchOption.name) {
-                            kwOr.push(sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`);
-                        }
-                        if (searchOption.description) {
-                            kwOr.push(
-                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
-                            );
-                        }
-                        if (searchOption.extended) {
-                            kwOr.push(sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`);
-                        }
-                        if (kwOr.length === 0) {
-                            kwOr.push(
-                                sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`,
-                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
-                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
-                            );
-                        }
-                        conditions.push(or(...kwOr));
-                    }
-                }
+            if (typeof searchOption.keyword === 'string' && searchOption.keyword.trim().length > 0) {
+                const cond = this.buildKeywordConditions(
+                    client,
+                    searchOption.keyword,
+                    {
+                        regexp: !!searchOption.keyRegExp,
+                        cs: !!searchOption.keyCS,
+                        name: !!searchOption.name,
+                        description: !!searchOption.description,
+                        extended: !!searchOption.extended,
+                    },
+                    false,
+                );
+                if (cond) conditions.push(cond);
             }
 
             // 除外キーワード検索
-            if (typeof searchOption.ignoreKeyword !== 'undefined') {
-                const ignoreKeywords = StrUtil.toHalf(searchOption.ignoreKeyword).split(/ /);
-                for (const kw of ignoreKeywords) {
-                    if (kw.length > 0) {
-                        const kwPattern = `%${kw}%`;
-                        const ignoreOr: any[] = [];
-                        if (searchOption.ignoreName) {
-                            ignoreOr.push(sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`);
-                        }
-                        if (searchOption.ignoreDescription) {
-                            ignoreOr.push(
-                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
-                            );
-                        }
-                        if (searchOption.ignoreExtended) {
-                            ignoreOr.push(
-                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
-                            );
-                        }
-                        if (ignoreOr.length === 0) {
-                            ignoreOr.push(
-                                sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${kwPattern}`,
-                                sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${kwPattern}`,
-                                sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${kwPattern}`,
-                            );
-                        }
-                        // NOT LIKE (COALESCE しているので NULL にならず確実に判定)
-                        conditions.push(sql`NOT (${or(...ignoreOr)})`);
-                    }
-                }
+            if (typeof searchOption.ignoreKeyword === 'string' && searchOption.ignoreKeyword.trim().length > 0) {
+                const cond = this.buildKeywordConditions(
+                    client,
+                    searchOption.ignoreKeyword,
+                    {
+                        regexp: !!searchOption.ignoreKeyRegExp,
+                        cs: !!searchOption.ignoreKeyCS,
+                        name: !!searchOption.ignoreName,
+                        description: !!searchOption.ignoreDescription,
+                        extended: !!searchOption.ignoreExtended,
+                    },
+                    true,
+                );
+                if (cond) conditions.push(cond);
             }
 
             // チャンネル指定
@@ -641,5 +612,105 @@ export default class ProgramDB implements IProgramDB {
             entity.extended = row.halfWidthExtended || row.extended;
         }
         return entity;
+    }
+
+    /**
+     * キーワード検索用の条件（Drizzle SQL式）を生成
+     * EPGStation v2 互換:
+     * - 正規表現 (regexp): 文字列全体を1つのパターンとして REGEXP 照合
+     * - あいまい検索: 半角変換後にスペース分割し、各フィールド内で全キーワード AND、複数フィールド間は OR
+     * - 大小区別 (cs): CAST(... AS BINARY) で照合
+     * - 除外 (isIgnore): NOT (条件) で反転
+     */
+    private buildKeywordConditions(
+        client: any,
+        rawKeyword: string,
+        options: {
+            regexp: boolean;
+            cs: boolean;
+            name: boolean;
+            description: boolean;
+            extended: boolean;
+        },
+        isIgnore: boolean,
+    ): any | null {
+        let { name, description, extended } = options;
+        if (!name && !description && !extended) {
+            name = true;
+            description = true;
+            extended = true;
+        }
+
+        // EPGStation 互換: SQLite は大小文字区別(CS)非対応のため、MySQL の場合のみ CS を有効化
+        const isCs = client.type === 'mysql' && options.cs;
+
+        const orBranches: any[] = [];
+
+        if (options.regexp) {
+            const pattern = rawKeyword.trim();
+            if (pattern.length === 0) return null;
+
+            if (name) {
+                orBranches.push(
+                    isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthName}, '') AS BINARY) REGEXP ${pattern}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthName}, '') REGEXP ${pattern}`,
+                );
+            }
+            if (description) {
+                orBranches.push(
+                    isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthDescription}, '') AS BINARY) REGEXP ${pattern}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') REGEXP ${pattern}`,
+                );
+            }
+            if (extended) {
+                orBranches.push(
+                    isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthExtended}, '') AS BINARY) REGEXP ${pattern}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') REGEXP ${pattern}`,
+                );
+            }
+        } else {
+            const keywords = StrUtil.toHalf(rawKeyword)
+                .split(/ /)
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            if (keywords.length === 0) return null;
+
+            if (name) {
+                const andConds = keywords.map(kw => {
+                    const pat = `%${kw}%`;
+                    return isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthName}, '') AS BINARY) LIKE ${pat}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthName}, '') LIKE ${pat}`;
+                });
+                orBranches.push(and(...andConds));
+            }
+            if (description) {
+                const andConds = keywords.map(kw => {
+                    const pat = `%${kw}%`;
+                    return isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthDescription}, '') AS BINARY) LIKE ${pat}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthDescription}, '') LIKE ${pat}`;
+                });
+                orBranches.push(and(...andConds));
+            }
+            if (extended) {
+                const andConds = keywords.map(kw => {
+                    const pat = `%${kw}%`;
+                    return isCs
+                        ? sql`CAST(COALESCE(${client.schema.programs.halfWidthExtended}, '') AS BINARY) LIKE ${pat}`
+                        : sql`COALESCE(${client.schema.programs.halfWidthExtended}, '') LIKE ${pat}`;
+                });
+                orBranches.push(and(...andConds));
+            }
+        }
+
+        if (orBranches.length === 0) return null;
+
+        const combined = or(...orBranches);
+        return isIgnore ? sql`NOT (${combined})` : combined;
     }
 }

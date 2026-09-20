@@ -497,8 +497,24 @@
                         </div>
 
                         {#if opt.ignoreKeyword}
-                            <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400 truncate">
-                                除外: {opt.ignoreKeyword}
+                            <p
+                                class="mt-1.5 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1.5 flex-wrap"
+                            >
+                                <span class="truncate">除外: {opt.ignoreKeyword}</span>
+                                {#if opt.ignoreKeyRegExp}
+                                    <span
+                                        class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                    >
+                                        正規表現
+                                    </span>
+                                {/if}
+                                {#if opt.ignoreKeyCS}
+                                    <span
+                                        class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                    >
+                                        大小区別
+                                    </span>
+                                {/if}
                             </p>
                         {/if}
 
@@ -647,9 +663,23 @@
 
                                         {#if opt.ignoreKeyword}
                                             <p
-                                                class="mt-1 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1"
+                                                class="mt-1 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1.5 flex-wrap"
                                             >
-                                                除外: {opt.ignoreKeyword}
+                                                <span>除外: {opt.ignoreKeyword}</span>
+                                                {#if opt.ignoreKeyRegExp}
+                                                    <span
+                                                        class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                                    >
+                                                        正規表現
+                                                    </span>
+                                                {/if}
+                                                {#if opt.ignoreKeyCS}
+                                                    <span
+                                                        class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                                    >
+                                                        大小区別
+                                                    </span>
+                                                {/if}
                                             </p>
                                         {/if}
 

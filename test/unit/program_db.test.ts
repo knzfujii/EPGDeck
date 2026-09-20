@@ -383,11 +383,12 @@ describe('ProgramDB findRule Tests', () => {
         expect(results).toHaveLength(0);
     });
 
-    it('combines searchPeriods with durationMin and durationMax', async () => {
+    it('combines searchPeriods with durationMin and durationMax (in seconds)', async () => {
         const p1 = await programDB.findId(1);
         const p2 = await programDB.findId(2);
 
-        // p1 と p2 の両方を含む期間 (duration は共に 3600000 ms = 60分)
+        // p1 と p2 の両方を含む期間 (duration は共に 3600000 ms = 3600秒 = 60分)
+        // durationMin / durationMax は秒単位
         const resultsMatchingDuration = await programDB.findRule({
             searchOption: {
                 searchPeriods: [
@@ -396,13 +397,13 @@ describe('ProgramDB findRule Tests', () => {
                         endAt: p2!.startAt + 1000,
                     },
                 ],
-                durationMin: 50, // 50分以上
-                durationMax: 70, // 70分以下
+                durationMin: 50 * 60, // 50分 (3000秒) 以上
+                durationMax: 70 * 60, // 70分 (4200秒) 以下
             },
         });
         expect(resultsMatchingDuration).toHaveLength(2);
 
-        // durationMin が長すぎる場合 (90分以上) は除外される
+        // durationMin が長すぎる場合 (90分 = 5400秒 以上) は除外される
         const resultsTooLong = await programDB.findRule({
             searchOption: {
                 searchPeriods: [
@@ -411,9 +412,25 @@ describe('ProgramDB findRule Tests', () => {
                         endAt: p2!.startAt + 1000,
                     },
                 ],
-                durationMin: 90,
+                durationMin: 90 * 60, // 90分 (5400秒)
             },
         });
         expect(resultsTooLong).toHaveLength(0);
+
+        // 秒単位の厳密な判定: 3600秒ジャストの番組に対して 3601秒以上を指定すると除外される
+        const resultsExceeded = await programDB.findRule({
+            searchOption: {
+                durationMin: 3601, // 3601秒以上
+            },
+        });
+        expect(resultsExceeded).toHaveLength(0);
+
+        // 3600秒以下の指定ならマッチする
+        const resultsExact = await programDB.findRule({
+            searchOption: {
+                durationMax: 3600, // 3600秒以下
+            },
+        });
+        expect(resultsExact.length).toBeGreaterThanOrEqual(2);
     });
 });

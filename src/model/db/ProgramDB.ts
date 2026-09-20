@@ -330,11 +330,12 @@ export default class ProgramDB implements IProgramDB {
                 conditions.push(eq(client.schema.programs.isFree, true));
             }
 
+            // durationMin / durationMax は秒単位（EPGStation互換仕様）のため、* 1000 でミリ秒に変換
             if (typeof searchOption.durationMin !== 'undefined') {
-                conditions.push(gte(client.schema.programs.duration, searchOption.durationMin * 60 * 1000));
+                conditions.push(gte(client.schema.programs.duration, searchOption.durationMin * 1000));
             }
             if (typeof searchOption.durationMax !== 'undefined') {
-                conditions.push(lte(client.schema.programs.duration, searchOption.durationMax * 60 * 1000));
+                conditions.push(lte(client.schema.programs.duration, searchOption.durationMax * 1000));
             }
 
             const whereClause = and(...conditions);

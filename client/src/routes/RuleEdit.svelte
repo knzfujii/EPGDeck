@@ -67,6 +67,7 @@
     // ジャンル & 時間 (value は "genre" または "genre:subGenre")
     let selectedGenreKeys = $state<string[]>([]);
     let isFree = $state(false);
+    let isTimeSpecification = $state(false);
     let durationMin = $state<number | null>(null);
     let durationMax = $state<number | null>(null);
 
@@ -415,6 +416,7 @@
     }
 
     function loadRule(r: any) {
+        isTimeSpecification = !!r.isTimeSpecification;
         const s = r.searchOption || {};
         keyword = s.keyword || '';
         ignoreKeyword = s.ignoreKeyword || '';
@@ -445,8 +447,9 @@
             selectedGenreKeys = [];
         }
         isFree = !!s.isFree;
-        durationMin = s.durationMin || null;
-        durationMax = s.durationMax || null;
+        // DB / API は秒単位のため、UI表示用に分に変換（秒 ÷ 60）
+        durationMin = typeof s.durationMin === 'number' && s.durationMin > 0 ? Math.floor(s.durationMin / 60) : null;
+        durationMax = typeof s.durationMax === 'number' && s.durationMax > 0 ? Math.floor(s.durationMax / 60) : null;
 
         // 期間 (searchPeriods)
         if (Array.isArray(s.searchPeriods) && s.searchPeriods.length > 0) {
@@ -676,8 +679,9 @@
             });
         }
 
-        if (durationMin !== null && durationMin > 0) opt.durationMin = durationMin;
-        if (durationMax !== null && durationMax > 0) opt.durationMax = durationMax;
+        // UI の入力値（分）を API / DB 仕様の（秒）に変換（分 × 60）
+        if (durationMin !== null && durationMin > 0) opt.durationMin = durationMin * 60;
+        if (durationMax !== null && durationMax > 0) opt.durationMax = durationMax * 60;
 
         // 検索対象期間
         if (periodStart || periodEnd) {
@@ -792,7 +796,7 @@
         isSaving = true;
         try {
             const payload: apid.AddRuleOption = {
-                isTimeSpecification: false,
+                isTimeSpecification,
                 searchOption: buildSearchOptionPayload(),
                 reserveOption: {
                     enable: isEnable,

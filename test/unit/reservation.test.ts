@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import Program from '../../src/db/entities/Program.js';
 import ReservationManageModel from '../../src/model/operator/reservation/ReservationManageModel.js';
+import DateUtil from '../../src/util/DateUtil.js';
 
 describe('ReservationManageModel', () => {
     const dummyLogger: any = {
@@ -262,5 +263,78 @@ describe('ReservationManageModel', () => {
         ).resolves.toBeUndefined();
 
         expect(mockReserveDB.updateOnce).toHaveBeenCalled();
+    });
+
+    it('updateRule generates dummy reserves with correct time calculations for time specification rule', async () => {
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 10,
+                isTimeSpecification: true,
+                reserveOption: { enable: true },
+                searchOption: {
+                    keyword: 'dummy',
+                    channelIds: [1],
+                    times: [
+                        { start: 19, range: 2, week: 0x7f }, // 19:00 for 2 hours, every day
+                    ],
+                },
+            }),
+        };
+        const mockReserveDB = {
+            findAllIdAndRuleId: vi.fn().mockResolvedValue([]),
+            findAllItemIds: vi.fn().mockResolvedValue([]),
+            findRuleId: vi.fn().mockResolvedValue([]),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            insertOnce: vi.fn().mockResolvedValue(undefined),
+            updateOnce: vi.fn().mockResolvedValue(undefined),
+            updateMany: vi.fn().mockResolvedValue(undefined),
+            deleteOnce: vi.fn().mockResolvedValue(undefined),
+        };
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue({ id: 1, name: 'Ch1', channelType: 'GR' }),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2023-10-15T12:00:00+09:00'));
+
+        await reservationModel.updateRule(10);
+
+        // Should generate reserves starting from today and the next days
+        // Verify updateMany was called with correct startAt (19:00) and endAt (21:00) times in diff.inserts
+        const calls = mockReserveDB.updateMany.mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+
+        const diff = calls[0][0];
+        expect(diff.insert.length).toBeGreaterThan(0);
+
+        // Check the first generated reserve
+        const firstInsert = diff.insert[0];
+
+        // Duration should be exactly 2 hours
+        expect(firstInsert.endAt - firstInsert.startAt).toBe(2 * 60 * 60 * 1000);
+
+        const startDate = new Date(firstInsert.startAt);
+        const endDate = new Date(firstInsert.endAt);
+
+        // JST should be 19:00 to 21:00
+        const jstStartDate = DateUtil.getJaDate(startDate);
+        const jstEndDate = DateUtil.getJaDate(endDate);
+        expect(jstStartDate.getHours()).toBe(19);
+        expect(jstStartDate.getMinutes()).toBe(0);
+        expect(jstEndDate.getHours()).toBe(21);
+
+        vi.useRealTimers();
     });
 });

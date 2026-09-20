@@ -242,4 +242,64 @@ describe('ReserveOptionChecker', () => {
         } as any);
         expect(invalid).toBe(false);
     });
+
+    it('should reject times with week: 0', () => {
+        const result = checker.checkRuleOption({
+            isTimeSpecification: false,
+            searchOption: {
+                GR: true,
+                BS: false,
+                CS: false,
+                SKY: false,
+                isFree: false,
+                times: [{ week: 0, start: 0, range: 1 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(result).toBe(false);
+    });
+
+    it('should validate durationMin and durationMax', () => {
+        const valid = checker.checkRuleOption({
+            isTimeSpecification: false,
+            searchOption: {
+                GR: true,
+                BS: false,
+                CS: false,
+                SKY: false,
+                isFree: false,
+                durationMin: 30,
+                durationMax: 60,
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(valid).toBe(true);
+
+        const invalid = checker.checkRuleOption({
+            isTimeSpecification: false,
+            searchOption: {
+                GR: true,
+                BS: false,
+                CS: false,
+                SKY: false,
+                isFree: false,
+                durationMin: 60,
+                durationMax: 30,
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(invalid).toBe(false);
+    });
 });

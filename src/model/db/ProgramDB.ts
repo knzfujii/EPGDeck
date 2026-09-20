@@ -294,12 +294,13 @@ export default class ProgramDB implements IProgramDB {
                     }
 
                     if (typeof t.start === 'number' && typeof t.range === 'number') {
-                        const startHours: number[] = [];
+                        const startHours = new Set<number>();
                         for (let h = t.start; h < t.start + t.range; h++) {
-                            startHours.push(h % 24);
+                            startHours.add(h % 24);
                         }
-                        if (startHours.length > 0) {
-                            tAnd.push(inArray(client.schema.programs.startHour, startHours));
+                        // 24時間すべてが含まれる場合は全時間帯対象となるため startHour 条件で絞り込む必要がない
+                        if (startHours.size > 0 && startHours.size < 24) {
+                            tAnd.push(inArray(client.schema.programs.startHour, Array.from(startHours)));
                         }
                     }
                     if (tAnd.length > 0) {

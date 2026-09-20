@@ -43,7 +43,7 @@
                 selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
                 isName = qName;
                 isDescription = qDesc;
-                if (keyword.trim()) {
+                if (keyword.trim() || selectedGenre !== null) {
                     executeSearch({ replace: true });
                 }
                 return;
@@ -67,9 +67,9 @@
                 hasChanged = true;
             }
 
-            if (hasChanged && keyword.trim()) {
+            if (hasChanged && (keyword.trim() || selectedGenre !== null)) {
                 executeSearch({ replace: true });
-            } else if (hasChanged && !keyword.trim()) {
+            } else if (hasChanged && !keyword.trim() && selectedGenre === null) {
                 searchResults = [];
                 hasSearched = false;
             }
@@ -105,11 +105,11 @@
     }
 
     async function executeSearch(options: { replace?: boolean } = { replace: false }) {
-        if (!keyword.trim()) return;
+        if (!keyword.trim() && selectedGenre === null) return;
 
         router.setQuery(
             {
-                keyword: keyword.trim(),
+                keyword: keyword.trim() || null,
                 genre: selectedGenre,
                 name: !isName ? '0' : null,
                 description: !isDescription ? '0' : null,
@@ -121,14 +121,17 @@
         hasSearched = true;
         try {
             await Promise.all([channelStore.fetch(), fetchExistingReserves()]);
+            const searchOpt: any = {
+                genres: selectedGenre !== null ? [{ lv1: selectedGenre }] : [],
+            };
+            if (keyword.trim()) {
+                searchOpt.keyword = keyword.trim();
+                searchOpt.name = isName;
+                searchOpt.description = isDescription;
+            }
             const res = await api.schedules.search.$post({
                 json: {
-                    option: {
-                        keyword: keyword.trim(),
-                        name: isName,
-                        description: isDescription,
-                        genres: selectedGenre !== null ? [{ lv1: selectedGenre }] : [],
-                    },
+                    option: searchOpt,
                     isHalfWidth: true,
                     limit: 100,
                 },

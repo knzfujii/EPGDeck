@@ -572,10 +572,17 @@
                 }
                 isName = q['name'] !== '0';
                 isDescription = q['description'] !== '0';
-                if (q['genre']) {
-                    const gVal = q['genre'];
-                    const sgVal = q['subGenre'];
-                    selectedGenreKeys = [sgVal ? `${gVal}:${sgVal}` : `${gVal}`];
+            }
+            if (q['genre']) {
+                const gVal = q['genre'];
+                const sgVal = q['subGenre'];
+                selectedGenreKeys = [sgVal ? `${gVal}:${sgVal}` : `${gVal}`];
+                showAdvancedSearch = true;
+            }
+            if (q['channelId']) {
+                const chId = parseInt(q['channelId'], 10);
+                if (!isNaN(chId)) {
+                    selectedChannelIds = [chId];
                     showAdvancedSearch = true;
                 }
             }
@@ -686,8 +693,16 @@
                 weekBitmask |= 1 << d;
             }
             const timeObj: any = { week: weekBitmask };
-            if (timeStartHour !== null) timeObj.start = timeStartHour;
-            if (timeRangeHour !== null) timeObj.range = timeRangeHour;
+            if (timeStartHour !== null && timeRangeHour !== null) {
+                timeObj.start = timeStartHour;
+                timeObj.range = timeRangeHour;
+            } else if (timeStartHour !== null && timeRangeHour === null) {
+                timeObj.start = timeStartHour;
+                timeObj.range = 1;
+            } else if (timeStartHour === null && timeRangeHour !== null) {
+                timeObj.start = 0;
+                timeObj.range = timeRangeHour;
+            }
             opt.times = [timeObj];
         }
 
@@ -764,6 +779,14 @@
     async function handleSave() {
         if (readOnlyStore.isReadOnly) {
             snackbar.open({ text: '閲覧専用モードのためルールを保存できません', color: 'warning' });
+            return;
+        }
+        if (daysOfWeek.length === 0) {
+            snackbar.open({ text: '対象曜日を1つ以上選択してください', color: 'warning' });
+            return;
+        }
+        if (durationMin !== null && durationMax !== null && durationMin > durationMax) {
+            snackbar.open({ text: '番組長の最小値は最大値以下に設定してください', color: 'warning' });
             return;
         }
         isSaving = true;

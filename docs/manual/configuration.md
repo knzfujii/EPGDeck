@@ -157,7 +157,9 @@ recording:
   directories:
     - name: recorded
       path: '%ROOT%/recorded'
-      limitThreshold: 107374182400 # 100GB以下になったら古い録画を自動削除(バイト)
+      limitThreshold: 102400       # 空き容量限界閾値(MB単位。102400 = 100GB)
+      action: remove               # 閾値を下回ったときの動作: 'remove' (古い録画を自動削除) または 'none' (省略時: none)
+      # limitCmd: '%ROOT%/config/limit.sh' # 閾値を下回ったときに実行する外部コマンド (省略可)
   tempDir: '%ROOT%/recorded_tmp'   # 一時録画ディレクトリ（指定時は録画完了後に正規ディレクトリへ移動）
   # ※ 録画一時ディレクトリを RAM ディスク (/dev/shm) や SSD に配置するベストプラクティスについては
   #    [RAM ディスク活用ガイド](./ramdisk.md#6-録画一時ディレクトリ-recordingtempdir-への適用について) を参照してください。
@@ -181,6 +183,11 @@ recording:
   uploadTempDir: '%ROOT%/data/upload'
   copyKeywordToDirectory: false    # ルール新規作成時に検索キーワードを保存先サブディレクトリ名に自動設定 (省略時: false)
 ```
+
+### `recording.directories`（保存先ディレクトリ・容量管理）
+- **`limitThreshold`**: 空き容量限界閾値を **MB 単位** で指定します（例: `102400` で 100GB）。空き容量がこの値を下回ると `action` や `limitCmd` がトリガーされます。
+- **`action`**: 閾値を下回った際の動作です。`'remove'` を指定すると、空き容量が閾値を回復するまで最も古い保護されていない録画ファイルを順次自動削除します。`'none'` または未指定時は削除を行いません。
+- **`limitCmd`**: 閾値を下回った際に実行する外部コマンドを指定します。通知スクリプトの実行などに利用できます。
 
 ### `recording.copyKeywordToDirectory`（サブディレクトリ自動設定）
 - **`copyKeywordToDirectory`**: `true` に設定すると、番組検索画面から「この条件でルール作成」を選択した際、検索キーワードをルールの保存先サブディレクトリ（`directory`）に自動入力します。デフォルトは `false`（自動入力なし）です。
@@ -269,14 +276,23 @@ urlscheme:
   m2ts:
     ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
+    # mac: iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS
+    # win: potplayer://PROTOCOL%3A%2F%2FADDRESS
   video:
     ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
+    # mac: iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS
+    # win: potplayer://PROTOCOL%3A%2F%2FADDRESS
   download:
     ios: vlc-x-callback://x-callback-url/download?url=PROTOCOL%3A%2F%2FADDRESS&filename=FILENAME
+    # android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
+    # mac: ...
+    # win: ...
 ```
 
-> **Note**: iOS で Infuse を使用したい場合は、`video.ios` に `infuse://x-callback-url/play?url=PROTOCOL://ADDRESS` を設定してください。
+> **Note**:
+> - iOS で Infuse を使用したい場合は、`video.ios` に `infuse://x-callback-url/play?url=PROTOCOL://ADDRESS` を設定してください。
+> - macOS や Windows でデスクトッププレイヤー（IINA や PotPlayer 等）と連携したい場合は、`mac` または `win` に対応するカスタム URL スキームを設定してください。
 
 ---
 

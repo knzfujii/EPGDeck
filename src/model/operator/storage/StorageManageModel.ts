@@ -76,14 +76,13 @@ export default class StorageManageModel implements IStorageManageModel {
 
             let free: number;
             try {
-                free = await this.getFreeSize(l.path);
+                free = await this.getFreeSizeMB(l.path);
             } catch (err: any) {
                 this.log.system.error(`get disk info error: ${l.path}`);
                 this.log.system.error(err);
 
                 continue;
             }
-            free = free / 1024 / 1024; // MB に換算
 
             // 空き容量が閾値を超えたか
             if (free > l.limitThreshold) {
@@ -134,9 +133,9 @@ export default class StorageManageModel implements IStorageManageModel {
                         break;
                     }
 
-                    // 空き容量取得
+                    // 空き容量取得 (MB)
                     try {
-                        free = await this.getFreeSize(l.path);
+                        free = await this.getFreeSizeMB(l.path);
                     } catch (err: any) {
                         this.log.system.error(`get disk info error: ${l.path}`);
                         this.log.system.error(err);
@@ -152,13 +151,13 @@ export default class StorageManageModel implements IStorageManageModel {
     }
 
     /**
-     * 空き容量を取得する
+     * 空き容量を取得する (MB 単位)
      * @param dirPath: ディレクトリパス
      * @return Promise<number>
      */
-    private async getFreeSize(dirPath: string): Promise<number> {
+    private async getFreeSizeMB(dirPath: string): Promise<number> {
         const stats = await fs.promises.statfs(dirPath);
-        return stats.bavail * stats.bsize;
+        return (stats.bavail * stats.bsize) / 1024 / 1024;
     }
 
     /**

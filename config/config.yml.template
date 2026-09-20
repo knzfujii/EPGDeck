@@ -12,6 +12,8 @@ server:
   # isAllowAllCORS: false
   # uid: 1000
   # gid: 1000
+  # apiServers:                        # OpenAPI / Swagger UI 表示用サーバーURL一覧 (省略時は http://localhost:<port>)
+  #   - http://192.168.1.10:8888
   # https:
   #   port: 8443
   #   key: /path/to/server.key
@@ -65,7 +67,9 @@ recording:
   directories:
     - name: recorded
       path: '%ROOT%/recorded'
-      # limitThreshold: 107374182400   # 100GB以下になったら古い録画を自動削除
+      # limitThreshold: 102400         # 空き容量限界閾値 (MB単位。例: 102400 = 100GB)。下回った場合に action や limitCmd を実行
+      # action: remove                 # 閾値を下回ったときの動作: 'remove' (古い録画を自動削除) または 'none' (省略時: 何もしない)
+      # limitCmd: '%ROOT%/config/limit.sh' # 閾値を下回ったときに実行する外部コマンド (省略可)
   # tempDir: '%ROOT%/recorded_tmp'      # 一時録画ディレクトリ（録画完了後に正規ディレクトリへ移動）
   historyRetentionDays: 90             # 録画履歴の保持期間(日、0で無期限保持)
   storageCheckIntervalSeconds: 60      # ディスク空き容量監視間隔(秒)
@@ -122,6 +126,11 @@ encode:
     #   script: enc_nvenc.js
     #   suffix: .mp4
     #   rate: 4.0
+    # 外部コマンドやシェルスクリプトを直接実行する場合の例 (cmd を直接指定)
+    # - name: Custom-Script
+    #   cmd: '%NODE% %ROOT%/config/my_encode.js'
+    #   suffix: .mp4
+    #   rate: 4.0
 
 # ------------------------------------------------------------------------------
 # 7. 外部連携・フック設定 (Hooks)
@@ -145,11 +154,16 @@ urlscheme:
   m2ts:
     ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
+    # mac: iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS
+    # win: potplayer://PROTOCOL%3A%2F%2FADDRESS
   video:
     ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
     android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
+    # mac: iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS
+    # win: potplayer://PROTOCOL%3A%2F%2FADDRESS
   download:
     ios: vlc-x-callback://x-callback-url/download?url=PROTOCOL%3A%2F%2FADDRESS&filename=FILENAME
+    # android: intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end
 
 # ------------------------------------------------------------------------------
 # 9. ライブ・録画ストリーミング設定 (Streaming - 省略時は標準構成が自動適用されます)
@@ -173,6 +187,11 @@ urlscheme:
 #       hls:
 #         - name: '1080p'
 #           cmd: '%FFMPEG% -dual_mono_mode main -i pipe:0 -sn -map 0 -c:d copy -threads 0 -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf yadif,scale=-2:1080 -b:v 6000k -preset veryfast -flags +loop-global_header %OUTPUT%'
+#     # エンコード済み動画（MP4等）のリアルタイムトランスコード配信設定 (TS同様に hls, mp4, webm を設定可能)
+#     # encoded:
+#     #   hls:
+#     #     - name: '1080p'
+#     #       cmd: '%FFMPEG% -dual_mono_mode main -ss %SS% -i %INPUT% -sn -map 0 -c:d copy -ignore_unknown -max_muxing_queue_size 1024 -f hls -hls_time 3 -hls_list_size 0 -hls_allow_cache 1 -hls_segment_filename %streamFileDir%/stream%streamNum%-%09d.ts -hls_flags delete_segments -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -flags +cgop -vf scale=-2:1080 -b:v 6000k -preset veryfast -flags +loop-global_header %OUTPUT%'
 
 # ------------------------------------------------------------------------------
 # 10. Kodi 連携設定 (Kodi)

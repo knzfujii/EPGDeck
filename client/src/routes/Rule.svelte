@@ -84,6 +84,7 @@
                           .then(async r => (r.ok ? await r.json() : { reserves: [] }))
                           .catch(() => ({ reserves: [] }))
                     : Promise.resolve(null),
+                channelStore.fetch(),
             ]);
 
             rules = (rulesRes.rules as apid.Rule[]) || [];
@@ -120,6 +121,10 @@
             isLoading = false;
         }
     }
+
+    onMount(async () => {
+        await channelStore.fetch();
+    });
 
     let isInitialized = false;
 

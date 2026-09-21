@@ -99,7 +99,7 @@
                                 Math.abs(rec.startAt - r.startAt) < 60000 &&
                                 Math.abs(rec.endAt - r.endAt) < 60000),
                     ) ||
-                    (r.startAt <= now && now < r.endAt);
+                    (r.startAt <= now && now < r.endAt && !r.isOverlap && !r.isSkip);
                 return {
                     ...r,
                     isRecording: isCurrentlyRecording,

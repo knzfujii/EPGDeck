@@ -32,7 +32,7 @@ export default class Rule {
     public searchPeriods: string | null = null;
 
     public enable: boolean = false;
-    public priority: number = 1;
+    public priority: number = 5;
     public avoidDuplicate: boolean = false;
     public periodToAvoidDuplicate: number | null = null;
     public allowEndLack: boolean = false;

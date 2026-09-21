@@ -30,7 +30,7 @@ export const rules = mysqlTable('rule', {
     durationMax: int('durationMax'),
     searchPeriods: text('searchPeriods'),
     enable: boolean('enable').notNull().default(false),
-    priority: int('priority').notNull().default(1),
+    priority: int('priority').notNull().default(5),
     avoidDuplicate: boolean('avoidDuplicate').notNull().default(false),
     periodToAvoidDuplicate: int('periodToAvoidDuplicate'),
     allowEndLack: boolean('allowEndLack').notNull().default(false),

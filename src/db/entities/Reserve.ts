@@ -7,7 +7,7 @@ export default class Reserve {
     public ruleUpdateCnt: number | null = null;
     public isSkip: boolean = false;
     public isConflict: boolean = false;
-    public priority: number = 1;
+    public priority: number = 5;
     public allowEndLack: boolean = false;
     public tags: string | null = null;
     public isOverlap: boolean = false;

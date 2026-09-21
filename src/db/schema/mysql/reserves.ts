@@ -9,7 +9,7 @@ export const reserves = mysqlTable(
         ruleUpdateCnt: int('ruleUpdateCnt'),
         isSkip: boolean('isSkip').notNull().default(false),
         isConflict: boolean('isConflict').notNull().default(false),
-        priority: int('priority').notNull().default(1),
+        priority: int('priority').notNull().default(5),
         allowEndLack: boolean('allowEndLack').notNull().default(false),
         tags: text('tags'),
         isOverlap: boolean('isOverlap').notNull().default(false),

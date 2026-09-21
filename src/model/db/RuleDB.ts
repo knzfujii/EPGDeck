@@ -293,7 +293,7 @@ export default class RuleDB implements IRuleDB {
                     ? null
                     : JSON.stringify(rule.searchOption.searchPeriods),
             enable: rule.reserveOption.enable,
-            priority: typeof rule.reserveOption.priority === 'number' ? rule.reserveOption.priority : 1,
+            priority: typeof rule.reserveOption.priority === 'number' ? rule.reserveOption.priority : 5,
             avoidDuplicate: rule.reserveOption.avoidDuplicate,
             periodToAvoidDuplicate:
                 typeof rule.reserveOption.periodToAvoidDuplicate === 'undefined'
@@ -382,7 +382,7 @@ export default class RuleDB implements IRuleDB {
                 enable: !!row.enable,
                 allowEndLack: !!row.allowEndLack,
                 avoidDuplicate: !!row.avoidDuplicate,
-                priority: typeof row.priority === 'number' ? row.priority : 1,
+                priority: typeof row.priority === 'number' ? row.priority : 5,
             },
         };
 

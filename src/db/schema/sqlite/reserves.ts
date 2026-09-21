@@ -9,7 +9,7 @@ export const reserves = sqliteTable(
         ruleUpdateCnt: integer('ruleUpdateCnt'),
         isSkip: integer('isSkip', { mode: 'boolean' }).notNull().default(false),
         isConflict: integer('isConflict', { mode: 'boolean' }).notNull().default(false),
-        priority: integer('priority').notNull().default(1),
+        priority: integer('priority').notNull().default(5),
         allowEndLack: integer('allowEndLack', { mode: 'boolean' }).notNull().default(false),
         tags: text('tags'),
         isOverlap: integer('isOverlap', { mode: 'boolean' }).notNull().default(false),

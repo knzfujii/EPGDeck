@@ -307,8 +307,8 @@ class RecordingUtilModel implements IRecordingUtilModel {
             // 時刻指定予約時の番組名取得
             if (src.isTimeSpecified === true) {
                 // 時刻指定予約なので番組情報を取得する
-                const program = await this.programDB.findChannelIdAndTime(src.channelId, src.startAt);
-                programName = program === null ? '番組名なし' : program.name;
+                const program = await this.programDB.findChannelIdAndTime(src.channelId, src.startAt, src.endAt);
+                programName = program === null ? src.name || '番組名なし' : program.name;
             }
         } else {
             // Recorded

@@ -61,7 +61,11 @@ export default interface IProgramDB {
         eventId: apid.EventId,
     ): Promise<Program | null>;
     findRule(option: FindRuleOption): Promise<ProgramWithOverlap[]>;
-    findChannelIdAndTime(channelId: apid.ChannelId, startAt: apid.UnixtimeMS): Promise<Program | null>;
+    findChannelIdAndTime(
+        channelId: apid.ChannelId,
+        startAt: apid.UnixtimeMS,
+        endAt?: apid.UnixtimeMS,
+    ): Promise<Program | null>;
     findAll(): Promise<Program[]>;
     findSchedule(option: FindScheduleOption | FindScheduleIdOption): Promise<Program[]>;
     findBroadcasting(option: apid.BroadcastingScheduleOption): Promise<Program[]>;

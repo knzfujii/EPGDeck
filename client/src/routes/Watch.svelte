@@ -494,7 +494,7 @@
     <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div class="flex flex-col gap-2.5">
             <h1 class="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
-                {programTitle || '読み込み中...'}
+                {isLoadingInfo ? '読み込み中...' : programTitle || '（タイトルなし）'}
             </h1>
 
             {#if timeRange}

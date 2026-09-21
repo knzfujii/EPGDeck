@@ -17,9 +17,6 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
   - EPGDeck として正式に UI（タグ管理、ルール・手動予約での自動付与設定、録画詳細でのバッジ表示・手動付与/解除、タグによる検索・絞り込み）を実装して機能提供するか、あるいは不要な死にコードとしてバックエンドから完全廃止・整理するかを判断
 - [ ] **視聴済み管理**
   - 録画一覧および詳細で視聴済みか否かのバッジ・ラベルを表示し、未視聴番組の絞り込みや視聴状態のトグル・一括操作に対応
-- [ ] **時刻指定ルール予約の分単位指定対応（機能性改善）**
-  - 現在の「時（Hour）単位」の制限を緩和し、開始時刻および終了時刻・時間幅を「分単位」（例: 19:30〜20:45）で柔軟に指定可能にする
-  - `ReservationManageModel` の予約枠生成ロジックおよび `RuleEdit.svelte` の UI 拡張、バリデーション見直し
 - [ ] **ディスク容量逼迫時のフェイルセーフ**
   - 録画保存先ディスクの空き容量が閾値（例: 10GB / 5% 以下）を下回った際の事前警告（WebSocket / Snackbar 通知）
   - 容量枯渇による録画ストリーム異常終了を防ぐ安全ポリシー（保護されていない古い録画の自動クリーンアップまたは新規録画抑制）の検討
@@ -87,4 +84,6 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **Web API 全面リファクタリング & Hono RPC 型安全アーキテクチャ** | キャッシュ無効化ヘッダー自動注入、階層化 API 例外（`ApiError`）とグローバル集約ハンドラー、全 18 系統 Zod スキーマ・バリデーション導入、全ルートのメソッドチェーン化と `ApiRoutesType` エクスポート、フロントエンド用 Hono RPC クライアント（`client/src/lib/apiClient.ts`、認証トークン透過注入対応）の導入、全フロントエンド画面・コンポーネントの Hono RPC 完全移行 | [REST API 仕様書](dev/api.md#エラーハンドリングとレスポンス仕様) |
 | **クライアント API 一本化・設定キャッシュ一元化・型厳格化 (`as any` 完全排除)** | レガシー `httpClient.ts` の完全廃止、認証トークン管理の独立モジュール化（`authStorage.ts`）、設定データの重複フェッチを防止する `configStore`（Svelte 5 Runes）導入、バックエンド `streams.ts` の `c.json` 型推論改善、フロントエンド全画面・コンポーネントにおける `as any` キャストの完全排除（0件達成） | [アーキテクチャ仕様書](dev/architecture.md#4-フロントエンド設計パターン)、[REST API 仕様書](dev/api.md#型安全-api-クライアント-hono-rpc) |
 | **空き容量自動削除（StorageManageModel）の単位計算バグ修正 & 設定テンプレート完全化** | 上流（EPGStation）から引き継がれていた削除ループ内での容量再取得時の MB 換算漏れ（バイト単位のまま比較し 1 件でループを抜けてしまう、または誤ったバイト閾値設定で全録画が消滅する重大バグ）を解消、`getFreeSizeMB` による MB 換算の一本化、連続削除の単体テスト作成（`storage_manage.test.ts`）、`config.yml.template` および設定マニュアル（`configuration.md`）の全設定項目（`apiServers`, `action`, `limitCmd`, `encode.presets.cmd`, `urlscheme` の Mac/Win 対応等）の網羅・MB 単位表記統一 | [設定マニュアル](manual/configuration.md#5-録画設定-recording)、[録画マニュアル](manual/recording.md#10-空き容量自動確保ストレージクリーンアップ) |
+| **時間指定ルール予約の分単位指定対応 & 専用 UI・一覧識別強化** | 時（Hour）単位制限を撤廃し、開始時刻・終了時刻を分単位（HH:mm、日跨ぎ対応）で指定可能化。ルール編集画面（`RuleEdit.svelte`）で通常検索と時間指定予約のタブ切り替え導入（タイトル・局・曜日・時間帯に絞った専用フォーム）、ルール一覧（`Rule.svelte`）での「時間指定」バッジおよび曜日・時間帯（例: 月〜金 19:30〜20:45）の視認性向上、`ReserveOptionChecker` / `ReservationManageModel` のミリ秒精度予約枠生成ロジック完全対応 | [画面変更仕様書](dev/epgdeck_change_spec.md#35-ルール一覧-rule) |
+| **時間指定録画の番組名フォールバック & 再生画面タイトル表示修正** | 時間指定予約録画時に EPG 番組表が存在しない場合でも空文字化せず予約時タイトル（`reserve.name`）を確実に保持、録画枠が複数番組を跨ぐ場合も最長重複番組を自動特定（`ProgramDB.findChannelIdAndTime` / `RecorderModel` / `RecordingUtilModel`）、動画再生画面（`Watch.svelte`）で通信完了後のタイトル空文字時に「読み込み中...」のまま固定される表示不具合を解消 | [予約アルゴリズム仕様書](dev/reservation-algorithm.md#5-時刻指定予約istimespecificationによる予約枠生成)、[画面変更仕様書](dev/epgdeck_change_spec.md#37-統合動画プレーヤー-watchsvelte--videoplayersvelte) |
 

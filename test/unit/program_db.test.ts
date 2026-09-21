@@ -501,4 +501,70 @@ describe('ProgramDB findRule Tests', () => {
         });
         expect(multiWordMismatch).toHaveLength(0);
     });
+
+    describe('findChannelIdAndTime', () => {
+        it('should find program during mid-program 2-minute recording', async () => {
+            const allPrograms = await programDB.findAll();
+            const prog1 = allPrograms.find(p => p.name === '日曜ニュース7')!;
+
+            // 番組の途中 2分間の時間指定予約 (番組開始から2分後 〜 4分後)
+            const reserveStart = prog1.startAt + 120000;
+            const reserveEnd = prog1.startAt + 240000;
+
+            const found = await programDB.findChannelIdAndTime(prog1.channelId, reserveStart, reserveEnd);
+            expect(found).not.toBeNull();
+            expect(found!.id).toBe(prog1.id);
+            expect(found!.name).toBe('日曜ニュース7');
+        });
+
+        it('should select the longest overlapping program when recording spans multiple programs', async () => {
+            const allPrograms = await programDB.findAll();
+            const prog1 = allPrograms.find(p => p.name === '日曜ニュース7')!;
+
+            // 直前に 5分間のミニ番組を追加
+            const miniStart = prog1.startAt - 300000; // 5分前
+            const miniEnd = prog1.startAt;
+            await db.insert(sqliteSchema.programs).values({
+                id: 3,
+                updateTime: 0,
+                channelId: prog1.channelId,
+                eventId: 103,
+                serviceId: 1024,
+                networkId: 32736,
+                startAt: miniStart,
+                endAt: miniEnd,
+                startHour: 18,
+                week: 0,
+                duration: 300000,
+                isFree: true,
+                name: '5分ミニガイド',
+                halfWidthName: '5分ミニガイド',
+                shortName: '5分ミニガイド',
+                channelType: 'GR',
+                channel: '27',
+            });
+
+            // 録画枠: ミニ番組の終わりの2分間 (miniStart + 180000) から、本編の全60分間 (prog1.endAt)
+            // ミニ番組との重複: 2分 (120,000ms)
+            // 本編との重複: 60分 (3,600,000ms) -> 本編が最長
+            const recStart = miniStart + 180000;
+            const recEnd = prog1.endAt;
+
+            const found = await programDB.findChannelIdAndTime(prog1.channelId, recStart, recEnd);
+            expect(found).not.toBeNull();
+            expect(found!.name).toBe('日曜ニュース7');
+        });
+
+        it('should find current broadcasting program when endAt is omitted', async () => {
+            const allPrograms = await programDB.findAll();
+            const prog1 = allPrograms.find(p => p.name === '日曜ニュース7')!;
+
+            // 番組放送中の1時点
+            const atTime = prog1.startAt + 600000; // 10分後
+
+            const found = await programDB.findChannelIdAndTime(prog1.channelId, atTime);
+            expect(found).not.toBeNull();
+            expect(found!.name).toBe('日曜ニュース7');
+        });
+    });
 });

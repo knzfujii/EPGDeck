@@ -753,11 +753,11 @@ components:
             properties:
                 start:
                     description:
-                        開始時刻(時) 0 - 23。0 時を 0 とした時間単位の開始時刻を指定する
+                        開始時刻。キーワード検索時は時単位 (0 - 23)、時刻指定予約時 (isTimeSpecification=true) は 00:00:00 からの経過秒数 (0 - 86399)
                     type: integer
                 range:
                     description:
-                        開始時刻からの時刻範囲(時) 1 - 48。時間単位で検索・予約する時間幅を指定する
+                        開始時刻からの時刻範囲。キーワード検索時は時単位 (1 - 48)、時刻指定予約時 (isTimeSpecification=true) は秒数 (1 - 86400)
                     type: integer
                 week:
                     description:

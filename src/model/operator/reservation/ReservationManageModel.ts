@@ -792,9 +792,17 @@ class ReservationManageModel implements IReservationManageModel {
                     ];
 
                     for (let i = 0; i < 8; i++) {
-                        // 1 週間分の予約情報を作成する
-                        const startAt = baseTime + 1000 * 60 * 60 * 24 * i + time.start * 60 * 60 * 1000;
-                        const endAt = baseTime + 1000 * 60 * 60 * 24 * i + (time.start + time.range) * 60 * 60 * 1000;
+                        // 1 週間分の予約情報を作成する (秒単位の整数計算。旧来の時単位データへのフォールバック互換性も確保)
+                        const isHourUnit =
+                            time.start < 24 &&
+                            time.range <= 24 &&
+                            Number.isInteger(time.start) &&
+                            Number.isInteger(time.range);
+                        const startSec = isHourUnit ? time.start * 3600 : time.start;
+                        const rangeSec = isHourUnit ? time.range * 3600 : time.range;
+
+                        const startAt = Math.round(baseTime + 1000 * 60 * 60 * 24 * i + startSec * 1000);
+                        const endAt = Math.round(baseTime + 1000 * 60 * 60 * 24 * i + (startSec + rangeSec) * 1000);
 
                         if (endAt < updateTime || weeks[new Date(startAt).getDay()] === false) {
                             // 終了時刻が現在時刻より古い or 有効な曜日ではない

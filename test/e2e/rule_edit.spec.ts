@@ -233,4 +233,55 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should switch between normal search and time specification tabs', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.goto('/rule/edit');
+        await page.waitForLoadState('networkidle');
+
+        // 初期表示: 通常検索ルールが選択されている
+        await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
+        await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
+
+        // 時間指定予約ルールタブをクリック
+        const timeSpecTab = page.getByRole('button', { name: /時間指定予約ルール/ });
+        await expect(timeSpecTab).toBeVisible();
+        await timeSpecTab.click();
+
+        // 時間指定予約用のフォームに切り替わる
+        await expect(page.getByRole('heading', { name: /時間指定予約設定/ })).toBeVisible();
+        await expect(page.getByPlaceholder(/日曜討論/)).toBeVisible();
+        await expect(page.locator('#rule-time-start-spec')).toBeVisible();
+        await expect(page.locator('#rule-time-end-spec')).toBeVisible();
+        await expect(page.getByText('対象放送局')).toBeVisible();
+        await expect(page.getByRole('button', { name: '平日のみ' })).toBeVisible();
+
+        // 通常検索用のフォームが隠れている
+        await expect(page.getByPlaceholder(/葬送のフリーレン/)).not.toBeVisible();
+
+        // 再び通常検索ルールタブをクリック
+        const normalTab = page.getByRole('button', { name: /通常検索ルール/ });
+        await normalTab.click();
+
+        // 元の検索条件フォームに戻る
+        await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
+        await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

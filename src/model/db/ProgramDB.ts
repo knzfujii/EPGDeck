@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import * as mapid from 'mirakurun/api.js';
@@ -266,7 +266,9 @@ export default class ProgramDB implements IProgramDB {
 
                     if (typeof t.start === 'number' && typeof t.range === 'number') {
                         const startHours = new Set<number>();
-                        for (let h = t.start; h < t.start + t.range; h++) {
+                        const sH = Math.floor(t.start);
+                        const endHour = Math.ceil(t.start + t.range);
+                        for (let h = sH; h < endHour; h++) {
                             startHours.add(h % 24);
                         }
                         // 24時間すべてが含まれる場合は全時間帯対象となるため startHour 条件で絞り込む必要がない
@@ -371,20 +373,66 @@ export default class ProgramDB implements IProgramDB {
     }
 
     /**
-     * channelId, startAt で番組を特定
+     * channelId と時間枠（または特定時刻）で番組を取得
+     * endAt が指定されている場合は、録画時間枠（startAt 〜 endAt）の中で最も長く放送されている番組（最長占有番組）を特定して返す
      */
-    public async findChannelIdAndTime(channelId: apid.ChannelId, startAt: apid.UnixtimeMS): Promise<Program | null> {
+    public async findChannelIdAndTime(
+        channelId: apid.ChannelId,
+        startAt: apid.UnixtimeMS,
+        endAt?: apid.UnixtimeMS,
+    ): Promise<Program | null> {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
-            const rows = await (db as any)
-                .select()
-                .from(schema.programs)
-                .where(and(eq(schema.programs.channelId, channelId), eq(schema.programs.startAt, startAt)));
 
-            if (rows.length === 0) return null;
-            return this.toEntity(rows[0]);
+            if (typeof endAt === 'number' && endAt > startAt) {
+                // 期間指定: startAt 〜 endAt に重複する番組を抽出
+                const rows = await (db as any)
+                    .select()
+                    .from(schema.programs)
+                    .where(
+                        and(
+                            eq(schema.programs.channelId, channelId),
+                            lt(schema.programs.startAt, endAt),
+                            gt(schema.programs.endAt, startAt),
+                        ),
+                    );
+
+                if (rows.length === 0) return null;
+                if (rows.length === 1) return this.toEntity(rows[0]);
+
+                // 複数番組がヒットした場合: 録画時間（startAt 〜 endAt）との重複時間が最も長い番組を採用
+                let maxOverlap = -1;
+                let bestRow = rows[0];
+
+                for (const row of rows) {
+                    const overlapStart = Math.max(Number(row.startAt), startAt);
+                    const overlapEnd = Math.min(Number(row.endAt), endAt);
+                    const overlap = overlapEnd - overlapStart;
+                    if (overlap > maxOverlap) {
+                        maxOverlap = overlap;
+                        bestRow = row;
+                    }
+                }
+
+                return this.toEntity(bestRow);
+            } else {
+                // 1時点指定: startAt の時点で放送中の番組を抽出
+                const rows = await (db as any)
+                    .select()
+                    .from(schema.programs)
+                    .where(
+                        and(
+                            eq(schema.programs.channelId, channelId),
+                            lte(schema.programs.startAt, startAt),
+                            gt(schema.programs.endAt, startAt),
+                        ),
+                    );
+
+                if (rows.length === 0) return null;
+                return this.toEntity(rows[0]);
+            }
         });
     }
 

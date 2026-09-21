@@ -543,15 +543,37 @@ class RecorderModel implements IRecorderModel {
         recorded.duration = this.reserve.endAt - this.reserve.startAt;
 
         if (this.reserve.isTimeSpecified === true) {
-            // 時刻指定予約なので channelId と startAt を元に番組情報を取得する
-            const program = await this.programDB.findChannelIdAndTime(this.reserve.channelId, this.reserve.startAt);
+            // 時刻指定予約なので channelId と 録画期間 (startAt 〜 endAt) を元に最長番組情報を取得する
+            const program = await this.programDB.findChannelIdAndTime(
+                this.reserve.channelId,
+                this.reserve.startAt,
+                this.reserve.endAt,
+            );
             if (program === null) {
-                // 番組情報が取れなかった場合
+                // 番組情報が取れなかった場合: 予約時のタイトル（およびメタ情報）をフォールバックとして採用
                 this.log.system.warn(
                     `get program info warn channelId: ${this.reserve.channelId}, startAt: ${this.reserve.startAt}`,
                 );
-                recorded.name = '';
-                recorded.halfWidthName = '';
+                recorded.name = this.reserve.name || '';
+                recorded.halfWidthName = this.reserve.halfWidthName || this.reserve.name || '';
+                recorded.description = this.reserve.description;
+                recorded.halfWidthDescription = this.reserve.halfWidthDescription;
+                recorded.extended = this.reserve.extended;
+                recorded.halfWidthExtended = this.reserve.halfWidthExtended;
+                recorded.rawExtended = this.reserve.rawExtended;
+                recorded.rawHalfWidthExtended = this.reserve.rawHalfWidthExtended;
+                recorded.genre1 = this.reserve.genre1;
+                recorded.subGenre1 = this.reserve.subGenre1;
+                recorded.genre2 = this.reserve.genre2;
+                recorded.subGenre2 = this.reserve.subGenre2;
+                recorded.genre3 = this.reserve.genre3;
+                recorded.subGenre3 = this.reserve.subGenre3;
+                recorded.videoType = this.reserve.videoType;
+                recorded.videoResolution = this.reserve.videoResolution;
+                recorded.videoStreamContent = this.reserve.videoStreamContent;
+                recorded.videoComponentType = this.reserve.videoComponentType;
+                recorded.audioSamplingRate = this.reserve.audioSamplingRate;
+                recorded.audioComponentType = this.reserve.audioComponentType;
             } else {
                 recorded.name = program.name;
                 recorded.halfWidthName = program.halfWidthName;

@@ -25,6 +25,7 @@
         ListVideo,
         Search,
         X,
+        Clock,
     } from '@lucide/svelte';
 
     let rules = $state<apid.Rule[]>([]);
@@ -32,6 +33,32 @@
     let totalAllRules = $state(0);
     let isLoading = $state(true);
     let ruleReservesMap = $state<Record<number, number>>({});
+
+    function formatRuleTime(times?: apid.SearchTime[], isTimeSpecification = false): string {
+        if (!times || times.length === 0) return '';
+        const t = times[0];
+        const weekLabels: string[] = [];
+        if (t.week & 0x01) weekLabels.push('日');
+        if (t.week & 0x02) weekLabels.push('月');
+        if (t.week & 0x04) weekLabels.push('火');
+        if (t.week & 0x08) weekLabels.push('水');
+        if (t.week & 0x10) weekLabels.push('木');
+        if (t.week & 0x20) weekLabels.push('金');
+        if (t.week & 0x40) weekLabels.push('土');
+        const weekStr = weekLabels.length === 7 ? '毎日' : weekLabels.join('・');
+
+        if (typeof t.start === 'number' && typeof t.range === 'number') {
+            const isSec = isTimeSpecification || t.start >= 24 || t.range > 24;
+            const startMin = Math.floor((isSec ? t.start : t.start * 3600) / 60);
+            const endMin = Math.floor((isSec ? t.start + t.range : (t.start + t.range) * 3600) / 60) % (24 * 60);
+            const sH = String(Math.floor(startMin / 60) % 24).padStart(2, '0');
+            const sM = String(startMin % 60).padStart(2, '0');
+            const eH = String(Math.floor(endMin / 60) % 24).padStart(2, '0');
+            const eM = String(endMin % 60).padStart(2, '0');
+            return `${weekStr} ${sH}:${sM}〜${eH}:${eM}`;
+        }
+        return weekStr;
+    }
 
     let keyword = $state(router.current.query.keyword || '');
     let activeKeyword = $state(router.current.query.keyword || '');
@@ -393,6 +420,13 @@
                                     </span>
                                 {/if}
 
+                                {#if r.isTimeSpecification}
+                                    <span
+                                        class="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-black text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0 flex items-center gap-1"
+                                    >
+                                        <Clock size={11} /> 時間指定
+                                    </span>
+                                {/if}
                                 <span class="font-bold text-slate-900 dark:text-slate-100 text-sm truncate">
                                     {opt.keyword || '(全番組)'}
                                 </span>
@@ -414,6 +448,17 @@
 
                         <!-- 2行目: 検索条件タグ・除外キーワード -->
                         <div class="mt-2.5 flex items-center gap-1.5 flex-wrap text-xs">
+                            {#if r.isTimeSpecification || (opt.times && opt.times.length > 0)}
+                                {@const timeText = formatRuleTime(opt.times, r.isTimeSpecification)}
+                                {#if timeText}
+                                    <span
+                                        class="rounded-md bg-sky-50 px-1.5 py-0.5 font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-900/60 flex items-center gap-1"
+                                    >
+                                        <Clock size={11} />
+                                        {timeText}
+                                    </span>
+                                {/if}
+                            {/if}
                             {#if opt.keyRegExp}
                                 <span
                                     class="rounded-md bg-purple-100 px-1.5 py-0.5 font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
@@ -640,11 +685,29 @@
                                     <!-- キーワード / 検索条件 -->
                                     <td class="px-4 py-3.5">
                                         <div class="flex items-center gap-1.5 flex-wrap">
+                                            {#if r.isTimeSpecification}
+                                                <span
+                                                    class="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center gap-1 shrink-0"
+                                                >
+                                                    <Clock size={12} /> 時間指定
+                                                </span>
+                                            {/if}
                                             <span
                                                 class="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base"
                                             >
                                                 {opt.keyword || '(全番組)'}
                                             </span>
+                                            {#if r.isTimeSpecification || (opt.times && opt.times.length > 0)}
+                                                {@const timeText = formatRuleTime(opt.times, r.isTimeSpecification)}
+                                                {#if timeText}
+                                                    <span
+                                                        class="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-900/60 flex items-center gap-1"
+                                                    >
+                                                        <Clock size={11} />
+                                                        {timeText}
+                                                    </span>
+                                                {/if}
+                                            {/if}
                                             {#if opt.keyRegExp}
                                                 <span
                                                     class="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"

@@ -337,4 +337,228 @@ describe('ReservationManageModel', () => {
 
         vi.useRealTimers();
     });
+
+    it('should generate reserves with second precision (integer seconds) for isTimeSpecification rules', async () => {
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 11,
+                isTimeSpecification: true,
+                searchOption: {
+                    keyword: '秒単位時間指定テスト',
+                    channelIds: [1],
+                    // 19:30 〜 20:45 (start: 19*3600 + 30*60 = 70200, range: 4500, 毎日)
+                    times: [{ week: 0x7f, start: 70200, range: 4500 }],
+                },
+                reserveOption: {
+                    enable: true,
+                    allowEndLack: true,
+                    avoidDuplicate: false,
+                },
+            }),
+        };
+        const mockReserveDB = {
+            findAllIdAndRuleId: vi.fn().mockResolvedValue([]),
+            findAllItemIds: vi.fn().mockResolvedValue([]),
+            findRuleId: vi.fn().mockResolvedValue([]),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            insertOnce: vi.fn().mockResolvedValue(undefined),
+            updateOnce: vi.fn().mockResolvedValue(undefined),
+            updateMany: vi.fn().mockResolvedValue(undefined),
+            deleteOnce: vi.fn().mockResolvedValue(undefined),
+        };
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue({ id: 1, name: 'Ch1', channelType: 'GR' }),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2023-10-15T12:00:00+09:00'));
+
+        await reservationModel.updateRule(11);
+
+        const calls = mockReserveDB.updateMany.mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+
+        const diff = calls[0][0];
+        expect(diff.insert.length).toBeGreaterThan(0);
+
+        const firstInsert = diff.insert[0];
+
+        // 録画時間は正確に 1時間15分 (75分 = 4,500,000ms)
+        expect(firstInsert.endAt - firstInsert.startAt).toBe(75 * 60 * 1000);
+
+        const startDate = new Date(firstInsert.startAt);
+        const endDate = new Date(firstInsert.endAt);
+
+        const jstStartDate = DateUtil.getJaDate(startDate);
+        const jstEndDate = DateUtil.getJaDate(endDate);
+
+        expect(jstStartDate.getHours()).toBe(19);
+        expect(jstStartDate.getMinutes()).toBe(30);
+        expect(jstStartDate.getSeconds()).toBe(0);
+
+        expect(jstEndDate.getHours()).toBe(20);
+        expect(jstEndDate.getMinutes()).toBe(45);
+        expect(jstEndDate.getSeconds()).toBe(0);
+
+        vi.useRealTimers();
+    });
+
+    it('should generate exact 2-minute reserves without rounding errors', async () => {
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 12,
+                isTimeSpecification: true,
+                searchOption: {
+                    keyword: '2分ミニ番組枠',
+                    channelIds: [1],
+                    // 19:30:00 〜 19:32:00 (start: 70200, range: 120 秒)
+                    times: [{ week: 0x7f, start: 70200, range: 120 }],
+                },
+                reserveOption: {
+                    enable: true,
+                    allowEndLack: true,
+                    avoidDuplicate: false,
+                },
+            }),
+        };
+        const mockReserveDB = {
+            findAllIdAndRuleId: vi.fn().mockResolvedValue([]),
+            findAllItemIds: vi.fn().mockResolvedValue([]),
+            findRuleId: vi.fn().mockResolvedValue([]),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            insertOnce: vi.fn().mockResolvedValue(undefined),
+            updateOnce: vi.fn().mockResolvedValue(undefined),
+            updateMany: vi.fn().mockResolvedValue(undefined),
+            deleteOnce: vi.fn().mockResolvedValue(undefined),
+        };
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue({ id: 1, name: 'Ch1', channelType: 'GR' }),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2023-10-15T12:00:00+09:00'));
+
+        await reservationModel.updateRule(12);
+
+        const calls = mockReserveDB.updateMany.mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+
+        const diff = calls[0][0];
+        expect(diff.insert.length).toBeGreaterThan(0);
+
+        const firstInsert = diff.insert[0];
+
+        // 録画時間は丸め誤差なく正確に 120,000ms（2分00秒）
+        const durationMs = firstInsert.endAt - firstInsert.startAt;
+        expect(durationMs).toBe(120 * 1000);
+        // 分単位の切り捨て/四捨五入でも確実に 2 分
+        expect(Math.floor(durationMs / 60000)).toBe(2);
+
+        const startDate = new Date(firstInsert.startAt);
+        const endDate = new Date(firstInsert.endAt);
+
+        const jstStartDate = DateUtil.getJaDate(startDate);
+        const jstEndDate = DateUtil.getJaDate(endDate);
+
+        expect(jstStartDate.getHours()).toBe(19);
+        expect(jstStartDate.getMinutes()).toBe(30);
+        expect(jstStartDate.getSeconds()).toBe(0);
+
+        expect(jstEndDate.getHours()).toBe(19);
+        expect(jstEndDate.getMinutes()).toBe(32);
+        expect(jstEndDate.getSeconds()).toBe(0);
+
+        vi.useRealTimers();
+    });
+
+    it('should fallback to hour-based calculation for legacy rules with start < 24 and range <= 24', async () => {
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 13,
+                isTimeSpecification: true,
+                searchOption: {
+                    keyword: 'レガシー時単位ルール',
+                    channelIds: [1],
+                    // 旧形式: start: 19, range: 2 (19:00 〜 21:00)
+                    times: [{ week: 0x7f, start: 19, range: 2 }],
+                },
+                reserveOption: {
+                    enable: true,
+                    allowEndLack: true,
+                    avoidDuplicate: false,
+                },
+            }),
+        };
+        const mockReserveDB = {
+            findAllIdAndRuleId: vi.fn().mockResolvedValue([]),
+            findAllItemIds: vi.fn().mockResolvedValue([]),
+            findRuleId: vi.fn().mockResolvedValue([]),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            insertOnce: vi.fn().mockResolvedValue(undefined),
+            updateOnce: vi.fn().mockResolvedValue(undefined),
+            updateMany: vi.fn().mockResolvedValue(undefined),
+            deleteOnce: vi.fn().mockResolvedValue(undefined),
+        };
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue({ id: 1, name: 'Ch1', channelType: 'GR' }),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2023-10-15T12:00:00+09:00'));
+
+        await reservationModel.updateRule(13);
+
+        const calls = mockReserveDB.updateMany.mock.calls;
+        const diff = calls[0][0];
+        const firstInsert = diff.insert[0];
+
+        // 2時間 (7,200,000ms)
+        expect(firstInsert.endAt - firstInsert.startAt).toBe(2 * 3600 * 1000);
+
+        const jstStartDate = DateUtil.getJaDate(new Date(firstInsert.startAt));
+        const jstEndDate = DateUtil.getJaDate(new Date(firstInsert.endAt));
+
+        expect(jstStartDate.getHours()).toBe(19);
+        expect(jstStartDate.getMinutes()).toBe(0);
+        expect(jstEndDate.getHours()).toBe(21);
+        expect(jstEndDate.getMinutes()).toBe(0);
+
+        vi.useRealTimers();
+    });
 });

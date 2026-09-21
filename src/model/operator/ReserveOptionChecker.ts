@@ -64,8 +64,11 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
         if (isTimeSpecification === true) {
             if (
                 typeof option.keyword === 'undefined' ||
+                option.keyword.trim().length === 0 ||
                 typeof option.channelIds === 'undefined' ||
-                typeof option.times === 'undefined'
+                option.channelIds.length === 0 ||
+                typeof option.times === 'undefined' ||
+                option.times.length === 0
             ) {
                 return false;
             }
@@ -74,8 +77,9 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
                 if (
                     typeof time.start === 'undefined' ||
                     typeof time.range === 'undefined' ||
-                    (0 <= time.start && time.start <= 23) === false ||
-                    (1 <= time.range && time.range <= 48) === false
+                    time.week === 0 ||
+                    (0 <= time.start && time.start < 24 * 3600) === false ||
+                    (0 < time.range && time.range <= 24 * 3600) === false
                 ) {
                     return false;
                 }
@@ -120,9 +124,9 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
                 }
                 if (typeof time.start !== 'undefined' && typeof time.range !== 'undefined') {
                     // id 指定予約
-                    if ((0 <= time.start && time.start <= 23) === false) {
+                    if ((0 <= time.start && time.start < 24) === false) {
                         return false;
-                    } else if ((1 <= time.range && time.range <= 48) === false) {
+                    } else if ((0 < time.range && time.range <= 48) === false) {
                         return false;
                     }
                 }

@@ -302,4 +302,117 @@ describe('ReserveOptionChecker', () => {
         } as any);
         expect(invalid).toBe(false);
     });
+
+    it('should validate time-specified reservation rules (isTimeSpecification === true)', () => {
+        // 正常系: 秒単位（19:30〜20:45 = start: 70200, range: 4500）
+        const validSeconds = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: 'ニュース枠',
+                channelIds: [1],
+                times: [{ week: 0x02, start: 70200, range: 4500 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(validSeconds).toBe(true);
+
+        // 正常系: 2分予約枠（120秒）
+        const valid2min = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: '2分ミニ番組枠',
+                channelIds: [1],
+                times: [{ week: 0x7f, start: 70200, range: 120 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(valid2min).toBe(true);
+
+        // 正常系: 最大24時間枠 (86400秒)
+        const valid24h = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: '24時間生放送枠',
+                channelIds: [1],
+                times: [{ week: 0x7f, start: 0, range: 86400 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(valid24h).toBe(true);
+
+        // 異常系: range > 86400（時間指定予約は24時間以内）
+        const invalidOver24h = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: '超過枠',
+                channelIds: [1],
+                times: [{ week: 0x7f, start: 0, range: 86401 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(invalidOver24h).toBe(false);
+
+        // 異常系: week === 0
+        const invalidWeek0 = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: '曜日未選択',
+                channelIds: [1],
+                times: [{ week: 0, start: 10, range: 1 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(invalidWeek0).toBe(false);
+
+        // 異常系: channelIds が空
+        const invalidNoChannel = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                keyword: '局未選択',
+                channelIds: [],
+                times: [{ week: 0x01, start: 10, range: 1 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(invalidNoChannel).toBe(false);
+
+        // 異常系: keyword が未指定
+        const invalidNoKeyword = checker.checkRuleOption({
+            isTimeSpecification: true,
+            searchOption: {
+                channelIds: [1],
+                times: [{ week: 0x01, start: 10, range: 1 }],
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+            },
+        } as any);
+        expect(invalidNoKeyword).toBe(false);
+    });
 });

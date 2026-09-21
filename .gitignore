@@ -21,6 +21,7 @@ data/*.json
 data/upload/*
 drop/*.log
 node_modules
+logs/
 dist
 .cache
 data/upload/*

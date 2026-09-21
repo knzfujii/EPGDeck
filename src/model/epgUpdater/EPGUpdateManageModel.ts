@@ -531,11 +531,13 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
     }
 
     /**
-     * 現在時刻より古い番組情報を削除
+     * 過去24時間以前の古い番組情報を削除
+     * （録画完了時の番組情報特定や番組表の過去表示のために24時間保持する）
      */
     public async deleteOldPrograms(): Promise<void> {
         this.log.system.info('delete old program db start');
-        await this.programDB.deleteOld(new Date().getTime());
+        const KEEP_PERIOD_MS = 24 * 60 * 60 * 1000;
+        await this.programDB.deleteOld(new Date().getTime() - KEEP_PERIOD_MS);
         this.log.system.info('delete old program db done');
     }
 

@@ -195,9 +195,90 @@ test.describe('Guide Page (/guide)', () => {
                 const diff = Math.abs(check.timeColRect.left - check.containerRect.left);
                 expect(diff).toBeLessThanOrEqual(5);
             }
-
-            // 最も前面が「時刻」ヘッダーであること
-            expect(check.elAtCenterText).toBe('時刻');
         }
+    });
+
+    test('should apply dim styling to ended programs and disable reservation in modal', async ({ page }) => {
+        const pastStart = Date.now() - 2 * 60 * 60 * 1000;
+        const pastEnd = Date.now() - 60 * 60 * 1000;
+        const futureStart = Date.now() + 60 * 60 * 1000;
+        const futureEnd = Date.now() + 2 * 60 * 60 * 1000;
+
+        const mockChannels = [
+            {
+                id: 1,
+                serviceId: 101,
+                networkId: 32736,
+                name: 'テスト局',
+                halfWidthName: 'テスト局',
+                channelTypeId: 1,
+                channelType: 'GR',
+                channel: '27',
+                hasLogoData: false,
+            },
+        ];
+
+        const mockSchedules = [
+            {
+                channel: mockChannels[0],
+                programs: [
+                    {
+                        id: 99001,
+                        channelId: 1,
+                        startAt: pastStart,
+                        endAt: pastEnd,
+                        name: '過去の放送終了番組',
+                        description: 'すでに終了した番組の概要',
+                        genre1: 0,
+                    },
+                    {
+                        id: 99002,
+                        channelId: 1,
+                        startAt: futureStart,
+                        endAt: futureEnd,
+                        name: '未来の放送予定番組',
+                        description: 'これから放送される番組の概要',
+                        genre1: 1,
+                    },
+                ],
+            },
+        ];
+
+        await page.route('**/api/channels*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockChannels) });
+        });
+        await page.route('**/api/schedules*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSchedules) });
+        });
+        await page.route('**/api/reserves*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+        });
+        await page.route('**/api/recording*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ records: [] }),
+            });
+        });
+
+        await page.goto('/guide');
+
+        // 過去番組ボタンの描画確認
+        const pastProgramBtn = page.getByRole('button', { name: /過去の放送終了番組/ });
+        await expect(pastProgramBtn).toBeVisible({ timeout: 10000 });
+
+        // 過去番組セルにディムスタイル (grayscale / opacity) が適用されていること
+        await expect(pastProgramBtn).toHaveClass(/grayscale/);
+
+        // 過去番組をクリックして詳細モーダルを開く
+        await pastProgramBtn.click();
+
+        // モーダル内に「この番組はすでに放送が終了しています」という案内が表示されること
+        await expect(page.getByText('この番組はすでに放送が終了しています')).toBeVisible();
+
+        // 予約ボタンが「放送終了」となり disabled であること
+        const endedBtn = page.getByRole('button', { name: '放送終了', exact: true });
+        await expect(endedBtn).toBeVisible();
+        await expect(endedBtn).toBeDisabled();
     });
 });

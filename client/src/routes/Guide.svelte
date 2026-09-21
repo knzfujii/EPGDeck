@@ -203,11 +203,15 @@
         return hours;
     });
 
+    // 現在時刻（ミリ秒）
+    let now = $state(Date.now());
+
     // 現在時刻ラインの top 位置 (px)
     let currentTimeTop = $state<number | null>(null);
 
     function updateCurrentTimeLine() {
-        currentTimeTop = calculateCurrentTimeTop(Date.now(), guideStartAt, guideEndAt);
+        now = Date.now();
+        currentTimeTop = calculateCurrentTimeTop(now, guideStartAt, guideEndAt);
     }
 
     function createReservesMap(reserves: apid.ReserveItem[], recordingList: any[]) {
@@ -821,6 +825,7 @@
                                     {@const topPx = ((progStart - guideStartAt) / 60000) * MINUTE_HEIGHT}
                                     {@const heightPx = Math.max(14, ((progEnd - progStart) / 60000) * MINUTE_HEIGHT)}
                                     {@const reserve = reservesMap.get(prog.id)}
+                                    {@const isEnded = prog.endAt <= now}
 
                                     {#if heightPx > 0}
                                         <button
@@ -829,7 +834,9 @@
                                             style="top: {topPx}px; height: {heightPx}px;"
                                             class="group absolute inset-x-0.5 overflow-hidden rounded-md border border-slate-200/90 p-1 sm:p-2 text-left transition hover:z-20 hover:border-blue-500 hover:shadow-lg dark:border-slate-800 {getGenreClass(
                                                 prog.genre1,
-                                            )} {reserve?.isRecording
+                                            )} {isEnded
+                                                ? 'opacity-50 grayscale-[40%] bg-slate-100/80 dark:bg-slate-900/60 dark:opacity-40'
+                                                : ''} {reserve?.isRecording
                                                 ? 'ring-2 ring-rose-500 shadow-xs'
                                                 : reserve?.isSkip
                                                   ? 'opacity-60 border-dashed'
@@ -1048,17 +1055,29 @@
                         </div>
                     </div>
                 {:else if !readOnlyStore.isReadOnly}
-                    <div class="mt-4">
-                        <RecordingOptionForm
-                            bind:saveParentDir
-                            bind:saveSubDir
-                            bind:encRows
-                            bind:isDeleteOriginal
-                            bind:allowEndLack
-                            {encodeModes}
-                            {storageDirs}
-                        />
-                    </div>
+                    {#if selectedProgram.endAt <= now}
+                        <div
+                            class="mt-4 rounded-xl border border-slate-200 bg-slate-100/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
+                        >
+                            <p
+                                class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5"
+                            >
+                                <Ban size={13} /> この番組はすでに放送が終了しています。
+                            </p>
+                        </div>
+                    {:else}
+                        <div class="mt-4">
+                            <RecordingOptionForm
+                                bind:saveParentDir
+                                bind:saveSubDir
+                                bind:encRows
+                                bind:isDeleteOriginal
+                                bind:allowEndLack
+                                {encodeModes}
+                                {storageDirs}
+                            />
+                        </div>
+                    {/if}
                 {/if}
             </div>
 
@@ -1139,6 +1158,14 @@
                                     <Trash2 size={14} /> 予約解除
                                 </button>
                             {/if}
+                        {:else if selectedProgram.endAt <= now}
+                            <button
+                                type="button"
+                                disabled={true}
+                                class="flex items-center gap-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-500 cursor-not-allowed whitespace-nowrap shrink-0"
+                            >
+                                <Ban size={14} /> 放送終了
+                            </button>
                         {:else}
                             <button
                                 type="button"

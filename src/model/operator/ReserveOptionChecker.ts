@@ -74,8 +74,8 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
                 if (
                     typeof time.start === 'undefined' ||
                     typeof time.range === 'undefined' ||
-                    0 > time.start ||
-                    0 >= time.range
+                    (0 <= time.start && time.start <= 23) === false ||
+                    (1 <= time.range && time.range <= 48) === false
                 ) {
                     return false;
                 }

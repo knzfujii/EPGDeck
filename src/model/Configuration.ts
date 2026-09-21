@@ -194,7 +194,12 @@ class Configuration implements IConfiguration {
                     : typeof raw.recordedHistoryRetentionPeriodDays === 'number'
                       ? raw.recordedHistoryRetentionPeriodDays
                       : 90,
-            storageCheckIntervalSeconds: recConf.storageCheckIntervalSeconds || raw.storageLimitCheckIntervalTime || 60,
+            storageCheckIntervalSeconds:
+                typeof recConf.storageCheckIntervalSeconds === 'number'
+                    ? recConf.storageCheckIntervalSeconds
+                    : typeof raw.storageLimitCheckIntervalTime === 'number'
+                      ? raw.storageLimitCheckIntervalTime * 60
+                      : 60,
             priority,
             timeSpecifiedStartMargin:
                 typeof recConf.timeSpecifiedStartMargin === 'number'

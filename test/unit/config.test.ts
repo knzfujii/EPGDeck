@@ -315,4 +315,46 @@ describe('Structured Config Schema', () => {
         } as any);
         expect(confFalse.recording.copyKeywordToDirectory).toBe(false);
     });
+
+    it('should configure storageCheckIntervalSeconds correctly including legacy fallback with unit conversion', () => {
+        // デフォルト（未指定）は 60 秒
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.recording.storageCheckIntervalSeconds).toBe(60);
+
+        // 新設定で明示的に指定（秒単位）
+        const confExplicit = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                storageCheckIntervalSeconds: 120,
+            },
+        } as any);
+        expect(confExplicit.recording.storageCheckIntervalSeconds).toBe(120);
+
+        // 旧設定 storageLimitCheckIntervalTime（分）からのフォールバック：3分 → 180秒
+        const confLegacy = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+            storageLimitCheckIntervalTime: 3,
+        } as any);
+        expect(confLegacy.recording.storageCheckIntervalSeconds).toBe(180);
+
+        // 新設定が旧設定より優先されること
+        const confBoth = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: {
+                directories: [{ name: 'rec', path: '/path' }],
+                storageCheckIntervalSeconds: 30,
+            },
+            storageLimitCheckIntervalTime: 5,
+        } as any);
+        expect(confBoth.recording.storageCheckIntervalSeconds).toBe(30);
+    });
 });

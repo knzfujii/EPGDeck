@@ -3,7 +3,6 @@ import { runEncode } from './enc_helper.js';
 /**
  * NVIDIA NVENC ハードウェアアクセラレーション設定 (GeForce / Quadro GPU)
  * - h264_nvenc / cq 23 / preset: p4 (medium)
- * - 地デジ 1440x1080 の 1920x1080 自動補正
  */
 runEncode({
     codec: 'h264_nvenc',

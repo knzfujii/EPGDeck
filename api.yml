@@ -8,7 +8,85 @@ info:
 
 servers: []
 
-paths: {}
+paths:
+    /auth/unlock:
+        post:
+            summary: 管理者モードへのアンロック
+            description: パスワードを検証し、有効な認証トークンを発行します
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - password
+                            properties:
+                                password:
+                                    type: string
+                                    description: 管理者パスワード
+            responses:
+                '200':
+                    description: 認証成功
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - token
+                                    - expiresAt
+                                properties:
+                                    token:
+                                        type: string
+                                        description: 認証トークン
+                                    expiresAt:
+                                        type: integer
+                                        description: 有効期限(ms)
+                '401':
+                    description: パスワード不一致
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: string
+                                        example: invalidPassword
+    /auth/status:
+        get:
+            summary: 認証トークンの検証
+            description: 保持している認証トークンの有効性を確認します
+            responses:
+                '200':
+                    description: 判定結果
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - unlocked
+                                properties:
+                                    unlocked:
+                                        type: boolean
+                                        description: ロック解除済みか
+                                    expiresAt:
+                                        type: integer
+                                        description: 有効期限(ms)
+    /auth/lock:
+        post:
+            summary: 明示的ロック
+            description: 管理モードを終了し、閲覧専用モードに戻します
+            responses:
+                '200':
+                    description: ロック完了
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    locked:
+                                        type: boolean
+                                        example: true
 
 components:
     schemas:
@@ -182,7 +260,7 @@ components:
                 - recorded
                 - encode
                 - urlscheme
-                - isEnableLiveStream
+                - isEnableTSLiveStream
                 - isEnableTSRecordedStream
                 - isEnableEncodedRecordedStream
             properties:
@@ -233,8 +311,8 @@ components:
                             $ref: '#/components/schemas/URLSchemeInfo'
                         download:
                             $ref: '#/components/schemas/URLSchemeInfo'
-                isEnableLiveStream:
-                    description: ライブ視聴が有効か
+                isEnableTSLiveStream:
+                    description: TS ライブ視聴が有効か
                     type: boolean
                 isEnableTSRecordedStream:
                     description: 録画済みの TS ファイルのストリーミングが有効か
@@ -322,6 +400,21 @@ components:
                     type: array
                     items:
                         type: string
+                readOnly:
+                    description: リードオンリーモード設定
+                    type: object
+                    required:
+                        - enabled
+                        - allowedOperations
+                    properties:
+                        enabled:
+                            description: リードオンリーモードが有効か
+                            type: boolean
+                        allowedOperations:
+                            description: 閲覧専用時に許可された操作一覧
+                            type: array
+                            items:
+                                type: string
 
         ChannelItems:
             type: array
@@ -630,10 +723,10 @@ components:
                     description: 無料放送か
                     type: boolean
                 durationMin:
-                    description: 番組最小時間 (分)
+                    description: 番組最小時間 (秒)
                     type: integer
                 durationMax:
-                    description: 番組最大時間 (分)
+                    description: 番組最大時間 (秒)
                     type: integer
                 searchPeriods:
                     description: 検索対象期間
@@ -660,12 +753,11 @@ components:
             properties:
                 start:
                     description:
-                        開始時刻 1 - 23, 時刻予約の場合は 0 時を 0 とした 0 ~ (60 * 50 * 24) - 1
-                        秒までの開始時刻を指定する
+                        開始時刻(時) 0 - 23。0 時を 0 とした時間単位の開始時刻を指定する
                     type: integer
                 range:
                     description:
-                        開始時刻からの時刻範囲(時) 1 - 23, 時刻予約の場合は秒で時間の長さを指定する 1 ~ 60 * 50 * 24 秒
+                        開始時刻からの時刻範囲(時) 1 - 48。時間単位で検索・予約する時間幅を指定する
                     type: integer
                 week:
                     description:

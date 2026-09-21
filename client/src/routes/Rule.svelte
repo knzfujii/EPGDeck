@@ -670,7 +670,7 @@
                                 <th class="px-4 py-3.5">エンコード</th>
                                 <th class="px-4 py-3.5 text-center w-20">優先度</th>
                                 <th class="px-4 py-3.5 text-center w-24">予約数</th>
-                                <th class="px-4 py-3.5 text-right">操作</th>
+                                <th class="px-4 py-3.5 text-right whitespace-nowrap w-px">操作</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -947,7 +947,7 @@
                                     </td>
 
                                     <!-- 操作ボタン -->
-                                    <td class="px-4 py-3.5 text-right">
+                                    <td class="px-4 py-3.5 text-right whitespace-nowrap">
                                         <div class="flex items-center justify-end gap-2">
                                             <!-- 録画一覧ボタン -->
                                             <button

@@ -30,6 +30,7 @@ export const rules = sqliteTable('rule', {
     durationMax: integer('durationMax'),
     searchPeriods: text('searchPeriods'),
     enable: integer('enable', { mode: 'boolean' }).notNull().default(false),
+    priority: integer('priority').notNull().default(1),
     avoidDuplicate: integer('avoidDuplicate', { mode: 'boolean' }).notNull().default(false),
     periodToAvoidDuplicate: integer('periodToAvoidDuplicate'),
     allowEndLack: integer('allowEndLack', { mode: 'boolean' }).notNull().default(false),

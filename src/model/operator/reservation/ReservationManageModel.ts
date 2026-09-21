@@ -941,6 +941,7 @@ class ReservationManageModel implements IReservationManageModel {
         reserve.ruleUpdateCnt = rule.updateCnt;
         reserve.updateTime = updateTime;
         reserve.allowEndLack = rule.reserveOption.allowEndLack;
+        reserve.priority = rule.reserveOption.priority ?? 5;
 
         if (typeof rule.reserveOption.tags !== 'undefined') {
             reserve.tags = JSON.stringify(rule.reserveOption.tags);
@@ -1707,6 +1708,10 @@ class ReservationManageModel implements IReservationManageModel {
             return 1; // // 手動予約を優先
         }
         if (!aIsManual && !bIsManual && a.ruleId !== null && b.ruleId !== null) {
+            const diff = (b.priority ?? 5) - (a.priority ?? 5);
+            if (diff !== 0) {
+                return diff;
+            }
             return a.ruleId - b.ruleId;
         }
 

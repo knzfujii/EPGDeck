@@ -187,6 +187,14 @@ export default class ReserveOptionChecker implements IReserveOptionChecker {
             return false;
         }
 
+        // 優先度 (1 - 10)
+        if (
+            typeof option.priority !== 'undefined' &&
+            (option.priority < 1 || option.priority > 10 || !Number.isInteger(option.priority))
+        ) {
+            return false;
+        }
+
         return true;
     }
 

@@ -9,9 +9,7 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 
 ## 1. 録画管理 & 運用安全 (Recording & Operations)
 
-- [ ] **ルールの優先順位設定**
-  - チューナー数不足による競合発生時、どの自動録画ルールを優先するか順位（Priority）を指定可能にする
-  - 競合調停アルゴリズム（`ReservationManageModel`）への優先度重み付けの導入
+
 - [ ] **録画タグ機能（RecordedTag）の引き継ぎ・仕様判断**
   - EPGStation から引き継いだバックエンド実装（DB スキーマ・REST API・録画完了時の自動タグ付与ロジック）が存在するが、フロントエンド UI は本家時代から未実装（`// TODO` のまま放置）
   - EPGDeck として正式に UI（タグ管理、ルール・手動予約での自動付与設定、録画詳細でのバッジ表示・手動付与/解除、タグによる検索・絞り込み）を実装して機能提供するか、あるいは不要な死にコードとしてバックエンドから完全廃止・整理するかを判断
@@ -86,4 +84,5 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **空き容量自動削除（StorageManageModel）の単位計算バグ修正 & 設定テンプレート完全化** | 上流（EPGStation）から引き継がれていた削除ループ内での容量再取得時の MB 換算漏れ（バイト単位のまま比較し 1 件でループを抜けてしまう、または誤ったバイト閾値設定で全録画が消滅する重大バグ）を解消、`getFreeSizeMB` による MB 換算の一本化、連続削除の単体テスト作成（`storage_manage.test.ts`）、`config.yml.template` および設定マニュアル（`configuration.md`）の全設定項目（`apiServers`, `action`, `limitCmd`, `encode.presets.cmd`, `urlscheme` の Mac/Win 対応等）の網羅・MB 単位表記統一 | [設定マニュアル](manual/configuration.md#5-録画設定-recording)、[録画マニュアル](manual/recording.md#10-空き容量自動確保ストレージクリーンアップ) |
 | **時間指定ルール予約の分単位指定対応 & 専用 UI・一覧識別強化** | 時（Hour）単位制限を撤廃し、開始時刻・終了時刻を分単位（HH:mm、日跨ぎ対応）で指定可能化。ルール編集画面（`RuleEdit.svelte`）で通常検索と時間指定予約のタブ切り替え導入（タイトル・局・曜日・時間帯に絞った専用フォーム）、ルール一覧（`Rule.svelte`）での「時間指定」バッジおよび曜日・時間帯（例: 月〜金 19:30〜20:45）の視認性向上、`ReserveOptionChecker` / `ReservationManageModel` のミリ秒精度予約枠生成ロジック完全対応 | [画面変更仕様書](dev/epgdeck_change_spec.md#35-ルール一覧-rule) |
 | **時間指定録画の番組名フォールバック & 再生画面タイトル表示修正** | 時間指定予約録画時に EPG 番組表が存在しない場合でも空文字化せず予約時タイトル（`reserve.name`）を確実に保持、録画枠が複数番組を跨ぐ場合も最長重複番組を自動特定（`ProgramDB.findChannelIdAndTime` / `RecorderModel` / `RecordingUtilModel`）、動画再生画面（`Watch.svelte`）で通信完了後のタイトル空文字時に「読み込み中...」のまま固定される表示不具合を解消 | [予約アルゴリズム仕様書](dev/reservation-algorithm.md#5-時刻指定予約istimespecificationによる予約枠生成)、[画面変更仕様書](dev/epgdeck_change_spec.md#37-統合動画プレーヤー-watchsvelte--videoplayersvelte) |
+| **ルールの優先順位設定（Priority 制御）** | チューナー競合発生時、数値が大きいルール（1〜10、デフォルト: 5）が優先的に録画枠を確保するよう競合調停アルゴリズム（`ReservationManageModel`）を拡張。あえて低優先度（1〜4）に設定して競合時に譲る運用や、高優先度（6〜10）で確実に確保する運用に対応。ルール編集画面（`RuleEdit.svelte`）でのセレクトボックス・バッジプレビュー、ルール一覧（`Rule.svelte`）でのカード・テーブル優先度バッジ表示に対応 | [予約アルゴリズム仕様書](dev/reservation-algorithm.md#4-時間帯重複とチューナー競合解決isconflict) |
 

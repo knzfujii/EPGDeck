@@ -142,6 +142,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     ruleUpdateCnt INTEGER,
                     isSkip INTEGER NOT NULL DEFAULT 0,
                     isConflict INTEGER NOT NULL DEFAULT 0,
+                    priority INTEGER NOT NULL DEFAULT 1,
                     allowEndLack INTEGER NOT NULL DEFAULT 0,
                     tags TEXT,
                     isOverlap INTEGER NOT NULL DEFAULT 0,
@@ -220,6 +221,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     durationMax INTEGER,
                     searchPeriods TEXT,
                     enable INTEGER NOT NULL DEFAULT 1,
+                    priority INTEGER NOT NULL DEFAULT 1,
                     allowEndLack INTEGER NOT NULL DEFAULT 0,
                     avoidDuplicate INTEGER NOT NULL DEFAULT 0,
                     periodToAvoidDuplicate INTEGER,
@@ -264,6 +266,18 @@ export default class DrizzleOperator implements IDrizzleOperator {
 
             for (const q of queries) {
                 await client.rawClient.execute(q);
+            }
+
+            // 既存テーブルへのカラム追加マイグレーション
+            try {
+                await client.rawClient.execute('ALTER TABLE reserve ADD COLUMN priority INTEGER NOT NULL DEFAULT 1');
+            } catch (err: any) {
+                // 既存カラムの場合は無視
+            }
+            try {
+                await client.rawClient.execute('ALTER TABLE rule ADD COLUMN priority INTEGER NOT NULL DEFAULT 1');
+            } catch (err: any) {
+                // 既存カラムの場合は無視
             }
         } else {
             // EPGStation v2.10.0 完全互換の MySQL テーブル定義自動作成（キー名は自動命名）
@@ -392,6 +406,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`ruleUpdateCnt\` int(11) DEFAULT NULL,
                     \`isSkip\` tinyint(4) NOT NULL DEFAULT 0,
                     \`isConflict\` tinyint(4) NOT NULL DEFAULT 0,
+                    \`priority\` int(11) NOT NULL DEFAULT 1,
                     \`allowEndLack\` tinyint(4) NOT NULL DEFAULT 0,
                     \`tags\` text DEFAULT NULL,
                     \`isOverlap\` tinyint(4) NOT NULL DEFAULT 0,
@@ -471,6 +486,7 @@ export default class DrizzleOperator implements IDrizzleOperator {
                     \`durationMax\` int(11) DEFAULT NULL,
                     \`searchPeriods\` text DEFAULT NULL,
                     \`enable\` tinyint(4) NOT NULL DEFAULT 1,
+                    \`priority\` int(11) NOT NULL DEFAULT 1,
                     \`allowEndLack\` tinyint(4) NOT NULL DEFAULT 0,
                     \`avoidDuplicate\` tinyint(4) NOT NULL DEFAULT 0,
                     \`periodToAvoidDuplicate\` int(11) DEFAULT NULL,
@@ -512,6 +528,18 @@ export default class DrizzleOperator implements IDrizzleOperator {
 
             for (const q of queries) {
                 await client.pool.query(q);
+            }
+
+            // 既存テーブルへのカラム追加マイグレーション
+            try {
+                await client.pool.query('ALTER TABLE `reserve` ADD COLUMN `priority` int(11) NOT NULL DEFAULT 1');
+            } catch (err: any) {
+                // 既存カラムの場合は無視
+            }
+            try {
+                await client.pool.query('ALTER TABLE `rule` ADD COLUMN `priority` int(11) NOT NULL DEFAULT 1');
+            } catch (err: any) {
+                // 既存カラムの場合は無視
             }
 
             await this.ensureMySQLIndexes(client.pool);

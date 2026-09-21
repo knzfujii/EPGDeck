@@ -399,6 +399,7 @@ export default class ReserveDB implements IReserveDB {
     private toRow(entity: Partial<Reserve>): any {
         const row: any = { ...entity };
         row.updateTime = entity.updateTime || Date.now();
+        row.priority = entity.priority ?? 1;
         return row;
     }
 
@@ -407,6 +408,7 @@ export default class ReserveDB implements IReserveDB {
         Object.assign(entity, row);
         entity.isSkip = !!row.isSkip;
         entity.isConflict = !!row.isConflict;
+        entity.priority = typeof row.priority === 'number' ? row.priority : 1;
         entity.allowEndLack = !!row.allowEndLack;
         entity.isOverlap = !!row.isOverlap;
         entity.isIgnoreOverlap = !!row.isIgnoreOverlap;

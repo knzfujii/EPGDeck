@@ -163,6 +163,7 @@
 
     // 2. 予約設定 (reserveOption)
     let isEnable = $state(true);
+    let priority = $state<number>(5);
     let allowEndLack = $state(false);
     let avoidDuplicate = $state(true);
     let periodToAvoidDuplicate = $state<number | null>(null);
@@ -527,6 +528,7 @@
 
         const rOpt = r.reserveOption || {};
         isEnable = rOpt.enable !== false;
+        priority = typeof rOpt.priority === 'number' ? rOpt.priority : 5;
         allowEndLack = rOpt.allowEndLack !== false;
         avoidDuplicate = rOpt.avoidDuplicate !== false;
         periodToAvoidDuplicate = rOpt.periodToAvoidDuplicate || null;
@@ -888,6 +890,7 @@
                 searchOption: buildSearchOptionPayload(),
                 reserveOption: {
                     enable: isEnable,
+                    priority: Number(priority) || 5,
                     allowEndLack,
                     avoidDuplicate,
                 },
@@ -2111,6 +2114,57 @@
                             無料放送（ノンスクランブル）のみ録画
                         </span>
                     </label>
+
+                    <!-- 優先度設定 -->
+                    <div class="pt-3 border-t border-slate-200/80 dark:border-slate-700/80">
+                        <label
+                            for="rule-priority"
+                            class="block font-bold text-sm text-slate-800 dark:text-slate-200 mb-1"
+                        >
+                            ルールの優先度 (1 〜 10)
+                        </label>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                            チューナー不足で録画が競合した際、数値が大きいルールが優先的に録画枠を確保します（標準:
+                            5、最高: 10、最低: 1）。
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <select
+                                id="rule-priority"
+                                bind:value={priority}
+                                class="h-10 w-48 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                                <option value={10}>10 (最高・最優先)</option>
+                                <option value={9}>9 (より高)</option>
+                                <option value={8}>8 (より高)</option>
+                                <option value={7}>7 (高)</option>
+                                <option value={6}>6 (高)</option>
+                                <option value={5}>5 (標準)</option>
+                                <option value={4}>4 (低)</option>
+                                <option value={3}>3 (低)</option>
+                                <option value={2}>2 (低)</option>
+                                <option value={1}>1 (最低)</option>
+                            </select>
+                            <span
+                                class="text-xs font-bold px-2.5 py-1 rounded-md {priority >= 8
+                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
+                                    : priority >= 6
+                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60'
+                                      : priority === 5
+                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60'
+                                        : 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60'}"
+                            >
+                                {#if priority >= 8}
+                                    ★ 優先度: 最高 ({priority})
+                                {:else if priority >= 6}
+                                    ▲ 優先度: 高 ({priority})
+                                {:else if priority === 5}
+                                    ● 優先度: 標準 (5)
+                                {:else}
+                                    ▼ 優先度: 低 ({priority})
+                                {/if}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </section>
 

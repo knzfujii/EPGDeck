@@ -282,4 +282,100 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
         expect(evaluated).toHaveLength(8);
         expect(evaluated.every((r: Reserve) => !r.isConflict)).toBe(true);
     });
+
+    it('prioritizes rules with higher priority during tuner conflict (high > default 5 > low)', () => {
+        const model = createModel();
+        // 2台のGRチューナー
+        const tuners: mapid.TunerDevice[] = [mockTuner(0, 'GR_0', ['GR']), mockTuner(1, 'GR_1', ['GR'])];
+        model.setTuners(tuners);
+
+        const now = Date.now();
+        // ルール1 (ruleId: 1, priority: 2: あえて低く設定した運用)
+        const r1 = new Reserve();
+        r1.id = 101;
+        r1.ruleId = 1;
+        r1.priority = 2;
+        r1.channelId = 1;
+        r1.channelType = 'GR';
+        r1.channel = '27';
+        r1.startAt = now + 100000;
+        r1.endAt = now + 100000 + 3600000;
+        r1.isConflict = false;
+
+        // ルール2 (ruleId: 2, priority: 5: 標準・デフォルト)
+        const r2 = new Reserve();
+        r2.id = 102;
+        r2.ruleId = 2;
+        r2.priority = 5;
+        r2.channelId = 2;
+        r2.channelType = 'GR';
+        r2.channel = '28';
+        r2.startAt = now + 100000;
+        r2.endAt = now + 100000 + 3600000;
+        r2.isConflict = false;
+
+        // ルール3 (ruleId: 3, priority: 8: 高優先度)
+        const r3 = new Reserve();
+        r3.id = 103;
+        r3.ruleId = 3;
+        r3.priority = 8;
+        r3.channelId = 3;
+        r3.channelType = 'GR';
+        r3.channel = '29';
+        r3.startAt = now + 100000;
+        r3.endAt = now + 100000 + 3600000;
+        r3.isConflict = false;
+
+        // チューナー2台に対して3件重複: 優先度8 (r3) と 優先度5 (r2) が確保され、低優先度2 (r1) が競合になるべき
+        const evaluated = (model as any).createReserves([r1, r2, r3]);
+        expect(evaluated).toHaveLength(3);
+
+        const evaluatedR1 = evaluated.find((r: Reserve) => r.id === 101);
+        const evaluatedR2 = evaluated.find((r: Reserve) => r.id === 102);
+        const evaluatedR3 = evaluated.find((r: Reserve) => r.id === 103);
+
+        expect(evaluatedR3.isConflict).toBe(false);
+        expect(evaluatedR2.isConflict).toBe(false);
+        expect(evaluatedR1.isConflict).toBe(true);
+    });
+
+    it('falls back to ruleId ascending order when priority is equal', () => {
+        const model = createModel();
+        const tuners: mapid.TunerDevice[] = [mockTuner(0, 'GR_0', ['GR'])];
+        model.setTuners(tuners);
+
+        const now = Date.now();
+        // 同一優先度(デフォルト5)で ruleId: 1 と ruleId: 2
+        const r1 = new Reserve();
+        r1.id = 201;
+        r1.ruleId = 1;
+        r1.priority = 5;
+        r1.channelId = 1;
+        r1.channelType = 'GR';
+        r1.channel = '27';
+        r1.startAt = now + 100000;
+        r1.endAt = now + 100000 + 3600000;
+        r1.isConflict = false;
+
+        const r2 = new Reserve();
+        r2.id = 202;
+        r2.ruleId = 2;
+        r2.priority = 5;
+        r2.channelId = 2;
+        r2.channelType = 'GR';
+        r2.channel = '28';
+        r2.startAt = now + 100000;
+        r2.endAt = now + 100000 + 3600000;
+        r2.isConflict = false;
+
+        // 同一優先度の場合は ruleId が小さい r1 が獲得し、r2 が競合
+        const evaluated = (model as any).createReserves([r2, r1]); // 順序を逆に渡しても確定的に判定される
+        expect(evaluated).toHaveLength(2);
+
+        const evaluatedR1 = evaluated.find((r: Reserve) => r.id === 201);
+        const evaluatedR2 = evaluated.find((r: Reserve) => r.id === 202);
+
+        expect(evaluatedR1.isConflict).toBe(false);
+        expect(evaluatedR2.isConflict).toBe(true);
+    });
 });

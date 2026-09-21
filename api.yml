@@ -797,6 +797,12 @@ components:
                 periodToAvoidDuplicate:
                     description: 重複を避ける期間
                     type: integer
+                priority:
+                    description: 'ルール優先度 (1 - 10, デフォルト: 5, 数値が大きいほど優先)'
+                    type: integer
+                    minimum: 1
+                    maximum: 10
+                    default: 5
                 tags:
                     type: array
                     items:
@@ -943,6 +949,9 @@ components:
                     type: boolean
                 allowEndLack:
                     type: boolean
+                priority:
+                    description: 予約優先度 (1 - 10)
+                    type: integer
                 isTimeSpecified:
                     type: boolean
                 tags:

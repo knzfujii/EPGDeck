@@ -381,6 +381,7 @@
                     {@const save = r.saveOption}
                     {@const enc = r.encodeOption}
                     {@const genreId = opt.genres?.[0]?.genre}
+                    {@const prio = r.reserveOption?.priority ?? 5}
                     <div
                         role="button"
                         tabindex="0"
@@ -432,11 +433,32 @@
                                 </span>
                             </div>
 
-                            <!-- 予約数バッジ -->
-                            <div class="shrink-0">
+                            <!-- 優先度 & 予約数バッジ -->
+                            <div class="shrink-0 flex items-center gap-1.5">
+                                <span
+                                    class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-bold {prio >=
+                                    8
+                                        ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
+                                        : prio >= 6
+                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60'
+                                          : prio === 5
+                                            ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                                            : 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60'}"
+                                >
+                                    {#if prio >= 8}
+                                        ★ {prio}
+                                    {:else if prio >= 6}
+                                        ▲ {prio}
+                                    {:else if prio === 5}
+                                        優先度 5
+                                    {:else}
+                                        ▼ {prio}
+                                    {/if}
+                                </span>
+
                                 {#if (r.reservesCnt ?? ruleReservesMap[r.id] ?? 0) > 0}
                                     <span
-                                        class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
+                                        class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-black text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60"
                                     >
                                         {r.reservesCnt ?? ruleReservesMap[r.id] ?? 0} 件
                                     </span>
@@ -641,7 +663,8 @@
                                 <th class="px-4 py-3.5">対象局 / ジャンル</th>
                                 <th class="px-4 py-3.5">保存先ストレージ / フォルダ</th>
                                 <th class="px-4 py-3.5">エンコード</th>
-                                <th class="px-4 py-3.5 text-center">予約数</th>
+                                <th class="px-4 py-3.5 text-center w-20">優先度</th>
+                                <th class="px-4 py-3.5 text-center w-24">予約数</th>
                                 <th class="px-4 py-3.5 text-right">操作</th>
                             </tr>
                         </thead>
@@ -652,6 +675,7 @@
                                 {@const save = r.saveOption}
                                 {@const enc = r.encodeOption}
                                 {@const genreId = opt.genres?.[0]?.genre}
+                                {@const prio = r.reserveOption?.priority ?? 5}
                                 <tr
                                     onclick={() => goEditRule(r)}
                                     class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled
@@ -878,6 +902,30 @@
                                         {:else}
                                             <span class="text-slate-400 text-xs">TSのみ</span>
                                         {/if}
+                                    </td>
+
+                                    <!-- 優先度 -->
+                                    <td class="px-4 py-3.5 text-center font-bold">
+                                        <span
+                                            class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-md {prio >=
+                                            8
+                                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
+                                                : prio >= 6
+                                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60'
+                                                  : prio === 5
+                                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60'}"
+                                        >
+                                            {#if prio >= 8}
+                                                ★ {prio}
+                                            {:else if prio >= 6}
+                                                ▲ {prio}
+                                            {:else if prio === 5}
+                                                5
+                                            {:else}
+                                                ▼ {prio}
+                                            {/if}
+                                        </span>
                                     </td>
 
                                     <!-- 予約数 -->

@@ -185,4 +185,17 @@ const createRes = await api.reserves.$post({
 });
 ```
 
+---
+
+## サムネイル API 仕様
+
+| メソッド | パス | 説明 | 主なパラメータ |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/thumbnails/:thumbnailId` | サムネイル画像取得 | 実ファイル不在時は `404 Not Found` |
+| `POST` | `/api/thumbnails/videos/:videoFileId` | 指定動画のサムネイル作成・再作成 | クエリまたはボディ: `seconds` (抽出秒数), `replace` (既存サムネ置換フラグ, デフォルト: seconds指定時true) |
+| `POST` | `/api/thumbnails/regenerate` | 欠損サムネイルの一括自己修復・再作成 | ファイル不在の壊れたDBレコードを自動削除し再生成 |
+| `POST` | `/api/thumbnails/cleanup` | ディスクとDBのサムネイル整合性整理 | - |
+| `DELETE` | `/api/thumbnails/:thumbnailId` | サムネイル削除 | ファイルがディスク上に見当たらない場合も正常削除として処理 |
+
+
 

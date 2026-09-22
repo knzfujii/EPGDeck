@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isSecureProtocol } from '../../src/model/service/hono/HonoApiUtil.js';
+import { isSecureProtocol, responseFile } from '../../src/model/service/hono/HonoApiUtil.js';
+import { NotFoundError } from '../../src/model/error/ApiError.js';
 
 describe('Hono API Utils', () => {
     describe('isSecureProtocol', () => {
@@ -31,6 +32,19 @@ describe('Hono API Utils', () => {
                 },
             } as any;
             expect(isSecureProtocol(c)).toBe(false);
+        });
+    });
+
+    describe('responseFile', () => {
+        it('should throw NotFoundError when file does not exist', async () => {
+            const c = {
+                req: {
+                    header: () => undefined,
+                },
+            } as any;
+            await expect(responseFile(c, '/non/existent/path/thumbnail.jpg', 'image/jpeg')).rejects.toThrow(
+                NotFoundError,
+            );
         });
     });
 });

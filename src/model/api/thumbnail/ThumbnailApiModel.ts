@@ -55,10 +55,11 @@ export default class ThumbnailApiModel implements IThumbnailApiModel {
     /**
      * 指定したビデオファイルでサムネイルを追加させる
      * @param videoFileId: apid.VideoFileId
+     * @param option?: { seconds?: number; replace?: boolean }
      * @return Promise<void>
      */
-    public async add(videoFileId: apid.VideoFileId): Promise<void> {
-        await this.ipc.thumbnail.add(videoFileId);
+    public async add(videoFileId: apid.VideoFileId, option?: { seconds?: number; replace?: boolean }): Promise<void> {
+        await this.ipc.thumbnail.add(videoFileId, option?.seconds, option?.replace);
     }
 
     /**

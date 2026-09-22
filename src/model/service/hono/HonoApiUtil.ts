@@ -2,6 +2,7 @@ import { Context } from 'hono';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
+import { NotFoundError } from '../../error/ApiError.js';
 import IPlayList from '../../api/IPlayList.js';
 
 export interface IError {
@@ -54,7 +55,15 @@ export const responsePlayList = (c: Context, list: IPlayList): Response => {
 };
 
 export const responseFile = async (c: Context, filePath: string, mime: string, download = false): Promise<Response> => {
-    const stat = await fs.promises.stat(filePath);
+    let stat: fs.Stats;
+    try {
+        stat = await fs.promises.stat(filePath);
+    } catch (err: any) {
+        if (err?.code === 'ENOENT') {
+            throw new NotFoundError('file is not found');
+        }
+        throw err;
+    }
     if (stat.isDirectory()) {
         throw new Error('file path is directory');
     }

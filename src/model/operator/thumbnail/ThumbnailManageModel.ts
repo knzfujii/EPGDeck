@@ -52,12 +52,14 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     /**
      * サムネイル作成 Queue に追加する
      * @param videoFileId: apid.VideoFileId
+     * @param seconds?: number サムネイル抽出位置（秒）
+     * @param replace?: boolean 既存サムネイルを置き換えるか
      */
-    public add(videoFileId: apid.VideoFileId): void {
-        this.log.system.info(`add thumbnail queue: ${videoFileId}`);
+    public add(videoFileId: apid.VideoFileId, seconds?: number, replace: boolean = false): void {
+        this.log.system.info(`add thumbnail queue: ${videoFileId}, seconds: ${seconds}, replace: ${replace}`);
 
         void this.queue.add<void>(() => {
-            return this.create(videoFileId).catch(err => {
+            return this.create(videoFileId, seconds, replace).catch(err => {
                 this.log.system.error(`create thumbnail error: ${videoFileId}`);
                 this.log.system.error(err);
             });
@@ -67,8 +69,10 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     /**
      * サムネイル生成をして生成したファイルを Thumbnail に登録する
      * @param videoFileId: apid.VideoFileId
+     * @param seconds?: number サムネイル抽出位置（秒）
+     * @param replace?: boolean 既存サムネイルを置き換えるか
      */
-    private async create(videoFileId: apid.VideoFileId): Promise<void> {
+    private async create(videoFileId: apid.VideoFileId, seconds?: number, replace: boolean = false): Promise<void> {
         const videoFile = await this.videoFileDB.findId(videoFileId);
         const videoFilePath = await this.videoUtil.getFullFilePathFromId(videoFileId);
         if (videoFile === null || videoFilePath === null) {
@@ -105,12 +109,17 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         );
         const cmds = ProcessUtil.parseCmdStr(cmdStr);
 
+        const positionSeconds =
+            typeof seconds === 'number' && !isNaN(seconds)
+                ? Math.max(0, seconds)
+                : this.config.recording.thumbnail.positionSeconds;
+
         // コマンドの引数準備
         for (let i = 0; i < cmds.args.length; i++) {
             cmds.args[i] = cmds.args[i]
                 .replace(/%INPUT%/, videoFilePath)
                 .replace(/%OUTPUT%/, output)
-                .replace(/%THUMBNAIL_POSITION%/, `${this.config.recording.thumbnail.positionSeconds.toString(10)}`)
+                .replace(/%THUMBNAIL_POSITION%/, `${positionSeconds.toString(10)}`)
                 .replace(/%THUMBNAIL_SIZE%/, this.config.recording.thumbnail.size);
         }
 
@@ -134,6 +143,20 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
                 return false;
             }
             this.log.system.info(`create thumbnail: ${videoFileId}, ${output}`);
+
+            // replace が指定されている場合、既存のサムネイルを削除
+            if (replace === true) {
+                const recorded = await this.recordedDB.findId(videoFile.recordedId);
+                if (recorded !== null && typeof recorded.thumbnails !== 'undefined') {
+                    for (const oldThumbnail of recorded.thumbnails) {
+                        await this.delete(oldThumbnail.id).catch(err => {
+                            this.log.system.warn(
+                                `failed to delete old thumbnail ${oldThumbnail.id} on replace: ${err.message}`,
+                            );
+                        });
+                    }
+                }
+            }
 
             // add DB
             const thumbnail = new Thumbnail();
@@ -244,6 +267,9 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
         // サムネイルファイルを削除
         const filePath = path.join(this.config.recording.thumbnail.path, thumbnail.filePath);
         await FileUtil.unlink(filePath).catch(err => {
+            if (err?.code === 'ENOENT') {
+                return;
+            }
             this.log.system.error(`delete thumbnail error: ${thumbnailId}`);
             this.log.system.error(err);
             throw err;

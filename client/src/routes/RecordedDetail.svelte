@@ -44,12 +44,16 @@
         ChevronDown,
         Loader2,
         Video,
+        Camera,
     } from '@lucide/svelte';
+    import RecreateThumbnailModal from '../lib/components/recording/RecreateThumbnailModal.svelte';
 
     let recorded = $state<apid.RecordedItem | null>(null);
     let isLoading = $state(true);
     let isStreamModalOpen = $state(false);
     let streamModalVideoFileId = $state<number | undefined>(undefined);
+    let isThumbnailModalOpen = $state(false);
+    let thumbnailRefreshKey = $state(Date.now());
     const isMobileDevice = isMobileOrTabletDevice();
 
     // エンコード追加モーダル
@@ -199,6 +203,7 @@
     onMount(() => {
         unsubscribeSocket = socketStore.on('updateStatus', () => {
             fetchRecordedDetail(true);
+            thumbnailRefreshKey = Date.now();
         });
     });
 
@@ -509,13 +514,27 @@
                 <div class="relative aspect-video w-full bg-slate-900 md:aspect-auto">
                     {#if recorded.thumbnails?.[0]}
                         <img
-                            src={`/api/thumbnails/${recorded.thumbnails[0]}`}
+                            src={`/api/thumbnails/${recorded.thumbnails[0]}?t=${thumbnailRefreshKey}`}
                             alt={recorded.name}
                             class="h-full w-full object-cover"
                         />
                     {:else}
                         <div class="flex h-full w-full items-center justify-center text-slate-600">
                             <Tv size={48} />
+                        </div>
+                    {/if}
+
+                    {#if !readOnlyStore.isReadOnly && (recorded.videoFiles?.length ?? 0) > 0}
+                        <div class="absolute top-3 right-3 z-10">
+                            <button
+                                type="button"
+                                onclick={() => (isThumbnailModalOpen = true)}
+                                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs transition hover:scale-110 hover:bg-black/80 cursor-pointer shadow-md"
+                                aria-label="サムネイルを再作成"
+                                title="サムネイルを再作成"
+                            >
+                                <Camera size={18} />
+                            </button>
                         </div>
                     {/if}
 
@@ -1149,4 +1168,19 @@
             </div>
         </div>
     </div>
+{/if}
+
+{#if recorded}
+    <RecreateThumbnailModal
+        isOpen={isThumbnailModalOpen}
+        recordedId={recorded.id}
+        videoFiles={recorded.videoFiles || []}
+        onClose={() => (isThumbnailModalOpen = false)}
+        onSuccess={() => {
+            setTimeout(async () => {
+                await fetchRecordedDetail(true);
+                thumbnailRefreshKey = Date.now();
+            }, 1000);
+        }}
+    />
 {/if}

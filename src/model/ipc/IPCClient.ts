@@ -510,12 +510,14 @@ export default class IPCClient implements IIPCClient {
                     0, // タイムアウトなし
                 );
             },
-            add: videoFileId => {
+            add: (videoFileId, seconds, replace) => {
                 return this.send({
                     model: ModelName.thumbnail,
                     func: ThumbnailFunctions.add,
                     args: {
                         videoFileId: videoFileId,
+                        seconds: seconds,
+                        replace: replace,
                     },
                 });
             },

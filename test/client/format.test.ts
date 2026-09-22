@@ -6,6 +6,8 @@ import {
     getGenreName,
     getGenreBadgeClass,
     formatTimeRemaining,
+    formatPlayerTime,
+    parsePlayerTime,
 } from '../../client/src/lib/utils/format.js';
 
 describe('format utils', () => {
@@ -79,6 +81,28 @@ describe('format utils', () => {
             expect(formatTimeRemaining(now + 60 * 60 * 1000, now)).toBe('残り 1時間');
             expect(formatTimeRemaining(now - 1000, now)).toBe('まもなく終了');
             expect(formatTimeRemaining(null, now)).toBe('');
+        });
+    });
+
+    describe('formatPlayerTime and parsePlayerTime', () => {
+        it('should format seconds to MM:SS or HH:MM:SS', () => {
+            expect(formatPlayerTime(0)).toBe('00:00');
+            expect(formatPlayerTime(65)).toBe('01:05');
+            expect(formatPlayerTime(3665)).toBe('01:01:05');
+            expect(formatPlayerTime(-1)).toBe('00:00');
+            expect(formatPlayerTime(null)).toBe('00:00');
+        });
+
+        it('should parse HH:MM:SS, MM:SS and seconds string correctly', () => {
+            expect(parsePlayerTime('00:00')).toBe(0);
+            expect(parsePlayerTime('01:05')).toBe(65);
+            expect(parsePlayerTime('01:01:05')).toBe(3665);
+            expect(parsePlayerTime('90')).toBe(90);
+            expect(parsePlayerTime('  02:30  ')).toBe(150);
+            expect(parsePlayerTime('invalid')).toBe(null);
+            expect(parsePlayerTime('01:65')).toBe(null); // 秒が60以上
+            expect(parsePlayerTime('')).toBe(null);
+            expect(parsePlayerTime(null)).toBe(null);
         });
     });
 });

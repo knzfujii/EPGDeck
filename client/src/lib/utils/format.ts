@@ -78,6 +78,35 @@ export function formatPlayerTime(seconds: number | undefined | null): string {
 }
 
 /**
+ * "HH:MM:SS" または "MM:SS" または "SS" 形式の文字列を秒数（number）に変換する
+ */
+export function parsePlayerTime(timeStr: string | undefined | null): number | null {
+    if (!timeStr) return null;
+    const trimmed = timeStr.trim();
+    if (!trimmed) return null;
+
+    // 単一の数値（秒）
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+        const sec = parseFloat(trimmed);
+        return isNaN(sec) || sec < 0 ? null : sec;
+    }
+
+    const parts = trimmed.split(':');
+    if (parts.length === 2) {
+        // MM:SS
+        const [m, s] = parts.map(p => parseFloat(p));
+        if (isNaN(m) || isNaN(s) || m < 0 || s < 0 || s >= 60) return null;
+        return m * 60 + s;
+    } else if (parts.length === 3) {
+        // HH:MM:SS
+        const [h, m, s] = parts.map(p => parseFloat(p));
+        if (isNaN(h) || isNaN(m) || isNaN(s) || h < 0 || m < 0 || m >= 60 || s < 0 || s >= 60) return null;
+        return h * 3600 + m * 60 + s;
+    }
+    return null;
+}
+
+/**
  * バイト数を "B", "KB", "MB", "GB", "TB" にフォーマット
  */
 export function formatSize(bytes: number | undefined | null): string {

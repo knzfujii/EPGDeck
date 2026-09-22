@@ -5,7 +5,7 @@ import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel.js';
 import container from '../../../ModelContainer.js';
 import * as api from '../HonoApiUtil.js';
 import { NotFoundError } from '../../../error/ApiError.js';
-import { thumbnailParamSchema, videoFileParamSchema } from '../schemas/thumbnails.js';
+import { thumbnailParamSchema, videoFileParamSchema, createThumbnailQuerySchema } from '../schemas/thumbnails.js';
 
 const app = new Hono()
     // POST /api/thumbnails/cleanup
@@ -21,12 +21,26 @@ const app = new Hono()
         return c.json({ code: 200 });
     })
     // POST /api/thumbnails/videos/:videoFileId
-    .post('/videos/:videoFileId', zValidator('param', videoFileParamSchema), async c => {
-        const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
-        const { videoFileId } = c.req.valid('param');
-        await thumbnailApiModel.add(videoFileId);
-        return c.json({ code: 200 });
-    })
+    .post(
+        '/videos/:videoFileId',
+        zValidator('param', videoFileParamSchema),
+        zValidator('query', createThumbnailQuerySchema),
+        async c => {
+            const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+            const { videoFileId } = c.req.valid('param');
+            const query = c.req.valid('query');
+            let body: { seconds?: number; replace?: boolean } | undefined;
+            if (c.req.header('content-type')?.includes('application/json')) {
+                body = await c.req.json().catch(() => undefined);
+            }
+
+            const seconds = query.seconds ?? body?.seconds;
+            const replace = query.replace ?? body?.replace ?? typeof seconds === 'number';
+
+            await thumbnailApiModel.add(videoFileId, { seconds, replace });
+            return c.json({ code: 200 });
+        },
+    )
     // GET /api/thumbnails/:thumbnailId
     .get('/:thumbnailId', zValidator('param', thumbnailParamSchema), async c => {
         const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');

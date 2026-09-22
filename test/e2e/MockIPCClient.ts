@@ -11,7 +11,7 @@ import IIPCClient, {
 
 @injectable()
 export default class MockIPCClient implements IIPCClient {
-    public reserveation: IPCReservationManageModel = {
+    public reservation: IPCReservationManageModel = {
         getBroadcastStatus: async () => ({ GR: false, BS: false, CS: false, SKY: false }),
         add: async () => 1,
         update: async () => {},

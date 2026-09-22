@@ -22,7 +22,7 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return ReserveId
      */
     public add(option: apid.ManualReserveOption): Promise<apid.ReserveId> {
-        return this.ipc.reserveation.add(option);
+        return this.ipc.reservation.add(option);
     }
 
     /**
@@ -32,7 +32,7 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return Promise<void>
      */
     public async edit(reserveId: apid.ReserveId, option: apid.EditManualReserveOption): Promise<void> {
-        return this.ipc.reserveation.edit(reserveId, option);
+        return this.ipc.reservation.edit(reserveId, option);
     }
 
     /**
@@ -277,7 +277,7 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return Promise<void>
      */
     public cancel(reserveId: apid.ReserveId): Promise<void> {
-        return this.ipc.reserveation.cancel(reserveId);
+        return this.ipc.reservation.cancel(reserveId);
     }
 
     /**
@@ -286,7 +286,7 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return Promise<void>
      */
     public removeSkip(reserveId: apid.ReserveId): Promise<void> {
-        return this.ipc.reserveation.removeSkip(reserveId);
+        return this.ipc.reservation.removeSkip(reserveId);
     }
 
     /**
@@ -295,7 +295,7 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return Promise<void>
      */
     public removeOverlap(reserveId: apid.ReserveId): Promise<void> {
-        return this.ipc.reserveation.removeOverlap(reserveId);
+        return this.ipc.reservation.removeOverlap(reserveId);
     }
 
     /**
@@ -303,6 +303,6 @@ export default class ReserveApiModel implements IReserveApiModel {
      * @return Promise<void>
      */
     public updateAll(): Promise<void> {
-        return this.ipc.reserveation.updateAll(false);
+        return this.ipc.reservation.updateAll(false);
     }
 }

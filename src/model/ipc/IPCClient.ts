@@ -27,9 +27,9 @@ import {
     RecordedFunctions,
     RecordedTagFunctions,
     RecordingFunctions,
-    ReplayMessage,
-    ReserveationFunctions,
-    RuleFuntions,
+    ReplyMessage,
+    ReservationFunctions,
+    RuleFunctions,
     SendMessage,
     ThumbnailFunctions,
 } from './IPCMessageDefine.js';
@@ -39,7 +39,7 @@ export default class IPCClient implements IIPCClient {
     private socketIO: ISocketIOManageModel;
     private encodeManage: IEncodeManageModel;
     private logManage: ILogManageModel;
-    public reserveation!: IPCReservationManageModel;
+    public reservation!: IPCReservationManageModel;
     public recorded!: IPCRecordedManageModel;
     public recordedTag!: IPCRecordedTagManageModel;
     public recording!: IPCRecordingManageModel;
@@ -66,7 +66,7 @@ export default class IPCClient implements IIPCClient {
         }
 
         this.ipcInit();
-        this.setReserveation();
+        this.setReservation();
         this.setRecorded();
         this.setRecordedTag();
         this.setRecording();
@@ -79,10 +79,10 @@ export default class IPCClient implements IIPCClient {
      * IPC 通信初期設定
      */
     private ipcInit(): void {
-        process.on('message', async (msg: ReplayMessage | ParentMessage) => {
-            if (typeof (<ReplayMessage>msg).id !== 'undefined') {
+        process.on('message', async (msg: ReplyMessage | ParentMessage) => {
+            if (typeof (<ReplyMessage>msg).id !== 'undefined') {
                 // 送信したメッセージの応答
-                this.listener.emit((<ReplayMessage>msg).id.toString(10), msg);
+                this.listener.emit((<ReplyMessage>msg).id.toString(10), msg);
             } else if ((<ParentMessage>msg).type === 'notifyClient') {
                 // socket.io によるクライアントへの状態更新通知
                 this.socketIO.notifyClient();
@@ -120,11 +120,11 @@ export default class IPCClient implements IIPCClient {
         });
 
         return new Promise<T>((resolve: (value: T) => void, reject: (err: Error) => void) => {
-            this.listener.once(msg.id.toString(10), (replay: ReplayMessage) => {
-                if (typeof replay.error === 'undefined') {
-                    resolve(<T>replay.result);
+            this.listener.once(msg.id.toString(10), (reply: ReplyMessage) => {
+                if (typeof reply.error === 'undefined') {
+                    resolve(<T>reply.result);
                 } else {
-                    reject(new Error(replay.error));
+                    reject(new Error(reply.error));
                 }
             });
 
@@ -138,20 +138,20 @@ export default class IPCClient implements IIPCClient {
     }
 
     /**
-     * set reserveation
+     * set reservation
      */
-    private setReserveation(): void {
-        this.reserveation = {
+    private setReservation(): void {
+        this.reservation = {
             getBroadcastStatus: () => {
                 return this.send<apid.BroadcastStatus>({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.getBroadcastStatus,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.getBroadcastStatus,
                 });
             },
             add: (option: apid.ManualReserveOption) => {
                 return this.send<apid.ReserveId>({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.add,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.add,
                     args: {
                         option: option,
                     },
@@ -159,8 +159,8 @@ export default class IPCClient implements IIPCClient {
             },
             update: (reserveId: apid.ReserveId) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.update,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.update,
                     args: {
                         reserveId: reserveId,
                     },
@@ -168,8 +168,8 @@ export default class IPCClient implements IIPCClient {
             },
             updateRule: (ruleId: apid.RuleId) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.updateRule,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.updateRule,
                     args: {
                         ruleId: ruleId,
                     },
@@ -177,8 +177,8 @@ export default class IPCClient implements IIPCClient {
             },
             updateAll: (isUntilComplete: boolean) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.updateAll,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.updateAll,
                     args: {
                         isUntilComplete: isUntilComplete,
                     },
@@ -186,8 +186,8 @@ export default class IPCClient implements IIPCClient {
             },
             cancel: (reserveId: apid.ReserveId) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.cancel,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.cancel,
                     args: {
                         reserveId: reserveId,
                     },
@@ -195,8 +195,8 @@ export default class IPCClient implements IIPCClient {
             },
             removeSkip: (reserveId: apid.ReserveId) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.removeSkip,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.removeSkip,
                     args: {
                         reserveId: reserveId,
                     },
@@ -204,8 +204,8 @@ export default class IPCClient implements IIPCClient {
             },
             removeOverlap: (reserveId: apid.ReserveId) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.removeOverlap,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.removeOverlap,
                     args: {
                         reserveId: reserveId,
                     },
@@ -213,8 +213,8 @@ export default class IPCClient implements IIPCClient {
             },
             edit: (reserveId: apid.ReserveId, option: apid.EditManualReserveOption) => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.edit,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.edit,
                     args: {
                         reserveId: reserveId,
                         option: option,
@@ -223,8 +223,8 @@ export default class IPCClient implements IIPCClient {
             },
             clean: () => {
                 return this.send({
-                    model: ModelName.reserveation,
-                    func: ReserveationFunctions.clean,
+                    model: ModelName.reservation,
+                    func: ReservationFunctions.clean,
                 });
             },
         };
@@ -451,7 +451,7 @@ export default class IPCClient implements IIPCClient {
             add: (rule: apid.AddRuleOption) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.add,
+                    func: RuleFunctions.add,
                     args: {
                         rule: rule,
                     },
@@ -460,7 +460,7 @@ export default class IPCClient implements IIPCClient {
             update: (rule: apid.Rule) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.update,
+                    func: RuleFunctions.update,
                     args: {
                         rule: rule,
                     },
@@ -469,7 +469,7 @@ export default class IPCClient implements IIPCClient {
             enable: (ruleId: apid.RuleId) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.enable,
+                    func: RuleFunctions.enable,
                     args: {
                         ruleId: ruleId,
                     },
@@ -478,7 +478,7 @@ export default class IPCClient implements IIPCClient {
             disable: (ruleId: apid.RuleId) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.disable,
+                    func: RuleFunctions.disable,
                     args: {
                         ruleId: ruleId,
                     },
@@ -487,7 +487,7 @@ export default class IPCClient implements IIPCClient {
             delete: (ruleId: apid.RuleId) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.delete,
+                    func: RuleFunctions.delete,
                     args: {
                         ruleId: ruleId,
                     },
@@ -496,7 +496,7 @@ export default class IPCClient implements IIPCClient {
             deletes: (ruleIds: apid.RuleId[]) => {
                 return this.send({
                     model: ModelName.rule,
-                    func: RuleFuntions.deletes,
+                    func: RuleFunctions.deletes,
                     args: {
                         ruleIds: ruleIds,
                     },

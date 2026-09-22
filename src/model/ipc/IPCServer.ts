@@ -24,9 +24,9 @@ import {
     RecordedFunctions,
     RecordedTagFunctions,
     RecordingFunctions,
-    ReplayMessage,
-    ReserveationFunctions,
-    RuleFuntions,
+    ReplyMessage,
+    ReservationFunctions,
+    RuleFunctions,
     SendMessage,
     ThumbnailFunctions,
 } from './IPCMessageDefine.js';
@@ -87,18 +87,18 @@ export default class IPCServer implements IIPCServer {
                 // 指定された関数が存在するなら実行
                 try {
                     const result = await this.functions[msg.model][msg.func](msg);
-                    this.replay({
+                    this.reply({
                         id: msg.id,
                         result: result,
                     });
                 } catch (err: any) {
-                    this.replay({
+                    this.reply({
                         id: msg.id,
                         error: err.message,
                     });
                 }
             } else {
-                this.replay({
+                this.reply({
                     id: msg.id,
                     error: 'IPCFunctionError',
                 });
@@ -155,11 +155,11 @@ export default class IPCServer implements IIPCServer {
 
     /**
      * 応答メッセージ送信
-     * @param msg: ReplayMessage
+     * @param msg: ReplyMessage
      */
-    private replay(msg: ReplayMessage): void {
+    private reply(msg: ReplyMessage): void {
         if (this.child === null) {
-            throw new Error('IPCSendReplayError');
+            throw new Error('IPCSendReplyError');
         }
 
         this.child.send(msg);
@@ -169,7 +169,7 @@ export default class IPCServer implements IIPCServer {
      * 関数登録処理
      */
     private init(): void {
-        this.functions[ModelName.reserveation] = this.getReserveationFunctions();
+        this.functions[ModelName.reservation] = this.getReservationFunctions();
         this.functions[ModelName.recorded] = this.getRecordedFunctions();
         this.functions[ModelName.recordedTag] = this.getRecordedTagFunctions();
         this.functions[ModelName.recording] = this.getRecordingFunctions();
@@ -179,37 +179,37 @@ export default class IPCServer implements IIPCServer {
     }
 
     /**
-     * set reserveation functions
+     * set reservation functions
      */
-    private getReserveationFunctions(): IFunctionIndex {
+    private getReservationFunctions(): IFunctionIndex {
         const index: IFunctionIndex = {};
 
         // getBroadcastStatus
-        index[ReserveationFunctions.getBroadcastStatus] = async () => {
+        index[ReservationFunctions.getBroadcastStatus] = async () => {
             return this.reservationManage.getBroadcastStatus();
         };
 
         // add
-        index[ReserveationFunctions.add] = async msg => {
+        index[ReservationFunctions.add] = async msg => {
             const option = this.getArgsValue<apid.ManualReserveOption>(msg, 'option');
 
             return await this.reservationManage.add(option);
         };
 
         // update
-        index[ReserveationFunctions.update] = async msg => {
+        index[ReservationFunctions.update] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             await this.reservationManage.update(reserveId);
         };
 
         // updateRule
-        index[ReserveationFunctions.updateRule] = async msg => {
+        index[ReservationFunctions.updateRule] = async msg => {
             const ruleId = this.getArgsValue<apid.RuleId>(msg, 'ruleId');
             await this.reservationManage.updateRule(ruleId);
         };
 
         // updateAll
-        index[ReserveationFunctions.updateAll] = async msg => {
+        index[ReservationFunctions.updateAll] = async msg => {
             const isUntilComplete = this.getArgsValue<boolean>(msg, 'isUntilComplete');
 
             if (isUntilComplete === true) {
@@ -220,25 +220,25 @@ export default class IPCServer implements IIPCServer {
         };
 
         // cancel
-        index[ReserveationFunctions.cancel] = async msg => {
+        index[ReservationFunctions.cancel] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             await this.reservationManage.cancel(reserveId);
         };
 
         // removeSkip
-        index[ReserveationFunctions.removeSkip] = async msg => {
+        index[ReservationFunctions.removeSkip] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             await this.reservationManage.removeSkip(reserveId);
         };
 
         // removeOverlap
-        index[ReserveationFunctions.removeOverlap] = async msg => {
+        index[ReservationFunctions.removeOverlap] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             await this.reservationManage.removeOverlap(reserveId);
         };
 
         // edit
-        index[ReserveationFunctions.edit] = async msg => {
+        index[ReservationFunctions.edit] = async msg => {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             const option = this.getArgsValue<apid.EditManualReserveOption>(msg, 'option');
             await this.reservationManage.edit(reserveId, option);
@@ -442,42 +442,42 @@ export default class IPCServer implements IIPCServer {
         const index: IFunctionIndex = {};
 
         // add
-        index[RuleFuntions.add] = async msg => {
+        index[RuleFunctions.add] = async msg => {
             const rule = this.getArgsValue<apid.AddRuleOption>(msg, 'rule');
 
             return await this.ruleManage.add(rule);
         };
 
         // update
-        index[RuleFuntions.update] = async msg => {
+        index[RuleFunctions.update] = async msg => {
             const rule = this.getArgsValue<apid.Rule>(msg, 'rule');
 
             await this.ruleManage.update(rule);
         };
 
         // enable
-        index[RuleFuntions.enable] = async msg => {
+        index[RuleFunctions.enable] = async msg => {
             const ruleId = this.getArgsValue<apid.RuleId>(msg, 'ruleId');
 
             await this.ruleManage.enable(ruleId);
         };
 
         // disable
-        index[RuleFuntions.disable] = async msg => {
+        index[RuleFunctions.disable] = async msg => {
             const ruleId = this.getArgsValue<apid.RuleId>(msg, 'ruleId');
 
             await this.ruleManage.disable(ruleId);
         };
 
         // delete
-        index[RuleFuntions.delete] = async msg => {
+        index[RuleFunctions.delete] = async msg => {
             const ruleId = this.getArgsValue<apid.RuleId>(msg, 'ruleId');
 
             await this.ruleManage.delete(ruleId);
         };
 
         // deletes
-        index[RuleFuntions.deletes] = async msg => {
+        index[RuleFunctions.deletes] = async msg => {
             const ruleIds = this.getArgsValue<apid.RuleId[]>(msg, 'ruleIds');
 
             await this.ruleManage.deletes(ruleIds);

@@ -68,7 +68,7 @@ export default class ConfigApiModel implements IConfigApiModel {
               }
             : <any>{};
 
-        result.broadcast = await this.ipc.reserveation.getBroadcastStatus();
+        result.broadcast = await this.ipc.reservation.getBroadcastStatus();
         result.isEnableTSLiveStream = false;
         result.isEnableTSRecordedStream = false;
         result.isEnableEncodedRecordedStream = false;

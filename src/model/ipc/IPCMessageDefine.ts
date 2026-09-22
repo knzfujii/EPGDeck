@@ -47,7 +47,7 @@ export interface SendMessage extends ClientMessageOption {
 /**
  * 子プロセスから送信されたメッセージに対する応答メッセージ
  */
-export interface ReplayMessage {
+export interface ReplyMessage {
     id: MessageId;
     result?: any;
     error?: string;
@@ -60,16 +60,16 @@ export enum ModelName {
     recorded = 'recorded',
     recording = 'recording',
     recordedTag = 'recordedTag',
-    reserveation = 'reserveation',
+    reservation = 'reservation',
     rule = 'rule',
     thumbnail = 'thumbnail',
     encodeEvent = 'encodeEvent',
 }
 
 /**
- * reserveation の関数定義
+ * reservation の関数定義
  */
-export enum ReserveationFunctions {
+export enum ReservationFunctions {
     getBroadcastStatus = 'getBroadcastStatus',
     add = 'add',
     update = 'update',
@@ -123,7 +123,7 @@ export enum RecordingFunctions {
 /**
  * Rule の関数定義
  */
-export enum RuleFuntions {
+export enum RuleFunctions {
     add = 'add',
     update = 'update',
     enable = 'enable',

@@ -65,7 +65,7 @@ export interface IPCOperatorEncodeEvent {
 }
 
 export default interface IIPCClient {
-    reserveation: IPCReservationManageModel;
+    reservation: IPCReservationManageModel;
     recorded: IPCRecordedManageModel;
     recordedTag: IPCRecordedTagManageModel;
     recording: IPCRecordingManageModel;

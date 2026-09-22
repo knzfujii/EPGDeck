@@ -49,7 +49,13 @@ class RecorderModel implements IRecorderModel {
     private recordingEvent: IRecordingEvent;
     private mirakurunClientModel: IMirakurunClientModel;
 
-    private reserve!: Reserve;
+    private _reserve!: Reserve;
+    public get reserve(): Reserve {
+        return this._reserve;
+    }
+    private set reserve(value: Reserve) {
+        this._reserve = value;
+    }
     private recordedId: apid.RecordedId | null = null;
     private videoFileId: apid.VideoFileId | null = null;
     private videoFileFulPath: string | null = null;
@@ -59,7 +65,13 @@ class RecorderModel implements IRecorderModel {
     private isStopPrepRec: boolean = false;
     private isNeedDeleteReservation: boolean = true;
     private isPrepRecording: boolean = false;
-    private isRecording: boolean = false;
+    private _isRecording: boolean = false;
+    public get isRecording(): boolean {
+        return this._isRecording;
+    }
+    private set isRecording(value: boolean) {
+        this._isRecording = value;
+    }
     private isPlanToDelete: boolean = false;
     private isCanceledCallingFinished: boolean = false; // mirakurun の stream の終了検知をキャンセルするか
     private eventEmitter = new events.EventEmitter();

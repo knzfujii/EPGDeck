@@ -1093,10 +1093,29 @@ class ReservationManageModel implements IReservationManageModel {
             }
         }
 
-        // 削除する予約を追加
+        // 削除する予約を追加（但し同一ルール・同一チャンネル・同一時間帯で programId のみ変わった場合は update に変更）
         for (const key in idIndex) {
             if (idIndex[key].isChecked === false) {
-                diff.delete.push(idIndex[key].reserve);
+                const oldReserve = idIndex[key].reserve;
+                // diff.insert（新規追加候補）の中から同一ルール・同一チャンネル・同一時間帯のものを検索（EPG更新でprogramId変更対策）
+                const insertIndex = diff.insert.findIndex(
+                    nr =>
+                        nr.ruleId === oldReserve.ruleId &&
+                        nr.channelId === oldReserve.channelId &&
+                        Math.abs(nr.startAt - oldReserve.startAt) < 60000 &&
+                        Math.abs(nr.endAt - oldReserve.endAt) < 60000,
+                );
+                if (insertIndex !== -1 && oldReserve.programId !== diff.insert[insertIndex].programId) {
+                    // programId が変わっただけで同一番組枠 → diff.insert から取り出して update として扱う
+                    const matchedNew = diff.insert.splice(insertIndex, 1)[0];
+                    matchedNew.id = oldReserve.id;
+                    diff.update.push(matchedNew);
+                    this.log.system.debug(
+                        `reserve key changed by programId update: old=${oldReserve.id}(programId=${oldReserve.programId}) new=${matchedNew.id}(programId=${matchedNew.programId})`,
+                    );
+                } else {
+                    diff.delete.push(oldReserve);
+                }
             }
         }
         for (const key in timeIndex) {
@@ -1708,10 +1727,36 @@ class ReservationManageModel implements IReservationManageModel {
             return 1; // // 手動予約を優先
         }
         if (!aIsManual && !bIsManual && a.ruleId !== null && b.ruleId !== null) {
+            // 放送開始済み（録画中または開始済み）の既存予約を保護する
+            const now = Date.now();
+            const aHasId = typeof a.id === 'number' && a.id > 0;
+            const bHasId = typeof b.id === 'number' && b.id > 0;
+            const aIsStarted = a.startAt <= now;
+            const bIsStarted = b.startAt <= now;
+
+            // 1. すでに放映開始している既存予約は、新規予約（未採番）による横取りから絶対保護
+            if (aHasId && aIsStarted && !bHasId) {
+                return -1;
+            }
+            if (bHasId && bIsStarted && !aHasId) {
+                return 1;
+            }
+
+            // 2. 優先度（priority: 1〜10、大きい方が優先）
             const diff = (b.priority ?? 5) - (a.priority ?? 5);
             if (diff !== 0) {
                 return diff;
             }
+
+            // 3. 同一優先度の場合、すでにDBに存在する既存予約（id採番済み）を優先して不必要な再採番・削除を防止
+            if (aHasId && !bHasId) {
+                return -1;
+            }
+            if (!aHasId && bHasId) {
+                return 1;
+            }
+
+            // 4. ruleId の昇順
             return a.ruleId - b.ruleId;
         }
 

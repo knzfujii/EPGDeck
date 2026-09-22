@@ -561,4 +561,170 @@ describe('ReservationManageModel', () => {
 
         vi.useRealTimers();
     });
+
+    it('protects active started reservation from being deleted by another rule for the same program', async () => {
+        const now = Date.now();
+        const programId = 327370103223696;
+        const channelId = 3273701032;
+
+        // 放送中の番組 (00:00〜02:00)
+        const activeProgram: any = {
+            id: programId,
+            channelId: channelId,
+            channel: 'GR',
+            channelType: 'GR',
+            startAt: now - 30 * 60 * 1000, // 30分前に開始済み
+            endAt: now + 90 * 60 * 1000,
+            name: 'Active Running Program',
+            halfWidthName: 'Active Running Program',
+            overlap: false,
+        };
+
+        // ルール180の設定
+        const rule180: any = {
+            id: 180,
+            updateCnt: 0,
+            isTimeSpecification: false,
+            reserveOption: { enable: true, priority: 5, allowEndLack: true },
+            searchOption: { keyword: 'Active' },
+        };
+
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue(rule180),
+        };
+
+        // すでにDBに存在するルール170の予約（録画中）
+        const existingReserve170: any = {
+            id: 22541,
+            ruleId: 170,
+            programId: programId,
+            channelId: channelId,
+            channel: 'GR',
+            channelType: 'GR',
+            startAt: activeProgram.startAt,
+            endAt: activeProgram.endAt,
+            name: 'Active Running Program',
+            priority: 5,
+            isSkip: false,
+            isOverlap: false,
+            isConflict: false,
+            updateTime: now - 35 * 60 * 1000,
+        };
+
+        const mockReserveDB = {
+            findRuleId: vi.fn().mockResolvedValue([]), // ルール180の旧予約は無し
+            findTimeRanges: vi.fn().mockResolvedValue([existingReserve170]), // 同一時間帯にルール170の既存予約が存在
+            updateMany: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const mockProgramDB = {
+            findRule: vi.fn().mockResolvedValue([activeProgram]),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            {} as any,
+            mockProgramDB as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        await reservationModel.updateRule(180);
+
+        expect(mockReserveDB.updateMany).toHaveBeenCalled();
+        const diff = mockReserveDB.updateMany.mock.calls[0][0];
+
+        // 放送開始済みの既存予約（22541）が delete されていないこと
+        expect(diff.delete).toEqual([]);
+        // ルール180による横取り insert も発生しないこと
+        expect(diff.insert).toEqual([]);
+    });
+
+    it('safely handles programId change for the same slot by converting insert/delete to update', async () => {
+        const now = Date.now();
+        const oldProgramId = 10001;
+        const newProgramId = 10002;
+        const ruleId = 200;
+        const channelId = 1;
+
+        const newProgram: any = {
+            id: newProgramId,
+            channelId: channelId,
+            channel: 'GR',
+            channelType: 'GR',
+            startAt: now + 3600000,
+            endAt: now + 7200000,
+            name: 'Updated Program',
+            halfWidthName: 'Updated Program',
+            overlap: false,
+        };
+
+        const rule200: any = {
+            id: ruleId,
+            updateCnt: 0,
+            isTimeSpecification: false,
+            reserveOption: { enable: true, priority: 5, allowEndLack: true },
+            searchOption: { keyword: 'Updated' },
+        };
+
+        const mockRuleDB = {
+            findId: vi.fn().mockResolvedValue(rule200),
+        };
+
+        // 旧予約 (programId: 10001)
+        const oldReserve: any = {
+            id: 9999,
+            ruleId: ruleId,
+            programId: oldProgramId,
+            channelId: channelId,
+            channel: 'GR',
+            channelType: 'GR',
+            startAt: newProgram.startAt,
+            endAt: newProgram.endAt,
+            name: 'Updated Program',
+            priority: 5,
+            isSkip: false,
+            isOverlap: false,
+            isConflict: false,
+            updateTime: now,
+        };
+
+        const mockReserveDB = {
+            findRuleId: vi.fn().mockResolvedValue([oldReserve]),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            updateMany: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const mockProgramDB = {
+            findRule: vi.fn().mockResolvedValue([newProgram]),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            {} as any,
+            mockProgramDB as any,
+            mockRuleDB as any,
+            dummyReserveEvent,
+        );
+
+        await reservationModel.updateRule(ruleId);
+
+        expect(mockReserveDB.updateMany).toHaveBeenCalled();
+        const diff = mockReserveDB.updateMany.mock.calls[0][0];
+
+        // delete に送られず、ID 9999 を引き継いで update に変換されていること
+        expect(diff.delete).toEqual([]);
+        expect(diff.insert).toEqual([]);
+        expect(diff.update).toHaveLength(1);
+        expect(diff.update[0].id).toBe(9999);
+        expect(diff.update[0].programId).toBe(newProgramId);
+    });
 });

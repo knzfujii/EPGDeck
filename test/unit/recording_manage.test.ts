@@ -164,4 +164,73 @@ describe('RecordingManageModel Lifecycle Tests', () => {
         expect((model as any).recordingIndex[6]).toBeDefined();
         expect((model as any).recordingIndex[8]).toBeDefined();
     });
+
+    it('skips deleting active recording when reserve is included in diff.delete', async () => {
+        const model = createModel();
+
+        const activeCancelFn = vi.fn().mockResolvedValue(undefined);
+        const inactiveCancelFn = vi.fn().mockResolvedValue(undefined);
+
+        // 録画中のレコーダー
+        (model as any).recordingIndex[100] = {
+            isRecording: true,
+            cancel: activeCancelFn,
+            update: vi.fn(),
+        };
+        // 待機中のレコーダー
+        (model as any).recordingIndex[101] = {
+            isRecording: false,
+            cancel: inactiveCancelFn,
+            update: vi.fn(),
+        };
+
+        const reserve100 = new Reserve();
+        reserve100.id = 100;
+        const reserve101 = new Reserve();
+        reserve101.id = 101;
+
+        await model.update({
+            delete: [reserve100, reserve101],
+            isSuppressLog: true,
+        });
+
+        // 録画中のレコーダーは cancel されずスキップされること
+        expect(activeCancelFn).not.toHaveBeenCalled();
+        // 待機中のレコーダーは正常に cancel されること
+        expect(inactiveCancelFn).toHaveBeenCalledWith(false);
+    });
+
+    it('skips adding duplicate recording timer when same slot is already recording', async () => {
+        const model = createModel();
+
+        const now = Date.now();
+        const activeReserve = new Reserve();
+        activeReserve.id = 200;
+        activeReserve.channelId = 3273701032;
+        activeReserve.startAt = now - 10000;
+        activeReserve.endAt = now + 50000;
+
+        (model as any).recordingIndex[200] = {
+            isRecording: true,
+            reserve: activeReserve,
+            cancel: vi.fn(),
+        };
+
+        // 同一スロット（同一局・同時間帯）の新規予約
+        const newReserve = new Reserve();
+        newReserve.id = 201;
+        newReserve.name = 'Duplicate Slot Program';
+        newReserve.channelId = 3273701032;
+        newReserve.startAt = now - 10000;
+        newReserve.endAt = now + 50000;
+
+        await model.update({
+            insert: [newReserve],
+            isSuppressLog: true,
+        });
+
+        // すでに録画中のため新規レコーダーのタイマーはセットされないこと
+        expect(dummyRecorderProvider).not.toHaveBeenCalled();
+        expect((model as any).recordingIndex[201]).toBeUndefined();
+    });
 });

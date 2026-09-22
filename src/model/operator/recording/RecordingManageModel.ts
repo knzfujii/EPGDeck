@@ -202,6 +202,23 @@ class RecordingManageModel implements IRecordingManageModel {
                     continue;
                 }
 
+                // 同一チャンネルかつ重複する時間帯ですでに録画中のレコーダーが存在する場合は二重起動を抑止
+                const isAlreadyRecordingSameSlot = Object.values(this.recordingIndex).some(rec => {
+                    return (
+                        rec.isRecording &&
+                        rec.reserve &&
+                        rec.reserve.channelId === reserve.channelId &&
+                        Math.abs(rec.reserve.startAt - reserve.startAt) < 60000 &&
+                        Math.abs(rec.reserve.endAt - reserve.endAt) < 60000
+                    );
+                });
+                if (isAlreadyRecordingSameSlot) {
+                    this.log.system.warn(
+                        `skip adding recording timer for duplicate active slot: reserveId=${reserve.id}, name=${reserve.name}`,
+                    );
+                    continue;
+                }
+
                 const recorder = await this.provider();
                 if (recorder.setTimer(reserve, diff.isSuppressLog) === true) {
                     this.log.system.debug(`add recording: ${reserve.id}`);
@@ -244,6 +261,11 @@ class RecordingManageModel implements IRecordingManageModel {
             for (const reserve of diff.delete) {
                 const recorder = this.recordingIndex[reserve.id];
                 if (typeof recorder !== 'undefined') {
+                    // 録画中の予約は強制キャンセルしない（EPG更新や他ルール重複調停による録画中断を防止）
+                    if (recorder.isRecording) {
+                        this.log.system.warn(`skip deleting active recording: ${reserve.id}`);
+                        continue;
+                    }
                     this.log.system.debug(`delete recording: ${reserve.id}`);
                     await this.cancel(reserve.id, false).catch(err => {
                         this.log.system.error(`delete recording error: ${reserve.id}`);

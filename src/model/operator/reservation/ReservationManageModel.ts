@@ -323,13 +323,12 @@ class ReservationManageModel implements IReservationManageModel {
             throw new Error('ReservationManageModelFindChannelError');
         });
         if (channel === null) {
-            this.log.stream.error(`channelId is not found: ${option.timeSpecifiedOption.channelId}`);
-            throw new Error('eservationManageModelFindChannelIsNotFound');
+            this.log.system.error(`channelId is not found: ${option.timeSpecifiedOption.channelId}`);
+            throw new Error('ReservationManageModelFindChannelIsNotFound');
         }
 
         // 予約情報の作成
         const newReserve = new Reserve();
-        newReserve.isEventRelay = true;
         newReserve.updateTime = new Date().getTime();
         newReserve.isTimeSpecified = true;
         newReserve.name = StrUtil.toDBStr(option.timeSpecifiedOption.name);

@@ -727,4 +727,93 @@ describe('ReservationManageModel', () => {
         expect(diff.update[0].id).toBe(9999);
         expect(diff.update[0].programId).toBe(newProgramId);
     });
+
+    it('should create time-specified manual reservation with isTimeSpecified=true and isEventRelay=false', async () => {
+        const now = Date.now();
+        const startAt = now + 3600000;
+        const endAt = now + 7200000;
+
+        let insertedReserve: any = null;
+        const mockReserveDB = {
+            ...dummyReserveDB,
+            findTimeSpecification: vi.fn().mockResolvedValue(null),
+            findTimeRanges: vi.fn().mockResolvedValue([]),
+            insertOnce: vi.fn().mockImplementation(async (r: any) => {
+                insertedReserve = r;
+                return 101;
+            }),
+        };
+
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 1,
+                channel: 'GR',
+                channelType: 'GR',
+            }),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        vi.spyOn(reservationModel as any, 'checkSingleReserveConflict').mockResolvedValue(undefined);
+
+        const id = await reservationModel.add({
+            timeSpecifiedOption: {
+                name: 'Time Specified Program',
+                startAt,
+                endAt,
+                channelId: 1,
+            },
+        } as any);
+
+        expect(id).toBe(101);
+        expect(insertedReserve).not.toBeNull();
+        expect(insertedReserve.isTimeSpecified).toBe(true);
+        expect(insertedReserve.isEventRelay).toBe(false);
+        expect(insertedReserve.channelId).toBe(1);
+    });
+
+    it('should throw ReservationManageModelFindChannelIsNotFound if channel is not found for time-specified reservation', async () => {
+        const now = Date.now();
+        const mockReserveDB = {
+            ...dummyReserveDB,
+            findTimeSpecification: vi.fn().mockResolvedValue(null),
+        };
+
+        const mockChannelDB = {
+            findId: vi.fn().mockResolvedValue(null),
+        };
+
+        const reservationModel = new ReservationManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyExec,
+            dummyOptionChecker,
+            mockReserveDB as any,
+            mockChannelDB as any,
+            {} as any,
+            dummyRuleDB,
+            dummyReserveEvent,
+        );
+
+        await expect(
+            reservationModel.add({
+                timeSpecifiedOption: {
+                    name: 'Time Specified Program',
+                    startAt: now + 3600000,
+                    endAt: now + 7200000,
+                    channelId: 999,
+                },
+            } as any),
+        ).rejects.toThrow('ReservationManageModelFindChannelIsNotFound');
+    });
 });

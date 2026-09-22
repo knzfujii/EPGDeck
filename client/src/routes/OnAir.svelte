@@ -18,6 +18,11 @@
     } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
+    import {
+        executeRecordingAction,
+        type RecordingActionType,
+        type RecordingActionTarget,
+    } from '../lib/utils/recording';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -69,7 +74,7 @@
 
     // 録画中番組の3択操作モーダル状態
     let isRecordingActionModalOpen = $state(false);
-    let recordingActionItem = $state<any | null>(null);
+    let recordingActionItem = $state<RecordingActionTarget | null>(null);
     let isRecordingActionProcessing = $state(false);
 
     // 番組詳細ポップアップモーダル状態
@@ -334,6 +339,10 @@
     function openRecordingAction(item: OnAirItem) {
         if (readOnlyStore.isReadOnly) return;
         const program = item.current;
+        if (!program.recordingReserveId) {
+            snackbar.open({ text: '予約情報の取得に失敗したため、操作を実行できませんでした', color: 'error' });
+            return;
+        }
         recordingActionItem = {
             id: program.recordingReserveId,
             name: program.name,
@@ -345,36 +354,17 @@
     }
 
     // 録画中番組の3択操作実行
-    async function handleRecordingAction(action: 'finish' | 'stop' | 'discard') {
+    async function handleRecordingAction(action: RecordingActionType) {
         if (!recordingActionItem || isRecordingActionProcessing) return;
         isRecordingActionProcessing = true;
-        const reserveId = recordingActionItem.id;
-        const name = recordingActionItem.name;
-
-        if (!reserveId) {
-            snackbar.open({ text: '予約情報の取得に失敗したため、操作を実行できませんでした', color: 'error' });
-            isRecordingActionProcessing = false;
-            return;
-        }
 
         try {
-            if (action === 'finish') {
-                await api.recording[':reserveId'].finish.$post({ param: { reserveId: String(reserveId) } });
-                snackbar.open({ text: `「${name}」を正常終了として保存しました`, color: 'success' });
-            } else if (action === 'stop') {
-                await api.recording[':reserveId'].stop.$post({ param: { reserveId: String(reserveId) } });
-                snackbar.open({ text: `「${name}」を中断保存しました（録画履歴は未登録）`, color: 'info' });
-            } else if (action === 'discard') {
-                await api.recording[':reserveId'].discard.$post({ param: { reserveId: String(reserveId) } });
-                snackbar.open({ text: `「${name}」の録画を取り消し、ファイルを破棄しました`, color: 'info' });
+            const success = await executeRecordingAction(recordingActionItem, action, snackbar);
+            if (success) {
+                isRecordingActionModalOpen = false;
+                recordingActionItem = null;
+                await fetchOnAir(true);
             }
-            isRecordingActionModalOpen = false;
-            recordingActionItem = null;
-            await fetchOnAir(true);
-        } catch (e: any) {
-            console.error(`Failed to execute recording action ${action}`, e);
-            const msg = e.message || '録画の停止操作に失敗しました';
-            snackbar.open({ text: msg, color: 'error' });
         } finally {
             isRecordingActionProcessing = false;
         }

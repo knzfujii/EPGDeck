@@ -1,9 +1,23 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import api from '../../client/src/lib/apiClient.js';
 import {
     isReserveCurrentlyRecording,
+    executeRecordingAction,
     type ReserveLike,
     type RecordingLike,
 } from '../../client/src/lib/utils/recording.js';
+
+vi.mock('../../client/src/lib/apiClient.js', () => ({
+    default: {
+        recording: {
+            ':reserveId': {
+                finish: { $post: vi.fn() },
+                stop: { $post: vi.fn() },
+                discard: { $post: vi.fn() },
+            },
+        },
+    },
+}));
 
 describe('recording utility', () => {
     const baseReserve: ReserveLike = {
@@ -108,6 +122,72 @@ describe('recording utility', () => {
 
         it('returns false after endAt', () => {
             expect(isReserveCurrentlyRecording(baseReserve, [], 2000001)).toBe(false);
+        });
+    });
+
+    describe('executeRecordingAction', () => {
+        const target = { id: 123, name: 'テスト番組' };
+        const mockNotifier = { open: vi.fn() };
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+        });
+
+        it('executes finish action and opens success snackbar', async () => {
+            (api.recording[':reserveId'].finish.$post as any).mockResolvedValueOnce({ ok: true });
+
+            const result = await executeRecordingAction(target, 'finish', mockNotifier);
+
+            expect(result).toBe(true);
+            expect(api.recording[':reserveId'].finish.$post).toHaveBeenCalledWith({
+                param: { reserveId: '123' },
+            });
+            expect(mockNotifier.open).toHaveBeenCalledWith({
+                text: '「テスト番組」を完了として保存しました',
+                color: 'success',
+            });
+        });
+
+        it('executes stop action and opens info snackbar', async () => {
+            (api.recording[':reserveId'].stop.$post as any).mockResolvedValueOnce({ ok: true });
+
+            const result = await executeRecordingAction(target, 'stop', mockNotifier);
+
+            expect(result).toBe(true);
+            expect(api.recording[':reserveId'].stop.$post).toHaveBeenCalledWith({
+                param: { reserveId: '123' },
+            });
+            expect(mockNotifier.open).toHaveBeenCalledWith({
+                text: '「テスト番組」を中断して保存しました（未完了扱い）',
+                color: 'info',
+            });
+        });
+
+        it('executes discard action and opens warning snackbar', async () => {
+            (api.recording[':reserveId'].discard.$post as any).mockResolvedValueOnce({ ok: true });
+
+            const result = await executeRecordingAction(target, 'discard', mockNotifier);
+
+            expect(result).toBe(true);
+            expect(api.recording[':reserveId'].discard.$post).toHaveBeenCalledWith({
+                param: { reserveId: '123' },
+            });
+            expect(mockNotifier.open).toHaveBeenCalledWith({
+                text: '「テスト番組」の録画を取り消し、ファイルを破棄しました',
+                color: 'warning',
+            });
+        });
+
+        it('catches API error, opens error snackbar, and returns false', async () => {
+            (api.recording[':reserveId'].finish.$post as any).mockRejectedValueOnce(new Error('Network error'));
+
+            const result = await executeRecordingAction(target, 'finish', mockNotifier);
+
+            expect(result).toBe(false);
+            expect(mockNotifier.open).toHaveBeenCalledWith({
+                text: 'Network error',
+                color: 'error',
+            });
         });
     });
 });

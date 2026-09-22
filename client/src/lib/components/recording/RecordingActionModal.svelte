@@ -1,14 +1,15 @@
 <script lang="ts">
     import type * as apid from '../../../../../api';
+    import type { RecordingActionTarget, RecordingActionType } from '../../utils/recording';
     import { channelStore } from '../../stores/channels.svelte';
     import { formatTimeRange, formatDuration } from '../../utils/format';
     import { X, CheckCircle2, PauseCircle, Trash2, Loader2 } from '@lucide/svelte';
 
     interface Props {
         isOpen: boolean;
-        item: (apid.ReserveItem & { isRecording?: boolean }) | null;
+        item: RecordingActionTarget | null;
         onClose: () => void;
-        onAction: (action: 'finish' | 'stop' | 'discard') => Promise<void>;
+        onAction: (action: RecordingActionType) => Promise<void>;
         isProcessing?: boolean;
     }
 
@@ -77,17 +78,19 @@
                 <div class="program-title-modal line-clamp-2">
                     {item.name}
                 </div>
-                <div
-                    class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
-                >
-                    <span class="font-medium text-slate-700 dark:text-slate-300">
-                        {channelStore.getChannelName(item.channelId)}
-                    </span>
-                    <span>•</span>
-                    <span>{formatTimeRange(item.startAt, item.endAt)}</span>
-                    <span>•</span>
-                    <span>{formatDuration(item.endAt - item.startAt)}</span>
-                </div>
+                {#if item.channelId != null && item.startAt != null && item.endAt != null}
+                    <div
+                        class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+                    >
+                        <span class="font-medium text-slate-700 dark:text-slate-300">
+                            {channelStore.getChannelName(item.channelId)}
+                        </span>
+                        <span>•</span>
+                        <span>{formatTimeRange(item.startAt, item.endAt)}</span>
+                        <span>•</span>
+                        <span>{formatDuration(item.endAt - item.startAt)}</span>
+                    </div>
+                {/if}
             </div>
 
             <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">

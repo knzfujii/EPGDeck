@@ -1,6 +1,7 @@
 /**
  * 録画状態関連のユーティリティ関数
  */
+import api from '../apiClient.js';
 
 export interface ReserveLike {
     programId?: number | null;
@@ -57,4 +58,54 @@ export function isReserveCurrentlyRecording(
     }
 
     return reserve.startAt <= now && now < reserve.endAt;
+}
+
+export type RecordingActionType = 'finish' | 'stop' | 'discard';
+
+export interface RecordingActionTarget {
+    id: number;
+    name: string;
+    channelId?: number;
+    startAt?: number;
+    endAt?: number;
+    isRecording?: boolean;
+}
+
+export type ActionNotificationColor = 'success' | 'info' | 'warning' | 'error';
+
+export interface ActionNotifier {
+    open: (options: { text: string; color: ActionNotificationColor }) => void;
+}
+
+/**
+ * 録画中番組に対する操作（完了として保存・中断して保存・取り消して破棄）を実行する
+ *
+ * @param target 操作対象の番組（id, name）
+ * @param action 操作種別（'finish' | 'stop' | 'discard'）
+ * @param notifier 通知先（snackbar等）
+ * @returns 処理が成功した場合は true、失敗した場合は false
+ */
+export async function executeRecordingAction(
+    target: RecordingActionTarget,
+    action: RecordingActionType,
+    notifier?: ActionNotifier,
+): Promise<boolean> {
+    try {
+        if (action === 'finish') {
+            await api.recording[':reserveId'].finish.$post({ param: { reserveId: String(target.id) } });
+            notifier?.open({ text: `「${target.name}」を完了として保存しました`, color: 'success' });
+        } else if (action === 'stop') {
+            await api.recording[':reserveId'].stop.$post({ param: { reserveId: String(target.id) } });
+            notifier?.open({ text: `「${target.name}」を中断して保存しました（未完了扱い）`, color: 'info' });
+        } else if (action === 'discard') {
+            await api.recording[':reserveId'].discard.$post({ param: { reserveId: String(target.id) } });
+            notifier?.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
+        }
+        return true;
+    } catch (e: any) {
+        console.error(`Failed to execute recording action: ${action}`, e);
+        const msg = e.message || '録画操作の実行に失敗しました';
+        notifier?.open({ text: msg, color: 'error' });
+        return false;
+    }
 }

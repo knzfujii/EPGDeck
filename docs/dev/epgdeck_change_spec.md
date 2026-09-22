@@ -147,6 +147,8 @@
            **`RecordedHistory`
            には登録しない（重複録画の判定対象・録画済み扱いにならない）**。再放送時などに救済録画が可能。
         3. **録画を取り消し（ファイルを破棄） (`POST /api/recording/:reserveId/discard`)**: 録画を即時中止し、書き込み途中の TS ファイルや DB レコードを物理削除して完全クリーンアップ。
+    - **共通実行関数 (`client/src/lib/utils/recording.ts: executeRecordingAction`)**:
+        - ダッシュボード（`Dashboard.svelte`）、番組表（`Guide.svelte`）、予約一覧（`Reserves.svelte`）、オンエア（`OnAir.svelte`）でコピペ重複していた各アクションの API 呼び出し・通知メッセージ（スナックバー）・エラーハンドリングを一元化。通知先をインターフェース（`ActionNotifier`）で疎結合化し、純粋な TypeScript ユーティリティとして Vitest 単体テストで完全に動作保証。
     - **終了直後レースコンディションの安全設計**:
         - モーダル操作時に直前で番組が終了していた場合でも、API 側で存在チェックにより例外を投げず安全にスルー（HTTP
           200）して UI を破綻させない。

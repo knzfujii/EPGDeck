@@ -1,4 +1,4 @@
-import { and, asc, eq, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, like, sql } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import StrUtil from '../../util/StrUtil.js';
@@ -178,7 +178,7 @@ export default class RuleDB implements IRuleDB {
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
             let query = (db as any).select().from(schema.rules);
             if (whereClause) query = query.where(whereClause) as any;
-            query = query.orderBy(asc(schema.rules.id)) as any;
+            query = query.orderBy(desc(schema.rules.priority), asc(schema.rules.id)) as any;
             if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
             if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 
@@ -220,7 +220,7 @@ export default class RuleDB implements IRuleDB {
             const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
             let query = (db as any).select({ id: schema.rules.id, keyword: schema.rules.keyword }).from(schema.rules);
             if (whereClause) query = query.where(whereClause) as any;
-            query = query.orderBy(asc(schema.rules.id)) as any;
+            query = query.orderBy(desc(schema.rules.priority), asc(schema.rules.id)) as any;
             if (typeof option.offset !== 'undefined') query = query.offset(option.offset) as any;
             if (typeof option.limit !== 'undefined') query = query.limit(option.limit) as any;
 

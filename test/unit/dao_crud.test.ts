@@ -569,5 +569,38 @@ describe('Drizzle ORM DAO CRUD & Query Operations Tests', () => {
             expect(fetched?.searchOption.keyword).toBeUndefined();
             expect(fetched?.searchOption.genres).toEqual([{ genre: 7 }]);
         });
+
+        it('sorts rules by priority (desc) and id (asc) by default', async () => {
+            await client.execute('DELETE FROM rule');
+
+            const createRuleOption = (keyword: string, priority?: number): apid.AddRuleOption => ({
+                isTimeSpecification: false,
+                searchOption: { keyword, GR: true },
+                reserveOption: {
+                    enable: true,
+                    avoidDuplicate: false,
+                    allowEndLack: true,
+                    priority,
+                },
+            });
+
+            // 1. priority 5 (デフォルト)
+            const id1 = await ruleDB.insertOnce(createRuleOption('Rule 1', 5));
+            // 2. priority 10 (高優先度)
+            const id2 = await ruleDB.insertOnce(createRuleOption('Rule 2', 10));
+            // 3. priority 1 (低優先度)
+            const id3 = await ruleDB.insertOnce(createRuleOption('Rule 3', 1));
+            // 4. priority 10 (同優先度・ID大)
+            const id4 = await ruleDB.insertOnce(createRuleOption('Rule 4', 10));
+            // 5. priority 5 (同優先度・ID大)
+            const id5 = await ruleDB.insertOnce(createRuleOption('Rule 5', 5));
+
+            const [rules, total] = await ruleDB.findAll({});
+            expect(total).toBe(5);
+            expect(rules.map(r => r.id)).toEqual([id2, id4, id1, id5, id3]);
+
+            const keywords = await ruleDB.findKeyword({});
+            expect(keywords.map(k => k.id)).toEqual([id2, id4, id1, id5, id3]);
+        });
     });
 });

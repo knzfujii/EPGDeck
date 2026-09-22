@@ -167,7 +167,7 @@ const res = await api.version.$get();
 const data = await res.json();
 console.log(data.version);
 
-// GET /api/rules (クエリ型安全)
+// GET /api/rules (クエリ型安全。デフォルトで優先度 priority 降順、ID 昇順でソート)
 const rulesRes = await api.rules.$get({
     query: {
         limit: 20,

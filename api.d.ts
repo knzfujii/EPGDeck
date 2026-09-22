@@ -383,6 +383,7 @@ export interface RecordedItem {
     tags?: RecordedTag[];
     isEncoding: boolean;
     isProtected: boolean;
+    hasDuplicateHistory?: boolean;
 }
 
 /**

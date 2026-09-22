@@ -95,6 +95,8 @@ export enum RecordedFunctions {
     changeProtect = 'changeProtect',
     videoFileCleanup = 'videoFileCleanup',
     dropLogFileCleanup = 'dropLogFileCleanup',
+    deleteHistory = 'deleteHistory',
+    addHistory = 'addHistory',
 }
 
 /**

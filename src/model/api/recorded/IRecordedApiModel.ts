@@ -11,4 +11,7 @@ export default interface IRecordedApiModel {
     fileCleanup(): Promise<void>;
     addUploadedVideoFile(option: UploadedVideoFileOption): Promise<void>;
     createNewRecorded(option: apid.CreateNewRecordedOption): Promise<apid.RecordedId>;
+    deleteHistory(recordedId: apid.RecordedId): Promise<void>;
+    addHistory(recordedId: apid.RecordedId): Promise<void>;
+    getHistory(recordedId: apid.RecordedId): Promise<{ hasHistory: boolean }>;
 }

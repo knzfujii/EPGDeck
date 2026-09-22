@@ -34,6 +34,8 @@ export default class MockIPCClient implements IIPCClient {
         changeProtect: async () => {},
         videoFileCleanup: async () => {},
         dropLogFileCleanup: async () => {},
+        deleteHistory: async () => {},
+        addHistory: async () => {},
     };
 
     public recordedTag: IPCRecordedTagManageModel = {

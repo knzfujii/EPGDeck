@@ -313,6 +313,20 @@ export default class IPCServer implements IIPCServer {
             await this.recordedManage.dropLogFileCleanup();
         };
 
+        // deleteHistory
+        index[RecordedFunctions.deleteHistory] = async msg => {
+            const recordedId = this.getArgsValue<apid.RecordedId>(msg, 'recordedId');
+            await this.recordedManage.deleteHistory(recordedId);
+            void this.reservationManage.updateAll();
+        };
+
+        // addHistory
+        index[RecordedFunctions.addHistory] = async msg => {
+            const recordedId = this.getArgsValue<apid.RecordedId>(msg, 'recordedId');
+            await this.recordedManage.addHistory(recordedId);
+            void this.reservationManage.updateAll();
+        };
+
         return index;
     }
 

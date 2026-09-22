@@ -323,6 +323,24 @@ export default class IPCClient implements IIPCClient {
                     0, // タイムアウトなし
                 );
             },
+            deleteHistory: (recordedId: apid.RecordedId) => {
+                return this.send({
+                    model: ModelName.recorded,
+                    func: RecordedFunctions.deleteHistory,
+                    args: {
+                        recordedId: recordedId,
+                    },
+                });
+            },
+            addHistory: (recordedId: apid.RecordedId) => {
+                return this.send({
+                    model: ModelName.recorded,
+                    func: RecordedFunctions.addHistory,
+                    args: {
+                        recordedId: recordedId,
+                    },
+                });
+            },
         };
     }
 

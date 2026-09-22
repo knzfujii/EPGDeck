@@ -45,6 +45,8 @@
         Loader2,
         Video,
         Camera,
+        CopyX,
+        CopyCheck,
     } from '@lucide/svelte';
     import RecreateThumbnailModal from '../lib/components/recording/RecreateThumbnailModal.svelte';
 
@@ -233,6 +235,47 @@
         } catch (e) {
             console.error('Failed to toggle protect', e);
             snackbar.open({ text: '保護状態の変更に失敗しました', color: 'error' });
+        }
+    }
+
+    // 重複判定からの除外（履歴削除）
+    async function excludeFromDuplicate() {
+        if (!recorded) return;
+        const ok = await confirmDialog({
+            title: '重複判定からの除外',
+            message: `「${recorded.name}」を二重録画防止（重複判定）の対象から除外しますか？\n\n除外すると、同一番組の再放送や振替放送が重複スキップされずに録画されるようになります。`,
+            confirmText: '除外する',
+            cancelText: 'キャンセル',
+            isDestructive: false,
+        });
+        if (!ok) return;
+
+        try {
+            const res = await api.recorded[':recordedId'].history.$delete({
+                param: { recordedId: String(recorded.id) },
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            recorded.hasDuplicateHistory = false;
+            snackbar.open({ text: '重複判定から除外しました（予約を再評価中）', color: 'success' });
+        } catch (e) {
+            console.error('Failed to exclude from duplicate history', e);
+            snackbar.open({ text: '重複判定からの除外に失敗しました', color: 'error' });
+        }
+    }
+
+    // 重複判定への追加（履歴登録）
+    async function includeInDuplicate() {
+        if (!recorded) return;
+        try {
+            const res = await api.recorded[':recordedId'].history.$post({
+                param: { recordedId: String(recorded.id) },
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            recorded.hasDuplicateHistory = true;
+            snackbar.open({ text: '重複判定の対象に追加しました（予約を再評価中）', color: 'success' });
+        } catch (e) {
+            console.error('Failed to add to duplicate history', e);
+            snackbar.open({ text: '重複判定への追加に失敗しました', color: 'error' });
         }
     }
 
@@ -461,6 +504,27 @@
         {#if recorded}
             <div class="flex items-center gap-2">
                 {#if !readOnlyStore.isReadOnly}
+                    <!-- 重複判定除外 / 追加ボタン -->
+                    {#if recorded.hasDuplicateHistory === false}
+                        <button
+                            type="button"
+                            onclick={includeInDuplicate}
+                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer"
+                            title="重複判定履歴に登録し、二重録画防止の対象に戻します"
+                        >
+                            <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" /> 重複判定に追加
+                        </button>
+                    {:else}
+                        <button
+                            type="button"
+                            onclick={excludeFromDuplicate}
+                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer"
+                            title="二重録画防止（重複判定）の履歴から削除し、次回放送を録画できるようにします"
+                        >
+                            <CopyX size={15} class="text-slate-400 dark:text-slate-400" /> 重複判定から除外
+                        </button>
+                    {/if}
+
                     <!-- 保護トグルボタン -->
                     <button
                         type="button"
@@ -576,6 +640,14 @@
                                     class="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                                 >
                                     <Lock size={13} /> 保護中
+                                </span>
+                            {/if}
+                            {#if recorded.hasDuplicateHistory !== false}
+                                <span
+                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400"
+                                    title="二重録画防止（重複判定）の対象として履歴に記録されています"
+                                >
+                                    <CopyCheck size={12} class="text-slate-400" /> 重複判定対象
                                 </span>
                             {/if}
                         </div>

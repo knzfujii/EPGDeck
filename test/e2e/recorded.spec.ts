@@ -546,4 +546,106 @@ test.describe('Recorded List Page (/recorded)', () => {
 
         await mobileContext.close();
     });
+
+    test('should allow excluding from and re-adding to duplicate check on RecordedDetail', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockDetail = {
+            id: 601,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now(),
+            name: '災害特番差し替え番組',
+            description: '番組詳細',
+            isRecording: false,
+            isEncoding: false,
+            isProtected: false,
+            hasDuplicateHistory: true,
+            videoFiles: [{ id: 20, name: 'TS', filename: 'test.ts', type: 'ts', size: 1024 * 1024 * 10 }],
+        };
+
+        let historyDeleteCalled = false;
+        let historyPostCalled = false;
+
+        await page.route('**/api/recorded/601/history', async route => {
+            if (route.request().method() === 'DELETE') {
+                historyDeleteCalled = true;
+                mockDetail.hasDuplicateHistory = false;
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ code: 200 }),
+                });
+            } else if (route.request().method() === 'POST') {
+                historyPostCalled = true;
+                mockDetail.hasDuplicateHistory = true;
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ code: 200 }),
+                });
+            } else {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ hasHistory: mockDetail.hasDuplicateHistory }),
+                });
+            }
+        });
+
+        await page.route('**/api/recorded/601*', async route => {
+            if (route.request().url().includes('/history')) return;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDetail) });
+        });
+
+        await page.goto('/recorded/detail?recordedId=601');
+        await page.waitForLoadState('networkidle');
+
+        // 初期表示: 重複判定履歴が存在するため「重複判定から除外」ボタンと「重複判定対象」バッジが表示される
+        const excludeBtn = page.getByRole('button', { name: /重複判定から除外/ });
+        await expect(excludeBtn).toBeVisible();
+        await expect(page.getByText('重複判定対象')).toBeVisible();
+
+        // 「重複判定から除外」をクリック -> 確認ダイアログが表示される
+        await excludeBtn.click();
+        await expect(page.getByRole('heading', { name: '重複判定からの除外' })).toBeVisible();
+        await expect(page.getByText('二重録画防止（重複判定）の対象から除外しますか？')).toBeVisible();
+
+        // ダイアログ内の「除外する」をクリック
+        const confirmBtn = page.getByRole('button', { name: '除外する' });
+        await confirmBtn.click();
+
+        // DELETE API が呼ばれ、トーストが表示され、ボタンが「重複判定に追加」に切り替わり、バッジは非表示になる
+        await expect(page.getByText('重複判定から除外しました')).toBeVisible();
+        expect(historyDeleteCalled).toBe(true);
+
+        const addBtn = page.getByRole('button', { name: /重複判定に追加/ });
+        await expect(addBtn).toBeVisible();
+        await expect(page.getByText('重複判定対象')).toHaveCount(0);
+
+        // 「重複判定に追加」をクリック
+        await addBtn.click();
+
+        // POST API が呼ばれ、トーストが表示され、ボタンが元に戻り、バッジが再表示される
+        await expect(page.getByText('重複判定の対象に追加しました')).toBeVisible();
+        expect(historyPostCalled).toBe(true);
+        await expect(page.getByRole('button', { name: /重複判定から除外/ })).toBeVisible();
+        await expect(page.getByText('重複判定対象')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

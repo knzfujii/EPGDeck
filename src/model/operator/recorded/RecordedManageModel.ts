@@ -497,6 +497,42 @@ export default class RecordedManageModel implements IRecordedManageModel {
     }
 
     /**
+     * 重複判定履歴から削除
+     * @param recordedId: apid.RecordedId
+     * @return Promise<void>
+     */
+    public async deleteHistory(recordedId: apid.RecordedId): Promise<void> {
+        this.log.system.info(`delete recorded history for recordedId: ${recordedId}`);
+
+        const recorded = await this.recordedDB.findId(recordedId);
+        if (recorded === null) {
+            this.log.system.warn(`recordedId is not found: ${recordedId}`);
+            throw new Error('RecordedIdIsNotFound');
+        }
+
+        const name = StrUtil.deleteBrackets(recorded.halfWidthName);
+        await this.recordedHistoryDB.deleteHistory(name, recorded.channelId, recorded.endAt);
+    }
+
+    /**
+     * 重複判定履歴へ追加
+     * @param recordedId: apid.RecordedId
+     * @return Promise<void>
+     */
+    public async addHistory(recordedId: apid.RecordedId): Promise<void> {
+        this.log.system.info(`add recorded history for recordedId: ${recordedId}`);
+
+        const recorded = await this.recordedDB.findId(recordedId);
+        if (recorded === null) {
+            this.log.system.warn(`recordedId is not found: ${recordedId}`);
+            throw new Error('RecordedIdIsNotFound');
+        }
+
+        const name = StrUtil.deleteBrackets(recorded.halfWidthName);
+        await this.recordedHistoryDB.addHistory(name, recorded.channelId, recorded.endAt);
+    }
+
+    /**
      * RecordedHistory の保存期間外のデータを削除する
      * @return Promise<void>
      */

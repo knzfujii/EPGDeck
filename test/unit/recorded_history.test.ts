@@ -72,4 +72,109 @@ describe('RecordedHistory retention & cleanup tests', () => {
         expect(deleteArg).toBeGreaterThanOrEqual(expectedMin);
         expect(deleteArg).toBeLessThanOrEqual(expectedMax);
     });
+
+    it('should delete history for a recorded item', async () => {
+        dummyConfig = {
+            getConfig: () => ({
+                recording: { historyRetentionDays: 0 },
+            }),
+        };
+
+        const dummyRecordedDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 123,
+                channelId: 10001,
+                endAt: 1700000000000,
+                name: '【字】テスト番組 [新]',
+                halfWidthName: '[字]テスト番組 [新]',
+            }),
+        };
+        dummyRecordedHistoryDB.deleteHistory = vi.fn().mockResolvedValue(true);
+
+        const model = new RecordedManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyRecordedDB as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            dummyRecordedHistoryDB,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+
+        await model.deleteHistory(123);
+
+        expect(dummyRecordedDB.findId).toHaveBeenCalledWith(123);
+        // StrUtil.deleteBrackets で囲み文字や角括弧が除去されて「テスト番組」になること
+        expect(dummyRecordedHistoryDB.deleteHistory).toHaveBeenCalledWith('テスト番組', 10001, 1700000000000);
+    });
+
+    it('should throw error when deleting history for non-existent recorded item', async () => {
+        dummyConfig = {
+            getConfig: () => ({
+                recording: { historyRetentionDays: 0 },
+            }),
+        };
+
+        const dummyRecordedDB = {
+            findId: vi.fn().mockResolvedValue(null),
+        };
+
+        const model = new RecordedManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyRecordedDB as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            dummyRecordedHistoryDB,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+
+        await expect(model.deleteHistory(999)).rejects.toThrow('RecordedIdIsNotFound');
+    });
+
+    it('should add history for a recorded item', async () => {
+        dummyConfig = {
+            getConfig: () => ({
+                recording: { historyRetentionDays: 0 },
+            }),
+        };
+
+        const dummyRecordedDB = {
+            findId: vi.fn().mockResolvedValue({
+                id: 123,
+                channelId: 10001,
+                endAt: 1700000000000,
+                name: '【字】テスト番組 [新]',
+                halfWidthName: '[字]テスト番組 [新]',
+            }),
+        };
+        dummyRecordedHistoryDB.addHistory = vi.fn().mockResolvedValue(undefined);
+
+        const model = new RecordedManageModel(
+            dummyLogger,
+            dummyConfig,
+            dummyRecordedDB as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            dummyRecordedHistoryDB,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+        );
+
+        await model.addHistory(123);
+
+        expect(dummyRecordedDB.findId).toHaveBeenCalledWith(123);
+        expect(dummyRecordedHistoryDB.addHistory).toHaveBeenCalledWith('テスト番組', 10001, 1700000000000);
+    });
 });

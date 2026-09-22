@@ -83,6 +83,27 @@ const app = new Hono()
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.stopEncode(recordedId);
         return c.json({ code: 200 });
+    })
+    // GET /api/recorded/:recordedId/history
+    .get('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
+        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const { recordedId } = c.req.valid('param');
+        const result = await recordedApiModel.getHistory(recordedId);
+        return c.json(result);
+    })
+    // DELETE /api/recorded/:recordedId/history
+    .delete('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
+        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const { recordedId } = c.req.valid('param');
+        await recordedApiModel.deleteHistory(recordedId);
+        return c.json({ code: 200 });
+    })
+    // POST /api/recorded/:recordedId/history
+    .post('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
+        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const { recordedId } = c.req.valid('param');
+        await recordedApiModel.addHistory(recordedId);
+        return c.json({ code: 200 });
     });
 
 export default app;

@@ -151,4 +151,52 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
 
         await operator.closeConnection();
     });
+
+    it('should check, delete, and re-add recorded_history items via RecordedHistoryDB', async () => {
+        await client.execute(`
+            CREATE TABLE IF NOT EXISTS recorded_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                channelId INTEGER NOT NULL,
+                endAt INTEGER NOT NULL
+            );
+        `);
+
+        const drizzleOp: any = {
+            getDB: () => ({
+                db,
+                schema: sqliteSchema,
+                type: 'sqlite',
+            }),
+        };
+        const retry: any = {
+            run: async (fn: any) => fn(),
+        };
+
+        const RecordedHistoryDB = (await import('../../src/model/db/RecordedHistoryDB.js')).default;
+        const historyDB = new RecordedHistoryDB(drizzleOp, retry);
+
+        // 最初は存在しないこと
+        const initialHas = await historyDB.hasHistory('テストアニメ', 10001, 1700000000000);
+        expect(initialHas).toBe(false);
+
+        // 追加
+        await historyDB.addHistory('テストアニメ', 10001, 1700000000000);
+
+        // 存在すること
+        const afterAddHas = await historyDB.hasHistory('テストアニメ', 10001, 1700000000000);
+        expect(afterAddHas).toBe(true);
+
+        // 異なる channelId や endAt では false
+        expect(await historyDB.hasHistory('テストアニメ', 10002, 1700000000000)).toBe(false);
+        expect(await historyDB.hasHistory('テストアニメ', 10001, 1700000099999)).toBe(false);
+
+        // 削除
+        const deleteResult = await historyDB.deleteHistory('テストアニメ', 10001, 1700000000000);
+        expect(deleteResult).toBe(true);
+
+        // 削除後は存在しないこと
+        const afterDeleteHas = await historyDB.hasHistory('テストアニメ', 10001, 1700000000000);
+        expect(afterDeleteHas).toBe(false);
+    });
 });

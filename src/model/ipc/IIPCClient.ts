@@ -25,6 +25,8 @@ export interface IPCRecordedManageModel {
     changeProtect(recordedId: apid.RecordedId, isProtect: boolean): Promise<void>;
     videoFileCleanup(): Promise<void>;
     dropLogFileCleanup(): Promise<void>;
+    deleteHistory(recordedId: apid.RecordedId): Promise<void>;
+    addHistory(recordedId: apid.RecordedId): Promise<void>;
 }
 
 export interface IPCRecordedTagManageModel {

@@ -140,6 +140,21 @@ EPG の番組名は、再放送時や初回放送時に `[新]`, `[字]`, `[再]
   - Web UI（予約詳細モーダル）から「重複手動解除」を実行すると、その予約に `isIgnoreOverlap = true` および `isOverlap = false` がセットされます。
   - 次回の定期ルール更新時も `oldReserve.isIgnoreOverlap === true` が引き継がれ、番組検索結果が重複であっても上書きされず、強制的に録画が実行されます。
 
+### 録画詳細からの重複判定除外・手動削除（災害特番差し替え救済）
+
+災害報道や臨時特番等で正規の放送枠が潰れてしまった場合、その録画番組が存在することで以降の振替放送や再放送が「重複（`isOverlap = true`）」と誤認されて録画スキップされてしまう問題があります。
+
+EPGDeck では、録画詳細画面（`RecordedDetail`）から該当番組を**重複判定の履歴（`recorded_history`）から直接削除・除外**することができます。
+
+- **重複判定から除外 (`DELETE /api/recorded/:recordedId/history`)**:
+  - 対象番組の正規化タイトル（`shortName`）、`channelId`、`endAt` に一致するレコードを `recorded_history` から削除。
+  - 削除後、バックエンドで直ちに `ReservationManageModel.updateAll()` が自動発火し、該当番組にマッチする未放映の予約枠の重複フラグ（`isOverlap = true`）が自動的に解除（正常予約へ復帰）されます。
+- **重複判定への追加 (`POST /api/recorded/:recordedId/history`)**:
+  - 誤って除外した場合に備え、録画詳細から再度 `recorded_history` に履歴を登録可能。
+  - 直ちに予約が再評価され、二重録画防止が適用されます。
+- **ステータス可視化**:
+  - `RecordedItem` の `hasDuplicateHistory` プロパティにより、重複判定の対象となっている番組には録画詳細画面上で控えめな「重複判定対象」バッジが表示され、除外時は非表示になることで現在の判定状態を静かに把握可能です。
+
 ---
 
 ## 3. 同一番組に対する重複予約の調停（Program ID 重複排除）

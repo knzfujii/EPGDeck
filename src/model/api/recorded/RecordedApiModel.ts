@@ -1,6 +1,8 @@
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
+import StrUtil from '../../../util/StrUtil.js';
 import IRecordedDB, { FindAllOption } from '../../db/IRecordedDB.js';
+import IRecordedHistoryDB from '../../db/IRecordedHistoryDB.js';
 import IIPCClient from '../../ipc/IIPCClient.js';
 import { UploadedVideoFileOption } from '../../operator/recorded/IRecordedManageModel.js';
 import IEncodeManageModel from '../../service/encode/IEncodeManageModel.js';
@@ -11,16 +13,19 @@ import IRecordedApiModel from './IRecordedApiModel.js';
 export default class RecordedApiModel implements IRecordedApiModel {
     private ipc: IIPCClient;
     private recordedDB: IRecordedDB;
+    private recordedHistoryDB: IRecordedHistoryDB;
     private encodeManage: IEncodeManageModel;
     private recordedItemUtil: IRecordedItemUtil;
 
     constructor(
         @inject('IIPCClient') ipc: IIPCClient,
         @inject('IRecordedDB') recordedDB: IRecordedDB,
+        @inject('IRecordedHistoryDB') recordedHistoryDB: IRecordedHistoryDB,
         @inject('IEncodeManageModel') encodeManage: IEncodeManageModel,
         @inject('IRecordedItemUtil') recordedItemUtil: IRecordedItemUtil,
     ) {
         this.recordedDB = recordedDB;
+        this.recordedHistoryDB = recordedHistoryDB;
         this.ipc = ipc;
         this.encodeManage = encodeManage;
         this.recordedItemUtil = recordedItemUtil;
@@ -58,12 +63,21 @@ export default class RecordedApiModel implements IRecordedApiModel {
      */
     public async get(recordedId: apid.RecordedId, isHalfWidth: boolean): Promise<apid.RecordedItem | null> {
         const item = await this.recordedDB.findId(recordedId);
+        if (item === null) {
+            return null;
+        }
 
         const encodeIndex = this.encodeManage.getRecordedIndex();
+        const recordedItem = this.recordedItemUtil.convertRecordedToRecordedItem(item, isHalfWidth, encodeIndex);
 
-        return item === null
-            ? null
-            : this.recordedItemUtil.convertRecordedToRecordedItem(item, isHalfWidth, encodeIndex);
+        const shortName = StrUtil.deleteBrackets(item.halfWidthName);
+        recordedItem.hasDuplicateHistory = await this.recordedHistoryDB.hasHistory(
+            shortName,
+            item.channelId,
+            item.endAt,
+        );
+
+        return recordedItem;
     }
 
     /**
@@ -134,5 +148,38 @@ export default class RecordedApiModel implements IRecordedApiModel {
      */
     public async createNewRecorded(option: apid.CreateNewRecordedOption): Promise<apid.RecordedId> {
         return await this.ipc.recorded.createNewRecorded(option);
+    }
+
+    /**
+     * 重複判定履歴から削除
+     * @param recordedId: apid.RecordedId
+     * @return Promise<void>
+     */
+    public async deleteHistory(recordedId: apid.RecordedId): Promise<void> {
+        await this.ipc.recorded.deleteHistory(recordedId);
+    }
+
+    /**
+     * 重複判定履歴へ追加
+     * @param recordedId: apid.RecordedId
+     * @return Promise<void>
+     */
+    public async addHistory(recordedId: apid.RecordedId): Promise<void> {
+        await this.ipc.recorded.addHistory(recordedId);
+    }
+
+    /**
+     * 重複判定履歴の存在確認
+     * @param recordedId: apid.RecordedId
+     * @return Promise<{ hasHistory: boolean }>
+     */
+    public async getHistory(recordedId: apid.RecordedId): Promise<{ hasHistory: boolean }> {
+        const item = await this.recordedDB.findId(recordedId);
+        if (item === null) {
+            return { hasHistory: false };
+        }
+        const shortName = StrUtil.deleteBrackets(item.halfWidthName);
+        const hasHistory = await this.recordedHistoryDB.hasHistory(shortName, item.channelId, item.endAt);
+        return { hasHistory };
     }
 }

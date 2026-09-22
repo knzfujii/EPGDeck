@@ -197,5 +197,17 @@ const createRes = await api.reserves.$post({
 | `POST` | `/api/thumbnails/cleanup` | ディスクとDBのサムネイル整合性整理 | - |
 | `DELETE` | `/api/thumbnails/:thumbnailId` | サムネイル削除 | ファイルがディスク上に見当たらない場合も正常削除として処理 |
 
+---
+
+## 録画番組重複判定履歴 API (`/api/recorded/:recordedId/history`)
+
+二重録画防止（重複判定）の対象から特定録画番組を除外・追加するための API です。
+
+| メソッド | パス | 説明 | レスポンス |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/recorded/:recordedId/history` | 指定録画番組が重複判定履歴（`recorded_history`）に存在するか確認 | `{ "hasHistory": boolean }` |
+| `DELETE` | `/api/recorded/:recordedId/history` | 指定録画番組を重複判定履歴から削除し、予約を即座に再評価 | `{ "code": 200 }` |
+| `POST` | `/api/recorded/:recordedId/history` | 指定録画番組を重複判定履歴に登録し、予約を即座に再評価 | `{ "code": 200 }` |
+
 
 

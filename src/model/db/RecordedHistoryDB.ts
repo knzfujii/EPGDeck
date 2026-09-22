@@ -1,4 +1,4 @@
-import { lt } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import RecordedHistory from '../../db/entities/RecordedHistory.js';
@@ -85,6 +85,80 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
             const { db, schema } = client;
             const rows = await (db as any).select().from(schema.recordedHistory);
             return rows.map((r: any) => this.toEntity(r));
+        });
+    }
+
+    /**
+     * 重複判定履歴が存在するか確認
+     */
+    public async hasHistory(name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS): Promise<boolean> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select({ id: schema.recordedHistory.id })
+                .from(schema.recordedHistory)
+                .where(
+                    and(
+                        eq(schema.recordedHistory.name, name),
+                        eq(schema.recordedHistory.channelId, channelId),
+                        eq(schema.recordedHistory.endAt, endAt),
+                    ),
+                )
+                .limit(1);
+            return rows.length > 0;
+        });
+    }
+
+    /**
+     * 重複判定履歴から削除
+     */
+    public async deleteHistory(name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS): Promise<boolean> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            await (db as any)
+                .delete(schema.recordedHistory)
+                .where(
+                    and(
+                        eq(schema.recordedHistory.name, name),
+                        eq(schema.recordedHistory.channelId, channelId),
+                        eq(schema.recordedHistory.endAt, endAt),
+                    ),
+                );
+            return true;
+        });
+    }
+
+    /**
+     * 重複判定履歴へ追加（既に存在する場合は重複追加しない）
+     */
+    public async addHistory(name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS): Promise<void> {
+        const client = this.drizzleOp.getDB();
+
+        await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select({ id: schema.recordedHistory.id })
+                .from(schema.recordedHistory)
+                .where(
+                    and(
+                        eq(schema.recordedHistory.name, name),
+                        eq(schema.recordedHistory.channelId, channelId),
+                        eq(schema.recordedHistory.endAt, endAt),
+                    ),
+                )
+                .limit(1);
+
+            if (rows.length === 0) {
+                await (db as any).insert(schema.recordedHistory).values({
+                    name,
+                    channelId,
+                    endAt,
+                });
+            }
         });
     }
 

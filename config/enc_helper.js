@@ -155,7 +155,6 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         audioStreamMode = 'first', // 'first' (第1トラックのみ・標準) | 'all' (全トラック保持)
         mainAudioBitrate = (envVideoHeight || mediaInfo.height) > 720 ? '192k' : '128k',
         secondaryAudioBitrate = '128k',
-        subtitle = typeof options.subtitle === 'boolean' ? options.subtitle : process.env.SUBTITLE === 'true',
         faststart = true,
         analyzeduration = '10M',
         probesize = '32M',
@@ -164,6 +163,25 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         customArgs = [],
         modifyArgs = null,
     } = options;
+
+    // 字幕オプションの判定
+    // - 親プロセスから SUBTITLE='false' が明示指定された場合は options.subtitle に関わらず無効
+    // - SKIP_SUBTITLE_FOR_SUPERIMPOSE または options.skipSubtitleForSuperimpose が有効な場合、
+    //   番組名・概要に「字幕スーパー」が含まれていれば自動スキップ
+    let subtitle = typeof options.subtitle === 'boolean' ? options.subtitle : process.env.SUBTITLE === 'true';
+    if (process.env.SUBTITLE === 'false') {
+        subtitle = false;
+    }
+
+    const shouldCheckSuperimpose =
+        options.skipSubtitleForSuperimpose || process.env.SKIP_SUBTITLE_FOR_SUPERIMPOSE === 'true';
+    if (subtitle && shouldCheckSuperimpose) {
+        const fullText = `${process.env.NAME || ''} ${process.env.DESCRIPTION || ''} ${process.env.EXTENDED || ''}`;
+        if (fullText.includes('字幕スーパー')) {
+            console.error('[enc_helper] Detected "字幕スーパー" in program info, skipping subtitle embedding');
+            subtitle = false;
+        }
+    }
 
     const args = ['-y', '-analyzeduration', analyzeduration, '-probesize', probesize];
 

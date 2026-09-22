@@ -279,6 +279,55 @@ describe('enc_helper.js', () => {
             expect(args).not.toContain('mov_text');
             expect(args).toContain('-sn');
         });
+
+        it('should force disable subtitle when process.env.SUBTITLE is explicitly false even if options.subtitle is true', () => {
+            process.env.SUBTITLE = 'false';
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ subtitle: true }, mediaInfo);
+
+            expect(args).not.toContain('-fix_sub_duration');
+            expect(args).not.toContain('mov_text');
+            expect(args).toContain('-sn');
+        });
+
+        it('should skip subtitle when SKIP_SUBTITLE_FOR_SUPERIMPOSE is true and program contains 字幕スーパー', () => {
+            process.env.SKIP_SUBTITLE_FOR_SUPERIMPOSE = 'true';
+            process.env.NAME = 'シネマ「グリーンマイル」＜字幕スーパー＞';
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ subtitle: true }, mediaInfo);
+
+            expect(args).not.toContain('-fix_sub_duration');
+            expect(args).not.toContain('mov_text');
+            expect(args).toContain('-sn');
+        });
+
+        it('should skip subtitle when options.skipSubtitleForSuperimpose is true and program contains 字幕スーパー', () => {
+            process.env.DESCRIPTION = '本編は字幕スーパー版でお送りします';
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ subtitle: true, skipSubtitleForSuperimpose: true }, mediaInfo);
+
+            expect(args).not.toContain('-fix_sub_duration');
+            expect(args).not.toContain('mov_text');
+            expect(args).toContain('-sn');
+        });
     });
 
     describe('encoding templates ESM compliance', () => {

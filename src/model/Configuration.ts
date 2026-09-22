@@ -280,11 +280,15 @@ class Configuration implements IConfiguration {
             return preset;
         });
 
+        const skipSubtitleForSuperimpose =
+            typeof encConf.skipSubtitleForSuperimpose === 'boolean' ? encConf.skipSubtitleForSuperimpose : false;
+
         const encode: IConfigFile['encode'] = {
             binaries,
             maxProcesses: typeof encConf.maxProcesses === 'number' ? encConf.maxProcesses : raw.encodeProcessNum || 2,
             concurrency: typeof encConf.concurrency === 'number' ? encConf.concurrency : raw.concurrentEncodeNum || 1,
             presets,
+            skipSubtitleForSuperimpose,
         };
 
         // 7. 外部連携 & URL Scheme

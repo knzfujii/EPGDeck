@@ -166,4 +166,120 @@ describe('EncoderModel', () => {
         expect(result.isError).toBe(true);
         expect(result.path).toBe('/path/to/output_crf23.mp4');
     });
+
+    it('should disable SUBTITLE when skipSubtitleForSuperimpose is true and program contains 字幕スーパー', async () => {
+        // preset に subtitle: true を設定
+        mockConfigure.getConfig.mockReturnValue({
+            encode: {
+                presets: [
+                    {
+                        name: 'H264 crf23',
+                        cmd: 'node /path/to/enc_1080p_crf23.js',
+                        suffix: '_crf23.mp4',
+                        subtitle: true,
+                    },
+                ],
+                binaries: {
+                    ffmpeg: '/opt/ffmpeg-custom/bin/ffmpeg',
+                    ffprobe: '/opt/ffmpeg-custom/bin/ffprobe',
+                },
+                skipSubtitleForSuperimpose: true,
+            },
+        });
+
+        // 番組名に「字幕スーパー」が含まれる
+        mockRecordedDB.findId.mockResolvedValue({
+            id: 20,
+            name: 'シネマ「グリーンマイル」＜字幕スーパー＞',
+            halfWidthName: 'シネマ「グリーンマイル」＜字幕スーパー＞',
+            channelId: 101,
+            startAt: 1000,
+            endAt: 2000,
+            duration: 1000,
+        });
+
+        encoderModel.setOption({
+            encodeId: 2,
+            sourceVideoFileId: 1,
+            parentDir: 'recorded',
+            recordedId: 20,
+            mode: 'H264 crf23',
+            directory: '映画',
+            removeOriginal: false,
+        });
+
+        await encoderModel.start();
+
+        const log = mockLogger.getLogger().encode;
+
+        // スキップログが出力されていること
+        expect(log.info).toHaveBeenCalledWith(
+            expect.stringContaining('skip subtitle embedding: detected "字幕スーパー" in recorded info'),
+        );
+
+        // processManager.create に渡された env.SUBTITLE が 'false' になっていること
+        expect(mockProcessManager.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                spawnOption: expect.objectContaining({
+                    env: expect.objectContaining({
+                        SUBTITLE: 'false',
+                        SKIP_SUBTITLE_FOR_SUPERIMPOSE: 'true',
+                    }),
+                }),
+            }),
+        );
+    });
+
+    it('should keep SUBTITLE true when program does not contain 字幕スーパー', async () => {
+        mockConfigure.getConfig.mockReturnValue({
+            encode: {
+                presets: [
+                    {
+                        name: 'H264 crf23',
+                        cmd: 'node /path/to/enc_1080p_crf23.js',
+                        suffix: '_crf23.mp4',
+                        subtitle: true,
+                    },
+                ],
+                binaries: {
+                    ffmpeg: '/opt/ffmpeg-custom/bin/ffmpeg',
+                    ffprobe: '/opt/ffmpeg-custom/bin/ffprobe',
+                },
+                skipSubtitleForSuperimpose: true,
+            },
+        });
+
+        mockRecordedDB.findId.mockResolvedValue({
+            id: 21,
+            name: '通常のニュース番組[字]',
+            halfWidthName: '通常のニュース番組[字]',
+            channelId: 101,
+            startAt: 1000,
+            endAt: 2000,
+            duration: 1000,
+        });
+
+        encoderModel.setOption({
+            encodeId: 3,
+            sourceVideoFileId: 1,
+            parentDir: 'recorded',
+            recordedId: 21,
+            mode: 'H264 crf23',
+            directory: '',
+            removeOriginal: false,
+        });
+
+        await encoderModel.start();
+
+        expect(mockProcessManager.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                spawnOption: expect.objectContaining({
+                    env: expect.objectContaining({
+                        SUBTITLE: 'true',
+                        SKIP_SUBTITLE_FOR_SUPERIMPOSE: 'true',
+                    }),
+                }),
+            }),
+        );
+    });
 });

@@ -201,11 +201,13 @@ private injectDefaultCaptionManagement(timeSec = 0): void {
   - `-fix_sub_duration` は直前のパケットの duration を `次のパケットの PTS - 直前のパケットの PTS` で動的に調整します。
   - そのため、**洋画劇場など「字幕が映像に焼き込まれたオープンキャプション作品（＜字幕スーパー＞）」** や長時間特番などで、冒頭にわずかに ARIB 字幕が出た後、次の字幕パケットが約 35.7 分（2,147 秒）以上届かない場合、計算された duration が MP4/MOV の符号付き 32bit 最大値 `INT_MAX`（2,147,483,647 マイクロ秒 ≒ 2,147 秒）を超過します。
   - この場合、MP4 muxer（`libavformat/movenc.c`）のバリデーションチェックにより `Application provided duration: ... in stream ... is invalid` が発生してエンコードが終了します。
-  - **対処法**: 焼き込み字幕映画（＜字幕スーパー＞）など ARIB 字幕が実質存在しない番組では、プリセットまたは設定で `subtitle: false` を指定してエンコード（`-sn`）を行うことで回避できます。
+  - **自動回避策 (`skipSubtitleForSuperimpose: true`)**:
+    - `config.yml` の `encode.skipSubtitleForSuperimpose: true` を設定すると、番組情報（タイトル・概要・詳細）に「字幕スーパー」が含まれている番組をエンコード開始時に自動検知し、字幕埋め込みを無効化（`subtitle: false` / `-sn`）してエンコードを実行します。
+    - これにより、長時間のエンコード（例: 20〜30分間）が無駄に走った後にクラッシュする事態を完全にゼロにし、正常かつ高速にエンコードを完了させます。
 
 ### 6.3 制御フローとコマンドログ記録（`config.yml` ⇄ `EncoderModel` ⇄ `enc_helper.js`）
-1. `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）を設定。
-2. `src/model/service/encode/EncoderModel.ts` が開始時に `encodeCmd.cmd` を INFO ログに出力し、子プロセス起動時に環境変数 `SUBTITLE`（`'true'` または `'false'`）を伝搬。
+1. `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）、および `encode.skipSubtitleForSuperimpose: true` を設定。
+2. `src/model/service/encode/EncoderModel.ts` が開始時に `encodeCmd.cmd` を INFO ログに出力。さらに「字幕スーパー」を検出した場合は自動で `SUBTITLE: 'false'` に切り替え、環境変数 `SKIP_SUBTITLE_FOR_SUPERIMPOSE: 'true'` も子プロセスに伝搬。
 3. `config/enc_helper.js` が実行時に組み立てた FFmpeg コマンド（シェルクォート整形済み）を `[enc_helper] FFmpeg command: ...` として出力。
 4. `EncoderModel` がこのコマンド行を検知して INFO ログに記録し、万一エンコードが異常終了した場合にもエラーログの先頭に `failed ffmpeg command: ...` を自動出力して障害調査を容易にします。
 5. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。

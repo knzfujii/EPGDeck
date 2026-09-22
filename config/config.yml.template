@@ -102,6 +102,7 @@ encode:
   maxProcesses: 4
   concurrency: 1
   # subtitle: false                   # 全プリセット共通の字幕保存デフォルト (省略時: false)
+  # skipSubtitleForSuperimpose: true  # "字幕スーパー" (焼き込み字幕) を含む番組は ARIB 字幕埋め込みを自動スキップ (省略時: false)
   presets:
     - name: H.264-1080p
       script: enc_1080p.js

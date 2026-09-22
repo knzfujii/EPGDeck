@@ -131,6 +131,25 @@ describe('Structured Config Schema', () => {
         expect(conf.encode.presets[1].subtitle).toBe(false);
     });
 
+    it('should correctly parse skipSubtitleForSuperimpose in encode config', () => {
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.encode.skipSubtitleForSuperimpose).toBe(false);
+
+        const confExplicit = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+            encode: {
+                skipSubtitleForSuperimpose: true,
+            },
+        } as any);
+        expect(confExplicit.encode.skipSubtitleForSuperimpose).toBe(true);
+    });
+
     it('should throw error when checkDirectories is true and recording directory does not exist', () => {
         expect(() => {
             Configuration.formatAndValidateConfig(

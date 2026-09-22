@@ -177,6 +177,18 @@ class EncoderModel implements IEncoderModel {
         this.log.encode.info(`queueItem.directory: ${this.encodeOption.directory}`);
         this.log.encode.info(`outputFilePath: ${outputFilePath}`);
 
+        // 字幕埋め込みフラグの判定 (「字幕スーパー」検出時はスキップ)
+        let isSubtitleEnabled = !!encodeCmd.subtitle;
+        if (isSubtitleEnabled && config.encode.skipSubtitleForSuperimpose) {
+            const fullText = `${recorded.name} ${recorded.description || ''} ${recorded.extended || ''}`;
+            if (fullText.includes('字幕スーパー')) {
+                isSubtitleEnabled = false;
+                this.log.encode.info(
+                    `skip subtitle embedding: detected "字幕スーパー" in recorded info (encodeId: ${this.encodeOption.encodeId}, recordedId: ${recorded.id})`,
+                );
+            }
+        }
+
         // プロセスの生成
         this.childProcess = await this.processManager.create({
             input: inputFilePath,
@@ -225,7 +237,8 @@ class EncoderModel implements IEncoderModel {
                     ERROR_CNT: recorded.dropLogFile?.errorCnt.toString(10) || '',
                     DROP_CNT: recorded.dropLogFile?.dropCnt.toString(10) || '',
                     SCRAMBLING_CNT: recorded.dropLogFile?.scramblingCnt.toString(10) || '',
-                    SUBTITLE: encodeCmd.subtitle ? 'true' : 'false',
+                    SUBTITLE: isSubtitleEnabled ? 'true' : 'false',
+                    SKIP_SUBTITLE_FOR_SUPERIMPOSE: config.encode.skipSubtitleForSuperimpose ? 'true' : 'false',
                 },
             },
         });

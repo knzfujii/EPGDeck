@@ -137,6 +137,7 @@ export interface EncodeConfig {
     maxProcesses: number;
     concurrency: number;
     presets: EncodePresetConfig[];
+    skipSubtitleForSuperimpose?: boolean;
 }
 
 export interface HookCommandsConfig {

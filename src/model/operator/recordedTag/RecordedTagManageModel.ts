@@ -6,10 +6,10 @@ import IRecordedTagDB from '../../db/IRecordedTagDB.js';
 import IRecordedTagEvent from '../../event/IRecordedTagEvent.js';
 import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
-import IRecordedTagManadeModel from './IRecordedTagManadeModel.js';
+import IRecordedTagManageModel from './IRecordedTagManageModel.js';
 
 @injectable()
-export default class RecordedTagManadeModel implements IRecordedTagManadeModel {
+export default class RecordedTagManageModel implements IRecordedTagManageModel {
     private log: ILogger;
     private recordedTagDB: IRecordedTagDB;
     private recordedTagEvent: IRecordedTagEvent;

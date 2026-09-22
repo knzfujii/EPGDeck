@@ -105,8 +105,8 @@ import IExternalCommandManageModel from './operator/externalCommand/IExternalCom
 import IReserveOptionChecker from './operator/IReserveOptionChecker.js';
 import IRecordedManageModel from './operator/recorded/IRecordedManageModel.js';
 import RecordedManageModel from './operator/recorded/RecordedManageModel.js';
-import IRecordedTagManadeModel from './operator/recordedTag/IRecordedTagManadeModel.js';
-import RecordedTagManadeModel from './operator/recordedTag/RecordedTagManadeModel.js';
+import IRecordedTagManageModel from './operator/recordedTag/IRecordedTagManageModel.js';
+import RecordedTagManageModel from './operator/recordedTag/RecordedTagManageModel.js';
 import DropCheckerModel from './operator/recording/DropCheckerModel.js';
 import IDropCheckerModel from './operator/recording/IDropCheckerModel.js';
 import IRecorderModel, { RecorderModelProvider } from './operator/recording/IRecorderModel.js';
@@ -263,7 +263,7 @@ export const set = (container: Container): void => {
 
     container.bind<IRecordingManageModel>('IRecordingManageModel').to(RecordingManageModel).inSingletonScope();
 
-    container.bind<IRecordedTagManadeModel>('IRecordedTagManadeModel').to(RecordedTagManadeModel).inSingletonScope();
+    container.bind<IRecordedTagManageModel>('IRecordedTagManageModel').to(RecordedTagManageModel).inSingletonScope();
 
     container.bind<IThumbnailManageModel>('IThumbnailManageModel').to(ThumbnailManageModel).inSingletonScope();
 

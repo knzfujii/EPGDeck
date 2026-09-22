@@ -6,7 +6,7 @@ import IRecordedManageModel, {
     AddVideoFileOption,
     UploadedVideoFileOption,
 } from '../operator/recorded/IRecordedManageModel.js';
-import IRecordedTagManadeModel from '../operator/recordedTag/IRecordedTagManadeModel.js';
+import IRecordedTagManageModel from '../operator/recordedTag/IRecordedTagManageModel.js';
 import IRecordingManageModel from '../operator/recording/IRecordingManageModel.js';
 import IReservationManageModel from '../operator/reservation/IReservationManageModel.js';
 import IRuleManageModel from '../operator/rule/IRuleManageModel.js';
@@ -39,7 +39,7 @@ interface IFunctionIndex {
 export default class IPCServer implements IIPCServer {
     private reservationManage: IReservationManageModel;
     private recordedManage: IRecordedManageModel;
-    private recordedTagManage: IRecordedTagManadeModel;
+    private recordedTagManage: IRecordedTagManageModel;
     private recordingManage: IRecordingManageModel;
     private ruleManage: IRuleManageModel;
     private thumbnailManage: IThumbnailManageModel;
@@ -55,7 +55,7 @@ export default class IPCServer implements IIPCServer {
         @inject('IReservationManageModel')
         reservationManage: IReservationManageModel,
         @inject('IRecordedManageModel') recordedManage: IRecordedManageModel,
-        @inject('IRecordedTagManadeModel') recordedTagManage: IRecordedTagManadeModel,
+        @inject('IRecordedTagManageModel') recordedTagManage: IRecordedTagManageModel,
         @inject('IRecordingManageModel') recordingManage: IRecordingManageModel,
         @inject('IRuleManageModel') ruleManage: IRuleManageModel,
         @inject('IThumbnailManageModel') thumbnailManage: IThumbnailManageModel,

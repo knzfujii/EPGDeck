@@ -7,7 +7,7 @@ import ILoggerModel from '../ILoggerModel.js';
 import IIPCServer from '../ipc/IIPCServer.js';
 import IExternalCommandManageModel from '../operator/externalCommand/IExternalCommandManageModel.js';
 import IRecordedManageModel from '../operator/recorded/IRecordedManageModel.js';
-import IRecordedTagManadeModel from '../operator/recordedTag/IRecordedTagManadeModel.js';
+import IRecordedTagManageModel from '../operator/recordedTag/IRecordedTagManageModel.js';
 import IRecordingManageModel from '../operator/recording/IRecordingManageModel.js';
 import IReservationManageModel from '../operator/reservation/IReservationManageModel.js';
 import IThumbnailManageModel from '../operator/thumbnail/IThumbnailManageModel.js';
@@ -35,7 +35,7 @@ export default class EventSetter implements IEventSetter {
     private reservationManage: IReservationManageModel;
     private recordingManage: IRecordingManageModel;
     private recordedManage: IRecordedManageModel;
-    private recordedTagManage: IRecordedTagManadeModel;
+    private recordedTagManage: IRecordedTagManageModel;
     private thumbnailManage: IThumbnailManageModel;
     private externalCommandManage: IExternalCommandManageModel;
     private ipc: IIPCServer;
@@ -57,7 +57,7 @@ export default class EventSetter implements IEventSetter {
         reservationManage: IReservationManageModel,
         @inject('IRecordingManageModel') recordingManage: IRecordingManageModel,
         @inject('IRecordedManageModel') recordedManage: IRecordedManageModel,
-        @inject('IRecordedTagManadeModel') recordedTagManage: IRecordedTagManadeModel,
+        @inject('IRecordedTagManageModel') recordedTagManage: IRecordedTagManageModel,
         @inject('IThumbnailManageModel') thumbnailManage: IThumbnailManageModel,
         @inject('IExternalCommandManageModel') externalCommandManage: IExternalCommandManageModel,
         @inject('IIPCServer') ipc: IIPCServer,

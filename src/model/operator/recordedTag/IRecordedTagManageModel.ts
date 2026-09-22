@@ -1,6 +1,6 @@
 import * as apid from '../../../../api.js';
 
-export default interface IRecordedTagManadeModel {
+export default interface IRecordedTagManageModel {
     create(name: string, color: string): Promise<apid.RecordedTagId>;
     update(tagId: apid.RecordedTagId, name: string, color: string): Promise<void>;
     setRelation(tagId: apid.RecordedTagId, recordedId: apid.RecordedId): Promise<void>;

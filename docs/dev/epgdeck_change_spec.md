@@ -475,3 +475,19 @@
       を動的置換。リードオンリー解除トークン（`token`）も URL クエリへ自動伝搬。
     - `launchUrlScheme`: 非表示リンク（`<a>`）経由で安全に外部アプリ（VLC, MX Player 等）を呼び出し。
     - iOS のデフォルト URL スキーム設定を有料サブスク化された Infuse から完全無料の VLC（`vlc-x-callback://`）へ統一。
+
+### 6.6 モバイル・ブラウザタブ復帰時の自動ステータス同期 (`ForegroundRefreshManager`)
+
+- **課題と背景**:
+    - スマホ環境（iOS Safari / Android Chrome）等で別タブや別アプリへ切り替えた際、ブラウザの省電力・ライフサイクル仕様（Page Lifecycle API / BFCache）により JavaScript 実行がサスペンドされ、Socket.IO 接続が一時切断・タイムアウトする。
+    - バックグラウンド中に録画完了や予約更新が発生してもクライアントが通知を受け取れず、タブに戻った際に過去の古いステータス画面（録画中のままなど）が表示され続ける問題があった。
+- **改善仕様 (`client/src/lib/utils/foregroundRefresh.ts` & `socket.svelte.ts`)**:
+    - **Page Visibility & BFCache 復帰検知**:
+      `document.addEventListener('visibilitychange')`（`document.visibilityState === 'visible'`）および `window.addEventListener('pageshow')` を統合監視。
+    - **Socket.IO 再接続保証**:
+      `reconnectionAttempts: Infinity` に設定し長時間放置後の諦めを防止。タブ復帰時に切断されていた場合は直ちに `socket.connect()` をキック。
+    - **イベント駆動の自動データ再取得**:
+      フォアグラウンド復帰時、および Socket 再接続完了（切断からの復帰）時に、`socketStore` 経由で `updateStatus` および `updateEncode` イベントを発火。すでに各画面（ダッシュボード、予約一覧、録画一覧、番組表、放送中等）に実装済みのリスナーを通じて、画面を開いた瞬間に自動的に最新データが再フェッチされる。
+    - **過剰リクエスト抑制（スロットリング）**:
+      最小インターバル（デフォルト 2,000ms）を設け、タブの素早い切り替えや多重イベント発火による不要な API 乱打を防止。
+

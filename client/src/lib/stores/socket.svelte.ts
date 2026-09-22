@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { ForegroundRefreshManager } from '../utils/foregroundRefresh';
 
 export type LogProcess = 'Operator' | 'Service' | 'EPGUpdater';
 export type LogCategory = 'system' | 'access' | 'stream' | 'encode';
@@ -16,13 +17,15 @@ export interface LogEntry {
 type SocketEventType = 'updateStatus' | 'updateEncode' | 'connect' | 'disconnect' | 'logs';
 type Callback<T = any> = (data: T) => void;
 
-class SocketStore {
+export class SocketStore {
     private socket: Socket | null = null;
     public isConnected = $state(false);
     public statusVersion = $state(0);
     public encodeVersion = $state(0);
 
     private listeners = new Map<SocketEventType, Set<Callback>>();
+    private hasConnectedOnce = false;
+    private refreshManager: ForegroundRefreshManager | null = null;
 
     public init() {
         if (this.socket) return;
@@ -37,8 +40,9 @@ class SocketStore {
         this.socket = io(`${protocol}//${host}`, {
             path,
             transports: ['websocket', 'polling'],
-            reconnectionAttempts: 10,
+            reconnectionAttempts: Infinity, // 長時間バックグラウンド後も諦めずに再接続
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
         });
 
         this.socket.on('connect', () => {
@@ -46,6 +50,14 @@ class SocketStore {
             this.emitEvent('connect');
             if (this.listeners.has('logs') && (this.listeners.get('logs')?.size ?? 0) > 0) {
                 this.subscribeLogs();
+            }
+
+            // 初回接続時は各画面の onMount で初期フェッチを行うためスキップ
+            // 2回目以降の再接続時（切断からの復帰）はサーバー側の最新状態と同期
+            if (this.hasConnectedOnce) {
+                this.triggerRefresh();
+            } else {
+                this.hasConnectedOnce = true;
             }
         });
 
@@ -67,6 +79,36 @@ class SocketStore {
         this.socket.on('logs', (entry: LogEntry) => {
             this.emitEvent('logs', entry);
         });
+
+        // タブ復帰 (visibilitychange: visible) や BFCache 復帰 (pageshow) の監視を開始
+        this.refreshManager = new ForegroundRefreshManager({
+            onResume: () => {
+                if (this.socket && !this.socket.connected) {
+                    this.socket.connect();
+                }
+            },
+            onRefresh: () => {
+                this.statusVersion++;
+                this.encodeVersion++;
+                this.emitEvent('updateStatus');
+                this.emitEvent('updateEncode');
+            },
+        });
+        this.refreshManager.start();
+    }
+
+    /**
+     * ステータスおよびエンコード更新イベントを発火して各画面をリフレッシュする
+     */
+    public triggerRefresh(force = false) {
+        if (this.refreshManager) {
+            this.refreshManager.trigger(force);
+        } else {
+            this.statusVersion++;
+            this.encodeVersion++;
+            this.emitEvent('updateStatus');
+            this.emitEvent('updateEncode');
+        }
     }
 
     public subscribeLogs() {
@@ -114,10 +156,16 @@ class SocketStore {
     }
 
     public destroy() {
+        if (this.refreshManager) {
+            this.refreshManager.destroy();
+            this.refreshManager = null;
+        }
+
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
             this.isConnected = false;
+            this.hasConnectedOnce = false;
             this.listeners.clear();
         }
     }

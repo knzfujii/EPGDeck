@@ -91,5 +91,6 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **放映中・録画中番組の保護と録画継続性多層防御** | EPG更新や複数ルールの同一番組重複調停時、放映中既存予約の最優先保護（`ReservationManageModel.sortReserve`）、programId変動時の更新枠引き継ぎ（`createReservesDiff`）、録画中プロセスの強制キャンセル抑止＆二重起動防止（`RecordingManageModel`） | [予約アルゴリズム仕様書](dev/reservation-algorithm.md#3-同一番組に対する重複予約の調停program-id-重複排除) |
 | **手動時刻指定予約のフラグ整合性是正 & 例外・ロガータイポ修正** | 時刻指定手動予約作成（`ReservationManageModel.createManualReserveWithSpecifiedTime`）で誤設定されていた `isEventRelay = true` を是正（`false` 保持）、チャンネル未検出例外名タイポ（`eservation...` ➔ `Reservation...`）およびロガー参照誤り（`log.stream` ➔ `log.system`）の解消、単体テスト追加 | [予約アルゴリズム仕様書](dev/reservation-algorithm.md#5-時刻指定予約istimespecificationによる予約枠生成) |
 | **録画中3択操作ハンドラーの共通化（フロントエンド重複排除）** | 4画面（Dashboard, Guide, Reserves, OnAir）で完全重複していた録画中3択操作（完了保存・中断保存・取り消し破棄）の API 呼び出し・通知・エラー処理を `client/src/lib/utils/recording.ts`（`executeRecordingAction`）に集約、`RecordingActionModal` Props 型定義の正規化、単体テスト・E2Eテスト全件通過 | [画面変更仕様書](dev/epgdeck_change_spec.md#34-予約一覧-reserves) |
+| **録画オプション状態管理の共通化（RecordingOptionFormState導入）** | 番組表（Guide）・予約一覧（Reserves）・手動予約（ManualReserve）で重複していた録画オプション（TS保存先・エンコード最大3系統・元TS削除・末尾欠け許可）の `$state` 定義・初期化・ロード・リクエスト JSON 生成ロジックを `RecordingOptionFormState`（Svelte 5 Runes）に集約、ボイラープレート削減 | [画面変更仕様書](dev/epgdeck_change_spec.md#2-画面一覧統廃合対比表) |
 
 

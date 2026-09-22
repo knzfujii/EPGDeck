@@ -11,13 +11,7 @@
     import { extractFirstSearchWord, getChannelTypeBadgeClass } from '../lib/utils/format';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
-    import {
-        getDefaultRecordingOptionState,
-        loadRecordingOptionState,
-        buildSaveOption,
-        buildEncodeOption,
-        type EncodeRow,
-    } from '../lib/utils/recordingOptions';
+    import { RecordingOptionFormState } from '../lib/stores/recordingOptionForm.svelte';
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
@@ -118,32 +112,17 @@
     let encodeModes = $state<string[]>([]);
     let storageDirs = $state<string[]>([]);
 
-    // 予約フォーム状態
-    const defaultOptionState = getDefaultRecordingOptionState();
-    let saveParentDir = $state(defaultOptionState.saveParentDir);
-    let saveSubDir = $state(defaultOptionState.saveSubDir);
-    let encRows = $state<EncodeRow[]>(defaultOptionState.encRows);
-    let isDeleteOriginal = $state(defaultOptionState.isDeleteOriginal);
-    let allowEndLack = $state(defaultOptionState.allowEndLack);
+    // 録画オプションフォーム状態
+    const recOptions = new RecordingOptionFormState();
 
     // 予約フォームを初期化 (新規予約時)
     function resetReserveForm() {
-        const state = getDefaultRecordingOptionState();
-        saveParentDir = state.saveParentDir;
-        saveSubDir = state.saveSubDir;
-        encRows = state.encRows;
-        isDeleteOriginal = state.isDeleteOriginal;
-        allowEndLack = state.allowEndLack;
+        recOptions.reset();
     }
 
     // 予約フォームに既存の予約設定を反映 (編集時)
     function loadReserveForm(reserve: any) {
-        const state = loadRecordingOptionState(reserve);
-        saveParentDir = state.saveParentDir;
-        saveSubDir = state.saveSubDir;
-        encRows = state.encRows;
-        isDeleteOriginal = state.isDeleteOriginal;
-        allowEndLack = state.allowEndLack;
+        recOptions.load(reserve);
     }
 
     // グリッドスクロールコンテナ参照
@@ -428,9 +407,9 @@
                 json: {
                     programId: program.id,
                     isHalfWidth: true,
-                    allowEndLack: allowEndLack,
-                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                    allowEndLack: recOptions.allowEndLack,
+                    saveOption: recOptions.buildSaveOption(),
+                    encodeOption: recOptions.buildEncodeOption(),
                 },
             });
             snackbar.open({ text: `「${program.name}」を録画予約しました`, color: 'success' });
@@ -456,9 +435,9 @@
             await api.reserves[':reserveId'].$put({
                 param: { reserveId: String(reserveId) },
                 json: {
-                    allowEndLack: allowEndLack,
-                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                    allowEndLack: recOptions.allowEndLack,
+                    saveOption: recOptions.buildSaveOption(),
+                    encodeOption: recOptions.buildEncodeOption(),
                 },
             });
             snackbar.open({ text: `「${program.name}」の予約設定を更新しました`, color: 'success' });
@@ -1054,11 +1033,11 @@
                     {:else}
                         <div class="mt-4">
                             <RecordingOptionForm
-                                bind:saveParentDir
-                                bind:saveSubDir
-                                bind:encRows
-                                bind:isDeleteOriginal
-                                bind:allowEndLack
+                                bind:saveParentDir={recOptions.saveParentDir}
+                                bind:saveSubDir={recOptions.saveSubDir}
+                                bind:encRows={recOptions.encRows}
+                                bind:isDeleteOriginal={recOptions.isDeleteOriginal}
+                                bind:allowEndLack={recOptions.allowEndLack}
                                 {encodeModes}
                                 {storageDirs}
                             />

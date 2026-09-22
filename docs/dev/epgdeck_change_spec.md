@@ -159,8 +159,9 @@
     - **時間指定手動予約のバグ修正**: EPGStation/EPGDeck
       API 仕様に準拠し、`timeSpecifiedOption: { name, channelId, startAt, endAt }`
       およびフルオプションを正しく送信するよう修正。
-    - **録画オプション共通コンポーネント (`RecordingOptionForm.svelte`)**:
+    - **録画オプション共通コンポーネント (`RecordingOptionForm.svelte`) & 状態管理ストア (`RecordingOptionFormState`)**:
         - 番組表予約モーダル（`Guide.svelte`）、予約詳細・編集モーダル（`Reserves.svelte`）、手動予約ページ（`ManualReserve.svelte`）、ルール編集ページ（`RuleEdit.svelte`）でコピペされていた録画オプション UI・状態管理・ペイロード構築ロジックを共通化。
+        - **状態管理の正規化 (`client/src/lib/stores/recordingOptionForm.svelte.ts`)**: 各画面で散在していた 5 つの `$state`（保存先親/サブ、エンコード配列、元TS削除、末尾欠け許可）およびロード・リセット・送信ペイロード生成ロジックを `RecordingOptionFormState` クラスに集約。Svelte 5 Runes を活用したリアクティブなカプセル化により、ボイラープレートコードを大幅に削減し保守性を向上。
         - TS 保存先（親ストレージ選択、サブフォルダ指定）、エンコード設定（最大3系統、モード・親/サブ指定）、元 TS 自動削除フラグ、チューナー競合時の末尾切れ許可（`allowEndLack`）をどの予約画面・ルール編集画面からも統一的に操作可能。
 - **放映中・録画中予約の保護と多層防御による録画継続性保証**:
     - EPG 更新（番組表再取得）や複数ルールの同一番組重複調停において、すでに放映開始済み（`startAt <= now`）の既存予約枠が後発ルールによって横取り・削除（`diff.delete`）されることを

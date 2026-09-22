@@ -38,13 +38,7 @@
     } from '@lucide/svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
-    import {
-        getDefaultRecordingOptionState,
-        loadRecordingOptionState,
-        buildSaveOption,
-        buildEncodeOption,
-        type EncodeRow,
-    } from '../lib/utils/recordingOptions';
+    import { RecordingOptionFormState } from '../lib/stores/recordingOptionForm.svelte';
 
     interface ReserveWithRecording extends apid.ReserveItem {
         isRecording?: boolean;
@@ -70,22 +64,12 @@
     let storageDirs = $state<string[]>([]);
 
     // 予約フォーム状態
-    const defaultOptionState = getDefaultRecordingOptionState();
-    let saveParentDir = $state(defaultOptionState.saveParentDir);
-    let saveSubDir = $state(defaultOptionState.saveSubDir);
-    let encRows = $state<EncodeRow[]>(defaultOptionState.encRows);
-    let isDeleteOriginal = $state(defaultOptionState.isDeleteOriginal);
+    const recOptions = new RecordingOptionFormState();
     let isUpdating = $state(false);
-    let allowEndLack = $state(defaultOptionState.allowEndLack);
 
     // 予約フォームに既存の予約設定を反映
     function loadReserveForm(reserve: apid.ReserveItem) {
-        const state = loadRecordingOptionState(reserve);
-        saveParentDir = state.saveParentDir;
-        saveSubDir = state.saveSubDir;
-        encRows = state.encRows;
-        isDeleteOriginal = state.isDeleteOriginal;
-        allowEndLack = state.allowEndLack;
+        recOptions.load(reserve);
     }
 
     // 予約設定の更新 (個別予約のみ)
@@ -96,9 +80,9 @@
             await api.reserves[':reserveId'].$put({
                 param: { reserveId: String(item.id) },
                 json: {
-                    allowEndLack,
-                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                    allowEndLack: recOptions.allowEndLack,
+                    saveOption: recOptions.buildSaveOption(),
+                    encodeOption: recOptions.buildEncodeOption(),
                 },
             });
             snackbar.open({ text: `「${item.name}」の予約設定を更新しました`, color: 'success' });
@@ -954,11 +938,11 @@
                     <!-- 個別予約: 予約自体を編集可能 -->
                     <div>
                         <RecordingOptionForm
-                            bind:saveParentDir
-                            bind:saveSubDir
-                            bind:encRows
-                            bind:isDeleteOriginal
-                            bind:allowEndLack
+                            bind:saveParentDir={recOptions.saveParentDir}
+                            bind:saveSubDir={recOptions.saveSubDir}
+                            bind:encRows={recOptions.encRows}
+                            bind:isDeleteOriginal={recOptions.isDeleteOriginal}
+                            bind:allowEndLack={recOptions.allowEndLack}
                             {encodeModes}
                             {storageDirs}
                         />

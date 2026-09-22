@@ -7,12 +7,7 @@
     import api from '@/lib/apiClient';
     import { Clock, Plus, ArrowLeft, Lock } from '@lucide/svelte';
     import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
-    import {
-        getDefaultRecordingOptionState,
-        buildSaveOption,
-        buildEncodeOption,
-        type EncodeRow,
-    } from '@/lib/utils/recordingOptions';
+    import { RecordingOptionFormState } from '@/lib/stores/recordingOptionForm.svelte';
 
     let selectedChannelId = $state<number | null>(null);
     let name = $state('');
@@ -22,12 +17,7 @@
     let isSubmitting = $state(false);
 
     // 録画オプション状態
-    const defaultOptionState = getDefaultRecordingOptionState();
-    let saveParentDir = $state(defaultOptionState.saveParentDir);
-    let saveSubDir = $state(defaultOptionState.saveSubDir);
-    let encRows = $state<EncodeRow[]>(defaultOptionState.encRows);
-    let isDeleteOriginal = $state(defaultOptionState.isDeleteOriginal);
-    let allowEndLack = $state(defaultOptionState.allowEndLack);
+    const recOptions = new RecordingOptionFormState();
 
     function toLocalISOString(date: Date): string {
         const offset = date.getTimezoneOffset() * 60000;
@@ -81,15 +71,15 @@
         try {
             await api.reserves.$post({
                 json: {
-                    allowEndLack,
+                    allowEndLack: recOptions.allowEndLack,
                     timeSpecifiedOption: {
                         name: name.trim(),
                         channelId: selectedChannelId,
                         startAt,
                         endAt,
                     },
-                    saveOption: buildSaveOption({ saveParentDir, saveSubDir }),
-                    encodeOption: buildEncodeOption({ encRows, isDeleteOriginal }),
+                    saveOption: recOptions.buildSaveOption(),
+                    encodeOption: recOptions.buildEncodeOption(),
                 },
             });
             snackbar.open({ text: '時間指定予約を作成しました', color: 'success' });
@@ -230,11 +220,11 @@
             <!-- 録画オプション (TS保存先・エンコード設定等) -->
             <div class="pt-2">
                 <RecordingOptionForm
-                    bind:saveParentDir
-                    bind:saveSubDir
-                    bind:encRows
-                    bind:isDeleteOriginal
-                    bind:allowEndLack
+                    bind:saveParentDir={recOptions.saveParentDir}
+                    bind:saveSubDir={recOptions.saveSubDir}
+                    bind:encRows={recOptions.encRows}
+                    bind:isDeleteOriginal={recOptions.isDeleteOriginal}
+                    bind:allowEndLack={recOptions.allowEndLack}
                 />
             </div>
 

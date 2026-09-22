@@ -194,17 +194,21 @@ private injectDefaultCaptionManagement(timeSec = 0): void {
 - `tx3g` は実質的に「MP4 規格に適合させたバイナリ版 SRT」であり、Apple 製品（iOS / iPadOS / macOS / Safari）、モダンブラウザ（HTML5 `<video>` の `textTracks`）、各種メディアプレイヤー（VLC / Kodi / Infuse）でネイティブに認識・描画されます。
 - 外部 SRT ファイルが必要な場合も、`ffmpeg -i file.mp4 -map 0:s:0 file.srt` でいつでも無劣化・一瞬でテキスト抽出が可能です。
 
-### 6.2 `-fix_sub_duration` の必須性（クラッシュ防止）
+### 6.2 `-fix_sub_duration` の必須性と字幕パケット間隔の注意点（`INT_MAX` 制限）
 - **課題**: 放送波（ARIB STD-B24）の字幕パケットは表示終了時刻（duration）が明示されておらず、未指定（UINT32_MAX）として渡されます。これをそのまま MP4 muxer（`mov_text`）に流すと、FFmpeg が `Application provided duration in stream is invalid` (error `-22`) を吐いて即座にエンコードが異常終了します。
 - **解決策**: FFmpeg 起動オプションに **`-fix_sub_duration`** を指定します。これにより、FFmpeg が後続のパケット PTS から自動的に字幕の表示期間を計算して MP4 に正常に書き込みます。
+- **注意点（字幕間隔が約35.7分以上空く番組でのクラッシュ）**:
+  - `-fix_sub_duration` は直前のパケットの duration を `次のパケットの PTS - 直前のパケットの PTS` で動的に調整します。
+  - そのため、**洋画劇場など「字幕が映像に焼き込まれたオープンキャプション作品（＜字幕スーパー＞）」** や長時間特番などで、冒頭にわずかに ARIB 字幕が出た後、次の字幕パケットが約 35.7 分（2,147 秒）以上届かない場合、計算された duration が MP4/MOV の符号付き 32bit 最大値 `INT_MAX`（2,147,483,647 マイクロ秒 ≒ 2,147 秒）を超過します。
+  - この場合、MP4 muxer（`libavformat/movenc.c`）のバリデーションチェックにより `Application provided duration: ... in stream ... is invalid` が発生してエンコードが終了します。
+  - **対処法**: 焼き込み字幕映画（＜字幕スーパー＞）など ARIB 字幕が実質存在しない番組では、プリセットまたは設定で `subtitle: false` を指定してエンコード（`-sn`）を行うことで回避できます。
 
-### 6.3 制御フロー（`config.yml` ⇄ `EncoderModel` ⇄ `enc_helper.js`）
+### 6.3 制御フローとコマンドログ記録（`config.yml` ⇄ `EncoderModel` ⇄ `enc_helper.js`）
 1. `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）を設定。
-2. `src/model/service/encode/EncoderModel.ts` が子プロセス起動時に環境変数 `SUBTITLE`（`'true'` または `'false'`）を伝搬。
-3. `config/enc_helper.js` が `options.subtitle` および `process.env.SUBTITLE` を評価し、有効な場合は：
-   - 入力引数に `-fix_sub_duration` を追加
-   - 字幕マッピングに `-map 0:s? -c:s mov_text -metadata:s:s:0 language=jpn` を追加
-4. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。
+2. `src/model/service/encode/EncoderModel.ts` が開始時に `encodeCmd.cmd` を INFO ログに出力し、子プロセス起動時に環境変数 `SUBTITLE`（`'true'` または `'false'`）を伝搬。
+3. `config/enc_helper.js` が実行時に組み立てた FFmpeg コマンド（シェルクォート整形済み）を `[enc_helper] FFmpeg command: ...` として出力。
+4. `EncoderModel` がこのコマンド行を検知して INFO ログに記録し、万一エンコードが異常終了した場合にもエラーログの先頭に `failed ffmpeg command: ...` を自動出力して障害調査を容易にします。
+5. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。
 
 ### 6.4 FFmpeg の `--enable-libaribb24` 依存性
 - **ストリーミング（HLS / M2TS-LL）との決定的な違い**:

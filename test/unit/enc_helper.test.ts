@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // @ts-expect-error no types for enc_helper
-import { timeStrToSeconds, buildFFmpegArgs } from '../../config/enc_helper.js';
+import { timeStrToSeconds, buildFFmpegArgs, formatCommand } from '../../config/enc_helper.js';
 
 describe('enc_helper.js', () => {
     const originalEnv = process.env;
@@ -330,6 +330,26 @@ describe('enc_helper.js', () => {
                 expect(content).toContain("import { runEncode } from './enc_helper.js';");
                 expect(content).not.toContain('require(');
             }
+        });
+    });
+
+    describe('formatCommand', () => {
+        it('should format simple arguments without quotes', () => {
+            const result = formatCommand('/usr/bin/ffmpeg', ['-y', '-i', 'input.ts', 'output.mp4']);
+            expect(result).toBe('/usr/bin/ffmpeg -y -i input.ts output.mp4');
+        });
+
+        it('should quote arguments containing spaces and special characters', () => {
+            const result = formatCommand('/usr/bin/ffmpeg', [
+                '-i',
+                '/path/to/movie title [sub].ts',
+                '-filter_complex',
+                '[0:a:0]channelsplit[FL][FR]',
+                '/path/to/output (1080p).mp4',
+            ]);
+            expect(result).toBe(
+                '/usr/bin/ffmpeg -i "/path/to/movie title [sub].ts" -filter_complex "[0:a:0]channelsplit[FL][FR]" "/path/to/output (1080p).mp4"',
+            );
         });
     });
 });

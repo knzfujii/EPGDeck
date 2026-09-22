@@ -375,6 +375,21 @@ const verifyOutputFile = (ffprobePath, inputDuration, outputFilePath, options) =
 };
 
 /**
+ * コマンドと引数の配列をシェル実行可能な文字列にフォーマット
+ */
+const formatCommand = (bin, cmdArgs) => {
+    return [
+        bin,
+        ...cmdArgs.map((arg) => {
+            if (/[\s"'\\$`*?~<>|&;()[\]{}]/.test(arg)) {
+                return `"${arg.replace(/(["\\$`])/g, '\\$1')}"`;
+            }
+            return arg;
+        }),
+    ].join(' ');
+};
+
+/**
  * エンコードを実行するメイン関数
  * @param {Object} options エンコード設定オプション
  */
@@ -398,7 +413,7 @@ async function runEncode(options = {}) {
     // 2. 引数構築
     const args = buildFFmpegArgs(options, mediaInfo);
 
-    console.error('[enc_helper] FFmpeg command:', ffmpeg, args.join(' '));
+    console.error('[enc_helper] FFmpeg command: ' + formatCommand(ffmpeg, args));
 
     // 3. プロセス実行
     let child = null;
@@ -500,4 +515,5 @@ export {
     resolveResolution,
     verifyOutputFile,
     timeStrToSeconds,
+    formatCommand,
 };

@@ -39,6 +39,7 @@ class EncoderModel implements IEncoderModel {
     private timerId: NodeJS.Timeout | null = null; // タイムアウト検知用タイマーid
     private isCanceld: boolean = false; // キャンセルが呼び出されたか?
     private progressInfo: EncodeProgressInfo | null = null;
+    private ffmpegCommand: string | null = null; // 実行されたFFmpegコマンドライン
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
@@ -171,6 +172,7 @@ class EncoderModel implements IEncoderModel {
             `encode start. mode: ${this.encodeOption.mode} name: ${recorded.name} file: ${inputFilePath} -> ${outputFilePath}`,
         );
         this.log.encode.info(`encodeId: ${this.encodeOption.encodeId}`);
+        this.log.encode.info(`encodeCmd.cmd: ${encodeCmd.cmd}`);
         this.log.encode.info(`encodeCmd.suffix: ${encodeCmd.suffix}`);
         this.log.encode.info(`queueItem.directory: ${this.encodeOption.directory}`);
         this.log.encode.info(`outputFilePath: ${outputFilePath}`);
@@ -253,6 +255,17 @@ class EncoderModel implements IEncoderModel {
                 this.log.encode.debug(str);
                 stderrBuffer.push(str);
                 if (stderrBuffer.length > 50) stderrBuffer.shift();
+
+                // FFmpeg 実行コマンド行を検知して INFO ログに記録
+                if (str.includes('FFmpeg command:')) {
+                    const lines = str.split('\n');
+                    for (const line of lines) {
+                        if (line.includes('FFmpeg command:')) {
+                            this.ffmpegCommand = line.trim();
+                            this.log.encode.info(this.ffmpegCommand);
+                        }
+                    }
+                }
             });
         }
 
@@ -383,6 +396,9 @@ class EncoderModel implements IEncoderModel {
         } else if (code !== 0) {
             // エンコードが正常終了しなかった
             this.log.encode.error(`encode failed: ${this.encodeOption.encodeId} ${outputFilePath}`);
+            if (this.ffmpegCommand !== null) {
+                this.log.encode.error(`failed ffmpeg command: ${this.ffmpegCommand}`);
+            }
             if (stderrBuffer && stderrBuffer.length > 0) {
                 this.log.encode.error(`encode error output:\n${stderrBuffer.join('')}`);
             }

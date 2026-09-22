@@ -682,10 +682,10 @@
                             class="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                         >
                             <tr>
-                                <th class="px-4 py-3.5 w-36 sm:w-44">放送局</th>
+                                <th class="px-4 py-3.5 w-36 sm:w-44 min-w-[140px]">放送局</th>
                                 <th class="px-4 py-3.5 min-w-[320px]">現在の番組 (放送中)</th>
                                 <th
-                                    class="px-4 py-3.5 w-64 sm:w-80 lg:w-96 border-l border-slate-100 dark:border-slate-800"
+                                    class="px-4 py-3.5 w-64 sm:w-80 lg:w-96 min-w-[240px] border-l border-slate-100 dark:border-slate-800"
                                 >
                                     次の番組
                                 </th>

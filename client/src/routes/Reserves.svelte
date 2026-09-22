@@ -596,13 +596,15 @@
                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                     >
                         <tr>
-                            <th class="px-4 py-3.5">放送日時</th>
-                            <th class="px-4 py-3.5">放送局</th>
-                            <th class="px-4 py-3.5">種別</th>
-                            <th class="px-4 py-3.5">番組名 / 概要</th>
-                            <th class="px-4 py-3.5">時間</th>
-                            <th class="px-4 py-3.5">状態</th>
-                            <th class="px-4 py-3.5 text-right w-40">キャンセル / 操作</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap min-w-[130px]">放送日時</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap min-w-[110px]">放送局</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap min-w-[70px]">種別</th>
+                            <th class="px-4 py-3.5 min-w-[220px]">番組名 / 概要</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap min-w-[70px]">時間</th>
+                            <th class="px-4 py-3.5 whitespace-nowrap min-w-[100px]">状態</th>
+                            <th class="px-4 py-3.5 text-right whitespace-nowrap w-40 min-w-[160px]">
+                                キャンセル / 操作
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">

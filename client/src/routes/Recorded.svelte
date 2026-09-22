@@ -638,7 +638,7 @@
                     >
                         <tr>
                             {#if isSelectionMode}
-                                <th class="w-12 px-3 py-3 text-center">
+                                <th class="w-12 min-w-[48px] px-3 py-3 text-center">
                                     <input
                                         type="checkbox"
                                         checked={isAllSelected}
@@ -649,12 +649,12 @@
                                     />
                                 </th>
                             {/if}
-                            <th class="px-4 py-3">放送日時</th>
-                            <th class="px-4 py-3">放送局</th>
-                            <th class="px-4 py-3">番組名 / 概要</th>
-                            <th class="px-4 py-3">時間 / サイズ</th>
-                            <th class="px-4 py-3">ドロップ</th>
-                            <th class="px-4 py-3 text-right">再生 / 操作</th>
+                            <th class="px-4 py-3 whitespace-nowrap min-w-[130px]">放送日時</th>
+                            <th class="px-4 py-3 whitespace-nowrap min-w-[120px]">放送局</th>
+                            <th class="px-4 py-3 min-w-[220px]">番組名 / 概要</th>
+                            <th class="px-4 py-3 whitespace-nowrap min-w-[100px]">時間 / サイズ</th>
+                            <th class="px-4 py-3 whitespace-nowrap min-w-[120px]">ドロップ</th>
+                            <th class="px-4 py-3 text-right whitespace-nowrap w-px min-w-[160px]">再生 / 操作</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">

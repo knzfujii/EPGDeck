@@ -1942,11 +1942,13 @@
                                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                                     >
                                         <tr>
-                                            <th class="px-3.5 py-2.5">放送日時</th>
-                                            <th class="px-3.5 py-2.5">放送局</th>
-                                            <th class="px-3.5 py-2.5">番組名 / 概要</th>
-                                            <th class="px-3.5 py-2.5">状態</th>
-                                            <th class="px-3.5 py-2.5 text-right">スキップ操作</th>
+                                            <th class="px-3.5 py-2.5 whitespace-nowrap min-w-[130px]">放送日時</th>
+                                            <th class="px-3.5 py-2.5 whitespace-nowrap min-w-[110px]">放送局</th>
+                                            <th class="px-3.5 py-2.5 min-w-[200px]">番組名 / 概要</th>
+                                            <th class="px-3.5 py-2.5 whitespace-nowrap min-w-[80px]">状態</th>
+                                            <th class="px-3.5 py-2.5 text-right whitespace-nowrap w-px min-w-[110px]">
+                                                スキップ操作
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">

@@ -663,13 +663,13 @@
                             class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                         >
                             <tr>
-                                <th class="px-4 py-3.5 text-center w-16">状態</th>
-                                <th class="px-4 py-3.5">検索キーワード / 条件</th>
-                                <th class="px-4 py-3.5">対象局 / ジャンル</th>
-                                <th class="px-4 py-3.5">保存先ストレージ / フォルダ</th>
-                                <th class="px-4 py-3.5">エンコード</th>
-                                <th class="px-4 py-3.5 text-center w-20">優先度</th>
-                                <th class="px-4 py-3.5 text-center w-24">予約数</th>
+                                <th class="px-4 py-3.5 text-center w-16 min-w-[64px]">状態</th>
+                                <th class="px-4 py-3.5 min-w-[200px]">検索キーワード / 条件</th>
+                                <th class="px-4 py-3.5 min-w-[130px]">対象局 / ジャンル</th>
+                                <th class="px-4 py-3.5 min-w-[150px]">保存先ストレージ / フォルダ</th>
+                                <th class="px-4 py-3.5 min-w-[110px]">エンコード</th>
+                                <th class="px-4 py-3.5 text-center w-20 min-w-[80px]">優先度</th>
+                                <th class="px-4 py-3.5 text-center w-24 min-w-[96px]">予約数</th>
                                 <th class="px-4 py-3.5 text-right whitespace-nowrap w-px">操作</th>
                             </tr>
                         </thead>

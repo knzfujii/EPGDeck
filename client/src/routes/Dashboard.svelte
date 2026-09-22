@@ -6,6 +6,7 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
+    import { isReserveCurrentlyRecording } from '../lib/utils/recording';
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
@@ -91,18 +92,9 @@
             const now = Date.now();
             const reservesList: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
             upcomingReserves = reservesList.map((r: apid.ReserveItem) => {
-                const isCurrentlyRecording =
-                    recordingList.some(
-                        (rec: any) =>
-                            (rec.programId && r.programId && rec.programId === r.programId) ||
-                            (rec.channelId === r.channelId &&
-                                Math.abs(rec.startAt - r.startAt) < 60000 &&
-                                Math.abs(rec.endAt - r.endAt) < 60000),
-                    ) ||
-                    (r.startAt <= now && now < r.endAt && !r.isOverlap && !r.isSkip);
                 return {
                     ...r,
-                    isRecording: isCurrentlyRecording,
+                    isRecording: isReserveCurrentlyRecording(r, recordingList, now),
                 };
             });
             reservesTotal = reservesRes.total || 0;

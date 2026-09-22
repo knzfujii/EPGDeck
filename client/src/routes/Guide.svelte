@@ -18,6 +18,7 @@
         buildEncodeOption,
         type EncodeRow,
     } from '../lib/utils/recordingOptions';
+    import { isReserveCurrentlyRecording } from '../lib/utils/recording';
     import {
         Calendar,
         ChevronLeft,
@@ -219,16 +220,10 @@
         const map = new Map<number, apid.ReserveItem & { isRecording?: boolean }>();
         for (const r of reserves || []) {
             if (r.programId) {
-                const isCurrentlyRecording =
-                    recordingList.some(
-                        (rec: any) =>
-                            (rec.programId && rec.programId === r.programId) ||
-                            (rec.channelId === r.channelId &&
-                                Math.abs(rec.startAt - r.startAt) < 60000 &&
-                                Math.abs(rec.endAt - r.endAt) < 60000),
-                    ) ||
-                    (r.startAt <= now && now < r.endAt && !r.isOverlap && !r.isSkip);
-                map.set(r.programId, { ...r, isRecording: isCurrentlyRecording });
+                map.set(r.programId, {
+                    ...r,
+                    isRecording: isReserveCurrentlyRecording(r, recordingList, now),
+                });
             }
         }
         return map;

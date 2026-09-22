@@ -14,6 +14,7 @@
         formatDuration,
         extractFirstSearchWord,
     } from '../lib/utils/format';
+    import { isReserveCurrentlyRecording } from '../lib/utils/recording';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -140,18 +141,9 @@
             const rawReserves: apid.ReserveItem[] = (reservesRes.reserves as apid.ReserveItem[]) || [];
 
             reserves = rawReserves.map(r => {
-                const isCurrentlyRecording =
-                    recordingList.some(
-                        (rec: any) =>
-                            (rec.programId && r.programId && rec.programId === r.programId) ||
-                            (rec.channelId === r.channelId &&
-                                Math.abs(rec.startAt - r.startAt) < 60000 &&
-                                Math.abs(rec.endAt - r.endAt) < 60000),
-                    ) ||
-                    (r.startAt <= now && now < r.endAt && !r.isOverlap && !r.isSkip);
                 return {
                     ...r,
-                    isRecording: isCurrentlyRecording,
+                    isRecording: isReserveCurrentlyRecording(r, recordingList, now),
                 };
             });
             total = reservesRes.total || 0;

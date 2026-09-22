@@ -1,0 +1,113 @@
+import { describe, it, expect } from 'vitest';
+import {
+    isReserveCurrentlyRecording,
+    type ReserveLike,
+    type RecordingLike,
+} from '../../client/src/lib/utils/recording.js';
+
+describe('recording utility', () => {
+    const baseReserve: ReserveLike = {
+        programId: 1001,
+        channelId: 10,
+        startAt: 1000000,
+        endAt: 2000000,
+        isConflict: false,
+        isOverlap: false,
+        isSkip: false,
+    };
+
+    describe('when recordingList is provided', () => {
+        it('returns true if programId matches', () => {
+            const recordingList: RecordingLike[] = [
+                {
+                    programId: 1001,
+                    channelId: 10,
+                    startAt: 1000000,
+                    endAt: 2000000,
+                },
+            ];
+            expect(isReserveCurrentlyRecording(baseReserve, recordingList, 500000)).toBe(true);
+        });
+
+        it('returns true if channelId matches and startAt/endAt are within 60s tolerance', () => {
+            const reserveWithoutProgramId: ReserveLike = {
+                channelId: 10,
+                startAt: 1000000,
+                endAt: 2000000,
+            };
+            const recordingList: RecordingLike[] = [
+                {
+                    channelId: 10,
+                    startAt: 1000000 + 30000, // +30s
+                    endAt: 2000000 - 30000, // -30s
+                },
+            ];
+            expect(isReserveCurrentlyRecording(reserveWithoutProgramId, recordingList, 500000)).toBe(true);
+        });
+
+        it('returns false if channelId matches but time difference is 60s or more and outside time window', () => {
+            const reserveWithoutProgramId: ReserveLike = {
+                channelId: 10,
+                startAt: 1000000,
+                endAt: 2000000,
+            };
+            const recordingList: RecordingLike[] = [
+                {
+                    channelId: 10,
+                    startAt: 1000000 + 60000, // 60s difference
+                    endAt: 2000000,
+                },
+            ];
+            expect(isReserveCurrentlyRecording(reserveWithoutProgramId, recordingList, 500000)).toBe(false);
+        });
+    });
+
+    describe('fallback to time-based detection', () => {
+        const now = 1500000; // between startAt (1000000) and endAt (2000000)
+
+        it('returns true during the broadcast window when not in conflict, overlap, or skip', () => {
+            expect(isReserveCurrentlyRecording(baseReserve, [], now)).toBe(true);
+            expect(isReserveCurrentlyRecording(baseReserve, null, now)).toBe(true);
+        });
+
+        it('returns false when isConflict is true even during broadcast window', () => {
+            const conflictReserve: ReserveLike = {
+                ...baseReserve,
+                isConflict: true,
+            };
+            expect(isReserveCurrentlyRecording(conflictReserve, [], now)).toBe(false);
+        });
+
+        it('returns false when isOverlap is true even during broadcast window', () => {
+            const overlapReserve: ReserveLike = {
+                ...baseReserve,
+                isOverlap: true,
+            };
+            expect(isReserveCurrentlyRecording(overlapReserve, [], now)).toBe(false);
+        });
+
+        it('returns false when isSkip is true even during broadcast window', () => {
+            const skipReserve: ReserveLike = {
+                ...baseReserve,
+                isSkip: true,
+            };
+            expect(isReserveCurrentlyRecording(skipReserve, [], now)).toBe(false);
+        });
+
+        it('returns false before startAt', () => {
+            expect(isReserveCurrentlyRecording(baseReserve, [], 999999)).toBe(false);
+        });
+
+        it('returns true exactly at startAt', () => {
+            expect(isReserveCurrentlyRecording(baseReserve, [], 1000000)).toBe(true);
+        });
+
+        it('returns false exactly at endAt', () => {
+            expect(isReserveCurrentlyRecording(baseReserve, [], 2000000)).toBe(false);
+        });
+
+        it('returns false after endAt', () => {
+            expect(isReserveCurrentlyRecording(baseReserve, [], 2000001)).toBe(false);
+        });
+    });
+});

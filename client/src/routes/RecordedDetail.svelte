@@ -19,6 +19,7 @@
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
+    import { getLastRecordedPath } from '../lib/navigationHistory';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -281,6 +282,11 @@
         }
     }
 
+    // 録画一覧（直前の絞り込み・ページング状態）へ戻る
+    function goBackToRecordedList() {
+        router.push(getLastRecordedPath());
+    }
+
     // 録画削除
     async function deleteRecorded() {
         if (!recorded) return;
@@ -300,7 +306,7 @@
             });
             if (!res.ok) throw new Error(`Status ${res.status}`);
             snackbar.open({ text: '録画を削除しました', color: 'success' });
-            router.push('/recorded');
+            goBackToRecordedList();
         } catch (e) {
             console.error('Failed to delete recorded', e);
             snackbar.open({ text: '削除に失敗しました', color: 'error' });
@@ -328,7 +334,7 @@
             if (!res.ok) throw new Error(`Status ${res.status}`);
             if (isLastVideoFile) {
                 snackbar.open({ text: '動画ファイルおよび番組を削除しました', color: 'success' });
-                router.push('/recorded');
+                goBackToRecordedList();
                 return;
             }
             snackbar.open({ text: '動画ファイルを削除しました', color: 'success' });
@@ -501,7 +507,7 @@
 <div class="w-full max-w-5xl min-w-0 space-y-5">
     <!-- ヘッダー & ナビゲーション -->
     <div class="flex items-center justify-between">
-        <button type="button" onclick={() => router.push('/recorded')} class="btn-secondary">
+        <button type="button" onclick={goBackToRecordedList} class="btn-secondary">
             <ArrowLeft size={16} /> 録画一覧へ戻る
         </button>
 
@@ -568,9 +574,7 @@
         >
             <AlertTriangle size={40} class="text-amber-500 mb-2" />
             <p class="text-base font-bold text-slate-800 dark:text-slate-200">録画情報が見つかりませんでした</p>
-            <button type="button" onclick={() => router.push('/recorded')} class="btn-primary mt-4">
-                録画一覧へ戻る
-            </button>
+            <button type="button" onclick={goBackToRecordedList} class="btn-primary mt-4">録画一覧へ戻る</button>
         </div>
     {:else}
         <!-- メイン詳細カード -->

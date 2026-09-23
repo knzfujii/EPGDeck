@@ -1087,4 +1087,101 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should preserve filtering, pagination, and keyword state when returning from detail page via "録画一覧へ戻る"', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockItem = {
+            id: 9950,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now(),
+            name: '状態復元テスト録画番組',
+            description: '絞り込み・ページネーション復元の検証用番組です',
+            isRecording: false,
+            isEncoding: false,
+            isProtected: false,
+            videoFiles: [
+                { id: 9951, name: 'default', filename: 'restore_test.ts', type: 'ts', size: 1024 * 1024 * 50 },
+            ],
+        };
+
+        await page.route(/\/api\/recorded(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        records: [mockItem],
+                        total: 120, // 複数ページ存在するように設定
+                    }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route(/\/api\/recorded\/9950(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockItem),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. 絞り込み条件（キーワード、ジャンル、ページ）付きで録画一覧を開く
+        await page.goto('/recorded?keyword=%E3%83%86%E3%82%B9%E3%83%88&genre=7&page=2');
+        await page.waitForLoadState('networkidle');
+
+        // 2. 検索バーにキーワードが入力され、該当番組が表示されていることを確認
+        const searchInput = page.getByPlaceholder('録画を検索...');
+        await expect(searchInput).toHaveValue('テスト');
+        await expect(page.getByText('状態復元テスト録画番組').first()).toBeVisible();
+
+        // 3. 録画カードをクリックして詳細画面へ遷移
+        const card = page.getByText('状態復元テスト録画番組').first();
+        await card.click();
+        await page.waitForURL(/\/recorded\/detail\?recordedId=9950/);
+
+        // 詳細画面が表示されていること
+        await expect(page.locator('h1')).toContainText('状態復元テスト録画番組');
+
+        // 4. 「録画一覧へ戻る」ボタンを押下
+        const backBtn = page.getByRole('button', { name: /録画一覧へ戻る/ }).first();
+        await expect(backBtn).toBeVisible();
+        await backBtn.click();
+
+        // 5. 元の絞り込み・ページネーション状態のURLへ復元されたことを検証
+        await page.waitForURL(/\/recorded\?/);
+        const currentUrl = page.url();
+        expect(currentUrl).toContain('page=2');
+        expect(currentUrl).toContain('keyword=');
+        expect(currentUrl).toContain('genre=7');
+
+        // 6. UI上の検索入力値および一覧表示が復元されていること
+        await expect(page.getByPlaceholder('録画を検索...')).toHaveValue('テスト');
+        await expect(page.getByText('状態復元テスト録画番組').first()).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

@@ -10,6 +10,7 @@
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
+    import { saveLastRecordedPath } from '../lib/navigationHistory';
     import type * as apid from '../../../api';
     import {
         Video,
@@ -72,8 +73,12 @@
     let selectedGenre = $state<number | null>(
         router.current.query.genre ? parseInt(router.current.query.genre, 10) : null,
     );
-    let selectedYear = $state<number | null>(null);
-    let selectedMonth = $state<number | null>(null);
+    let selectedYear = $state<number | null>(
+        router.current.query.year ? parseInt(router.current.query.year, 10) : null,
+    );
+    let selectedMonth = $state<number | null>(
+        router.current.query.month ? parseInt(router.current.query.month, 10) : null,
+    );
     let currentPage = $state(router.current.query.page ? parseInt(router.current.query.page, 10) : 1);
     const limit = 50;
 
@@ -162,6 +167,8 @@
                 keyword: keyword.trim() || null,
                 genre: selectedGenre,
                 ruleId: selectedRuleId,
+                year: selectedYear,
+                month: selectedMonth,
             },
             options,
         );
@@ -172,6 +179,8 @@
         const qKeyword = q.keyword || '';
         const qGenre = q.genre ? parseInt(q.genre, 10) : null;
         const qRuleId = q.ruleId !== undefined ? (q.ruleId === '0' ? 0 : parseInt(q.ruleId, 10)) : null;
+        const qYear = q.year ? parseInt(q.year, 10) : null;
+        const qMonth = q.month ? parseInt(q.month, 10) : null;
         const qPage = q.page ? parseInt(q.page, 10) : 1;
 
         let hasChanged = false;
@@ -188,6 +197,14 @@
                 selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
                 hasChanged = true;
             }
+            if (qYear !== selectedYear) {
+                selectedYear = Number.isNaN(qYear) ? null : qYear;
+                hasChanged = true;
+            }
+            if (qMonth !== selectedMonth) {
+                selectedMonth = Number.isNaN(qMonth) ? null : qMonth;
+                hasChanged = true;
+            }
             if (qPage !== currentPage) {
                 currentPage = Number.isNaN(qPage) ? 1 : qPage;
                 hasChanged = true;
@@ -196,6 +213,13 @@
 
         if (hasChanged) {
             fetchRecorded();
+        }
+    });
+
+    // 直近の録画一覧パス（クエリ付き）をセッションストレージに自動保存
+    $effect(() => {
+        if (router.current.pathname === '/recorded') {
+            saveLastRecordedPath(router.current.path);
         }
     });
 
@@ -827,7 +851,7 @@
                             toggleSelectItem(item.id);
                             return;
                         }
-                        router.push(`/recorded/detail?recordedId=${item.id}`);
+                        openRecordedDetail(item);
                     }}
                     class="group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-white shadow-2xs transition hover:shadow-md dark:bg-slate-900 cursor-pointer {isSelectionMode &&
                     selectedIds.includes(item.id)
@@ -840,7 +864,7 @@
                             if (isSelectionMode) {
                                 toggleSelectItem(item.id);
                             } else {
-                                router.push(`/recorded/detail?recordedId=${item.id}`);
+                                openRecordedDetail(item);
                             }
                         }
                     }}

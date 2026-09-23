@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy, untrack } from 'svelte';
+    import { onMount, onDestroy, untrack, tick } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -10,7 +10,11 @@
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
-    import { saveLastRecordedPath } from '../lib/navigationHistory';
+    import {
+        saveLastRecordedPath,
+        saveLastRecordedTargetId,
+        consumeLastRecordedTargetId,
+    } from '../lib/navigationHistory';
     import type * as apid from '../../../api';
     import {
         Video,
@@ -141,6 +145,18 @@
             if (!isSilent) snackbar.open({ text: '録画データの取得に失敗しました', color: 'error' });
         } finally {
             if (!isSilent) isLoading = false;
+        }
+
+        // 直前に開いた番組IDが存在する場合はその位置へ自動スクロール
+        const targetId = consumeLastRecordedTargetId();
+        if (targetId !== null) {
+            await tick();
+            requestAnimationFrame(() => {
+                const el = document.getElementById(`recorded-item-${targetId}`);
+                if (el) {
+                    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                }
+            });
         }
     }
 
@@ -284,11 +300,13 @@
     }
 
     function openRecordedDetail(item: { id: number }) {
+        saveLastRecordedTargetId(item.id);
         router.push(`/recorded/detail?recordedId=${item.id}`);
     }
 
     // スマート再生トリガー（最上位MP4があれば即座に直接再生、なければ再生方法選択モーダル）
     function handlePlayClick(item: apid.RecordedItem) {
+        saveLastRecordedTargetId(item.id);
         const watchUrl = getSmartWatchUrl(item.id, item.videoFiles);
         if (watchUrl) {
             router.push(watchUrl);
@@ -684,6 +702,7 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each recorded as item}
                             <tr
+                                id="recorded-item-{item.id}"
                                 onclick={() => {
                                     if (isSelectionMode) {
                                         if (!item.isProtected) toggleSelectItem(item.id);
@@ -846,6 +865,7 @@
         <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5">
             {#each recorded as item}
                 <div
+                    id="recorded-item-{item.id}"
                     onclick={() => {
                         if (isSelectionMode) {
                             toggleSelectItem(item.id);

@@ -55,3 +55,40 @@ export function getLastRecordedPath(): string {
 
     return '/recorded';
 }
+
+export const LAST_RECORDED_TARGET_ID_KEY = 'epgdeck_last_recorded_target_id';
+
+/**
+ * 録画一覧から詳細画面等へ遷移する際に対象番組の ID を一時保存する。
+ */
+export function saveLastRecordedTargetId(id: number): void {
+    const storage = getSessionStorage();
+    if (!storage) return;
+
+    try {
+        storage.setItem(LAST_RECORDED_TARGET_ID_KEY, String(id));
+    } catch {
+        // ignore
+    }
+}
+
+/**
+ * 録画一覧へ復帰した際に対象番組 ID を取得し、次回以降の重複スクロールを防ぐため即座に消費（削除）する。
+ */
+export function consumeLastRecordedTargetId(): number | null {
+    const storage = getSessionStorage();
+    if (!storage) return null;
+
+    try {
+        const saved = storage.getItem(LAST_RECORDED_TARGET_ID_KEY);
+        if (saved) {
+            storage.removeItem(LAST_RECORDED_TARGET_ID_KEY);
+            const parsed = parseInt(saved, 10);
+            return Number.isNaN(parsed) ? null : parsed;
+        }
+    } catch {
+        // ignore
+    }
+
+    return null;
+}

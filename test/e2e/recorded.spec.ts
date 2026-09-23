@@ -1179,7 +1179,9 @@ test.describe('Recorded List Page (/recorded)', () => {
 
         // 6. UI上の検索入力値および一覧表示が復元されていること
         await expect(page.getByPlaceholder('録画を検索...')).toHaveValue('テスト');
-        await expect(page.getByText('状態復元テスト録画番組').first()).toBeVisible();
+        const restoredItem = page.locator('#recorded-item-9950');
+        await expect(restoredItem).toBeVisible();
+        await expect(restoredItem).toBeInViewport();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

@@ -3,6 +3,8 @@ import {
     LAST_RECORDED_PATH_KEY,
     saveLastRecordedPath,
     getLastRecordedPath,
+    saveLastRecordedTargetId,
+    consumeLastRecordedTargetId,
 } from '../../client/src/lib/navigationHistory.js';
 
 describe('navigationHistory', () => {
@@ -71,5 +73,25 @@ describe('navigationHistory', () => {
 
         expect(getLastRecordedPath()).toBe('/recorded');
         expect(() => saveLastRecordedPath('/recorded?page=3')).not.toThrow();
+    });
+
+    it('should save and consume last recorded target ID (one-time)', () => {
+        saveLastRecordedTargetId(9950);
+        expect(sessionStorage.setItem).toHaveBeenCalledWith('epgdeck_last_recorded_target_id', '9950');
+
+        // 初回消費でIDが取得できる
+        const consumed = consumeLastRecordedTargetId();
+        expect(consumed).toBe(9950);
+        expect(sessionStorage.removeItem).toHaveBeenCalledWith('epgdeck_last_recorded_target_id');
+
+        // 2回目は削除済みのため null
+        expect(consumeLastRecordedTargetId()).toBeNull();
+    });
+
+    it('should return null when target ID is not saved or invalid', () => {
+        expect(consumeLastRecordedTargetId()).toBeNull();
+
+        mockStorage['epgdeck_last_recorded_target_id'] = 'invalid-number';
+        expect(consumeLastRecordedTargetId()).toBeNull();
     });
 });

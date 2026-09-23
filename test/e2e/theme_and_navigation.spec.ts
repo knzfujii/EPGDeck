@@ -85,4 +85,54 @@ test.describe('Theme Rotation and Navigation Spec', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should navigate through all main sidebar links seamlessly without runtime errors', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.goto('/');
+        await page.waitForLoadState('networkidle');
+
+        const navLinks = [
+            { name: '放送中', url: /\/onair$/, expectedText: '放送中' },
+            { name: '番組表', url: /\/guide$/, expectedSelector: 'select' },
+            { name: '録画一覧', url: /\/recorded$/, expectedText: '録画一覧' },
+            { name: '予約一覧', url: /\/reserves$/, expectedText: '予約一覧' },
+            { name: '番組検索', url: /\/search$/, expectedText: '番組検索' },
+            { name: 'ルール一覧', url: /\/rule$/, expectedText: 'ルール一覧' },
+            { name: 'エンコード一覧', url: /\/encode$/, expectedText: 'エンコード一覧' },
+            { name: 'システムログ', url: /\/logs$/, expectedText: 'システムログ' },
+            { name: 'ダッシュボード', url: /\/$/, expectedSelector: 'h2:has-text("ストレージ容量")' },
+        ];
+
+        const nav = page.locator('nav');
+
+        for (const link of navLinks) {
+            const btn = nav.getByRole('button', { name: link.name });
+            await expect(btn).toBeVisible();
+            await btn.click();
+            await page.waitForURL(link.url);
+            if (link.expectedText) {
+                await expect(page.locator('h1')).toContainText(link.expectedText);
+            }
+            if (link.expectedSelector) {
+                await expect(page.locator(link.expectedSelector)).toBeVisible();
+            }
+        }
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

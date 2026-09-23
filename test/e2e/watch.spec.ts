@@ -110,4 +110,132 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
 
         expect(pageErrors).toEqual([]);
     });
+
+    test('should control playback rate, mute, and handle keyboard shortcuts in video player', async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', err => pageErrors.push(err.message));
+
+        const mockRecorded = {
+            id: 9902,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800,
+            name: '動画プレーヤー操作テスト番組',
+            description: '再生速度・音量・ショートカット検証用',
+            extended: '',
+            genre1: 0,
+            isProtected: false,
+            videoFiles: [
+                {
+                    id: 9002,
+                    name: 'MP4',
+                    filename: 'test_player.mp4',
+                    type: 'encoded',
+                    size: 1024 * 1024 * 300,
+                },
+            ],
+        };
+
+        await page.route(/\/api\/recorded\/9902/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockRecorded),
+            });
+        });
+
+        await page.route(/\/api\/videos\/9002\/duration/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ duration: 1800 }),
+            });
+        });
+
+        await page.route(/\/api\/videos\/9002(\?.*)?$/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'video/mp4',
+                body: Buffer.from([]),
+            });
+        });
+
+        await page.addInitScript(() => {
+            HTMLMediaElement.prototype.play = async () => {};
+            HTMLMediaElement.prototype.load = () => {};
+            Object.defineProperty(HTMLMediaElement.prototype, 'duration', { get: () => 1800 });
+            Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => 4 });
+            const origAdd = HTMLMediaElement.prototype.addEventListener;
+            HTMLMediaElement.prototype.addEventListener = function (
+                type: string,
+                listener: EventListenerOrEventListenerObject,
+                options?: boolean | AddEventListenerOptions,
+            ) {
+                if (type === 'error') return;
+                return origAdd.call(this, type, listener, options);
+            };
+        });
+
+        await page.goto('/recorded/watch?recordedId=9902&videoId=9002');
+        await page.waitForLoadState('networkidle');
+
+        // videoElement の loadedmetadata を発火させてコントロールを有効化
+        await page.evaluate(() => {
+            const v = document.querySelector('video');
+            if (v) {
+                v.dispatchEvent(new Event('loadedmetadata'));
+                v.dispatchEvent(new Event('play'));
+            }
+        });
+
+        // 動画プレーヤーコンテナが表示されていること
+        const videoRegion = page.locator('div[role="region"][aria-label="動画プレーヤー"]');
+        await expect(videoRegion).toBeVisible();
+
+        // コントロールを表示するためにプレーヤー上をホバー
+        await videoRegion.hover();
+
+        // 番組タイトルが描画されていること
+        await expect(page.locator('h1')).toContainText('動画プレーヤー操作テスト番組');
+
+        // 1. 再生速度（倍速）ボタンの動作検証
+        // デフォルトは 1.0x（bg-blue-600）
+        const rate15Btn = videoRegion.getByRole('button', { name: '1.5x' });
+        await expect(rate15Btn).toBeVisible();
+        await rate15Btn.click();
+        await expect(rate15Btn).toHaveClass(/bg-blue-600/);
+
+        const rate20Btn = videoRegion.getByRole('button', { name: '2x' });
+        await expect(rate20Btn).toBeVisible();
+        await rate20Btn.click();
+        await expect(rate20Btn).toHaveClass(/bg-blue-600/);
+
+        // 1.0x に戻す
+        const rate10Btn = videoRegion.getByRole('button', { name: '1x' });
+        await rate10Btn.click();
+        await expect(rate10Btn).toHaveClass(/bg-blue-600/);
+
+        // 2. 音量消音（Mute）ボタンの検証
+        const muteBtn = videoRegion.locator('button[title*="ミュート (M)"]');
+        await expect(muteBtn).toBeVisible();
+        await muteBtn.click();
+
+        // 消音状態になるとタイトルが「ミュート解除 (M)」に変化すること
+        const unmuteBtn = videoRegion.locator('button[title*="ミュート解除 (M)"]');
+        await expect(unmuteBtn).toBeVisible();
+
+        // 3. キーボードショートカット 'm' による消音解除・トグル動作
+        await page.keyboard.press('m');
+        await expect(muteBtn).toBeVisible();
+
+        await page.keyboard.press('m');
+        await expect(unmuteBtn).toBeVisible();
+
+        // 再度 'm' で解除
+        await page.keyboard.press('m');
+        await expect(muteBtn).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+    });
 });

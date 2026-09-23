@@ -56,7 +56,7 @@ export default class ScheduleApiModel implements IScheduleApiModel {
             throw new Error('GetScheduleTypesError');
         }
 
-        const channels = await this.channelDB.findChannleTypes(types, true);
+        const channels = await this.channelDB.findChannelTypes(types, true);
         const programs = await this.programDB.findSchedule({
             startAt: option.startAt,
             endAt: option.endAt,

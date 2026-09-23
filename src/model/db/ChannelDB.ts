@@ -110,7 +110,7 @@ export default class ChannelDB implements IChannelDB {
     /**
      * channelType を指定して検索
      */
-    public async findChannleTypes(types: apid.ChannelType[], needSort: boolean = false): Promise<Channel[]> {
+    public async findChannelTypes(types: apid.ChannelType[], needSort: boolean = false): Promise<Channel[]> {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {

@@ -208,7 +208,8 @@ class RecorderModel implements IRecorderModel {
                 await this.doRecord();
             }
         } catch (err: any) {
-            if ((this.isStopPrepRec as any) === true) {
+            // NOTE: await 中に外部から stopPrepRecord() で更新される可能性があるためナローイングを解除
+            if ((this.isStopPrepRec as boolean) === true) {
                 this.destroyStream();
                 this.emitCancelEvent();
                 return;

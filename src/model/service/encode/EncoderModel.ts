@@ -30,14 +30,14 @@ class EncoderModel implements IEncoderModel {
     private channelDB: IChannelDB;
     private videoUtil: IVideoUtil;
     private encodeEvent: IEncodeEvent;
-    private recodingUtil: IRecordingUtilModel;
+    private recordingUtil: IRecordingUtilModel;
 
     private listener: events.EventEmitter = new events.EventEmitter();
 
     private encodeOption: EncodeOption | null = null; // エンコード情報
     private childProcess: ChildProcess | null = null; // エンコードプロセス
     private timerId: NodeJS.Timeout | null = null; // タイムアウト検知用タイマーid
-    private isCanceld: boolean = false; // キャンセルが呼び出されたか?
+    private isCanceled: boolean = false; // キャンセルが呼び出されたか?
     private progressInfo: EncodeProgressInfo | null = null;
     private ffmpegCommand: string | null = null; // 実行されたFFmpegコマンドライン
 
@@ -51,7 +51,7 @@ class EncoderModel implements IEncoderModel {
         @inject('IChannelDB') channelDB: IChannelDB,
         @inject('IVideoUtil') videoUtil: IVideoUtil,
         @inject('IEncodeEvent') encodeEvent: IEncodeEvent,
-        @inject('IRecordingUtilModel') recodingUtil: IRecordingUtilModel,
+        @inject('IRecordingUtilModel') recordingUtil: IRecordingUtilModel,
     ) {
         this.log = logger.getLogger();
         this.configure = configure;
@@ -62,7 +62,7 @@ class EncoderModel implements IEncoderModel {
         this.channelDB = channelDB;
         this.videoUtil = videoUtil;
         this.encodeEvent = encodeEvent;
-        this.recodingUtil = recodingUtil;
+        this.recordingUtil = recordingUtil;
     }
 
     /**
@@ -335,7 +335,7 @@ class EncoderModel implements IEncoderModel {
         if (typeof queueItem.directory !== 'undefined' && queueItem.directory.length > 0) {
             const recorded = await this.recordedDB.findId(queueItem.recordedId);
             if (recorded !== null) {
-                queueItem.directory = await this.recodingUtil.formatFilePathString(queueItem.directory, recorded);
+                queueItem.directory = await this.recordingUtil.formatFilePathString(queueItem.directory, recorded);
             }
         }
 
@@ -403,9 +403,9 @@ class EncoderModel implements IEncoderModel {
         }
 
         let isError = true;
-        if (this.isCanceld === true) {
+        if (this.isCanceled === true) {
             // キャンセルされた
-            this.log.encode.info(`canceld encode: ${this.encodeOption.encodeId}`);
+            this.log.encode.info(`canceled encode: ${this.encodeOption.encodeId}`);
         } else if (code !== 0) {
             // エンコードが正常終了しなかった
             this.log.encode.error(`encode failed: ${this.encodeOption.encodeId} ${outputFilePath}`);
@@ -417,7 +417,7 @@ class EncoderModel implements IEncoderModel {
             }
         } else {
             // エンコード正常終了
-            this.log.encode.info(`Successfully encod: ${this.encodeOption.encodeId} ${outputFilePath}`);
+            this.log.encode.info(`Successfully encode: ${this.encodeOption.encodeId} ${outputFilePath}`);
 
             isError = false;
         }
@@ -458,7 +458,7 @@ class EncoderModel implements IEncoderModel {
                 `kill encode process encodeId: ${this.encodeOption.encodeId}, pid: ${this.childProcess.pid}`,
             );
 
-            this.isCanceld = true;
+            this.isCanceled = true;
             await ProcessUtil.kill(this.childProcess).catch(err => {
                 this.log.encode.error(`kill encode process failed: ${this.encodeOption?.encodeId}`);
                 this.log.encode.error(err);

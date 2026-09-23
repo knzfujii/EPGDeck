@@ -313,4 +313,179 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should filter reserves by tabs (conflicts, skips, overlaps), skip a rule reserve, and restore a skipped reserve', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const futureTime = Date.now() + 3600000;
+        const mockReserves = [
+            {
+                id: 101,
+                programId: 201,
+                channelId: 1,
+                name: '通常ルール予約アニメ',
+                description: '通常予定のルール予約',
+                startAt: futureTime,
+                endAt: futureTime + 1800000,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: false,
+                isOverlap: false,
+                ruleId: 10,
+                allowEndLack: true,
+            },
+            {
+                id: 102,
+                programId: 202,
+                channelId: 1,
+                name: '競合発生ドラマ',
+                description: 'チューナー不足で競合しているドラマ',
+                startAt: futureTime + 3600000,
+                endAt: futureTime + 5400000,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: true,
+                isOverlap: false,
+                allowEndLack: true,
+            },
+            {
+                id: 103,
+                programId: 203,
+                channelId: 1,
+                name: 'スキップ済みバラエティ',
+                description: '以前に除外された番組',
+                startAt: futureTime + 7200000,
+                endAt: futureTime + 9000000,
+                isHalfWidth: true,
+                isSkip: true,
+                isConflict: false,
+                isOverlap: false,
+                ruleId: 10,
+                allowEndLack: true,
+            },
+            {
+                id: 104,
+                programId: 204,
+                channelId: 1,
+                name: '重複スキップ映画',
+                description: '二重録画防止でスキップされた映画',
+                startAt: futureTime + 10800000,
+                endAt: futureTime + 12600000,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: false,
+                isOverlap: true,
+                ruleId: 10,
+                allowEndLack: true,
+            },
+        ];
+
+        let deleteSkipCalled = false;
+        let deleteReserveCalled = false;
+
+        await page.route(/\/api\/reserves/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+            if (url.includes('/103/skip') && method === 'DELETE') {
+                deleteSkipCalled = true;
+                const target = mockReserves.find(r => r.id === 103);
+                if (target) target.isSkip = false;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+            if (url.includes('/101') && method === 'DELETE') {
+                deleteReserveCalled = true;
+                const target = mockReserves.find(r => r.id === 101);
+                if (target) target.isSkip = true;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ reserves: mockReserves, total: mockReserves.length }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/recording*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ records: [] }),
+            });
+        });
+
+        await page.goto('/reserves');
+        await page.waitForLoadState('networkidle');
+
+        const table = page.locator('table');
+
+        // 1. 各タブの初期件数表示を確認
+        await expect(page.getByRole('button', { name: /すべて \(4\)/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /競合 \(1\)/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /スキップ \(1\)/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /重複 \(1\)/ })).toBeVisible();
+
+        // 2. 「競合」タブのフィルタ動作を検証
+        const conflictTab = page.getByRole('button', { name: /競合 \(1\)/ });
+        await conflictTab.click();
+        await expect(table.getByText('競合発生ドラマ')).toBeVisible();
+        await expect(table.getByText('通常ルール予約アニメ')).not.toBeVisible();
+
+        // 3. 「スキップ」タブのフィルタ動作と「予約を復活」を検証
+        const skipTab = page.getByRole('button', { name: /スキップ \(1\)/ });
+        await skipTab.click();
+        await expect(table.getByText('スキップ済みバラエティ')).toBeVisible();
+        await expect(table.getByText('競合発生ドラマ')).not.toBeVisible();
+
+        const skipRow = table.locator('tr').filter({ hasText: 'スキップ済みバラエティ' });
+        const restoreBtn = skipRow.getByRole('button', { name: '復活' });
+        await expect(restoreBtn).toBeVisible();
+        await restoreBtn.click();
+
+        // トースト表示と DELETE API 呼び出しの確認
+        await expect.poll(() => deleteSkipCalled).toBe(true);
+        await expect(page.getByText('予約を復活しました')).toBeVisible();
+
+        // 4. 「すべて」タブに戻り、ルール予約のスキップ除外操作を検証
+        const allTab = page.getByRole('button', { name: /すべて/ }).first();
+        await allTab.click();
+        await expect(table.getByText('通常ルール予約アニメ')).toBeVisible();
+
+        // 通常ルール予約行のゴミ箱ボタン（スキップ）をクリック
+        const normalRow = table.locator('tr').filter({ hasText: '通常ルール予約アニメ' });
+        const skipActionBtn = normalRow.locator('button[title*="スキップ"]').first();
+        await skipActionBtn.click();
+
+        // 確認モーダルが表示されること
+        await expect(page.getByRole('heading', { name: '録画のスキップ' })).toBeVisible();
+        const confirmBtn = page.getByRole('button', { name: '実行' });
+        await confirmBtn.click();
+
+        // トースト表示と DELETE API 呼び出しの確認
+        await expect.poll(() => deleteReserveCalled).toBe(true);
+        await expect(page.getByText(/スキップ.*しました/)).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

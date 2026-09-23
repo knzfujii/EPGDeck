@@ -1186,4 +1186,104 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should restore year/month filter state and scroll to target item when returning from detail page', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // 25件の録画アイテムを生成
+        const manyRecords = Array.from({ length: 25 }, (_, i) => ({
+            id: 8000 + i,
+            channelId: 1,
+            startAt: new Date(2026, 2, 10, 12, 0).getTime(),
+            endAt: new Date(2026, 2, 10, 13, 0).getTime(),
+            name: i === 20 ? '年月絞り込みターゲット番組' : `録画番組 ${i + 1}`,
+            description: '番組概要',
+            extended: {},
+            genre1: 7,
+            subGenre1: 0,
+            videoType: 'ts',
+            isRecording: false,
+            isProtected: false,
+            hasThumbnail: false,
+            thumbnails: [],
+            videoFiles: [{ id: 8000 + i, name: 'TS', filename: 'test.ts', type: 'ts', size: 1024 }],
+            dropLog: null,
+            tags: [],
+            isNeedCheckConflict: false,
+        }));
+
+        await page.route(/\/api\/recorded(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        records: manyRecords,
+                        total: manyRecords.length,
+                    }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route(/\/api\/recorded\/8020(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                const found = manyRecords.find(r => r.id === 8020);
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(found),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. 年月絞り込み（2026年3月）付きで録画一覧を開く
+        await page.goto('/recorded?year=2026&month=3');
+        await page.waitForLoadState('networkidle');
+
+        // 2. 21番目の番組（下の方: id=8020）をクリックして詳細へ遷移
+        const targetItem = page.locator('#recorded-item-8020');
+        await expect(targetItem).toBeVisible();
+        await targetItem.click();
+
+        await page.waitForURL(/\/recorded\/detail\?recordedId=8020/);
+        await expect(page.locator('h1')).toContainText('年月絞り込みターゲット番組');
+
+        // 3. 「録画一覧へ戻る」ボタンを押下
+        const backBtn = page.getByRole('button', { name: /録画一覧へ戻る/ }).first();
+        await expect(backBtn).toBeVisible();
+        await backBtn.click();
+
+        // 4. 年月クエリが維持されたURLへ復元されたことを検証
+        await page.waitForURL(/\/recorded\?/);
+        const currentUrl = page.url();
+        expect(currentUrl).toContain('year=2026');
+        expect(currentUrl).toContain('month=3');
+
+        // 5. ターゲット番組が Viewport 内にある（スクロール復帰）ことを検証
+        const restoredItem = page.locator('#recorded-item-8020');
+        await expect(restoredItem).toBeVisible();
+        await expect(restoredItem).toBeInViewport();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

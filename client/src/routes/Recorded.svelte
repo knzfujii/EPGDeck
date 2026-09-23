@@ -152,10 +152,12 @@
         if (targetId !== null) {
             await tick();
             requestAnimationFrame(() => {
-                const el = document.getElementById(`recorded-item-${targetId}`);
-                if (el) {
-                    el.scrollIntoView({ block: 'center', behavior: 'instant' });
-                }
+                requestAnimationFrame(() => {
+                    const el = document.getElementById(`recorded-item-${targetId}`);
+                    if (el) {
+                        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                    }
+                });
             });
         }
     }
@@ -176,21 +178,19 @@
         }
     }
 
-    function updateQueryParams(options: { replace?: boolean } = { replace: false }) {
-        router.setQuery(
-            {
-                page: currentPage > 1 ? currentPage : null,
-                keyword: keyword.trim() || null,
-                genre: selectedGenre,
-                ruleId: selectedRuleId,
-                year: selectedYear,
-                month: selectedMonth,
-            },
-            options,
-        );
+    function scrollToTop(smooth = false) {
+        const mainEl = document.querySelector('main');
+        if (mainEl) {
+            mainEl.scrollTo({ top: 0, left: 0, behavior: smooth ? 'smooth' : 'instant' });
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: smooth ? 'smooth' : 'instant' });
     }
 
+    let isInitialized = false;
+
     $effect(() => {
+        if (router.current.pathname !== '/recorded') return;
+
         const q = router.current.query;
         const qKeyword = q.keyword || '';
         const qGenre = q.genre ? parseInt(q.genre, 10) : null;
@@ -199,8 +199,20 @@
         const qMonth = q.month ? parseInt(q.month, 10) : null;
         const qPage = q.page ? parseInt(q.page, 10) : 1;
 
-        let hasChanged = false;
         untrack(() => {
+            if (!isInitialized) {
+                isInitialized = true;
+                keyword = qKeyword;
+                selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
+                selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
+                selectedYear = Number.isNaN(qYear) ? null : qYear;
+                selectedMonth = Number.isNaN(qMonth) ? null : qMonth;
+                currentPage = Number.isNaN(qPage) ? 1 : qPage;
+                fetchRecorded();
+                return;
+            }
+
+            let hasChanged = false;
             if (qKeyword !== keyword) {
                 keyword = qKeyword;
                 hasChanged = true;
@@ -225,11 +237,11 @@
                 currentPage = Number.isNaN(qPage) ? 1 : qPage;
                 hasChanged = true;
             }
-        });
 
-        if (hasChanged) {
-            fetchRecorded();
-        }
+            if (hasChanged) {
+                fetchRecorded();
+            }
+        });
     });
 
     // 直近の録画一覧パス（クエリ付き）をセッションストレージに自動保存
@@ -251,7 +263,6 @@
             }
         }
         fetchRules();
-        fetchRecorded();
 
         // Socket.IO による録画ステータス更新の受信
         unsubscribeSocket = socketStore.on('updateStatus', () => {
@@ -264,39 +275,54 @@
     });
 
     function handleSearch() {
-        currentPage = 1;
-        updateQueryParams();
-        fetchRecorded();
+        const trimmed = keyword.trim();
+        const currentKeyword = router.current.query.keyword || '';
+        if (trimmed === currentKeyword && currentPage === 1) {
+            fetchRecorded();
+        } else {
+            router.setQuery({
+                page: null,
+                keyword: trimmed || null,
+            });
+        }
+        scrollToTop();
     }
 
     function selectGenre(id: number | null) {
-        selectedGenre = id;
-        currentPage = 1;
-        updateQueryParams();
-        fetchRecorded();
+        if (id === selectedGenre && currentPage === 1) return;
+        router.setQuery({
+            page: null,
+            genre: id,
+        });
+        scrollToTop();
     }
 
     function selectRule(id: number | null | undefined) {
-        selectedRuleId = id ?? null;
-        currentPage = 1;
-        updateQueryParams();
-        fetchRecorded();
+        const val = id ?? null;
+        if (val === selectedRuleId && currentPage === 1) return;
+        router.setQuery({
+            page: null,
+            ruleId: val,
+        });
+        scrollToTop();
     }
 
     function handleDateJump(year: number | null, month: number | null) {
-        selectedYear = year;
-        selectedMonth = month;
-        currentPage = 1;
-        updateQueryParams();
-        fetchRecorded();
+        if (year === selectedYear && month === selectedMonth && currentPage === 1) return;
+        router.setQuery({
+            page: null,
+            year: year,
+            month: month,
+        });
+        scrollToTop();
     }
 
     function changePage(page: number) {
-        if (page < 1 || page > Math.ceil(total / limit)) return;
-        currentPage = page;
-        updateQueryParams();
-        fetchRecorded();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (page < 1 || page > Math.ceil(total / limit) || page === currentPage) return;
+        router.setQuery({
+            page: page > 1 ? page : null,
+        });
+        scrollToTop(true);
     }
 
     function openRecordedDetail(item: { id: number }) {

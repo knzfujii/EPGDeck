@@ -46,6 +46,7 @@ class RouterState {
             window.history.pushState({}, '', url);
             this.update();
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            document.querySelector('main')?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         }
     }
 

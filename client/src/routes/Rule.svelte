@@ -127,13 +127,15 @@
         if (targetId !== null) {
             await tick();
             requestAnimationFrame(() => {
-                const elements = document.querySelectorAll<HTMLElement>(`[data-rule-id="${targetId}"]`);
-                for (const el of elements) {
-                    if (el.offsetParent !== null) {
-                        el.scrollIntoView({ block: 'center', behavior: 'instant' });
-                        break;
+                requestAnimationFrame(() => {
+                    const elements = document.querySelectorAll<HTMLElement>(`[data-rule-id="${targetId}"]`);
+                    for (const el of elements) {
+                        if (el.offsetParent !== null) {
+                            el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                            break;
+                        }
                     }
-                }
+                });
             });
         }
     }
@@ -145,6 +147,7 @@
     let isInitialized = false;
 
     $effect(() => {
+        if (router.current.pathname !== '/rule') return;
         if (!readOnlyStore.canViewRules) {
             router.replace('/recorded');
             return;
@@ -176,18 +179,32 @@
         }
     });
 
+    function scrollToTop(smooth = false) {
+        const mainEl = document.querySelector('main');
+        if (mainEl) {
+            mainEl.scrollTo({ top: 0, left: 0, behavior: smooth ? 'smooth' : 'instant' });
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: smooth ? 'smooth' : 'instant' });
+    }
+
     function handleSearch() {
         const trimmed = keyword.trim();
-        activeKeyword = trimmed;
-        router.setQuery({ keyword: trimmed || null });
-        fetchRules(trimmed);
+        if (trimmed === activeKeyword) {
+            fetchRules(trimmed);
+        } else {
+            router.setQuery({ keyword: trimmed || null });
+        }
+        scrollToTop();
     }
 
     function clearSearch() {
+        if (activeKeyword === '') {
+            keyword = '';
+            return;
+        }
         keyword = '';
-        activeKeyword = '';
         router.setQuery({ keyword: null });
-        fetchRules('');
+        scrollToTop();
     }
 
     function onInputKeydown(e: KeyboardEvent) {

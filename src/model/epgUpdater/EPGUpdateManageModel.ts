@@ -244,7 +244,7 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
 
         if (this.tunerServerType === TunerServerType.mirakurun) {
             // mirakurun event stream 解析開始
-            return this.startAnalayzingMirakurunEvents();
+            return this.startAnalyzingMirakurunEvents();
         } else {
             // mirakc イベント通知解析開始
             return this.startAnalyzingMirakcEvents();
@@ -254,13 +254,13 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
     /**
      * mirakurun の event stream の解析を開始する
      */
-    private async startAnalayzingMirakurunEvents(): Promise<void> {
+    private async startAnalyzingMirakurunEvents(): Promise<void> {
         this.log.system.info('start get stream');
 
         const eventStream = await this.mirakurunClient.getEventsStream().catch(err => {
             this.log.system.error('event stream get error');
             this.log.system.error(err);
-            this.stopStream(eventStream);
+            this.stopStream();
             throw err;
         });
 
@@ -421,12 +421,14 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
 
     /**
      * event stream を止める
-     * @param stream: IncomingMessage
+     * @param stream?: IncomingMessage
      */
-    private stopStream(stream: IncomingMessage): void {
-        stream.destroy();
-        stream.push(null); // eof 通知
-        stream.removeAllListeners();
+    private stopStream(stream?: IncomingMessage): void {
+        if (typeof stream !== 'undefined' && stream !== null) {
+            stream.destroy();
+            stream.push(null); // eof 通知
+            stream.removeAllListeners();
+        }
         this.programQueue = [];
         this.serviceQueue = [];
     }

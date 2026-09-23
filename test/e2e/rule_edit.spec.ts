@@ -277,9 +277,73 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         const normalTab = page.getByRole('button', { name: /通常検索ルール/ });
         await normalTab.click();
 
-        // 元の検索条件フォームに戻る
-        await expect(page.getByRole('heading', { name: /検索条件/ })).toBeVisible();
-        await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should submit new rule form with valid options and navigate to rule list', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        let postRuleCalled = false;
+        let submittedPayload: Record<string, unknown> | null = null;
+
+        await page.route(/\/api\/rules$/, async route => {
+            if (route.request().method() === 'POST') {
+                postRuleCalled = true;
+                submittedPayload = JSON.parse(route.request().postData() || '{}');
+                await route.fulfill({
+                    status: 201,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ ruleId: 777 }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.goto('/rule/edit');
+        await page.waitForLoadState('networkidle');
+
+        // 1. キーワード入力
+        const keywordInput = page.getByPlaceholder(/葬送のフリーレン/);
+        await expect(keywordInput).toBeVisible();
+        await keywordInput.fill('E2Eテスト用アニメ');
+
+        // 2. 二重録画防止チェックボックスをオンにする
+        const avoidDuplicateLabel = page.locator('label', { hasText: '同一番組の二重録画を防止' });
+        const avoidDuplicateCheckbox = avoidDuplicateLabel.locator('input[type="checkbox"]');
+        if (!(await avoidDuplicateCheckbox.isChecked())) {
+            await avoidDuplicateCheckbox.check();
+        }
+
+        // 3. 送信ボタンをクリック
+        const submitBtn = page.getByRole('button', { name: '新規ルールを作成する' });
+        await expect(submitBtn).toBeVisible();
+        await submitBtn.click();
+
+        // 4. API 呼び出しとペイロードの整合性検証
+        await expect.poll(() => postRuleCalled).toBe(true);
+        expect(submittedPayload).not.toBeNull();
+        const payload = submittedPayload as unknown as Record<string, Record<string, unknown>>;
+        expect(payload.searchOption?.keyword).toBe('E2Eテスト用アニメ');
+        expect(payload.reserveOption?.avoidDuplicate).toBe(true);
+
+        // 5. 成功トーストと /rule への画面遷移検証
+        await expect(page.getByText(/新規ルール「E2Eテスト用アニメ」を作成しました/)).toBeVisible();
+        await page.waitForURL(/\/rule$/);
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

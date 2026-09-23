@@ -109,4 +109,107 @@ test.describe('Encode Feature & Recorded Detail Encode Modal', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should display running and waiting encode jobs with progress, and allow canceling a job', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockRunningItems = [
+            {
+                id: 101,
+                mode: 'H.264',
+                percent: 45.5,
+                recorded: {
+                    id: 1,
+                    name: '深夜アニメ第5話',
+                },
+            },
+        ];
+
+        const mockWaitItems = [
+            {
+                id: 102,
+                mode: 'H.265',
+                recorded: {
+                    id: 2,
+                    name: '日曜劇場ドラマ第3話',
+                },
+            },
+        ];
+
+        let deleteEncodeCalled = false;
+
+        await page.route(/\/api\/encode/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+
+            if (url.includes('/102') && method === 'DELETE') {
+                deleteEncodeCalled = true;
+                const idx = mockWaitItems.findIndex(i => i.id === 102);
+                if (idx !== -1) mockWaitItems.splice(idx, 1);
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        runningItems: mockRunningItems,
+                        waitItems: mockWaitItems,
+                    }),
+                });
+                return;
+            }
+
+            await route.continue();
+        });
+
+        await page.goto('/encode');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 実行中のエンコード表示検証
+        await expect(page.getByRole('heading', { name: /実行中のエンコード \(1\)/ })).toBeVisible();
+        await expect(page.getByText('H.264')).toBeVisible();
+        await expect(page.getByText('深夜アニメ第5話')).toBeVisible();
+        await expect(page.getByText('45.5%')).toBeVisible();
+
+        // 2. 待機キュー表示検証
+        await expect(page.getByRole('heading', { name: /待機キュー \(1\)/ })).toBeVisible();
+        await expect(page.getByText('日曜劇場ドラマ第3話')).toBeVisible();
+
+        // 3. 待機中ジョブのキャンセル操作
+        const waitCard = page.locator('div', { hasText: '日曜劇場ドラマ第3話' }).last();
+        const cancelBtn = waitCard.getByRole('button', { name: 'キャンセル' });
+        await expect(cancelBtn).toBeVisible();
+        await cancelBtn.click();
+
+        // 確認モーダルの検証
+        await expect(page.getByRole('heading', { name: 'エンコードのキャンセル' })).toBeVisible();
+        await expect(page.getByText('このエンコードジョブをキャンセルしますか？')).toBeVisible();
+        const confirmCancelBtn = page.getByRole('button', { name: 'キャンセル実行' });
+        await confirmCancelBtn.click();
+
+        // API 呼び出しとトースト確認
+        await expect.poll(() => deleteEncodeCalled).toBe(true);
+        await expect(page.getByText('エンコードをキャンセルしました')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

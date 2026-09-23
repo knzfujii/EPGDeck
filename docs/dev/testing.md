@@ -129,7 +129,7 @@ GitHub Actions Runner (ubuntu-latest)
   ├── 単体テスト (SQLite)
   ├── DB 実機結合テスト (MariaDB & MySQL)
   ├── Playwright ブラウザキャッシュ復元
-  └── Playwright E2E テスト (Chromium / 全49シナリオ)
+  └── Playwright E2E テスト (Chromium / 全53シナリオ)
   ───────────────────────────────────────────────────
   ★ 所要時間: 約 2分15秒 〜 2分30秒 でオールパス
 ```

@@ -760,4 +760,145 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should allow toggling protect status and deleting single recorded item on RecordedDetail', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockRecorded = {
+            id: 9901,
+            ruleId: null,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800,
+            name: 'テスト特番「保護と削除の検証」',
+            description: '番組保護トグルおよび個別削除のE2Eテスト用番組',
+            extended: '出演: テスト太郎',
+            genre1: 0,
+            isProtected: false,
+            hasDuplicateHistory: true,
+            thumbnails: [],
+            videoFiles: [
+                {
+                    id: 9001,
+                    name: 'TS',
+                    filename: 'test_protect_delete.ts',
+                    type: 'ts',
+                    size: 1024 * 1024 * 500,
+                },
+            ],
+        };
+
+        let protectCalled = false;
+        let unprotectCalled = false;
+        let deleteCalled = false;
+
+        await page.route(/\/api\/recorded/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+
+            if (url.includes('/9901/protect') && method === 'PUT') {
+                protectCalled = true;
+                mockRecorded.isProtected = true;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (url.includes('/9901/unprotect') && method === 'PUT') {
+                unprotectCalled = true;
+                mockRecorded.isProtected = false;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (url.includes('/9901') && method === 'DELETE') {
+                deleteCalled = true;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (url.includes('/9901') && method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockRecorded),
+                });
+                return;
+            }
+
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ records: [mockRecorded], total: 1 }),
+                });
+                return;
+            }
+
+            await route.continue();
+        });
+
+        await page.goto('/recorded/detail?recordedId=9901');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 初期状態: 未保護、タイトル表示確認
+        await expect(page.locator('h1')).toContainText('テスト特番「保護と削除の検証」');
+        const protectBtn = page.getByRole('button', { name: '保護する' });
+        await expect(protectBtn).toBeVisible();
+
+        // 削除ボタンが表示されていること
+        const deleteBtn = page.locator('button[title="録画を削除"]');
+        await expect(deleteBtn).toBeVisible();
+
+        // 2. 保護ボタンをクリック -> 保護状態へ
+        await protectBtn.click();
+        await expect.poll(() => protectCalled).toBe(true);
+        await expect(page.getByText('番組を保護しました')).toBeVisible();
+
+        // ボタンが「保護中」に変わり、保護中は削除ボタンが非表示になること
+        const unprotectBtn = page.getByRole('button', { name: '保護中' });
+        await expect(unprotectBtn).toBeVisible();
+        await expect(deleteBtn).not.toBeVisible();
+
+        // 3. 「保護中」をクリック -> 保護解除へ
+        await unprotectBtn.click();
+        await expect.poll(() => unprotectCalled).toBe(true);
+        await expect(page.getByText('保護を解除しました')).toBeVisible();
+
+        // 再び「保護する」と「削除」ボタンが表示されること
+        await expect(protectBtn).toBeVisible();
+        await expect(deleteBtn).toBeVisible();
+
+        // 4. 「削除」ボタンをクリック -> 確認モーダル -> 削除実行
+        await deleteBtn.click();
+        const confirmModal = page.getByRole('dialog');
+        await expect(confirmModal.getByRole('heading', { name: '録画番組の削除' })).toBeVisible();
+        await expect(confirmModal.getByText(/テスト特番「保護と削除の検証」.*を削除しますか/)).toBeVisible();
+
+        const confirmDeleteBtn = confirmModal.getByRole('button', { name: '削除' });
+        await confirmDeleteBtn.click();
+
+        // 削除 API 呼び出し、トースト、および /recorded への自動遷移確認
+        await expect.poll(() => deleteCalled).toBe(true);
+        await expect(page.getByText('録画を削除しました')).toBeVisible();
+        await page.waitForURL(/\/recorded$/);
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

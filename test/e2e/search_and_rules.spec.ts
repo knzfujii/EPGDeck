@@ -390,4 +390,126 @@ test.describe('Search and Rules Management Pages', () => {
         await page.waitForURL(/\/rule\/edit\?.*keyword=/);
         await expect(ruleKeywordInput).toHaveValue('スペシャル探偵物語');
     });
+
+    test('should allow toggling rule enable status and deleting rule from rule list', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockRules = [
+            {
+                id: 501,
+                searchOption: {
+                    keyword: 'アニメ「勇者物語」',
+                },
+                targetOption: {},
+                saveOption: {},
+                encodeOption: {},
+                reserveOption: {
+                    enable: true,
+                },
+            },
+        ];
+
+        let disableRuleCalled = false;
+        let enableRuleCalled = false;
+        let deleteRuleCalled = false;
+
+        await page.route(/\/api\/rules/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+
+            if (url.includes('/501/disable') && method === 'PUT') {
+                disableRuleCalled = true;
+                mockRules[0].reserveOption.enable = false;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (url.includes('/501/enable') && method === 'PUT') {
+                enableRuleCalled = true;
+                mockRules[0].reserveOption.enable = true;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (url.includes('/501') && method === 'DELETE') {
+                deleteRuleCalled = true;
+                mockRules.length = 0;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        rules: mockRules,
+                        total: mockRules.length,
+                    }),
+                });
+                return;
+            }
+
+            await route.continue();
+        });
+
+        await page.goto('/rule');
+        await page.waitForLoadState('networkidle');
+
+        const table = page.locator('table');
+
+        // 1. 初期表示でルールが描画されていること
+        await expect(table.getByText('アニメ「勇者物語」')).toBeVisible();
+
+        // 2. 有効状態のスイッチ（無効化ボタン）をクリック
+        const disableBtn = table.locator('button[title="クリックして無効化"]').first();
+        await expect(disableBtn).toBeVisible();
+        await disableBtn.click();
+
+        // PUT /api/rules/501/disable の呼び出しとトースト確認
+        await expect.poll(() => disableRuleCalled).toBe(true);
+        await expect(page.getByText('ルールを無効にしました')).toBeVisible();
+
+        // 3. 無効状態のスイッチ（有効化ボタン）をクリック
+        const enableBtn = table.locator('button[title="クリックして有効化"]').first();
+        await expect(enableBtn).toBeVisible();
+        await enableBtn.click();
+
+        // PUT /api/rules/501/enable の呼び出しとトースト確認
+        await expect.poll(() => enableRuleCalled).toBe(true);
+        await expect(page.getByText('ルールを有効にしました')).toBeVisible();
+
+        // 4. 削除ボタンをクリック -> 確認モーダル -> 削除実行
+        const row = table.locator('tr').filter({ hasText: 'アニメ「勇者物語」' });
+        const deleteActionBtn = row.locator('button[title="削除"]');
+        await expect(deleteActionBtn).toBeVisible();
+        await deleteActionBtn.click();
+
+        // 確認モーダルが表示されること
+        const confirmModal = page.getByRole('dialog');
+        await expect(confirmModal.getByRole('heading', { name: 'ルールの削除' })).toBeVisible();
+        await expect(confirmModal.getByText(/ルール「アニメ「勇者物語」」を削除しますか？/)).toBeVisible();
+
+        const confirmDeleteBtn = confirmModal.getByRole('button', { name: '削除' });
+        await confirmDeleteBtn.click();
+
+        // DELETE /api/rules/501 の呼び出しとトースト確認
+        await expect.poll(() => deleteRuleCalled).toBe(true);
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

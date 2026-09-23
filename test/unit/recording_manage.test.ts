@@ -21,16 +21,28 @@ describe('RecordingManageModel Lifecycle Tests', () => {
             }),
         };
         dummyConfig = {
-            getConfig: () => ({}),
+            getConfig: () => ({
+                recording: {
+                    tempDir: '/record/tmp',
+                },
+            }),
         };
         dummyRecordedDB = {
             findReserveId: vi.fn().mockResolvedValue([]),
+            findAll: vi.fn().mockResolvedValue([[], 0]),
+            removeRecording: vi.fn().mockResolvedValue(undefined),
+            findId: vi.fn().mockResolvedValue(null),
         };
         dummyReserveDB = {
             findId: vi.fn().mockResolvedValue(null),
         };
-        dummyStreamCreator = {};
-        dummyRecordingUtil = {};
+        dummyStreamCreator = {
+            setTuner: vi.fn(),
+        };
+        dummyRecordingUtil = {
+            movingFromTmp: vi.fn().mockResolvedValue('/record/dest/video.ts'),
+            updateVideoFileSize: vi.fn().mockResolvedValue(undefined),
+        };
         recordingEvents = {};
 
         dummyRecordingEvent = {
@@ -47,6 +59,7 @@ describe('RecordingManageModel Lifecycle Tests', () => {
                 recordingEvents.finish = fn;
             }),
             emitRecordingRetryOver: vi.fn(),
+            emitFinishRecording: vi.fn(),
         };
 
         dummyRecorderProvider = vi.fn().mockImplementation(() => {
@@ -232,5 +245,90 @@ describe('RecordingManageModel Lifecycle Tests', () => {
         // すでに録画中のため新規レコーダーのタイマーはセットされないこと
         expect(dummyRecorderProvider).not.toHaveBeenCalled();
         expect((model as any).recordingIndex[201]).toBeUndefined();
+    });
+
+    describe('cleanup', () => {
+        it('cleans up interrupted recordings on startup and moves files from tmp', async () => {
+            const model = createModel();
+
+            const dummyReserve = new Reserve();
+            dummyReserve.id = 1;
+
+            const dummyRecorded = {
+                id: 10,
+                reserveId: 1,
+                videoFiles: [
+                    { id: 100, parentDirectoryName: 'tmp' },
+                    { id: 101, parentDirectoryName: 'recorded' },
+                ],
+            };
+
+            dummyRecordedDB.findAll.mockResolvedValue([[dummyRecorded], 1]);
+            dummyReserveDB.findId.mockResolvedValue(dummyReserve);
+            dummyRecordedDB.findId.mockResolvedValue({ id: 10, isRecording: false });
+
+            await model.cleanup();
+
+            expect(dummyRecordedDB.removeRecording).toHaveBeenCalledWith(10);
+            expect(dummyRecordingUtil.movingFromTmp).toHaveBeenCalledWith(dummyReserve, 100);
+            expect(dummyRecordingUtil.updateVideoFileSize).toHaveBeenCalledWith(100);
+            expect(dummyRecordingUtil.updateVideoFileSize).toHaveBeenCalledWith(101);
+            expect(dummyRecordingEvent.emitFinishRecording).toHaveBeenCalledWith(
+                dummyReserve,
+                expect.objectContaining({ id: 10 }),
+                true,
+            );
+        });
+    });
+
+    describe('finish & resetTimer', () => {
+        it('calls finish on recorder and removes from recordingIndex', async () => {
+            const model = createModel();
+            const finishFn = vi.fn().mockResolvedValue(undefined);
+            (model as any).recordingIndex[50] = {
+                finish: finishFn,
+            };
+
+            expect(model.hasReserve(50)).toBe(true);
+            await model.finish(50);
+
+            expect(finishFn).toHaveBeenCalled();
+            expect(model.hasReserve(50)).toBe(false);
+        });
+
+        it('resets timer on all active recorders', () => {
+            const model = createModel();
+            const reset1 = vi.fn();
+            const reset2 = vi.fn();
+            (model as any).recordingIndex[1] = { resetTimer: reset1 };
+            (model as any).recordingIndex[2] = { resetTimer: reset2 };
+
+            model.resetTimer();
+
+            expect(reset1).toHaveBeenCalled();
+            expect(reset2).toHaveBeenCalled();
+        });
+    });
+
+    describe('update handling', () => {
+        it('cancels and removes existing recorder if reserve becomes skip or overlap during update', async () => {
+            const model = createModel();
+            const updateFn = vi.fn().mockResolvedValue(undefined);
+            (model as any).recordingIndex[300] = {
+                update: updateFn,
+            };
+
+            const updatedReserve = new Reserve();
+            updatedReserve.id = 300;
+            updatedReserve.isSkip = true;
+
+            await model.update({
+                update: [updatedReserve],
+                isSuppressLog: false,
+            });
+
+            expect(updateFn).toHaveBeenCalledWith(updatedReserve, false);
+            expect(model.hasReserve(300)).toBe(false);
+        });
     });
 });

@@ -108,6 +108,17 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - `url-join` $\rightarrow$ 自作の堅牢な `StrUtil.urlJoin`
 - `eventsource` $\rightarrow$ Node.js 22.3+ グローバル `EventSource`
 
+### 非同期排他制御と直列化キュー (`PromiseQueue`)
+
+同時 API 呼び出しやバックグラウンドタスクの競合を防ぐため、レガシーな手動フラグ（`isRunning`）や即時エラー拒絶（Fail-Fast）を排し、**`PromiseQueue`（FIFO 直列化キュー）** を標準採用しています。
+
+- **ルールの排他制御 (`RuleManageModel`)**:
+  ルール追加・更新・削除・有効化/無効化リクエストを `queue.add(async () => { ... })` で直列化。競合時でもエラーでリクエストを弾くことなく、自動的に順次安全に処理を完了します。例外発生時も Promise チェーンにより後続キューが自動的に継続されます。
+- **サムネイル生成・外部コマンド実行 (`ThumbnailManageModel`, `ExternalCommandManageModel`)**:
+  重い画像処理や外部プロセス呼び出しの多重起動を防止し、システム負荷を平準化しています。
+- **定期バックグラウンドジョブのガード (`StorageManageModel`)**:
+  定期実行ジョブが重なった場合の重複実行抑止には `isRunning` ガードを用いつつ、`try-finally` により例外発生時も確実にロック解除を保証しています。
+
 ---
 
 ## 4. フロントエンド設計

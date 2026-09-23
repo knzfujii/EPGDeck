@@ -69,85 +69,87 @@ export default class StorageManageModel implements IStorageManageModel {
         }
         this.isRunning = true;
 
-        for (const l of list) {
-            if (typeof l.limitThreshold === 'undefined') {
-                continue;
-            }
+        try {
+            for (const l of list) {
+                if (typeof l.limitThreshold === 'undefined') {
+                    continue;
+                }
 
-            let free: number;
-            try {
-                free = await this.getFreeSizeMB(l.path);
-            } catch (err: any) {
-                this.log.system.error(`get disk info error: ${l.path}`);
-                this.log.system.error(err);
-
-                continue;
-            }
-
-            // 空き容量が閾値を超えたか
-            if (free > l.limitThreshold) {
-                continue;
-            }
-
-            if (typeof l.limitCmd !== 'undefined') {
-                // run cmd
-                this.log.system.info(`run storage limit cmd: ${l.limitCmd}`);
+                let free: number;
                 try {
-                    const cmds = ProcessUtil.parseCmdStr(l.limitCmd);
-                    // 互換性のためここでは全ての環境変数を渡すため env は未指定
-                    spawn(cmds.bin, cmds.args, {
-                        stdio: 'ignore',
-                    });
+                    free = await this.getFreeSizeMB(l.path);
                 } catch (err: any) {
-                    this.log.system.error(`limit cmd error: ${l.limitCmd}`);
+                    this.log.system.error(`get disk info error: ${l.path}`);
                     this.log.system.error(err);
+
+                    continue;
+                }
+
+                // 空き容量が閾値を超えたか
+                if (free > l.limitThreshold) {
+                    continue;
+                }
+
+                if (typeof l.limitCmd !== 'undefined') {
+                    // run cmd
+                    this.log.system.info(`run storage limit cmd: ${l.limitCmd}`);
+                    try {
+                        const cmds = ProcessUtil.parseCmdStr(l.limitCmd);
+                        // 互換性のためここでは全ての環境変数を渡すため env は未指定
+                        spawn(cmds.bin, cmds.args, {
+                            stdio: 'ignore',
+                        });
+                    } catch (err: any) {
+                        this.log.system.error(`limit cmd error: ${l.limitCmd}`);
+                        this.log.system.error(err);
+                    }
+                }
+
+                if (l.action === 'remove') {
+                    while (free <= l.limitThreshold) {
+                        this.log.system.info(`name: ${l.name}, free: ${free}, threshold: ${l.limitThreshold}`);
+
+                        // 削除
+                        let recorded: Recorded | null;
+                        try {
+                            recorded = await this.recordedDB.findOld();
+                        } catch (err: any) {
+                            this.log.system.error('failed to find old recorded');
+                            this.log.system.error(err);
+                            break;
+                        }
+
+                        // 削除すべき録画が見つからなかった
+                        if (recorded === null) {
+                            this.log.system.error('find old recorded error');
+                            break;
+                        }
+
+                        // 録画を削除
+                        try {
+                            this.log.system.info(`storage limit remove recorded: ${recorded.id}`);
+                            await this.recordedManage.delete(recorded.id);
+                        } catch (err: any) {
+                            this.log.system.error(err);
+                            break;
+                        }
+
+                        // 空き容量取得 (MB)
+                        try {
+                            free = await this.getFreeSizeMB(l.path);
+                        } catch (err: any) {
+                            this.log.system.error(`get disk info error: ${l.path}`);
+                            this.log.system.error(err);
+                            break;
+                        }
+
+                        await Util.sleep(100);
+                    }
                 }
             }
-
-            if (l.action === 'remove') {
-                while (free <= l.limitThreshold) {
-                    this.log.system.info(`name: ${l.name}, free: ${free}, threshold: ${l.limitThreshold}`);
-
-                    // 削除
-                    let recorded: Recorded | null;
-                    try {
-                        recorded = await this.recordedDB.findOld();
-                    } catch (err: any) {
-                        this.log.system.error('failed to find old recorded');
-                        this.log.system.error(err);
-                        break;
-                    }
-
-                    // 削除すべき録画が見つからなかった
-                    if (recorded === null) {
-                        this.log.system.error('find old recorded error');
-                        break;
-                    }
-
-                    // 録画を削除
-                    try {
-                        this.log.system.info(`storage limit remove recorded: ${recorded.id}`);
-                        await this.recordedManage.delete(recorded.id);
-                    } catch (err: any) {
-                        this.log.system.error(err);
-                        break;
-                    }
-
-                    // 空き容量取得 (MB)
-                    try {
-                        free = await this.getFreeSizeMB(l.path);
-                    } catch (err: any) {
-                        this.log.system.error(`get disk info error: ${l.path}`);
-                        this.log.system.error(err);
-                        break;
-                    }
-
-                    await Util.sleep(100);
-                }
-            }
+        } finally {
+            this.isRunning = false;
         }
-
-        this.isRunning = false;
     }
 
     /**

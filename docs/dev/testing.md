@@ -112,6 +112,47 @@ webServer: {
 - **非同期ロード待機**:
   ボタンクリック前に、対象データ（例: `NHK総合1`）が UI 上にレンダリングされていることを `toBeVisible()` で明示的に待機し、ネットワーク揺らぎによるテスト失敗を防止しています。
 
+### 4.4 ブラウザ `<video>` メディアモックとエラーオーバーレイ抑止
+動画再生（`/recorded/watch` や `VideoPlayer.svelte`）の E2E テストにおいて、`page.route` で空バッファ（`Buffer.from([])`）をモック返却すると、Chromium ネイティブのメディアデコーダがデコードエラーを発火させます。
+これにより Svelte コンポーネント側の `<video onerror={...}>` ➔ `addEventListener('error')` が作動し、UI 前面に「動画の再生に失敗しました」というエラーオーバーレイが被さり、コントロールボタンのクリックが遮断（pointer-events 阻害）されます。
+
+この問題を根本防止するため、以下の**ブラウザ初期化スクリプト（`page.addInitScript`）パターン**を採用します：
+
+```typescript
+await page.addInitScript(() => {
+    HTMLMediaElement.prototype.play = async () => {};
+    HTMLMediaElement.prototype.load = () => {};
+    Object.defineProperty(HTMLMediaElement.prototype, 'duration', { get: () => 1800 });
+    Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => 4 });
+    const origAdd = HTMLMediaElement.prototype.addEventListener;
+    HTMLMediaElement.prototype.addEventListener = function (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+    ) {
+        // デコードエラーオーバーレイの発火を抑止し、UIコントロール操作をテスト可能にする
+        if (type === 'error') return;
+        return origAdd.call(this, type, listener, options);
+    };
+});
+```
+
+### 4.5 フォームバリデーション（HTML5 required vs アプリ側ロジック）の検証
+HTML5 の `required` 属性を持つフォーム（例: `ManualReserve.svelte` の番組名入力欄）において、`clear()` による完全な空文字で送信を試みると、ブラウザネイティブの入力要求ポップアップ（吹き出し）が発動して submit イベント自体がキャンセルされます。
+そのため、アプリ側（Svelte / TypeScript）の `!name.trim()` やスナックバー通知ロジックまで到達しません。
+
+アプリ側のトリム・バリデーションロジックをテストする場合は、**空白文字（例: `'   '`）を入力してブラウザの `required` を通過させ、アプリ側のバリデーションを発火させる境界値テスト手法**を採用します。
+
+### 4.6 Strict Mode 違反防止とスコープ制限パターン
+Playwright は 1 つのロケータに対して複数要素がヒットすると `strict mode violation` でテストを失敗させます。特に以下の構造で発生しやすいため、適切なスコープ制限を行います：
+
+1. **レスポンシブ共存（デスクトップ table とモバイル card の同居）**:
+   - PC 画面幅でテーブル行を操作する場合は、必ず `page.locator('table')` や `table.locator('tr')` にスコープを絞る。
+2. **モーダル内アクション**:
+   - 背景画面とモーダルで「削除」「キャンセル」等のボタンが重複するため、必ず `page.getByRole('dialog')` 内で取得する。
+3. **リスト行内の個別アクションボタン**:
+   - 親コンテナにも同じテキストが含まれる場合、`page.getByTitle('この動画ファイルのみ削除').first()` や `row.locator(...)` で一意性を担保する。
+
 ---
 
 ## 5. GitHub Actions CI/CD パイプライン

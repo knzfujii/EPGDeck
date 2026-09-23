@@ -53,8 +53,10 @@ class StreamManageModel implements IStreamManageModel {
 
         // stream 停止時に停止させる
         stream.setExitStream(async () => {
-            finalize();
-            await this.stop(streamId).catch();
+            await this.stop(streamId).catch(err => {
+                this.log.stream.error(`exit stream stop error: ${streamId}`);
+                this.log.stream.error(err);
+            });
         });
 
         finalize();
@@ -93,23 +95,25 @@ class StreamManageModel implements IStreamManageModel {
             this.executeManagementModel.unLockExecution(exeId);
         };
 
-        if (typeof this.streams[streamId] === 'undefined') {
-            finalize();
+        try {
+            if (typeof this.streams[streamId] === 'undefined') {
+                return;
+            }
 
-            return;
+            try {
+                await this.streams[streamId].stop();
+            } catch (err: any) {
+                this.log.stream.error(`stop stream error ${streamId}`);
+                throw err;
+            } finally {
+                delete this.streams[streamId];
+            }
+
+            this.socketIO.notifyClient();
+            this.log.stream.info(`stop stream ${streamId}`);
+        } finally {
+            finalize();
         }
-
-        await this.streams[streamId].stop().catch(err => {
-            this.log.stream.error(`stop stream error ${streamId}`);
-            finalize();
-            throw err;
-        });
-        delete this.streams[streamId];
-
-        finalize();
-        this.socketIO.notifyClient();
-
-        this.log.stream.info(`stop stream ${streamId}`);
     }
 
     /**
@@ -168,7 +172,8 @@ class StreamManageModel implements IStreamManageModel {
 namespace StreamManageModel {
     export const START_STREAM_PRIORITY = 1;
     export const STOP_STREAM_PRIORITY = 1;
-    export const FOURCE_STOP_STREAM_PRIORITY = 10;
+    export const FORCE_STOP_STREAM_PRIORITY = 10;
+    export const FOURCE_STOP_STREAM_PRIORITY = 10; // 旧定数互換エイリアス
 }
 
 export default StreamManageModel;

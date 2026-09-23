@@ -46,11 +46,11 @@ class EncodeManageModel implements IEncodeManageModel {
      */
     public async push(addOption: apid.AddEncodeProgramOption): Promise<apid.EncodeId> {
         if (this.concurrentEncodeNum <= 0) {
-            throw new Error('CncurrentEncodeNumIsZero');
+            throw new Error('ConcurrentEncodeNumIsZero');
         }
 
         // 実行権取得
-        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.ADD_ENCODE_PRIPORITY);
+        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.ADD_ENCODE_PRIORITY);
 
         // encoder を生成する
         const encoder = await this.encoderModelProvider();
@@ -106,7 +106,7 @@ class EncodeManageModel implements IEncodeManageModel {
     private async checkQueue(): Promise<void> {
         // 実行権取得
         const exeId = await this.executeManagementModel.getExecution(
-            EncodeManageModel.CREATE_ENCODING_PROCESS_PRIPORITY,
+            EncodeManageModel.CREATE_ENCODING_PROCESS_PRIORITY,
         );
 
         // runningQueue がロック中 or 同時エンコード最大数に達している or waitQueue が空の場合はスルー
@@ -181,7 +181,7 @@ class EncodeManageModel implements IEncodeManageModel {
             const fileName = outputFilePath === null ? null : path.basename(outputFilePath);
             if (
                 encodeOption.removeOriginal === true &&
-                this.hasSamVideoFileIdItem(encodeOption.sourceVideoFileId, encodeOption.encodeId) === true
+                this.hasSameVideoFileIdItem(encodeOption.sourceVideoFileId, encodeOption.encodeId) === true
             ) {
                 // queue に削除予定の videofile が存在するので、削除しないように false にする
                 encodeOption.removeOriginal = false;
@@ -216,7 +216,7 @@ class EncodeManageModel implements IEncodeManageModel {
      * @param excludeEncodeId: apid.EncodeId 除外する encode id
      * @return boolean 存在するなら true を返す
      */
-    private hasSamVideoFileIdItem(videoFileId: apid.VideoFileId, excludeEncodeId: apid.EncodeId): boolean {
+    private hasSameVideoFileIdItem(videoFileId: apid.VideoFileId, excludeEncodeId: apid.EncodeId): boolean {
         const runningItem = this.runningQueue.find(i => {
             const option = i.getEncodeOption();
 
@@ -244,7 +244,7 @@ class EncodeManageModel implements IEncodeManageModel {
      */
     private async finalize(encodeId: apid.EncodeId): Promise<void> {
         // 実行権取得
-        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.CLEAR_QUEUE_PRIPORITY);
+        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.CLEAR_QUEUE_PRIORITY);
 
         // runningQueue から encodeId の要素を削除する
         this.runningQueue = this.runningQueue.filter(q => {
@@ -265,12 +265,12 @@ class EncodeManageModel implements IEncodeManageModel {
      */
     public async cancel(encodeId: apid.EncodeId): Promise<void> {
         // 実行権取得
-        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.CANCEL_ENCODE_PRIPORITY);
+        const exeId = await this.executeManagementModel.getExecution(EncodeManageModel.CANCEL_ENCODE_PRIORITY);
 
         this.log.encode.info(`cancel encode: ${encodeId}`);
 
         // runningQueue にあるので プロセスを殺す
-        const runningQueueItem = this.getRunnginQueueItem(encodeId);
+        const runningQueueItem = this.getRunningQueueItem(encodeId);
         if (typeof runningQueueItem !== 'undefined') {
             await runningQueueItem.cancel();
         } else {
@@ -295,7 +295,7 @@ class EncodeManageModel implements IEncodeManageModel {
      * @param encodeId: apid.EncodeId
      * @return IEncoderModel | undefined
      */
-    private getRunnginQueueItem(encodeId: apid.EncodeId): IEncoderModel | undefined {
+    private getRunningQueueItem(encodeId: apid.EncodeId): IEncoderModel | undefined {
         return this.runningQueue.find(q => {
             return q.getEncodeId() === encodeId;
         });
@@ -442,12 +442,17 @@ class EncodeManageModel implements IEncodeManageModel {
 namespace EncodeManageModel {
     export const UNLOCK_EVENT = 'unlockEvent';
     export const UNLOCK_TIMEOUT = 1000 * 60;
-    export const CANCEL_ENCODE_PRIPORITY = 1;
-    export const ADD_ENCODE_PRIPORITY = 2;
-    export const CREATE_ENCODING_PROCESS_PRIPORITY = 2;
-    export const CLEAR_QUEUE_PRIPORITY = 3;
+    export const CANCEL_ENCODE_PRIORITY = 1;
+    export const CANCEL_ENCODE_PRIPORITY = 1; // 旧定数互換エイリアス
+    export const ADD_ENCODE_PRIORITY = 2;
+    export const ADD_ENCODE_PRIPORITY = 2; // 旧定数互換エイリアス
+    export const CREATE_ENCODING_PROCESS_PRIORITY = 2;
+    export const CREATE_ENCODING_PROCESS_PRIPORITY = 2; // 旧定数互換エイリアス
+    export const CLEAR_QUEUE_PRIORITY = 3;
+    export const CLEAR_QUEUE_PRIPORITY = 3; // 旧定数互換エイリアス
     export const NEEDS_CHECK_QUEUE_EVENT = 'needsCheckQueue';
-    export const ENCODE_PRIPORITY = 10;
+    export const ENCODE_PRIORITY = 10;
+    export const ENCODE_PRIPORITY = 10; // 旧定数互換エイリアス
     export const DEFAULT_TIMEOUT_RATE = 4.0;
 }
 

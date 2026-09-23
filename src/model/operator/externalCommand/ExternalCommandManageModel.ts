@@ -45,7 +45,7 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * 予約情報更新時のコマンド実行を queue に追加する
      * @param diff: IReserveUpdateValues
      */
-    public addUpdateReseves(diff: IReserveUpdateValues): void {
+    public addUpdateReserves(diff: IReserveUpdateValues): void {
         if (
             typeof diff.insert !== 'undefined' &&
             diff.insert.length > 0 &&
@@ -75,6 +75,13 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
                 this.addReserve(this.config.hooks.reserveDeleted, r);
             }
         }
+    }
+
+    /**
+     * 旧メソッド名互換エイリアス
+     */
+    public addUpdateReseves(diff: IReserveUpdateValues): void {
+        this.addUpdateReserves(diff);
     }
 
     /**

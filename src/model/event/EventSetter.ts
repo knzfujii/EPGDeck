@@ -152,7 +152,7 @@ export default class EventSetter implements IEventSetter {
             });
 
             // コマンド実行
-            this.externalCommandManage.addUpdateReseves(diff);
+            this.externalCommandManage.addUpdateReserves(diff);
         });
 
         // 録画準備開始イベント

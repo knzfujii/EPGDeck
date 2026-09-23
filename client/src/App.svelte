@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy, type Component as SvelteComponent } from 'svelte';
+    import { onMount, onDestroy, type Component } from 'svelte';
     import { router } from './lib/router.svelte';
     import { socketStore } from './lib/stores/socket.svelte';
     import { readOnlyStore } from './lib/stores/readOnly.svelte';
@@ -10,7 +10,7 @@
     import UnlockModal from './lib/components/common/UnlockModal.svelte';
     import { Loader2 } from '@lucide/svelte';
 
-    type RouteLoader = () => Promise<{ default: any }>;
+    type RouteLoader = () => Promise<{ default: Component }>;
 
     const routeLoaders: Record<string, RouteLoader> = {
         '/': () => import('./routes/Dashboard.svelte'),
@@ -33,7 +33,7 @@
     let isMobileOpen = $state(false);
     let isDesktopCollapsed = $state(false);
 
-    let CurrentComponent = $state<any>(null);
+    let CurrentComponent = $state<Component | null>(null);
     let isPageLoading = $state(true);
 
     $effect(() => {

@@ -121,8 +121,8 @@
         hasSearched = true;
         try {
             await Promise.all([channelStore.fetch(), fetchExistingReserves()]);
-            const searchOpt: any = {
-                genres: selectedGenre !== null ? [{ lv1: selectedGenre }] : [],
+            const searchOpt: apid.RuleSearchOption = {
+                genres: selectedGenre !== null ? [{ genre: selectedGenre }] : [],
             };
             if (keyword.trim()) {
                 searchOpt.keyword = keyword.trim();
@@ -164,9 +164,9 @@
             nextSet.add(program.id);
             reservedProgramIds = nextSet;
             snackbar.open({ text: `「${program.name}」を予約しました`, color: 'success' });
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to reserve program', e);
-            const msg = e.message || '予約の登録に失敗しました';
+            const msg = e instanceof Error ? e.message : '予約の登録に失敗しました';
             snackbar.open({ text: msg, color: 'error' });
         } finally {
             reservingProgramId = null;

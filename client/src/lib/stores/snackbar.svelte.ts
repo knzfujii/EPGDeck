@@ -9,7 +9,7 @@ class SnackbarState {
     isOpen = $state(false);
     text = $state('');
     color = $state<'success' | 'error' | 'warning' | 'info'>('info');
-    private timer: any = null;
+    private timer: ReturnType<typeof setTimeout> | null = null;
 
     public open(option: SnackbarOption) {
         if (this.timer) clearTimeout(this.timer);

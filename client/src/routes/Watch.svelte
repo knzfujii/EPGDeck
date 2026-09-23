@@ -19,7 +19,7 @@
     let playbackOffset = $state(0);
     let currentStreamMode = $state(0);
     let streamId = $state<number | null>(null);
-    let keepAliveInterval: any = null;
+    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
     let isPreparingStream = $state(false);
     let statusText = $state('ストリームを準備中...');
     let statusMessage = $state('');
@@ -209,16 +209,19 @@
                             query: { mode },
                         });
                         if (!res.ok) {
-                            const err: any = new Error(`Failed to start live stream: ${res.status}`);
+                            const err = new Error(`Failed to start live stream: ${res.status}`) as Error & {
+                                status?: number;
+                            };
                             err.status = res.status;
                             throw err;
                         }
                         const data = await res.json();
                         return Number(data.streamId);
                     }, 'チューナーを確保してライブ配信を生成中...');
-                } catch (e: any) {
+                } catch (e: unknown) {
                     console.error('Failed to start live stream', e);
-                    if (e.status === 503 || e.response?.status === 503) {
+                    const httpErr = e as { status?: number; response?: { status?: number } } | null;
+                    if (httpErr?.status === 503 || httpErr?.response?.status === 503) {
                         const msg = 'チューナー不足: 現在利用可能なチューナーがありません（録画等で使用中）';
                         snackbar.open({ text: msg, color: 'error' });
                         statusText = msg;

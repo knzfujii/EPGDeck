@@ -102,9 +102,9 @@ export async function executeRecordingAction(
             notifier?.open({ text: `「${target.name}」の録画を取り消し、ファイルを破棄しました`, color: 'warning' });
         }
         return true;
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(`Failed to execute recording action: ${action}`, e);
-        const msg = e.message || '録画操作の実行に失敗しました';
+        const msg = e instanceof Error ? e.message : '録画操作の実行に失敗しました';
         notifier?.open({ text: msg, color: 'error' });
         return false;
     }

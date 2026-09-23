@@ -18,7 +18,7 @@
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import { configStore } from '../lib/stores/config.svelte';
+    import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -66,7 +66,7 @@
         directory: string;
     }
     let isEncodeModalOpen = $state(false);
-    let encodeModes = $state<any[]>([]);
+    let encodeModes = $state<EncodeMode[]>([]);
     let recordedDirs = $state<string[]>([]);
     let encodeSelections = $state<Record<string, EncodePresetSelection>>({});
     let isRemoveOriginal = $state(false);
@@ -171,7 +171,9 @@
                 .then(configData => {
                     if (!configData) return;
                     const encList = configData?.encode || [];
-                    encodeModes = encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
+                    encodeModes = encList.map((e: string | EncodeMode) =>
+                        typeof e === 'string' ? { name: e, suffix: '' } : e,
+                    );
                     recordedDirs = configData?.recorded || [];
 
                     // 各プリセットの選択状態を初期化（既存があれば保持）
@@ -188,7 +190,7 @@
                     encodeSelections = next;
                 })
                 .catch(() => {});
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to fetch recorded detail', e);
             snackbar.open({ text: '録画詳細の取得に失敗しました', color: 'error' });
         } finally {
@@ -370,9 +372,10 @@
             });
             if (!res.ok) throw new Error(`Status ${res.status}`);
             snackbar.open({ text: `「${kodiName}」へ再生リクエストを送信しました`, color: 'success' });
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to send to Kodi', e);
-            snackbar.open({ text: `Kodi への送信に失敗しました: ${e.message || ''}`, color: 'error' });
+            const msg = e instanceof Error ? e.message : '';
+            snackbar.open({ text: `Kodi への送信に失敗しました: ${msg}`, color: 'error' });
         } finally {
             sendingKodiFileId = null;
         }
@@ -413,7 +416,8 @@
     // エンコード追加
     async function addEncode() {
         if (!recorded) return;
-        const targetFile = (recorded.videoFiles || []).find((f: any) => f.type === 'ts') || recorded.videoFiles?.[0];
+        const targetFile =
+            (recorded.videoFiles || []).find((f: apid.VideoFile) => f.type === 'ts') || recorded.videoFiles?.[0];
         if (!targetFile) {
             snackbar.open({ text: 'エンコード元の動画ファイルがありません', color: 'error' });
             return;
@@ -437,7 +441,7 @@
         try {
             for (const mode of targets) {
                 const sel = encodeSelections[mode.name];
-                const body: Record<string, any> = {
+                const body: Parameters<typeof api.encode.$post>[0]['json'] = {
                     recordedId: recorded.id,
                     sourceVideoFileId: targetFile.id,
                     mode: mode.name,

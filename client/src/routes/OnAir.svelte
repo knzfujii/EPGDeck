@@ -197,7 +197,7 @@
                 let next: OnAirProgram | undefined = undefined;
                 if (rawNext) {
                     const matchedRes = reservesList.find(
-                        (r: any) =>
+                        (r: apid.ReserveItem) =>
                             (r.programId && rawNext.id && r.programId === rawNext.id) ||
                             (r.channelId === item.channel.id &&
                                 Math.abs(r.startAt - rawNext.startAt) < 60000 &&

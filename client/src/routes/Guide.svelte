@@ -94,8 +94,14 @@
         return selectedDate.getTime() >= max.getTime();
     });
 
+    interface GuideProgramModalItem extends apid.ScheduleProgramItem {
+        channelName: string;
+        channelId: number;
+        reserve: (apid.ReserveItem & { isRecording?: boolean }) | null;
+    }
+
     // 番組詳細モーダル状態
-    let selectedProgram = $state<any>(null);
+    let selectedProgram = $state<GuideProgramModalItem | null>(null);
     let isModalOpen = $state(false);
     let isReserving = $state(false);
 
@@ -121,7 +127,7 @@
     }
 
     // 予約フォームに既存の予約設定を反映 (編集時)
-    function loadReserveForm(reserve: any) {
+    function loadReserveForm(reserve: apid.ReserveItem) {
         recOptions.load(reserve);
     }
 
@@ -198,7 +204,7 @@
         currentTimeTop = calculateCurrentTimeTop(now, guideStartAt, guideEndAt);
     }
 
-    function createReservesMap(reserves: apid.ReserveItem[], recordingList: any[]) {
+    function createReservesMap(reserves: apid.ReserveItem[], recordingList: apid.RecordedItem[]) {
         const now = Date.now();
         const map = new Map<number, apid.ReserveItem & { isRecording?: boolean }>();
         for (const r of reserves || []) {
@@ -223,7 +229,7 @@
             guideStartAt = start.getTime();
             guideEndAt = guideStartAt + DISPLAY_HOURS * 60 * 60 * 1000;
 
-            const scheduleParams: Record<string, any> = {
+            const scheduleParams: Record<string, string | number | boolean> = {
                 startAt: guideStartAt,
                 endAt: guideEndAt,
                 isHalfWidth: true,
@@ -382,7 +388,7 @@
     }
 
     // 番組クリックで詳細モーダルを開く
-    function openProgramModal(program: any, channel: any) {
+    function openProgramModal(program: apid.ScheduleProgramItem, channel: { id: number; name: string }) {
         const reserve = reservesMap.get(program.id) || null;
         selectedProgram = {
             ...program,
@@ -418,9 +424,9 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to add reserve', e);
-            const errorMsg = e.message || '録画予約の追加に失敗しました';
+            const errorMsg = e instanceof Error ? e.message : '録画予約の追加に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
@@ -446,9 +452,9 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to update reserve', e);
-            const errorMsg = e.message || '予約設定の更新に失敗しました';
+            const errorMsg = e instanceof Error ? e.message : '予約設定の更新に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
@@ -468,9 +474,9 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to delete reserve', e);
-            const errorMsg = e.message || '予約解除に失敗しました';
+            const errorMsg = e instanceof Error ? e.message : '予約解除に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
@@ -489,9 +495,9 @@
                 selectedProgram.reserve = reservesMap.get(selectedProgram.id) || null;
             }
             isModalOpen = false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Failed to restore skip', e);
-            const errorMsg = e.message || '予約の復活に失敗しました';
+            const errorMsg = e instanceof Error ? e.message : '予約の復活に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isReserving = false;
@@ -1010,7 +1016,7 @@
                                     type="button"
                                     onclick={() => {
                                         isModalOpen = false;
-                                        router.push(`/rule/edit?ruleId=${selectedProgram.reserve.ruleId}`);
+                                        router.push(`/rule/edit?ruleId=${selectedProgram!.reserve!.ruleId}`);
                                     }}
                                     class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
                                 >
@@ -1054,7 +1060,7 @@
                     type="button"
                     onclick={() => {
                         isModalOpen = false;
-                        const kw = extractFirstSearchWord(selectedProgram.name);
+                        const kw = extractFirstSearchWord(selectedProgram!.name);
                         router.push(`/search?keyword=${encodeURIComponent(kw)}`);
                     }}
                     class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer whitespace-nowrap shrink-0"
@@ -1077,7 +1083,7 @@
                                 <button
                                     type="button"
                                     onclick={() => {
-                                        recordingActionItem = selectedProgram.reserve;
+                                        recordingActionItem = selectedProgram!.reserve;
                                         isRecordingActionModalOpen = true;
                                     }}
                                     class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer whitespace-nowrap shrink-0"
@@ -1089,7 +1095,7 @@
                                 <button
                                     type="button"
                                     disabled={isReserving}
-                                    onclick={() => restoreSkip(selectedProgram.reserve.id, selectedProgram.name)}
+                                    onclick={() => restoreSkip(selectedProgram!.reserve!.id, selectedProgram!.name)}
                                     class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <RotateCcw size={14} /> 予約を復活 (スキップ解除)
@@ -1099,7 +1105,7 @@
                                     type="button"
                                     disabled={isReserving}
                                     onclick={() =>
-                                        deleteReserve(selectedProgram.reserve.id, selectedProgram.name, true)}
+                                        deleteReserve(selectedProgram!.reserve!.id, selectedProgram!.name, true)}
                                     class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <Trash2 size={14} /> この回をスキップ (除外)
@@ -1108,7 +1114,7 @@
                                 <button
                                     type="button"
                                     disabled={isReserving}
-                                    onclick={() => updateReserve(selectedProgram.reserve.id, selectedProgram)}
+                                    onclick={() => updateReserve(selectedProgram!.reserve!.id, selectedProgram!)}
                                     class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <CheckCircle2 size={14} /> 設定を更新
@@ -1117,7 +1123,7 @@
                                     type="button"
                                     disabled={isReserving}
                                     onclick={() =>
-                                        deleteReserve(selectedProgram.reserve.id, selectedProgram.name, false)}
+                                        deleteReserve(selectedProgram!.reserve!.id, selectedProgram!.name, false)}
                                     class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <Trash2 size={14} /> 予約解除
@@ -1135,7 +1141,7 @@
                             <button
                                 type="button"
                                 disabled={isReserving}
-                                onclick={() => addReserve(selectedProgram)}
+                                onclick={() => addReserve(selectedProgram!)}
                                 class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                             >
                                 <Plus size={14} /> 録画予約する

@@ -14,8 +14,16 @@ export interface LogEntry {
     message: string;
 }
 
-type SocketEventType = 'updateStatus' | 'updateEncode' | 'connect' | 'disconnect' | 'logs';
-type Callback<T = any> = (data: T) => void;
+export interface SocketEventPayloadMap {
+    updateStatus: void;
+    updateEncode: void;
+    connect: void;
+    disconnect: void;
+    logs: LogEntry;
+}
+
+export type SocketEventType = keyof SocketEventPayloadMap;
+type AnyCallback = (data: unknown) => void;
 
 export class SocketStore {
     private socket: Socket | null = null;
@@ -23,7 +31,7 @@ export class SocketStore {
     public statusVersion = $state(0);
     public encodeVersion = $state(0);
 
-    private listeners = new Map<SocketEventType, Set<Callback>>();
+    private listeners = new Map<SocketEventType, Set<AnyCallback>>();
     private hasConnectedOnce = false;
     private refreshManager: ForegroundRefreshManager | null = null;
 
@@ -123,26 +131,27 @@ export class SocketStore {
         }
     }
 
-    public on<T = any>(event: SocketEventType, cb: Callback<T>): () => void {
+    public on<E extends SocketEventType>(event: E, cb: (data: SocketEventPayloadMap[E]) => void): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
-        this.listeners.get(event)!.add(cb);
+        const callback = cb as AnyCallback;
+        this.listeners.get(event)!.add(callback);
 
-        // ログイベント購読開始時、接続済みならサーバーへ購読リクエスト
-        if (event === 'logs') {
+        // ログイベント購読開始時、接続済みならサーバーへ購読リクエスト（最初の1リスナー登録時のみ）
+        if (event === 'logs' && this.listeners.get('logs')?.size === 1) {
             this.subscribeLogs();
         }
 
         return () => {
-            this.listeners.get(event)?.delete(cb);
+            this.listeners.get(event)?.delete(callback);
             if (event === 'logs' && (!this.listeners.get('logs') || this.listeners.get('logs')!.size === 0)) {
                 this.unsubscribeLogs();
             }
         };
     }
 
-    private emitEvent<T = any>(event: SocketEventType, data?: T) {
+    private emitEvent<E extends SocketEventType>(event: E, data?: SocketEventPayloadMap[E]) {
         const cbs = this.listeners.get(event);
         if (cbs) {
             for (const cb of cbs) {

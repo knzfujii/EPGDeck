@@ -41,10 +41,11 @@
         try {
             await readOnlyStore.unlock(password);
             snackbar.open({ text: '管理者モードに切り替えました', color: 'success' });
-        } catch (err: any) {
-            if (err?.response?.status === 401) {
+        } catch (err: unknown) {
+            const errorObj = err as { response?: { status?: number; data?: { message?: string } } };
+            if (errorObj?.response?.status === 401) {
                 errorMessage = 'パスワードが正しくありません';
-            } else if (err?.response?.data?.message === 'passwordNotConfigured') {
+            } else if (errorObj?.response?.data?.message === 'passwordNotConfigured') {
                 errorMessage = '管理者パスワードが設定されていません (config.yml)';
             } else {
                 errorMessage = '認証に失敗しました。もう一度お試しください';

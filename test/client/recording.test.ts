@@ -189,5 +189,17 @@ describe('recording utility', () => {
                 color: 'error',
             });
         });
+
+        it('handles non-Error rejection safely with fallback message', async () => {
+            (api.recording[':reserveId'].finish.$post as any).mockRejectedValueOnce('Unexpected string rejection');
+
+            const result = await executeRecordingAction(target, 'finish', mockNotifier);
+
+            expect(result).toBe(false);
+            expect(mockNotifier.open).toHaveBeenCalledWith({
+                text: '録画操作の実行に失敗しました',
+                color: 'error',
+            });
+        });
     });
 });

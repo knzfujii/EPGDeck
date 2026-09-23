@@ -199,7 +199,7 @@
                 try {
                     const restartPromise = props.onHlsSeekRestart(clampedTime);
                     if (restartPromise && typeof restartPromise.catch === 'function') {
-                        restartPromise.catch((err: any) => {
+                        restartPromise.catch((err: unknown) => {
                             console.error('Stream seek restart failed:', err);
                             isLoading = false;
                             errorMessage = 'シーク先でのストリーム再生成に失敗しました';
@@ -468,29 +468,42 @@
                 mpegtsInstance.load();
                 mpegtsInstance.play();
 
-                mpegtsInstance.on(Mpegts.Events.ERROR, (type: any, detail: any, info: any) => {
-                    console.warn('Mpegts error:', type, detail, info);
-                    const statusCode =
-                        info?.code || info?.status || (info?.response ? info.response.status : undefined);
-                    if (statusCode === 503 || (typeof detail === 'string' && detail.includes('503'))) {
-                        errorMessage =
-                            '利用可能なチューナーがありません（現在すべてのチューナーが録画等で使用されています）';
-                    } else if (type === Mpegts.ErrorTypes.NETWORK_ERROR) {
-                        errorMessage = 'ストリームの接続に失敗しました';
-                    } else {
-                        errorMessage = 'ストリームの再生に失敗しました';
-                    }
-                    isLoading = false;
-                    cleanupEngines();
-                });
+                mpegtsInstance.on(
+                    Mpegts.Events.ERROR,
+                    (
+                        type: string,
+                        detail: unknown,
+                        info?: { code?: number; status?: number; response?: { status?: number } },
+                    ) => {
+                        console.warn('Mpegts error:', type, detail, info);
+                        const statusCode =
+                            info?.code || info?.status || (info?.response ? info.response.status : undefined);
+                        if (statusCode === 503 || (typeof detail === 'string' && detail.includes('503'))) {
+                            errorMessage =
+                                '利用可能なチューナーがありません（現在すべてのチューナーが録画等で使用されています）';
+                        } else if (type === Mpegts.ErrorTypes.NETWORK_ERROR) {
+                            errorMessage = 'ストリームの接続に失敗しました';
+                        } else {
+                            errorMessage = 'ストリームの再生に失敗しました';
+                        }
+                        isLoading = false;
+                        cleanupEngines();
+                    },
+                );
 
-                mpegtsInstance.on(Mpegts.Events.TIMED_ID3_METADATA_ARRIVED, (data: any) => {
-                    subtitleManager.feedMpegtsId3Data(data);
-                });
+                mpegtsInstance.on(
+                    Mpegts.Events.TIMED_ID3_METADATA_ARRIVED,
+                    (data: Parameters<typeof subtitleManager.feedMpegtsId3Data>[0]) => {
+                        subtitleManager.feedMpegtsId3Data(data);
+                    },
+                );
 
-                mpegtsInstance.on(Mpegts.Events.PES_PRIVATE_DATA_ARRIVED, (data: any) => {
-                    subtitleManager.feedMpegtsPesData(data);
-                });
+                mpegtsInstance.on(
+                    Mpegts.Events.PES_PRIVATE_DATA_ARRIVED,
+                    (data: Parameters<typeof subtitleManager.feedMpegtsPesData>[0]) => {
+                        subtitleManager.feedMpegtsPesData(data);
+                    },
+                );
                 return;
             }
         }

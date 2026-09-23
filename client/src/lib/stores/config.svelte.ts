@@ -16,7 +16,7 @@ class ConfigStore {
      */
     encodeModes = $derived.by<EncodeMode[]>(() => {
         const encList = this.config?.encode || [];
-        return encList.map((e: any) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
+        return encList.map((e: string | EncodeMode) => (typeof e === 'string' ? { name: e, suffix: '' } : e));
     });
 
     /**

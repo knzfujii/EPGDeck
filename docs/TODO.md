@@ -94,5 +94,6 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **録画オプション状態管理の共通化（RecordingOptionFormState導入）** | 番組表（Guide）・予約一覧（Reserves）・手動予約（ManualReserve）で重複していた録画オプション（TS保存先・エンコード最大3系統・元TS削除・末尾欠け許可）の `$state` 定義・初期化・ロード・リクエスト JSON 生成ロジックを `RecordingOptionFormState`（Svelte 5 Runes）に集約、ボイラープレート削減 | [画面変更仕様書](dev/epgdeck_change_spec.md#2-画面一覧統廃合対比表) |
 | **RecordedTagManageModel タイポ修正（Manade ➔ Manage）** | 上流（EPGStation）から引き継がれていた `RecordedTagManadeModel` / `IRecordedTagManadeModel` のタイポを `RecordedTagManageModel` / `IRecordedTagManageModel` に修正（ファイル名・クラス名・DI トークン・参照箇所の一括リネーム） | [アーキテクチャ](dev/architecture.md#2-ディレクトリ構成) |
 | **IPC 内部通信プロトコルのタイポ一括是正（reservation / RuleFunctions / ReplyMessage）** | 上流から引き継がれていた内部 IPC プロセス間通信層の英単語タイポ（`reserveation` ➔ `reservation`、`RuleFuntions` ➔ `RuleFunctions`、`ReplayMessage` / `replay` ➔ `ReplyMessage` / `reply`）を全モデル・クライアント・サーバー・テスト間で完全是正 | [アーキテクチャ](dev/architecture.md#3-バックエンド設計パターン) |
+| **フロントエンド残存 `any` 型注釈の厳格化 & エラーハンドリング安全化** | クライアント全域（`client/src/`）に散在していた残存 `any` 型注釈・無条件キャストを完全撤廃（0件達成）。`SocketEventPayloadMap` による WebSocket イベントの厳格型付け、API パラメータ型連携（`api.*.$get/post`）、Svelte 5 `Component` 動的コンポーネント型付け、`catch (e: unknown)` と `HttpError` による安全な例外処理、`recording.ts`（非 Error 例外境界値）および `socket.test.ts`（SocketStore ライフサイクル・ログ購読自動調停）の単体テスト新規追加 | [アーキテクチャ](dev/architecture.md#4-フロントエンド設計パターン) |
 
 

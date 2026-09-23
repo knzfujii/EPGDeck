@@ -104,7 +104,7 @@
         if (!isSilent) isLoading = true;
         try {
             await channelStore.fetch();
-            const query: any = {
+            const query: Parameters<typeof api.recorded.$get>[0]['query'] = {
                 isHalfWidth: true,
                 limit,
                 offset: (currentPage - 1) * limit,
@@ -144,10 +144,10 @@
             const res = await api.rules.$get({ query: { limit: 1000, isHalfWidth: true } });
             if (res.ok) {
                 const data = await res.json();
-                const rawRules = data.rules || [];
-                rulesList = rawRules.map((r: any) => ({
+                const rawRules: apid.Rule[] = data.rules || [];
+                rulesList = rawRules.map((r: apid.Rule) => ({
                     id: r.id,
-                    name: r.searchOption?.keyword || r.reserveOption?.name || `ルール #${r.id}`,
+                    name: r.searchOption?.keyword || `ルール #${r.id}`,
                 }));
             }
         } catch (e) {

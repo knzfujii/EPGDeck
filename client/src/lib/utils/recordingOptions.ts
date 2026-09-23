@@ -1,3 +1,5 @@
+import type * as apid from '../../../../api.js';
+
 export interface EncodeRow {
     mode: string;
     parentDir: string;
@@ -22,7 +24,7 @@ export function getDefaultRecordingOptionState(): RecordingOptionState {
     };
 }
 
-export function loadRecordingOptionState(reserve: any): RecordingOptionState {
+export function loadRecordingOptionState(reserve?: Partial<apid.ReserveItem> | null): RecordingOptionState {
     if (!reserve) {
         return getDefaultRecordingOptionState();
     }

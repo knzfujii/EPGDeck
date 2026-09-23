@@ -32,7 +32,7 @@
 
     // 編集対象のルールID (?ruleId=<ruleId>)。未指定なら新規作成
     let ruleId = $state<number | null>(null);
-    let rule = $state<any>(null);
+    let rule = $state<apid.Rule | null>(null);
     let isLoading = $state(true);
     let isSaving = $state(false);
 
@@ -146,8 +146,8 @@
 
     // プレビュー検索 & スキップ管理状態
     let isPreviewSearching = $state(false);
-    let previewPrograms = $state<any[] | null>(null);
-    let previewReservesMap = $state<Map<number, any>>(new Map());
+    let previewPrograms = $state<apid.ScheduleProgramItem[] | null>(null);
+    let previewReservesMap = $state<Map<number, apid.ReserveItem>>(new Map());
     let isProcessingSkipProgramId = $state<number | null>(null);
 
     // 録画ファイル名フォーマット
@@ -449,7 +449,7 @@
         return m > 0 ? `${h}時間${m}分` : `${h}時間`;
     }
 
-    function loadRule(r: any) {
+    function loadRule(r: apid.Rule) {
         isTimeSpecification = !!r.isTimeSpecification;
         existingTags = r.reserveOption?.tags;
         const s = r.searchOption || {};
@@ -472,9 +472,12 @@
         selectedChannelIds = Array.isArray(s.channelIds) ? [...s.channelIds] : [];
         if (Array.isArray(s.genres)) {
             selectedGenreKeys = s.genres
-                .filter((g: any) => typeof (g.lv1 ?? g.genre) === 'number')
-                .map((g: any) => {
-                    const genre = g.lv1 ?? g.genre;
+                .filter(
+                    (g: { genre?: number; subGenre?: number; lv1?: number; lv2?: number }) =>
+                        typeof (g.lv1 ?? g.genre) === 'number',
+                )
+                .map((g: { genre?: number; subGenre?: number; lv1?: number; lv2?: number }) => {
+                    const genre = (g.lv1 ?? g.genre)!;
                     const subGenre = g.lv2 ?? g.subGenre;
                     return typeof subGenre === 'number' ? `${genre}:${subGenre}` : `${genre}`;
                 });
@@ -550,7 +553,7 @@
             showAdvancedSearch = true;
         }
 
-        const enc = r.encodeOption || {};
+        const enc: Partial<apid.ReserveEncodedOption> = r.encodeOption || {};
         const loadedRows: EncodeRow[] = [
             { mode: enc.mode1 || '', parentDir: enc.encodeParentDirectoryName1 || '', subDir: enc.directory1 || '' },
             { mode: enc.mode2 || '', parentDir: enc.encodeParentDirectoryName2 || '', subDir: enc.directory2 || '' },
@@ -697,7 +700,7 @@
         }
 
         const hasChannelIds = selectedChannelIds.length > 0;
-        const opt: any = {
+        const opt: apid.RuleSearchOption = {
             GR: hasChannelIds ? false : isGR,
             BS: hasChannelIds ? false : isBS,
             CS: hasChannelIds ? false : isCS,
@@ -741,7 +744,7 @@
             opt.genres = selectedGenreKeys.map(key => {
                 const parts = key.split(':');
                 const genre = parseInt(parts[0], 10);
-                const item: any = { genre };
+                const item: { genre: number; subGenre?: number } = { genre };
                 if (parts.length > 1) {
                     item.subGenre = parseInt(parts[1], 10);
                 }
@@ -770,7 +773,7 @@
             for (const d of daysOfWeek) {
                 weekBitmask |= 1 << d;
             }
-            const timeObj: any = { week: weekBitmask };
+            const timeObj: { week: number; start?: number; range?: number } = { week: weekBitmask };
             if (startDec !== null && endDec !== null) {
                 timeObj.start = Math.round(startDec * 1000) / 1000;
                 let r = endDec - startDec;
@@ -828,7 +831,7 @@
         }
     }
 
-    async function handleToggleSkip(program: any, reserve: any) {
+    async function handleToggleSkip(program: apid.ScheduleProgramItem, reserve: apid.ReserveItem) {
         if (!reserve || isProcessingSkipProgramId !== null) return;
         isProcessingSkipProgramId = program.id;
 

@@ -1,3 +1,4 @@
+import type * as apid from '../../../../api';
 import {
     getDefaultRecordingOptionState,
     loadRecordingOptionState,
@@ -20,13 +21,11 @@ export class RecordingOptionFormState {
     constructor(initial?: Partial<RecordingOptionState>) {
         if (initial) {
             this.set({ ...getDefaultRecordingOptionState(), ...initial });
-        } else {
-            this.reset();
         }
     }
 
     /**
-     * フォームをデフォルト状態にリセット
+     * デフォルト状態にリセット
      */
     reset(): void {
         this.set(getDefaultRecordingOptionState());
@@ -36,7 +35,7 @@ export class RecordingOptionFormState {
      * 既存の予約情報からオプション設定を復元・反映
      * @param reserve 予約情報
      */
-    load(reserve: any): void {
+    load(reserve?: Partial<apid.ReserveItem> | null): void {
         this.set(loadRecordingOptionState(reserve));
     }
 

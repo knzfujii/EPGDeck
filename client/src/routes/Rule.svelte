@@ -66,7 +66,7 @@
     async function fetchRules(kw: string = activeKeyword) {
         isLoading = true;
         try {
-            const query: any = {
+            const query: Parameters<typeof api.rules.$get>[0]['query'] = {
                 limit: 100,
                 isHalfWidth: true,
                 type: 'all',

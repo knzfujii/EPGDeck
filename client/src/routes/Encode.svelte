@@ -6,10 +6,11 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
+    import type * as apid from '../../../api';
     import { Film, CheckCircle2, Trash2, RefreshCw, Lock } from '@lucide/svelte';
 
-    let running = $state<any[]>([]);
-    let waitList = $state<any[]>([]);
+    let running = $state<apid.EncodeProgramItem[]>([]);
+    let waitList = $state<apid.EncodeProgramItem[]>([]);
     let isLoading = $state(true);
 
     $effect(() => {

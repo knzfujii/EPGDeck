@@ -84,9 +84,9 @@
             });
             snackbar.open({ text: '時間指定予約を作成しました', color: 'success' });
             router.push('/reserves');
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error('Manual reserve error', e);
-            const errorMsg = e.message || '予約の作成に失敗しました';
+            const errorMsg = e instanceof Error ? e.message : '予約の作成に失敗しました';
             snackbar.open({ text: errorMsg, color: 'error' });
         } finally {
             isSubmitting = false;

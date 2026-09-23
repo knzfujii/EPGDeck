@@ -1,4 +1,5 @@
 <script lang="ts">
+    import type { Component } from 'svelte';
     import { router } from '../../router.svelte';
     import { readOnlyStore } from '../../stores/readOnly.svelte';
     import {
@@ -25,7 +26,7 @@
     } = $props();
 
     const mainNavItems = $derived.by(() => {
-        const items: Array<{ label: string; path: string; icon: any }> = [];
+        const items: Array<{ label: string; path: string; icon: Component }> = [];
 
         if (readOnlyStore.canViewDashboard) {
             items.push({ label: 'ダッシュボード', path: '/', icon: LayoutDashboard });
@@ -43,7 +44,7 @@
     });
 
     const subNavItems = $derived.by(() => {
-        const items: Array<{ label: string; path: string; icon: any }> = [];
+        const items: Array<{ label: string; path: string; icon: Component }> = [];
 
         if (readOnlyStore.canViewSearch) {
             items.push({ label: '番組検索', path: '/search', icon: Search });

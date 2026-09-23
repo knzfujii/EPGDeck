@@ -281,4 +281,195 @@ test.describe('Guide Page (/guide)', () => {
         await expect(endedBtn).toBeVisible();
         await expect(endedBtn).toBeDisabled();
     });
+
+    test('should allow creating and canceling reservations, and navigating to search or rule edit from program modal', async ({
+        page,
+    }) => {
+        const futureStart1 = Date.now() + 2 * 60 * 60 * 1000;
+        const futureEnd1 = Date.now() + 3 * 60 * 60 * 1000;
+        const futureStart2 = Date.now() + 4 * 60 * 60 * 1000;
+        const futureEnd2 = Date.now() + 5 * 60 * 60 * 1000;
+        const futureStart3 = Date.now() + 6 * 60 * 60 * 1000;
+        const futureEnd3 = Date.now() + 7 * 60 * 60 * 1000;
+
+        const mockChannels = [
+            {
+                id: 1,
+                serviceId: 101,
+                networkId: 32736,
+                name: 'テスト総合',
+                halfWidthName: 'テスト総合',
+                channelTypeId: 1,
+                channelType: 'GR',
+                channel: '27',
+                hasLogoData: false,
+            },
+        ];
+
+        const mockSchedules = [
+            {
+                channel: mockChannels[0],
+                programs: [
+                    {
+                        id: 99101,
+                        channelId: 1,
+                        startAt: futureStart1,
+                        endAt: futureEnd1,
+                        name: '【新】テストアニメ第1話',
+                        description: '未予約のテストアニメ番組です',
+                        genre1: 7,
+                    },
+                    {
+                        id: 99102,
+                        channelId: 1,
+                        startAt: futureStart2,
+                        endAt: futureEnd2,
+                        name: '手動予約テスト番組',
+                        description: '手動で予約済みのテスト番組です',
+                        genre1: 0,
+                    },
+                    {
+                        id: 99103,
+                        channelId: 1,
+                        startAt: futureStart3,
+                        endAt: futureEnd3,
+                        name: 'ルール予約テスト番組',
+                        description: 'ルールによって自動予約された番組です',
+                        genre1: 1,
+                    },
+                ],
+            },
+        ];
+
+        let reserves = [
+            {
+                id: 501,
+                programId: 99102,
+                channelId: 1,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: false,
+                ruleId: undefined,
+                allowEndLack: true,
+            },
+            {
+                id: 502,
+                programId: 99103,
+                channelId: 1,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: false,
+                ruleId: 42,
+                allowEndLack: true,
+            },
+        ];
+
+        await page.route('**/api/channels*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockChannels) });
+        });
+        await page.route('**/api/schedules*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSchedules) });
+        });
+        await page.route('**/api/reserves*', async route => {
+            if (route.request().method() === 'POST') {
+                const postData = route.request().postDataJSON();
+                const newReserve = {
+                    id: 999,
+                    programId: postData.programId,
+                    channelId: 1,
+                    isHalfWidth: true,
+                    isSkip: false,
+                    isConflict: false,
+                    ruleId: undefined,
+                    allowEndLack: postData.allowEndLack ?? true,
+                };
+                reserves.push(newReserve);
+                await route.fulfill({
+                    status: 201,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ reserveId: 999 }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ reserves }),
+            });
+        });
+        await page.route('**/api/reserves/501*', async route => {
+            if (route.request().method() === 'DELETE') {
+                reserves = reserves.filter(r => r.id !== 501);
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+            await route.continue();
+        });
+        await page.route('**/api/recording*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ records: [] }),
+            });
+        });
+
+        await page.goto('/guide');
+
+        // 1. 未予約番組をクリックしてモーダルを開き、録画予約を実行
+        const unreservedBtn = page.getByRole('button', { name: /【新】テストアニメ第1話/ });
+        await expect(unreservedBtn).toBeVisible({ timeout: 10000 });
+        await unreservedBtn.click();
+
+        // モーダルが開いたことを確認
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.getByRole('dialog').getByText('【新】テストアニメ第1話')).toBeVisible();
+
+        // 「録画予約する」ボタンをクリック
+        const addReserveBtn = page.getByRole('button', { name: '録画予約する' });
+        await expect(addReserveBtn).toBeVisible();
+        await addReserveBtn.click();
+
+        // スナックバー成功通知の確認
+        await expect(page.getByText('「【新】テストアニメ第1話」を録画予約しました')).toBeVisible();
+
+        // 2. 「ルール検索へ」ボタンの遷移検証
+        // 番組を再度クリックしてモーダルを開く
+        await unreservedBtn.click();
+        const searchRuleBtn = page.getByRole('button', { name: 'ルール検索へ' });
+        await expect(searchRuleBtn).toBeVisible();
+        await searchRuleBtn.click();
+
+        // 記号が除去されたキーワードで /search に遷移すること
+        await page.waitForURL(/\/search\?keyword=/);
+        expect(page.url()).toContain(
+            'keyword=%E3%83%86%E3%82%B9%E3%83%88%E3%82%A2%E3%83%8B%E3%83%A1%E7%AC%AC1%E8%A9%B1',
+        ); // テストアニメ第1話
+
+        // 3. 再度ガイドに戻り、手動予約済み番組の予約解除を検証
+        await page.goto('/guide');
+        const manualReservedBtn = page.getByRole('button', { name: /手動予約テスト番組/ });
+        await expect(manualReservedBtn).toBeVisible({ timeout: 10000 });
+        await manualReservedBtn.click();
+
+        // 予約解除ボタンの確認と実行
+        const cancelReserveBtn = page.getByRole('button', { name: '予約解除' });
+        await expect(cancelReserveBtn).toBeVisible();
+        await cancelReserveBtn.click();
+
+        // スナックバー成功通知の確認
+        await expect(page.getByText('「手動予約テスト番組」の予約を解除しました')).toBeVisible();
+        await expect(page.getByRole('dialog')).not.toBeVisible();
+
+        // 4. ルール予約番組をクリックし、「ルールを編集」ボタンの遷移検証
+        const ruleReservedBtn = page.getByRole('button', { name: /ルール予約テスト番組/ });
+        await expect(ruleReservedBtn).toBeVisible({ timeout: 10000 });
+        await ruleReservedBtn.click();
+
+        const editRuleBtn = page.getByRole('button', { name: 'ルールを編集' });
+        await expect(editRuleBtn).toBeVisible();
+        await editRuleBtn.click();
+
+        // /rule/edit?ruleId=42 への遷移を検証
+        await page.waitForURL(/\/rule\/edit\?ruleId=42/);
+    });
 });

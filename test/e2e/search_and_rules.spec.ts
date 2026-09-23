@@ -321,4 +321,73 @@ test.describe('Search and Rules Management Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should pass search conditions to rule edit page when clicking create rule buttons', async ({ page }) => {
+        const mockPrograms = [
+            {
+                id: 1001,
+                channelId: 1,
+                startAt: Date.now() + 3600000,
+                endAt: Date.now() + 7200000,
+                name: '【字】スペシャル探偵物語 第1話',
+                description: '難事件に挑む名探偵の活躍を描くドラマ',
+                extended: '出演: 山田太郎 ほか',
+                genre1: 3,
+                channel: {
+                    id: 1,
+                    serviceId: 101,
+                    networkId: 32736,
+                    name: 'テスト総合',
+                    halfWidthName: 'テスト総合',
+                    channelType: 'GR',
+                    channel: '27',
+                },
+            },
+        ];
+
+        await page.route('**/api/schedules/search*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockPrograms),
+            });
+        });
+
+        await page.goto('/search');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 検索バーにキーワードを入力して検索
+        const searchInput = page.getByPlaceholder(/番組名やキーワード/);
+        await searchInput.fill('探偵物語');
+        const searchBtn = page.getByRole('button', { name: '検索', exact: true });
+        await searchBtn.click();
+
+        // 検索結果カードが表示されることを確認
+        await expect(page.getByText('【字】スペシャル探偵物語 第1話')).toBeVisible();
+
+        // 2. 「この条件でルール作成」ボタンをクリック
+        const createRuleFromConditionBtn = page.getByRole('button', { name: 'この条件でルール作成' });
+        await expect(createRuleFromConditionBtn).toBeVisible();
+        await createRuleFromConditionBtn.click();
+
+        // /rule/edit に遷移し、クエリパラメータと入力欄にキーワードが引き継がれていることを確認
+        await page.waitForURL(/\/rule\/edit\?.*keyword=/);
+        expect(page.url()).toContain('keyword=%E6%8E%A2%E5%81%B5%E7%89%A9%E8%AA%9E'); // 探偵物語
+        const ruleKeywordInput = page.getByPlaceholder('例: 葬送のフリーレン');
+        await expect(ruleKeywordInput).toHaveValue('探偵物語');
+
+        // 3. 再度 /search に戻り、番組カードの「ルール作成」ボタンをクリック
+        await page.goto('/search?keyword=%E6%8E%A2%E5%81%B5%E7%89%A9%E8%AA%9E');
+        await page.waitForLoadState('networkidle');
+        await expect(page.getByText('【字】スペシャル探偵物語 第1話')).toBeVisible();
+
+        // 番組カード内の「ルール作成」ボタンをクリック
+        const cardRuleBtn = page.getByRole('button', { name: 'ルール作成', exact: true });
+        await expect(cardRuleBtn).toBeVisible();
+        await cardRuleBtn.click();
+
+        // /rule/edit に遷移し、記号除去後のタイトル（「スペシャル探偵物語」）がプリフィルされていること
+        await page.waitForURL(/\/rule\/edit\?.*keyword=/);
+        await expect(ruleKeywordInput).toHaveValue('スペシャル探偵物語');
+    });
 });

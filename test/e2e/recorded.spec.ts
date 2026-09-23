@@ -648,4 +648,116 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should open thumbnail recreation modal, specify time, and request recreation', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockDetail = {
+            id: 701,
+            name: 'サムネイル再作成テスト番組',
+            description: 'サムネイル再作成の動作確認用番組',
+            startAt: 1710000000000,
+            endAt: 1710003600000,
+            duration: 3600,
+            isRecording: false,
+            thumbnails: [888],
+            videoFiles: [
+                {
+                    id: 901,
+                    name: 'test_video.mp4',
+                    filename: 'test_video.mp4',
+                    type: 'encoded',
+                    size: 104857600,
+                },
+            ],
+            channel: {
+                id: 1,
+                name: 'テスト局',
+                channelType: 'GR',
+            },
+        };
+
+        let thumbnailPostCalled = false;
+        let requestedSeconds = '';
+        let requestedReplace = '';
+
+        await page.route('**/api/recorded/701*', async route => {
+            if (route.request().url().includes('/history')) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ hasHistory: false }),
+                });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDetail) });
+        });
+
+        await page.route('**/api/thumbnails/888*', async route => {
+            await route.fulfill({ status: 200, contentType: 'image/jpeg', body: Buffer.from('') });
+        });
+
+        await page.route('**/api/thumbnails/videos/901*', async route => {
+            if (route.request().method() === 'POST') {
+                thumbnailPostCalled = true;
+                const url = new URL(route.request().url());
+                requestedSeconds = url.searchParams.get('seconds') || '';
+                requestedReplace = url.searchParams.get('replace') || '';
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ id: 888 }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.goto('/recorded/detail?recordedId=701');
+        await page.waitForLoadState('networkidle');
+
+        // サムネイル上のカメラボタン「サムネイルを再作成」をクリック
+        const cameraBtn = page.getByRole('button', { name: 'サムネイルを再作成' });
+        await expect(cameraBtn).toBeVisible({ timeout: 5000 });
+        await cameraBtn.click();
+
+        // モーダルが表示されること
+        const modal = page.getByRole('dialog');
+        await expect(modal).toBeVisible();
+        await expect(modal.getByText('サムネイル再作成')).toBeVisible();
+
+        // 時間入力欄に「00:01:30」を入力（90秒）
+        const timeInput = modal.locator('input[type="text"]');
+        await timeInput.fill('00:01:30');
+
+        // 「再作成を実行」ボタンをクリック
+        const submitBtn = modal.getByRole('button', { name: /再作成を実行/ });
+        await expect(submitBtn).toBeEnabled();
+        await submitBtn.click();
+
+        // API リクエストが送信され、パラメータが正しいこと
+        expect(thumbnailPostCalled).toBe(true);
+        expect(requestedSeconds).toBe('90');
+        expect(requestedReplace).toBe('true');
+
+        // 成功通知が表示され、モーダルが閉じること
+        await expect(page.getByText('サムネイルの再作成をリクエストしました')).toBeVisible();
+        await expect(modal).not.toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

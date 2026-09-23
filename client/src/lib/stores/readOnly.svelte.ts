@@ -133,6 +133,14 @@ class ReadOnlyStore {
                 this.isModalOpen = false;
                 setAuthToken(data.token);
             }
+        } else {
+            const errData = await res.json().catch(() => ({}));
+            const error = new Error('Authentication failed');
+            (error as { response?: { status?: number; data?: unknown } }).response = {
+                status: res.status,
+                data: errData,
+            };
+            throw error;
         }
     }
 

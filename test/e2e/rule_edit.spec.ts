@@ -348,4 +348,212 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should restore search query and scroll position when returning from rule edit via cancel or back button', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // 30件のモックルールを生成
+        const manyRules = Array.from({ length: 30 }, (_, i) => ({
+            id: i + 1,
+            searchOption: {
+                keyword: i === 24 ? 'スクロールテスト番組ターゲット' : `通常ルール ${i + 1}`,
+            },
+            reserveOption: {
+                enable: true,
+                priority: 5,
+            },
+        }));
+
+        await page.route(/\/api\/rules(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                const url = new URL(route.request().url());
+                const kw = url.searchParams.get('keyword');
+                if (kw) {
+                    const filtered = manyRules.filter(r => r.searchOption.keyword.includes(kw));
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ rules: filtered, total: filtered.length }),
+                    });
+                } else {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ rules: manyRules, total: manyRules.length }),
+                    });
+                }
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route(/\/api\/rules\/\d+(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                const id = parseInt(
+                    route
+                        .request()
+                        .url()
+                        .match(/\/api\/rules\/(\d+)/)?.[1] || '1',
+                    10,
+                );
+                const found = manyRules.find(r => r.id === id) || manyRules[0];
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(found),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. ルール一覧にアクセス
+        await page.goto('/rule');
+        await page.waitForLoadState('networkidle');
+
+        // 25番目のルール（下の方）をクリックして編集画面へ遷移
+        const targetRow = page.locator('#rule-item-25');
+        await expect(targetRow).toBeVisible();
+        await targetRow.click();
+
+        await page.waitForURL(/\/rule\/edit\?ruleId=25/);
+        await expect(page.locator('h1')).toContainText('ルール編集');
+
+        // 2. ヘッダーの「←」ボタンをクリックしてルール一覧へ戻る
+        const backBtn = page.getByRole('button', { name: 'ルール一覧に戻る' });
+        await expect(backBtn).toBeVisible();
+        await backBtn.click();
+
+        await page.waitForURL(/\/rule$/);
+        const restoredRow = page.locator('#rule-item-25');
+        await expect(restoredRow).toBeVisible();
+        await expect(restoredRow).toBeInViewport();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should restore search query and scroll position when saving an edited rule', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // 30件のモックルール
+        const manyRules = Array.from({ length: 30 }, (_, i) => ({
+            id: i + 1,
+            searchOption: {
+                keyword: `アニメ番組 第${i + 1}話`,
+            },
+            reserveOption: {
+                enable: true,
+                priority: 5,
+            },
+        }));
+
+        await page.route(/\/api\/rules(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                const url = new URL(route.request().url());
+                const kw = url.searchParams.get('keyword');
+                if (kw) {
+                    const filtered = manyRules.filter(r => r.searchOption.keyword.includes(kw));
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ rules: filtered, total: filtered.length }),
+                    });
+                } else {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ rules: manyRules, total: manyRules.length }),
+                    });
+                }
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route(/\/api\/rules\/\d+(\?.*)?$/, async route => {
+            const method = route.request().method();
+            if (method === 'GET') {
+                const id = parseInt(
+                    route
+                        .request()
+                        .url()
+                        .match(/\/api\/rules\/(\d+)/)?.[1] || '1',
+                    10,
+                );
+                const found = manyRules.find(r => r.id === id) || manyRules[0];
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(found),
+                });
+                return;
+            }
+            if (method === 'PUT') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ code: 200 }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. キーワード絞り込み状態のルール一覧にアクセス
+        await page.goto('/rule?keyword=%E3%82%A2%E3%83%8B%E3%83%A1');
+        await page.waitForLoadState('networkidle');
+
+        // 20番目のルールをクリック
+        const targetRow = page.locator('#rule-item-20');
+        await expect(targetRow).toBeVisible();
+        await targetRow.click();
+
+        await page.waitForURL(/\/rule\/edit\?ruleId=20/);
+
+        // 2. 「ルールを更新する」ボタンをクリックして保存
+        const saveBtn = page.getByRole('button', { name: 'ルールを更新する' });
+        await expect(saveBtn).toBeVisible();
+        await saveBtn.click();
+
+        // 3. ルール一覧へ復帰し、クエリパラメータが維持されていることを検証
+        await page.waitForURL(/\/rule\?keyword=/);
+        expect(page.url()).toContain('keyword=');
+
+        // 4. 更新したルール20の要素が Viewport 内にある（スクロール復帰）ことを検証
+        const restoredRow = page.locator('#rule-item-20');
+        await expect(restoredRow).toBeVisible();
+        await expect(restoredRow).toBeInViewport();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

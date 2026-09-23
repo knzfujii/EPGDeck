@@ -92,3 +92,83 @@ export function consumeLastRecordedTargetId(): number | null {
 
     return null;
 }
+
+export const LAST_RULE_PATH_KEY = 'epgdeck_last_rule_path';
+
+/**
+ * ルール一覧画面（/rule?...）のパスをセッションストレージに保存する。
+ * 編集画面（/rule/edit）などのパスは保存しない。
+ */
+export function saveLastRulePath(path: string): void {
+    const storage = getSessionStorage();
+    if (!storage) return;
+
+    try {
+        const pathname = path.split('?')[0];
+        if (pathname === '/rule') {
+            storage.setItem(LAST_RULE_PATH_KEY, path);
+        }
+    } catch {
+        // ignore
+    }
+}
+
+/**
+ * セッションストレージから直前に訪問したルール一覧画面のパスを取得する。
+ * 未保存または不正な値の場合はデフォルトの '/rule' を返す。
+ */
+export function getLastRulePath(): string {
+    const storage = getSessionStorage();
+    if (!storage) return '/rule';
+
+    try {
+        const saved = storage.getItem(LAST_RULE_PATH_KEY);
+        if (saved) {
+            const pathname = saved.split('?')[0];
+            if (pathname === '/rule') {
+                return saved;
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    return '/rule';
+}
+
+export const LAST_RULE_TARGET_ID_KEY = 'epgdeck_last_rule_target_id';
+
+/**
+ * ルール一覧から編集画面等へ遷移する際に対象ルールIDを一時保存する。
+ */
+export function saveLastRuleTargetId(id: number): void {
+    const storage = getSessionStorage();
+    if (!storage) return;
+
+    try {
+        storage.setItem(LAST_RULE_TARGET_ID_KEY, String(id));
+    } catch {
+        // ignore
+    }
+}
+
+/**
+ * ルール一覧へ復帰した際に対象ルールIDを取得し、次回以降の重複スクロールを防ぐため即座に消費（削除）する。
+ */
+export function consumeLastRuleTargetId(): number | null {
+    const storage = getSessionStorage();
+    if (!storage) return null;
+
+    try {
+        const saved = storage.getItem(LAST_RULE_TARGET_ID_KEY);
+        if (saved) {
+            storage.removeItem(LAST_RULE_TARGET_ID_KEY);
+            const parsed = parseInt(saved, 10);
+            return Number.isNaN(parsed) ? null : parsed;
+        }
+    } catch {
+        // ignore
+    }
+
+    return null;
+}

@@ -5,6 +5,11 @@ import {
     getLastRecordedPath,
     saveLastRecordedTargetId,
     consumeLastRecordedTargetId,
+    LAST_RULE_PATH_KEY,
+    saveLastRulePath,
+    getLastRulePath,
+    saveLastRuleTargetId,
+    consumeLastRuleTargetId,
 } from '../../client/src/lib/navigationHistory.js';
 
 describe('navigationHistory', () => {
@@ -93,5 +98,31 @@ describe('navigationHistory', () => {
 
         mockStorage['epgdeck_last_recorded_target_id'] = 'invalid-number';
         expect(consumeLastRecordedTargetId()).toBeNull();
+    });
+
+    it('should save and get last rule path', () => {
+        expect(getLastRulePath()).toBe('/rule');
+
+        saveLastRulePath('/rule?keyword=%E3%82%A2%E3%83%8B%E3%83%A1');
+        expect(sessionStorage.setItem).toHaveBeenCalledWith(
+            LAST_RULE_PATH_KEY,
+            '/rule?keyword=%E3%82%A2%E3%83%8B%E3%83%A1',
+        );
+        expect(getLastRulePath()).toBe('/rule?keyword=%E3%82%A2%E3%83%8B%E3%83%A1');
+
+        // /rule/edit などのパスは保存しない
+        saveLastRulePath('/rule/edit?ruleId=10');
+        expect(getLastRulePath()).toBe('/rule?keyword=%E3%82%A2%E3%83%8B%E3%83%A1');
+    });
+
+    it('should save and consume last rule target ID (one-time)', () => {
+        saveLastRuleTargetId(42);
+        expect(sessionStorage.setItem).toHaveBeenCalledWith('epgdeck_last_rule_target_id', '42');
+
+        const consumed = consumeLastRuleTargetId();
+        expect(consumed).toBe(42);
+        expect(sessionStorage.removeItem).toHaveBeenCalledWith('epgdeck_last_rule_target_id');
+
+        expect(consumeLastRuleTargetId()).toBeNull();
     });
 });

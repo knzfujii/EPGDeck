@@ -8,6 +8,7 @@
     import { configStore } from '../lib/stores/config.svelte';
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
+    import { getLastRulePath, saveLastRuleTargetId } from '../lib/navigationHistory';
     import { getChannelTypeBadgeClass, getGenreBadgeClass } from '../lib/utils/format';
     import {
         ArrowLeft,
@@ -930,21 +931,30 @@
                     param: { ruleId: String(ruleId) },
                     json: payload,
                 });
+                saveLastRuleTargetId(ruleId);
                 snackbar.open({ text: `ルール「${ruleName}」を更新しました`, color: 'success' });
             } else {
-                await api.rules.$post({
+                const res = await api.rules.$post({
                     json: payload,
                 });
+                const data = (await res.json()) as { ruleId?: number } | undefined;
+                if (data?.ruleId) {
+                    saveLastRuleTargetId(data.ruleId);
+                }
                 snackbar.open({ text: `新規ルール「${ruleName}」を作成しました`, color: 'success' });
             }
 
-            router.push('/rule');
+            goBackToRuleList();
         } catch (e) {
             console.error('Failed to save rule', e);
             snackbar.open({ text: 'ルールの保存に失敗しました', color: 'error' });
         } finally {
             isSaving = false;
         }
+    }
+
+    function goBackToRuleList() {
+        router.push(getLastRulePath());
     }
 </script>
 
@@ -953,7 +963,7 @@
     <div class="flex items-center gap-3">
         <button
             type="button"
-            onclick={() => router.push('/rule')}
+            onclick={goBackToRuleList}
             class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
             aria-label="ルール一覧に戻る"
         >
@@ -2196,7 +2206,7 @@
             <div
                 class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
-                <button type="button" onclick={() => router.push('/rule')} class="btn-secondary cursor-pointer">
+                <button type="button" onclick={goBackToRuleList} class="btn-secondary cursor-pointer">
                     キャンセル
                 </button>
                 {#if !readOnlyStore.isReadOnly}

@@ -1,11 +1,12 @@
 <script lang="ts">
-    import { onMount, untrack } from 'svelte';
+    import { onMount, untrack, tick } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { confirmDialog } from '../lib/stores/confirm.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
+    import { saveLastRulePath, saveLastRuleTargetId, consumeLastRuleTargetId } from '../lib/navigationHistory';
     import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
@@ -120,6 +121,21 @@
         } finally {
             isLoading = false;
         }
+
+        // 直前に編集・保存したルールIDが存在する場合はその位置へ自動スクロール
+        const targetId = consumeLastRuleTargetId();
+        if (targetId !== null) {
+            await tick();
+            requestAnimationFrame(() => {
+                const elements = document.querySelectorAll<HTMLElement>(`[data-rule-id="${targetId}"]`);
+                for (const el of elements) {
+                    if (el.offsetParent !== null) {
+                        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                        break;
+                    }
+                }
+            });
+        }
     }
 
     onMount(async () => {
@@ -151,6 +167,13 @@
                 fetchRules(qKeyword);
             }
         });
+    });
+
+    // 直近のルール一覧パス（クエリ付き）をセッションストレージに自動保存
+    $effect(() => {
+        if (router.current.pathname === '/rule') {
+            saveLastRulePath(router.current.path);
+        }
     });
 
     function handleSearch() {
@@ -187,6 +210,7 @@
 
     // 編集ページへ遷移
     function goEditRule(rule: apid.Rule) {
+        saveLastRuleTargetId(rule.id);
         router.push(`/rule/edit?ruleId=${rule.id}`);
     }
 
@@ -388,6 +412,8 @@
                     {@const genreId = opt.genres?.[0]?.genre}
                     {@const prio = r.reserveOption?.priority ?? 5}
                     <div
+                        id="rule-card-{r.id}"
+                        data-rule-id={r.id}
                         role="button"
                         tabindex="0"
                         onclick={() => goEditRule(r)}
@@ -682,6 +708,8 @@
                                 {@const genreId = opt.genres?.[0]?.genre}
                                 {@const prio = r.reserveOption?.priority ?? 5}
                                 <tr
+                                    id="rule-item-{r.id}"
+                                    data-rule-id={r.id}
                                     onclick={() => goEditRule(r)}
                                     class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled
                                         ? ''

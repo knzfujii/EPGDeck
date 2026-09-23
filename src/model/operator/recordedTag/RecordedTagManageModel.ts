@@ -56,7 +56,10 @@ export default class RecordedTagManageModel implements IRecordedTagManageModel {
      * @return Promise<void>
      */
     public async update(tagId: apid.RecordedTagId, name: string, color: string): Promise<void> {
-        await this.recordedTagDB.updateOnce(tagId, name, color);
+        await this.recordedTagDB.updateOnce(tagId, name, color).catch(err => {
+            this.log.system.error(`update tag error tagId: ${tagId} name: ${name}`);
+            throw err;
+        });
         this.log.system.info(`update tag name tagId: ${tagId}, name: ${name}`);
 
         // notify
@@ -87,7 +90,7 @@ export default class RecordedTagManageModel implements IRecordedTagManageModel {
      */
     public async delete(tagId: apid.RecordedTagId): Promise<void> {
         await this.recordedTagDB.deleteOnce(tagId).catch(err => {
-            this.log.system.error(`delete tag error: ${name}`);
+            this.log.system.error(`delete tag error: ${tagId}`);
             throw err;
         });
         this.log.system.info(`delete tag id: ${tagId}`);

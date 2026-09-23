@@ -24,8 +24,9 @@ graph TD
 | **単体テスト** | ビジネスロジック、Hono ルート、Drizzle Helper、設定パース、Client HTTP | Node.js + Vitest (SQLite インメモリ `:memory:`) | 約 1.8 秒 | `npm test` |
 | **ESM スモークテスト** | Node.js ネイティブでの CJS/ESM 相互運用、全外部依存のインスタンス化、CLI 構文検査 | Node.js 直接実行（Vitest 非経由） | 約 0.05 秒 | `npm run test:esm` |
 | **実機結合テスト** | MySQL / MariaDB 固有の方言、インデックス作成、Auto-Increment ID、主要 DAO CRUD | Node.js + Vitest (Docker コンテナ: ポート 13306) | 約 3 秒 | `npm run test:mysql` |
-| **E2E テスト** | 全画面（12画面）、ユーザー導線、フォーム入力、モーダル、リアルタイム更新 | Playwright + Chromium (スタンドアロン E2E サーバー) | 約 8 秒 | `npm run test:e2e` |
-| **総合チェック (DoD)** | サーバー・クライアント並列検証 ＋ E2E テスト | 全レイヤー | 約 30〜40 秒 | `npm run check` |
+| **E2E テスト (単一ファイル)** | 特定画面・機能の E2E スペック単体実行（反復開発用） | Playwright + Chromium (スタンドアロン E2E サーバー) | 約 1.5〜2 秒 | `npm run test:e2e:file -- <path>` |
+| **E2E テスト (全件)** | 全画面（12画面）、ユーザー導線、フォーム入力、モーダル、リアルタイム更新 | Playwright + Chromium (スタンドアロン E2E サーバー) | 約 24 秒 | `npm run test:e2e` |
+| **総合チェック (DoD)** | サーバー・クライアント並列検証 ＋ E2E テスト全件（全レイヤー完全性保証） | 全レイヤー | 約 30〜40 秒 | `npm run check` |
 
 ---
 
@@ -152,6 +153,16 @@ Playwright は 1 つのロケータに対して複数要素がヒットすると
    - 背景画面とモーダルで「削除」「キャンセル」等のボタンが重複するため、必ず `page.getByRole('dialog')` 内で取得する。
 3. **リスト行内の個別アクションボタン**:
    - 親コンテナにも同じテキストが含まれる場合、`page.getByTitle('この動画ファイルのみ削除').first()` や `row.locator(...)` で一意性を担保する。
+
+### 4.7 開発サイクルに応じた実行の使い分け（高速反復 vs 全件保証）
+開発の待ち時間を最小化しつつ、他画面へのリグレッションを確実に防止するため、以下の二段階で使い分けます：
+
+1. **UI 実装・試行錯誤中（高速反復）**:
+   - `npm run test:e2e:file -- test/e2e/<spec>.spec.ts`
+   - 対象スペックファイルのみを実行。ローカル Web サーバーがすでに起動している場合は約 1.5〜2 秒で即座にフィードバックが得られます。
+2. **コミット前・作業完了時（DoD / 総合保証）**:
+   - `npm run check`（または `npm run test:e2e`）
+   - 全 63 シナリオを一括実行し、全画面・全コンポーネントへの意図しない波及（リグレッション）がゼロであることを 100% 保証します。
 
 ---
 

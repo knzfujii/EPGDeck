@@ -49,6 +49,7 @@ export default class IPCClient implements IIPCClient {
 
     private log: ILogger;
     private listener: events.EventEmitter = new events.EventEmitter();
+    private messageHandler: ((msg: any) => Promise<void>) | null = null;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
@@ -62,7 +63,7 @@ export default class IPCClient implements IIPCClient {
         this.logManage = logManage;
 
         if (typeof process.send === 'undefined') {
-            this.log.system.fatal('bit child process');
+            this.log.system.fatal('not child process');
         }
 
         this.ipcInit();
@@ -79,7 +80,7 @@ export default class IPCClient implements IIPCClient {
      * IPC 通信初期設定
      */
     private ipcInit(): void {
-        process.on('message', async (msg: ReplyMessage | ParentMessage) => {
+        this.messageHandler = async (msg: ReplyMessage | ParentMessage) => {
             if (typeof (<ReplyMessage>msg).id !== 'undefined') {
                 // 送信したメッセージの応答
                 this.listener.emit((<ReplyMessage>msg).id.toString(10), msg);
@@ -93,7 +94,20 @@ export default class IPCClient implements IIPCClient {
                 // 親プロセス（Operator）からのログ集約
                 this.logManage.push((<PushLogMessage>msg).entry);
             }
-        });
+        };
+
+        process.on('message', this.messageHandler);
+    }
+
+    /**
+     * リソース解放・リスナー解除
+     */
+    public destroy(): void {
+        if (this.messageHandler !== null) {
+            process.removeListener('message', this.messageHandler);
+            this.messageHandler = null;
+        }
+        this.listener.removeAllListeners();
     }
 
     /**

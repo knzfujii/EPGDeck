@@ -138,7 +138,7 @@ export default class EventSetter implements IEventSetter {
                 this.log.system.error(err);
             });
             this.reservationManage.updateRule(ruleId).catch(err => {
-                this.log.system.error(`falied to update rule. ruleId: ${ruleId}`);
+                this.log.system.error(`failed to update rule. ruleId: ${ruleId}`);
                 this.log.system.error(err);
             });
         });
@@ -387,7 +387,7 @@ export default class EventSetter implements IEventSetter {
         try {
             tags = JSON.parse(tagsStr);
         } catch (err: any) {
-            this.log.system.error(`reserve tags parese error: ${tagsStr}`);
+            this.log.system.error(`reserve tags parse error: ${tagsStr}`);
             this.log.system.error(err);
 
             return;

@@ -10,7 +10,7 @@ EPGDeck では、実行速度と検証精度のバランスを取るため、3�
 
 ```mermaid
 graph TD
-    E2E["Playwright E2E テスト (全55シナリオ・画面導線・UI)"]
+    E2E["Playwright E2E テスト (全58シナリオ・画面導線・UI)"]
     Integration["MariaDB / MySQL 実機結合テスト (DDL・方言・DAO)"]
     Unit["Vitest 単体テスト (SQLite インメモリ・ロジック・約1.8秒)"]
 
@@ -129,7 +129,7 @@ GitHub Actions Runner (ubuntu-latest)
   ├── 単体テスト (SQLite)
   ├── DB 実機結合テスト (MariaDB & MySQL)
   ├── Playwright ブラウザキャッシュ復元
-  └── Playwright E2E テスト (Chromium / 全55シナリオ)
+  └── Playwright E2E テスト (Chromium / 全58シナリオ)
   ───────────────────────────────────────────────────
   ★ 所要時間: 約 2分15秒 〜 2分30秒 でオールパス
 ```

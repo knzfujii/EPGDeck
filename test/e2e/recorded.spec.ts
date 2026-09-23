@@ -901,4 +901,190 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should filter recorded items by genre chips, sync search keyword with URL query, and support history back/forward', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.route('**/api/recorded?*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    records: [],
+                    total: 0,
+                }),
+            });
+        });
+
+        await page.goto('/recorded');
+        await page.waitForLoadState('networkidle');
+
+        // 1. ジャンルチップ「アニメ」をクリック
+        const animeBtn = page.getByRole('button', { name: 'アニメ' });
+        await expect(animeBtn).toBeVisible();
+        await animeBtn.click();
+        await page.waitForURL(/genre=7/);
+        await expect(animeBtn).toHaveClass(/bg-blue-600/);
+
+        // 2. 検索キーワードを入力して送信
+        const searchInput = page.getByPlaceholder('録画を検索...');
+        await searchInput.fill('最新アニメ');
+        await searchInput.press('Enter');
+        await page.waitForURL(/genre=7/);
+        await expect(page).toHaveURL(/keyword=%E6%9C%80%E6%96%B0%E3%82%A2%E3%83%8B%E3%83%A1/);
+
+        // 3. ブラウザの「戻る」で前の状態（キーワードなし、ジャンル=7）に戻る
+        await page.goBack();
+        await page.waitForURL(url => !url.searchParams.has('keyword') && url.searchParams.get('genre') === '7');
+        await expect(searchInput).toHaveValue('');
+
+        // 4. ブラウザの「進む」でキーワードあり状態に復帰
+        await page.goForward();
+        await page.waitForURL(url => url.searchParams.get('keyword') === '最新アニメ');
+        await expect(searchInput).toHaveValue('最新アニメ');
+
+        // 5. ジャンル「すべて」をクリックしてジャンル絞り込みを解除
+        const allGenreBtn = page.getByRole('button', { name: 'すべて' }).first();
+        await allGenreBtn.click();
+        await page.waitForURL(url => !url.searchParams.has('genre'));
+        await expect(allGenreBtn).toHaveClass(/bg-blue-600/);
+
+        // 6. キーワードをクリアして Enter
+        await searchInput.clear();
+        await searchInput.press('Enter');
+        await page.waitForURL(url => !url.searchParams.has('keyword'));
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should open stream select modal on recorded detail, and delete individual video file', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        let videoFiles = [
+            {
+                id: 8001,
+                name: 'TS',
+                filename: 'sample_raw.ts',
+                type: 'ts',
+                size: 1024 * 1024 * 500,
+            },
+            {
+                id: 8002,
+                name: 'MP4',
+                filename: 'sample_encoded.mp4',
+                type: 'encoded',
+                size: 1024 * 1024 * 100,
+            },
+        ];
+
+        let deleteFileCalled = false;
+        let deletedFileId: number | null = null;
+
+        await page.route(/\/api\/recorded\/9903(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        id: 9903,
+                        channelId: 1,
+                        startAt: Date.now() - 3600000,
+                        endAt: Date.now() - 1800000,
+                        duration: 1800,
+                        name: '複数ファイル保持録画番組',
+                        description: '個別ファイル削除とストリームモーダル検証用',
+                        extended: '',
+                        genre1: 7,
+                        isProtected: false,
+                        videoFiles,
+                    }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route(/\/api\/videos\/8001/, async route => {
+            if (route.request().method() === 'DELETE') {
+                deleteFileCalled = true;
+                deletedFileId = 8001;
+                videoFiles = videoFiles.filter(f => f.id !== 8001);
+                await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.goto('/recorded/detail?recordedId=9903');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 詳細画面の表示確認
+        await expect(page.locator('h1')).toContainText('複数ファイル保持録画番組');
+
+        // 2. 「詳細再生」ボタンをクリックして再生方法選択モーダルが開くことを確認
+        const playBtn = page.getByRole('button', { name: '詳細再生' });
+        await expect(playBtn).toBeVisible();
+        await playBtn.click();
+
+        const streamModal = page.getByRole('dialog');
+        await expect(streamModal).toBeVisible();
+        await expect(streamModal.getByText('録画再生設定')).toBeVisible();
+
+        // モーダル内のキャンセルボタンをクリックして安全に閉じる
+        const cancelModalBtn = streamModal.getByRole('button', { name: 'キャンセル' });
+        await cancelModalBtn.click();
+        await expect(streamModal).not.toBeVisible();
+
+        // 3. 動画ファイル一覧のTSファイル削除ボタンを検証
+        await expect(page.getByText('sample_raw.ts')).toBeVisible();
+
+        const deleteTsBtn = page.getByTitle('この動画ファイルのみ削除').first();
+        await expect(deleteTsBtn).toBeVisible();
+        await deleteTsBtn.click();
+
+        // 確認モーダルが表示されること
+        const confirmModal = page.getByRole('dialog');
+        await expect(confirmModal.getByRole('heading', { name: '動画ファイルの削除' })).toBeVisible();
+        await expect(confirmModal.getByText(/ファイル「sample_raw.ts」を削除しますか/)).toBeVisible();
+
+        const confirmDeleteBtn = confirmModal.getByRole('button', { name: '削除' });
+        await confirmDeleteBtn.click();
+
+        // 削除 API 呼び出しとトースト確認
+        await expect.poll(() => deleteFileCalled).toBe(true);
+        expect(deletedFileId).toBe(8001);
+        await expect(page.getByText('動画ファイルを削除しました')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

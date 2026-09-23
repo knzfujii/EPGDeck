@@ -488,4 +488,70 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should validate required fields, time range, cancel action, and redirect in readOnly mode on manual reserve page', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        // 1. 手動予約ページへアクセス
+        await page.goto('/reserves/manual');
+        await page.waitForLoadState('networkidle');
+
+        await expect(page.locator('h1')).toContainText('時間指定手動予約');
+
+        const submitBtn = page.getByRole('button', { name: /予約を追加/ });
+        const nameInput = page.getByPlaceholder(/深夜アニメ/);
+        const startTimeInput = page.locator('#manual-start-time');
+        const endTimeInput = page.locator('#manual-end-time');
+
+        // 2. 番組名が空白のみの状態で送信を試みる（ブラウザバリデーション通過後にJSバリデーション発火）
+        await nameInput.fill('   ');
+        await submitBtn.click();
+        await expect(page.getByText('番組名を入力してください')).toBeVisible();
+
+        // 3. 番組名を入力し、終了日時を開始日時より前に設定して送信
+        await nameInput.fill('不正時刻テスト番組');
+        await startTimeInput.fill('2026-10-10T12:00');
+        await endTimeInput.fill('2026-10-10T11:00');
+        await submitBtn.click();
+        await expect(page.getByText('正しい開始・終了時刻を指定してください')).toBeVisible();
+
+        // 4. キャンセルボタンをクリックして予約一覧へ戻ることを確認
+        const cancelBtn = page.getByRole('button', { name: 'キャンセル' });
+        await cancelBtn.click();
+        await page.waitForURL(/\/reserves$/);
+        await expect(page.locator('h1')).toContainText('予約一覧');
+
+        // 5. 閲覧専用（readOnly）モード時のリダイレクト検証
+        await page.route('**/api/config', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    readOnly: { enabled: true, showDashboard: false },
+                }),
+            });
+        });
+
+        await page.goto('/reserves/manual');
+        await page.waitForURL(/\/recorded$/);
+        await expect(page.locator('h1')).toContainText('録画一覧');
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

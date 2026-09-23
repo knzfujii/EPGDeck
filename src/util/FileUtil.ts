@@ -7,12 +7,12 @@ namespace FileUtil {
      * @param filePath: file path
      */
     export const unlink = (filePath: string): Promise<void> => {
-        return new Promise<void>((reslove: () => void, reject: (error: Error) => void) => {
+        return new Promise<void>((resolve: () => void, reject: (error: Error) => void) => {
             fs.unlink(filePath, err => {
                 if (err) {
                     reject(err);
                 } else {
-                    reslove();
+                    resolve();
                 }
             });
         });
@@ -24,12 +24,12 @@ namespace FileUtil {
      * @param mode: mode
      */
     export const access = (filePath: string, mode: number | undefined): Promise<void> => {
-        return new Promise<void>((reslove: () => void, reject: (error: Error) => void) => {
+        return new Promise<void>((resolve: () => void, reject: (error: Error) => void) => {
             fs.access(filePath, mode, err => {
                 if (err) {
                     reject(err);
                 } else {
-                    reslove();
+                    resolve();
                 }
             });
         });
@@ -49,12 +49,12 @@ namespace FileUtil {
      * @return Promise<fs.Stats>
      */
     export const stat = (filePath: string): Promise<fs.Stats> => {
-        return new Promise<fs.Stats>((reslove: (result: fs.Stats) => void, reject: (error: Error) => void) => {
+        return new Promise<fs.Stats>((resolve: (result: fs.Stats) => void, reject: (error: Error) => void) => {
             fs.stat(filePath, (err, stats) => {
                 if (err) {
                     reject(err);
                 } else {
-                    reslove(stats);
+                    resolve(stats);
                 }
             });
         });
@@ -133,14 +133,14 @@ namespace FileUtil {
      * @return Promise<void>
      */
     export const rename = (src: string, dest: string): Promise<void> => {
-        return new Promise<void>((reslove, reject) => {
+        return new Promise<void>((resolve, reject) => {
             fs.rename(src, dest, async err => {
                 if (err) {
                     await FileUtil.unlink(dest).catch(() => {});
 
                     reject(err);
                 } else {
-                    reslove();
+                    resolve();
                 }
             });
         });

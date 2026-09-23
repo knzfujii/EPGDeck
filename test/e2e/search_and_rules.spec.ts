@@ -206,7 +206,7 @@ test.describe('Search and Rules Management Pages', () => {
             {
                 id: 3,
                 searchOption: { keyword: 'ニュース7' },
-                reserveOption: { enable: false },
+                reserveOption: { enable: true },
                 encodeOption: {
                     mode1: 'H.264',
                     mode2: 'H.265',
@@ -241,7 +241,7 @@ test.describe('Search and Rules Management Pages', () => {
         const table = page.locator('table');
 
         // 1. 初期表示: 全3件
-        await expect(page.locator('text=登録済みルール: 3 件')).toBeVisible();
+        await expect(page.locator('text=表示中: 3 件')).toBeVisible();
         await expect(table.getByText('機動戦士ガンダム')).toBeVisible();
         await expect(table.getByText('日曜朝アニメ')).toBeVisible();
         await expect(table.getByText('ニュース7')).toBeVisible();
@@ -287,7 +287,7 @@ test.describe('Search and Rules Management Pages', () => {
         await clearFilterBtn.click();
         await expect(page).toHaveURL(/\/rule(\?.*)?$/);
         await expect(page.url()).not.toContain('keyword=');
-        await expect(page.locator('text=登録済みルール: 3 件')).toBeVisible();
+        await expect(page.locator('text=表示中: 3 件')).toBeVisible();
         await expect(table.getByText('機動戦士ガンダム')).toBeVisible();
         await expect(table.getByText('ニュース7')).toBeVisible();
 
@@ -295,12 +295,12 @@ test.describe('Search and Rules Management Pages', () => {
         await searchInput.fill('存在しない架空タイトル');
         await searchInput.press('Enter');
         await expect(
-            page.locator('text=「存在しない架空タイトル」に一致するルールは見つかりませんでした'),
+            page.locator('text=「存在しない架空タイトル」に一致する有効なルールは見つかりませんでした'),
         ).toBeVisible();
-        const emptyClearBtn = page.locator('button.btn-secondary', { hasText: '絞り込みを解除' });
+        const emptyClearBtn = page.locator('button.btn-secondary', { hasText: 'キーワード絞り込みを解除' });
         await expect(emptyClearBtn).toBeVisible();
         await emptyClearBtn.click();
-        await expect(page.locator('text=登録済みルール: 3 件')).toBeVisible();
+        await expect(page.locator('text=表示中: 3 件')).toBeVisible();
         await expect(table.getByText('機動戦士ガンダム')).toBeVisible();
 
         // 7. モバイルビューポート (390x844) での動作検証
@@ -317,6 +317,105 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(mobileCard.getByText('H.265')).toBeVisible();
         await expect(mobileCard.getByText('VP9')).toBeVisible();
         await expect(mobileCard.getByText('TS削除')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should filter rules by status (enabled, disabled, all) with count badges and URL query sync', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const statusMockRules = [
+            {
+                id: 101,
+                searchOption: { keyword: '有効ルール1' },
+                reserveOption: { enable: true },
+            },
+            {
+                id: 102,
+                searchOption: { keyword: '有効ルール2' },
+                reserveOption: { enable: true },
+            },
+            {
+                id: 103,
+                searchOption: { keyword: '無効ルール1' },
+                reserveOption: { enable: false },
+            },
+        ];
+
+        await page.route('**/api/rules?*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ rules: statusMockRules, total: statusMockRules.length }),
+            });
+        });
+
+        // 1. デフォルトアクセス: 有効ルールのみ（2件）が表示されること
+        await page.goto('/rule');
+        await page.waitForLoadState('networkidle');
+
+        const table = page.locator('table');
+        const enabledBtn = page.getByRole('button', { name: /有効 \(2\)/ });
+        const disabledBtn = page.getByRole('button', { name: /無効 \(1\)/ });
+        const allBtn = page.getByRole('button', { name: /すべて \(3\)/ });
+
+        await expect(enabledBtn).toBeVisible();
+        await expect(disabledBtn).toBeVisible();
+        await expect(allBtn).toBeVisible();
+
+        await expect(table.getByText('有効ルール1')).toBeVisible();
+        await expect(table.getByText('有効ルール2')).toBeVisible();
+        await expect(table.getByText('無効ルール1')).not.toBeVisible();
+        await expect(page.locator('text=表示中: 2 件')).toBeVisible();
+
+        // 2. 「無効 (1)」タブをクリック -> URL に ?status=disabled が付き、無効ルールのみ表示
+        await disabledBtn.click();
+        await page.waitForURL(/\/rule\?status=disabled/);
+        await expect(table.getByText('無効ルール1')).toBeVisible();
+        await expect(table.getByText('有効ルール1')).not.toBeVisible();
+        await expect(table.getByText('有効ルール2')).not.toBeVisible();
+        await expect(page.locator('text=表示中: 1 件')).toBeVisible();
+
+        // 3. 「すべて (3)」タブをクリック -> URL に ?status=all が付き、全3件表示
+        await allBtn.click();
+        await page.waitForURL(/\/rule\?status=all/);
+        await expect(table.getByText('有効ルール1')).toBeVisible();
+        await expect(table.getByText('有効ルール2')).toBeVisible();
+        await expect(table.getByText('無効ルール1')).toBeVisible();
+        await expect(page.locator('text=表示中: 3 件')).toBeVisible();
+
+        // 4. 「有効 (2)」タブをクリック -> URL から status が外れクリーンな /rule に復元
+        await enabledBtn.click();
+        await page.waitForURL(/\/rule$/);
+        await expect(table.getByText('有効ルール1')).toBeVisible();
+        await expect(table.getByText('無効ルール1')).not.toBeVisible();
+
+        // 5. ブラウザバックの検証: 有効 -> すべて -> 無効
+        await page.goBack();
+        await expect(page).toHaveURL(/status=all/);
+        await expect(table.getByText('無効ルール1')).toBeVisible();
+        await expect(table.getByText('有効ルール1')).toBeVisible();
+
+        await page.goBack();
+        await expect(page).toHaveURL(/status=disabled/);
+        await expect(table.getByText('無効ルール1')).toBeVisible();
+        await expect(table.getByText('有効ルール1')).not.toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
@@ -466,7 +565,7 @@ test.describe('Search and Rules Management Pages', () => {
             await route.continue();
         });
 
-        await page.goto('/rule');
+        await page.goto('/rule?status=all');
         await page.waitForLoadState('networkidle');
 
         const table = page.locator('table');

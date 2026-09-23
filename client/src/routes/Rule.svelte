@@ -61,14 +61,43 @@
         return weekStr;
     }
 
+    type RuleFilterStatus = 'enabled' | 'disabled' | 'all';
+
+    function parseFilterStatus(statusParam?: string): RuleFilterStatus {
+        if (statusParam === 'disabled') return 'disabled';
+        if (statusParam === 'all') return 'all';
+        return 'enabled';
+    }
+
+    let filterStatus = $state<RuleFilterStatus>(parseFilterStatus(router.current.query.status));
+
     let keyword = $state(router.current.query.keyword || '');
     let activeKeyword = $state(router.current.query.keyword || '');
+
+    let enabledCount = $derived(rules.filter(r => r.reserveOption?.enable !== false).length);
+    let disabledCount = $derived(rules.filter(r => r.reserveOption?.enable === false).length);
+    let allCount = $derived(rules.length);
+
+    let filteredRules = $derived(
+        filterStatus === 'enabled'
+            ? rules.filter(r => r.reserveOption?.enable !== false)
+            : filterStatus === 'disabled'
+              ? rules.filter(r => r.reserveOption?.enable === false)
+              : rules,
+    );
+
+    function setFilterStatus(status: RuleFilterStatus) {
+        if (filterStatus === status) return;
+        filterStatus = status;
+        router.setQuery({ status: status === 'enabled' ? null : status });
+        scrollToTop();
+    }
 
     async function fetchRules(kw: string = activeKeyword) {
         isLoading = true;
         try {
             const query: Parameters<typeof api.rules.$get>[0]['query'] = {
-                limit: 100,
+                limit: 1000,
                 isHalfWidth: true,
                 type: 'all',
             };
@@ -154,19 +183,28 @@
         }
 
         const qKeyword = router.current.query.keyword || '';
+        const qStatus = parseFilterStatus(router.current.query.status);
 
         untrack(() => {
             if (!isInitialized) {
                 isInitialized = true;
                 keyword = qKeyword;
                 activeKeyword = qKeyword;
+                filterStatus = qStatus;
                 fetchRules(qKeyword);
                 return;
             }
 
+            let needFetch = false;
             if (qKeyword !== activeKeyword) {
                 keyword = qKeyword;
                 activeKeyword = qKeyword;
+                needFetch = true;
+            }
+            if (qStatus !== filterStatus) {
+                filterStatus = qStatus;
+            }
+            if (needFetch) {
                 fetchRules(qKeyword);
             }
         });
@@ -242,6 +280,7 @@
                 await api.rules[':ruleId'].disable.$put({ param: { ruleId: String(rule.id) } });
             }
             rule.reserveOption.enable = isEnable;
+            rules = [...rules];
             snackbar.open({ text: `ルールを${isEnable ? '有効' : '無効'}にしました`, color: 'success' });
         } catch (e) {
             console.error('Toggle rule error', e);
@@ -295,7 +334,7 @@
     <div class="space-y-5 w-full max-w-full min-w-0">
         <!-- ヘッダーツールバー -->
         <div
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -305,14 +344,21 @@
                 <div class="flex items-center gap-2 flex-wrap mt-0.5">
                     <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                         {#if activeKeyword}
-                            絞り込み結果: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
+                            絞り込み結果: <span class="font-bold text-slate-800 dark:text-slate-200">
+                                {filteredRules.length}
+                            </span>
                             件
                             {#if totalAllRules > 0}
                                 <span class="text-slate-400">（全 {totalAllRules} 件）</span>
                             {/if}
                         {:else}
-                            登録済みルール: <span class="font-bold text-slate-800 dark:text-slate-200">{total}</span>
+                            表示中: <span class="font-bold text-slate-800 dark:text-slate-200">
+                                {filteredRules.length}
+                            </span>
                             件
+                            {#if totalAllRules > 0 && filterStatus !== 'all'}
+                                <span class="text-slate-400">（全 {totalAllRules} 件）</span>
+                            {/if}
                         {/if}
                     </p>
                     {#if activeKeyword}
@@ -335,14 +381,58 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2.5 w-full sm:w-auto">
+            <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <!-- 有効 / 無効 / すべて フィルタタブ (検索の左) -->
+                <div
+                    class="flex h-10 items-center overflow-x-auto min-w-0 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar shrink-0"
+                >
+                    <button
+                        type="button"
+                        onclick={() => setFilterStatus('enabled')}
+                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
+                        'enabled'
+                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                    >
+                        <Power size={14} class={filterStatus === 'enabled' ? 'text-emerald-500' : 'text-slate-400'} />
+                        有効 ({enabledCount})
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => setFilterStatus('disabled')}
+                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
+                        'disabled'
+                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                    >
+                        <Power
+                            size={14}
+                            class={filterStatus === 'disabled'
+                                ? 'text-slate-400'
+                                : 'text-slate-300 dark:text-slate-600'}
+                        />
+                        無効 ({disabledCount})
+                    </button>
+                    <button
+                        type="button"
+                        onclick={() => setFilterStatus('all')}
+                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
+                        'all'
+                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                    >
+                        <Layers size={14} class={filterStatus === 'all' ? 'text-blue-500' : 'text-slate-400'} />
+                        すべて ({allCount})
+                    </button>
+                </div>
+
                 <!-- 検索フォーム -->
                 <form
                     onsubmit={e => {
                         e.preventDefault();
                         handleSearch();
                     }}
-                    class="relative flex-1 sm:w-64"
+                    class="relative flex-1 sm:w-60 md:w-64 min-w-[160px]"
                 >
                     <input
                         type="text"
@@ -391,24 +481,51 @@
             >
                 <p class="text-sm font-medium text-slate-400">ルール一覧を取得中...</p>
             </div>
-        {:else if rules.length === 0}
-            {#if activeKeyword}
-                <div
-                    class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-                >
+        {:else if filteredRules.length === 0}
+            <div
+                class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+            >
+                {#if activeKeyword}
                     <Search size={36} class="text-slate-300 dark:text-slate-600" />
                     <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                        「{activeKeyword}」に一致するルールは見つかりませんでした
+                        「{activeKeyword}」に一致する{filterStatus === 'enabled'
+                            ? '有効な'
+                            : filterStatus === 'disabled'
+                              ? '無効な'
+                              : ''}ルールは見つかりませんでした
                     </p>
                     <p class="mt-1 text-xs text-slate-400">キーワードを変更するか、絞り込みを解除してください</p>
                     <button type="button" onclick={clearSearch} class="btn-secondary mt-3 cursor-pointer">
-                        絞り込みを解除
+                        キーワード絞り込みを解除
                     </button>
-                </div>
-            {:else}
-                <div
-                    class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-                >
+                {:else if filterStatus === 'enabled'}
+                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
+                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">有効なルールはありません</p>
+                    {#if disabledCount > 0}
+                        <p class="mt-1 text-xs text-slate-400">無効化されたルールが {disabledCount} 件あります</p>
+                        <button
+                            type="button"
+                            onclick={() => setFilterStatus('all')}
+                            class="btn-secondary mt-3 cursor-pointer"
+                        >
+                            すべてのルールを表示
+                        </button>
+                    {:else}
+                        <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
+                            最初のルールを作成する
+                        </button>
+                    {/if}
+                {:else if filterStatus === 'disabled'}
+                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
+                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">無効なルールはありません</p>
+                    <button
+                        type="button"
+                        onclick={() => setFilterStatus('enabled')}
+                        class="btn-secondary mt-3 cursor-pointer"
+                    >
+                        有効なルールを表示
+                    </button>
+                {:else}
                     <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
                     <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
                         登録されたルールはありません
@@ -416,12 +533,12 @@
                     <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
                         最初のルールを作成する
                     </button>
-                </div>
-            {/if}
+                {/if}
+            </div>
         {:else}
             <!-- モバイル表示: カード型ルールリスト (md:hidden) -->
             <div class="space-y-3 md:hidden">
-                {#each rules as r}
+                {#each filteredRules as r}
                     {@const isEnabled = r.reserveOption?.enable !== false}
                     {@const opt = r.searchOption || {}}
                     {@const save = r.saveOption}
@@ -717,7 +834,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                            {#each rules as r}
+                            {#each filteredRules as r}
                                 {@const isEnabled = r.reserveOption?.enable !== false}
                                 {@const opt = r.searchOption || {}}
                                 {@const save = r.saveOption}

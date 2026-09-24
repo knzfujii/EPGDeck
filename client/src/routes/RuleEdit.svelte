@@ -600,6 +600,8 @@
         await initOptions();
 
         const idParam = router.current.query['ruleId'];
+        let shouldAutoPreview = false;
+
         if (idParam) {
             ruleId = parseInt(idParam, 10);
             try {
@@ -610,6 +612,9 @@
                 if (res.ok) {
                     rule = await res.json();
                     loadRule(rule);
+                    if (!rule.isTimeSpecification) {
+                        shouldAutoPreview = true;
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch rule', e);
@@ -618,6 +623,7 @@
         } else {
             // 新規作成時: 検索画面から渡された検索条件をプリフィル
             const q = router.current.query;
+            let hasQueryCondition = false;
             if (q['keyword']) {
                 keyword = q['keyword'];
                 if (configStore.copyKeywordToDirectory) {
@@ -625,22 +631,32 @@
                 }
                 isName = q['name'] !== '0';
                 isDescription = q['description'] !== '0';
+                hasQueryCondition = true;
             }
             if (q['genre']) {
                 const gVal = q['genre'];
                 const sgVal = q['subGenre'];
                 selectedGenreKeys = [sgVal ? `${gVal}:${sgVal}` : `${gVal}`];
                 showAdvancedSearch = true;
+                hasQueryCondition = true;
             }
             if (q['channelId']) {
                 const chId = parseInt(q['channelId'], 10);
                 if (!isNaN(chId)) {
                     selectedChannelIds = [chId];
                     showAdvancedSearch = true;
+                    hasQueryCondition = true;
                 }
+            }
+            if (hasQueryCondition) {
+                shouldAutoPreview = true;
             }
         }
         isLoading = false;
+
+        if (shouldAutoPreview) {
+            void handlePreviewSearch();
+        }
 
         // Socket.IO による予約変更通知を受信してリアルタイム更新
         unsubscribeSocket = socketStore.on('updateStatus', () => {
@@ -1946,7 +1962,18 @@
                     </div>
 
                     <!-- 検索結果表示エリア -->
-                    {#if previewPrograms === null}
+                    {#if isPreviewSearching && previewPrograms === null}
+                        <div
+                            class="rounded-xl border border-slate-100 bg-slate-50/50 p-8 text-center dark:border-slate-800 dark:bg-slate-850/40 flex flex-col items-center justify-center gap-2.5"
+                        >
+                            <div
+                                class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent dark:border-blue-400"
+                            ></div>
+                            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                                未来の録画予定を検索しています...
+                            </p>
+                        </div>
+                    {:else if previewPrograms === null}
                         <div
                             class="rounded-xl border border-dashed border-slate-200 p-8 text-center dark:border-slate-800"
                         >

@@ -611,4 +611,85 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should automatically execute preview search and display results when editing an existing rule', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        let previewSearchRequested = false;
+        await page.route('**/api/rules/999*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id: 999,
+                    isTimeSpecification: false,
+                    searchOption: {
+                        keyword: '自動プレビュー対象番組',
+                    },
+                    reserveOption: {
+                        enable: true,
+                    },
+                }),
+            });
+        });
+
+        await page.route('**/api/schedules/search', async route => {
+            previewSearchRequested = true;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        id: 10001,
+                        channelId: 1,
+                        startAt: Date.now() + 3600000,
+                        endAt: Date.now() + 7200000,
+                        name: '自動プレビュー対象番組 第1話',
+                        description: 'テスト番組詳細',
+                        isFree: true,
+                    },
+                ]),
+            });
+        });
+
+        // 1. ルール編集画面を開く
+        await page.goto('/rule/edit?ruleId=999');
+        await page.waitForLoadState('networkidle');
+
+        // 2. 編集画面表示時に自動的にプレビュー検索が送信されていること
+        await expect.poll(() => previewSearchRequested).toBe(true);
+
+        // 3. プレビュー検索セクションに「未検索」の案内メッセージではなく、検索結果（該当番組）が表示されること
+        await expect(
+            page.getByText(
+                '上の「録画予定を検索する」ボタンを押すと、現在の設定条件に合致する未来の番組一覧が表示されます',
+            ),
+        ).not.toBeVisible();
+        await expect(page.getByText('自動プレビュー対象番組 第1話')).toBeVisible();
+
+        // 4. 新規作成時でも検索キーワードなどの条件が渡された場合、自動的にプレビュー検索が実行されることを検証
+        previewSearchRequested = false;
+        await page.goto('/rule/edit?keyword=ドラマ');
+        await page.waitForLoadState('networkidle');
+        await expect.poll(() => previewSearchRequested).toBe(true);
+        await expect(page.getByText('自動プレビュー対象番組 第1話')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

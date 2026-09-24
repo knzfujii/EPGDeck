@@ -121,26 +121,28 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     }
 
     /**
-     * 重複判定履歴へ追加（既に存在する場合は重複追加しない）
+     * 重複判定履歴へ追加（既に存在する場合は重複追加しない、トランザクションでアトミックに処理）
      */
     public async addHistory(name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS): Promise<void> {
         const client = this.drizzleOp.getDB();
 
         await this.promiseRetry.run(async () => {
             const { db, schema } = client;
-            const rows = await (db as any)
-                .select({ id: schema.recordedHistory.id })
-                .from(schema.recordedHistory)
-                .where(this.createHistoryCondition(schema, name, channelId, endAt))
-                .limit(1);
+            await (db as any).transaction(async (tx: any) => {
+                const rows = await tx
+                    .select({ id: schema.recordedHistory.id })
+                    .from(schema.recordedHistory)
+                    .where(this.createHistoryCondition(schema, name, channelId, endAt))
+                    .limit(1);
 
-            if (rows.length === 0) {
-                await (db as any).insert(schema.recordedHistory).values({
-                    name,
-                    channelId,
-                    endAt,
-                });
-            }
+                if (rows.length === 0) {
+                    await tx.insert(schema.recordedHistory).values({
+                        name,
+                        channelId,
+                        endAt,
+                    });
+                }
+            });
         });
     }
 

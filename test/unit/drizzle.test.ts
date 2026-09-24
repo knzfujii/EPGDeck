@@ -172,7 +172,18 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
             }),
         };
         const retry: any = {
-            run: async (fn: any) => fn(),
+            run: async (fn: any) => {
+                let lastError;
+                for (let i = 0; i < 5; i++) {
+                    try {
+                        return await fn();
+                    } catch (err) {
+                        lastError = err;
+                        await new Promise(r => setTimeout(r, 10));
+                    }
+                }
+                throw lastError;
+            },
         };
 
         const RecordedHistoryDB = (await import('../../src/model/db/RecordedHistoryDB.js')).default;
@@ -231,5 +242,13 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
         expect(restoredAll.length).toBe(1);
         expect(restoredAll[0].name).toBe('復元アニメ');
         expect(restoredAll[0].id).toBe(999);
+
+        // addHistory の冪等性・アトミック性のテスト（並行実行）
+        await Promise.all([
+            historyDB.addHistory('並行テスト番組', 10008, 1700000070000),
+            historyDB.addHistory('並行テスト番組', 10008, 1700000070000),
+        ]);
+        const parallelItems = (await historyDB.findAll()).filter(item => item.name === '並行テスト番組');
+        expect(parallelItems.length).toBe(1);
     });
 });

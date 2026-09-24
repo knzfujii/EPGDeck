@@ -7,7 +7,7 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
-    import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles } from '@lucide/svelte';
+    import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles, X } from '@lucide/svelte';
 
     let keyword = $state(router.current.query.keyword || '');
     let searchResults = $state<apid.ScheduleProgramItem[]>([]);
@@ -105,7 +105,20 @@
     }
 
     async function executeSearch(options: { replace?: boolean } = { replace: false }) {
-        if (!keyword.trim() && selectedGenre === null) return;
+        if (!keyword.trim() && selectedGenre === null) {
+            router.setQuery(
+                {
+                    keyword: null,
+                    genre: null,
+                    name: null,
+                    description: null,
+                },
+                options,
+            );
+            searchResults = [];
+            hasSearched = false;
+            return;
+        }
 
         router.setQuery(
             {
@@ -215,6 +228,28 @@
         const d = new Date(timestamp);
         return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} (${['日', '月', '火', '水', '木', '金', '土'][d.getDay()]}) ${formatTime(timestamp)}`;
     }
+
+    function clearSearch() {
+        keyword = '';
+        if (selectedGenre === null) {
+            router.setQuery({
+                keyword: null,
+                genre: null,
+                name: null,
+                description: null,
+            });
+            searchResults = [];
+            hasSearched = false;
+        } else {
+            executeSearch();
+        }
+    }
+
+    function onInputKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    }
 </script>
 
 {#if !readOnlyStore.canViewSearch}
@@ -251,15 +286,31 @@
                 class="mt-4 space-y-4"
             >
                 <div class="flex gap-2">
-                    <input
-                        type="text"
-                        bind:value={keyword}
-                        placeholder="番組名やキーワードを入力..."
-                        class="form-input flex-1 h-11 text-sm sm:text-base rounded-xl"
-                    />
+                    <div class="relative flex-1">
+                        <input
+                            type="text"
+                            bind:value={keyword}
+                            onkeydown={onInputKeydown}
+                            placeholder="番組名やキーワードを入力..."
+                            aria-label="検索キーワード"
+                            class="form-input w-full h-11 text-sm sm:text-base rounded-xl pr-9"
+                        />
+                        {#if keyword}
+                            <button
+                                type="button"
+                                onclick={clearSearch}
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                                title="検索をクリア"
+                                aria-label="検索をクリア"
+                            >
+                                <X size={16} />
+                            </button>
+                        {/if}
+                    </div>
                     <button
                         type="submit"
-                        class="btn-primary flex items-center gap-2 h-11 px-6 text-sm sm:text-base font-bold cursor-pointer"
+                        disabled={isLoading}
+                        class="btn-primary flex items-center gap-2 h-11 px-6 text-sm sm:text-base font-bold cursor-pointer shrink-0"
                     >
                         <SearchIcon size={18} /> 検索
                     </button>

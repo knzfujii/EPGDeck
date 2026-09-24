@@ -37,6 +37,23 @@ test.describe('Search and Rules Management Pages', () => {
         // 3. ルール作成ボタンの存在確認
         await expect(page.getByRole('button', { name: 'この条件でルール作成' })).toBeVisible();
 
+        // 4. クリアボタンの表示確認とクリックによるクリア動作
+        const clearBtn = page.getByTitle('検索をクリア');
+        await expect(clearBtn).toBeVisible();
+        await clearBtn.click();
+        await expect(searchInput).toHaveValue('');
+        await page.waitForURL(url => !url.searchParams.has('keyword'));
+        await expect(clearBtn).not.toBeVisible();
+
+        // 5. 空文字で Enter を押しても URL クエリがリセットされた状態が維持されることを検証
+        await searchInput.fill('ドラマ');
+        await searchInput.press('Enter');
+        await expect(page).toHaveURL(/keyword=%E3%83%89%E3%83%A9%E3%83%9E/);
+        await searchInput.clear();
+        await searchInput.press('Enter');
+        await page.waitForURL(url => !url.searchParams.has('keyword'));
+        await expect(page.getByRole('button', { name: 'この条件でルール作成' })).not.toBeVisible();
+
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });

@@ -556,4 +556,59 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should prevent accidental rule saving on Enter in inputs and trigger preview search on keyword Enter', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        let previewSearchRequested = false;
+        await page.route('**/api/schedules/search', async route => {
+            previewSearchRequested = true;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([]),
+            });
+        });
+
+        await page.goto('/rule/edit');
+        await page.waitForLoadState('networkidle');
+
+        const keywordInput = page.locator('#rule-keyword');
+        await expect(keywordInput).toBeVisible();
+
+        // 1. 検索キーワード入力欄で Enter を押してもルール保存（一覧へ遷移）が発生せず、プレビュー検索が走ることを検証
+        await keywordInput.fill('テスト番組');
+        previewSearchRequested = false;
+        await keywordInput.press('Enter');
+
+        // ページが /rule/edit に留まっていること
+        await expect(page).toHaveURL(/\/rule\/edit/);
+        await expect.poll(() => previewSearchRequested).toBe(true);
+
+        // 2. その他の input（例: TS保存先サブ）で Enter を押しても保存が発生せずページに留まることを検証
+        const subDirInput = page.locator('#recording-option-save-sub');
+        await expect(subDirInput).toBeVisible();
+        await subDirInput.fill('anime_sub');
+        await subDirInput.press('Enter');
+
+        await expect(page).toHaveURL(/\/rule\/edit/);
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

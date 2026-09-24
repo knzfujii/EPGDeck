@@ -956,7 +956,37 @@
     function goBackToRuleList() {
         router.push(getLastRulePath());
     }
+
+    function handleWindowKeydown(e: KeyboardEvent) {
+        if (router.current.pathname !== '/rule/edit') return;
+        if (e.key === 'Enter') {
+            const target = e.target as HTMLElement | null;
+            // textarea での Enter は改行入力なので許可
+            if (target?.tagName === 'TEXTAREA') return;
+
+            // Ctrl+Enter または Cmd+Enter は意図的な保存ショートカットとして許可
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                handleSave();
+                return;
+            }
+
+            // 検索キーワード・除外キーワード欄での Enter はプレビュー検索を発火
+            if (target?.id === 'rule-keyword' || target?.id === 'rule-ignore-keyword') {
+                e.preventDefault();
+                handlePreviewSearch();
+                return;
+            }
+
+            // その他の input 要素での単純な Enter 押下による意図しないルール保存を防止
+            if (target?.tagName === 'INPUT') {
+                e.preventDefault();
+            }
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="w-full max-w-full min-w-0 space-y-5">
     <!-- ヘッダー -->

@@ -89,25 +89,102 @@ export const responseFile = async (c: Context, filePath: string, mime: string, d
             return new Response(null, { status: 200, headers });
         }
 
-        const stream = fs.createReadStream(filePath);
-        return new Response(Readable.toWeb(stream) as any, { status: 200, headers });
+        return createFileStreamResponse(c, filePath, 200, headers);
     }
 
     const start = rangeRequest.Start;
     const end = rangeRequest.End;
 
-    if (start >= stat.size || end >= stat.size) {
+    if (start >= stat.size || end >= stat.size || start > end) {
         headers['Content-Range'] = `bytes */${stat.size}`;
         return new Response(null, { status: 416, headers });
     }
 
     headers['Content-Range'] = `bytes ${start}-${end}/${stat.size}`;
-    headers['Content-Length'] = (start === end ? 0 : end - start + 1).toString();
+    headers['Content-Length'] = (end - start + 1).toString();
     headers['Accept-Ranges'] = 'bytes';
 
-    const option = { start, end };
-    const stream = fs.createReadStream(filePath, option);
-    return new Response(Readable.toWeb(stream) as any, { status: 206, headers });
+    if (c.req.method === 'HEAD') {
+        return new Response(null, { status: 206, headers });
+    }
+
+    return createFileStreamResponse(c, filePath, 206, headers, { start, end });
+};
+
+/**
+ * クライアント切断（シーク・タブ離脱等）時に fs.ReadStream を即座に破棄する Response 生成ヘルパー
+ * Node.js 環境（c.env.outgoing が存在する場合）は、@hono/node-server の Web Streams ループによる
+ * drain / バックプレッシャーストール（数十MBで転送が止まるデッドロック）を回避するため、
+ * Express 時代と同様に Node.js ネイティブの stream.pipe(outgoing) で直接ソケットに流し込む。
+ */
+const createFileStreamResponse = (
+    c: Context,
+    filePath: string,
+    status: number,
+    headers: Record<string, string>,
+    options?: { start?: number; end?: number },
+): Response => {
+    const stream = options ? fs.createReadStream(filePath, options) : fs.createReadStream(filePath);
+
+    let isCleanedUp = false;
+    const cleanup = () => {
+        if (isCleanedUp) return;
+        isCleanedUp = true;
+        try {
+            if (!stream.destroyed) {
+                stream.destroy();
+            }
+        } catch {
+            // ignore
+        }
+    };
+
+    const outgoing = c.env?.outgoing;
+    if (outgoing && !outgoing.headersSent) {
+        outgoing.writeHead(status, headers);
+        stream.pipe(outgoing);
+
+        c.req.raw.signal?.addEventListener('abort', cleanup, { once: true });
+        if (c.env?.incoming) {
+            c.env.incoming.once('close', cleanup);
+        }
+        outgoing.once('close', cleanup);
+        outgoing.once('error', cleanup);
+        stream.once('close', () => {
+            isCleanedUp = true;
+        });
+
+        return createAlreadySentResponse();
+    }
+
+    // fallback for environments without outgoing (e.g. testing)
+    c.req.raw.signal?.addEventListener('abort', cleanup, { once: true });
+    if (c.env?.incoming) {
+        c.env.incoming.once('close', cleanup);
+    }
+    if (c.env?.outgoing) {
+        c.env.outgoing.once('close', cleanup);
+    }
+    stream.once('close', () => {
+        isCleanedUp = true;
+    });
+
+    return new Response(Readable.toWeb(stream) as any, { status, headers });
+};
+
+/**
+ * @hono/node-server の内部キャッシュシンボルを剥奪した「送信済みダミーレスポンス」を生成する。
+ * CORS ミドルウェア等で c.res が先行初期化されている環境において、
+ * @hono/node-server の responseViaCache() による writeHead 二重呼出（ERR_HTTP_HEADERS_SENT）を防止する。
+ */
+const createAlreadySentResponse = (): Response => {
+    const res = new Response(null, {
+        headers: { 'x-hono-already-sent': 'true' },
+    });
+    for (const sym of Object.getOwnPropertySymbols(res)) {
+        delete (res as any)[sym];
+    }
+    return res;
 };
 
 const readRangeHeader = (

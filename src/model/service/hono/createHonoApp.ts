@@ -24,7 +24,7 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
         const duration = Date.now() - start;
         const method = c.req.method;
         const path = c.req.path;
-        const status = c.res.status;
+        const status = (c.env as any)?.outgoing?.statusCode ?? c.res.status;
         log.access.info(`${method} ${path} ${status} - ${duration} ms`);
     });
 

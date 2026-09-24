@@ -3,7 +3,7 @@ import RecordedHistory from '../../db/entities/RecordedHistory.js';
 
 export default interface IRecordedHistoryDB {
     restore(items: RecordedHistory[]): Promise<void>;
-    insertOnce(program: RecordedHistory): Promise<apid.RecordedHistoryId>;
+    insertOnce(history: RecordedHistory): Promise<apid.RecordedHistoryId>;
     delete(time: apid.UnixtimeMS): Promise<void>;
     findAll(): Promise<RecordedHistory[]>;
     hasHistory(name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS): Promise<boolean>;

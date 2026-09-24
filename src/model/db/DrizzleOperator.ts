@@ -262,6 +262,8 @@ export default class DrizzleOperator implements IDrizzleOperator {
                 'CREATE INDEX IF NOT EXISTS idx_reserve_start_end ON reserve(startAt, endAt)',
                 'CREATE INDEX IF NOT EXISTS idx_reserve_rule ON reserve(ruleId)',
                 'CREATE INDEX IF NOT EXISTS idx_reserve_channel_start ON reserve(channelId, startAt)',
+                'CREATE INDEX IF NOT EXISTS idx_recorded_history_channel_end ON recorded_history(channelId, endAt)',
+                'CREATE INDEX IF NOT EXISTS idx_recorded_history_end_at ON recorded_history(endAt)',
             ];
 
             for (const q of queries) {
@@ -559,6 +561,8 @@ export default class DrizzleOperator implements IDrizzleOperator {
             { table: 'reserve', name: 'idx_reserve_start_end', cols: '`startAt`, `endAt`' },
             { table: 'reserve', name: 'idx_reserve_rule', cols: '`ruleId`' },
             { table: 'reserve', name: 'idx_reserve_channel_start', cols: '`channelId`, `startAt`' },
+            { table: 'recorded_history', name: 'idx_recorded_history_channel_end', cols: '`channelId`, `endAt`' },
+            { table: 'recorded_history', name: 'idx_recorded_history_end_at', cols: '`endAt`' },
         ];
 
         for (const idx of indexes) {

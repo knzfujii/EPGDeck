@@ -147,6 +147,8 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
             expect(createdIndexes).toContain('idx_reserve_start_end');
             expect(createdIndexes).toContain('idx_reserve_rule');
             expect(createdIndexes).toContain('idx_reserve_channel_start');
+            expect(createdIndexes).toContain('idx_recorded_history_channel_end');
+            expect(createdIndexes).toContain('idx_recorded_history_end_at');
         }
 
         await operator.closeConnection();
@@ -198,5 +200,36 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
         // 削除後は存在しないこと
         const afterDeleteHas = await historyDB.hasHistory('テストアニメ', 10001, 1700000000000);
         expect(afterDeleteHas).toBe(false);
+
+        // insertOnce のテスト
+        const RecordedHistory = (await import('../../src/db/entities/RecordedHistory.js')).default;
+        const newHistory = new RecordedHistory();
+        newHistory.name = '新規録画アニメ';
+        newHistory.channelId = 10003;
+        newHistory.endAt = 1700000050000;
+        const insertId = await historyDB.insertOnce(newHistory);
+        expect(insertId).toBeGreaterThan(0);
+        expect(await historyDB.hasHistory('新規録画アニメ', 10003, 1700000050000)).toBe(true);
+
+        // findAll のテスト
+        const allItems = await historyDB.findAll();
+        expect(allItems.length).toBeGreaterThan(0);
+        expect(allItems.some(item => item.name === '新規録画アニメ')).toBe(true);
+
+        // delete(time) のテスト（期限切れ削除）
+        await historyDB.delete(1700000060000);
+        expect(await historyDB.hasHistory('新規録画アニメ', 10003, 1700000050000)).toBe(false);
+
+        // restore のテスト
+        const restoreItem = new RecordedHistory();
+        restoreItem.id = 999;
+        restoreItem.name = '復元アニメ';
+        restoreItem.channelId = 10005;
+        restoreItem.endAt = 1700000090000;
+        await historyDB.restore([restoreItem]);
+        const restoredAll = await historyDB.findAll();
+        expect(restoredAll.length).toBe(1);
+        expect(restoredAll[0].name).toBe('復元アニメ');
+        expect(restoredAll[0].id).toBe(999);
     });
 });

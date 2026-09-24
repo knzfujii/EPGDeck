@@ -132,6 +132,8 @@ describe.skipIf(!isMySQLTest)('MySQL / MariaDB Integration Tests', () => {
             expect(indexNames).toContain('idx_reserve_start_end');
             expect(indexNames).toContain('idx_reserve_rule');
             expect(indexNames).toContain('idx_program_channel_time');
+            expect(indexNames).toContain('idx_recorded_history_channel_end');
+            expect(indexNames).toContain('idx_recorded_history_end_at');
         }
     });
 

@@ -49,15 +49,15 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
     /**
      * 録画履歴情報を 1 件挿入
      */
-    public async insertOnce(program: RecordedHistory): Promise<apid.RecordedHistoryId> {
+    public async insertOnce(history: RecordedHistory): Promise<apid.RecordedHistoryId> {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const result = await (db as any).insert(schema.recordedHistory).values({
-                name: program.name,
-                channelId: program.channelId,
-                endAt: program.endAt,
+                name: history.name,
+                channelId: history.channelId,
+                endAt: history.endAt,
             });
             return DrizzleHelper.getInsertId(client.type, result);
         });
@@ -84,7 +84,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any).select().from(schema.recordedHistory);
-            return rows.map((r: any) => this.toEntity(r));
+            return rows.map((r: { id: number; name: string; channelId: number; endAt: number }) => this.toEntity(r));
         });
     }
 
@@ -99,13 +99,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
             const rows = await (db as any)
                 .select({ id: schema.recordedHistory.id })
                 .from(schema.recordedHistory)
-                .where(
-                    and(
-                        eq(schema.recordedHistory.name, name),
-                        eq(schema.recordedHistory.channelId, channelId),
-                        eq(schema.recordedHistory.endAt, endAt),
-                    ),
-                )
+                .where(this.createHistoryCondition(schema, name, channelId, endAt))
                 .limit(1);
             return rows.length > 0;
         });
@@ -121,13 +115,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
             const { db, schema } = client;
             await (db as any)
                 .delete(schema.recordedHistory)
-                .where(
-                    and(
-                        eq(schema.recordedHistory.name, name),
-                        eq(schema.recordedHistory.channelId, channelId),
-                        eq(schema.recordedHistory.endAt, endAt),
-                    ),
-                );
+                .where(this.createHistoryCondition(schema, name, channelId, endAt));
             return true;
         });
     }
@@ -143,13 +131,7 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
             const rows = await (db as any)
                 .select({ id: schema.recordedHistory.id })
                 .from(schema.recordedHistory)
-                .where(
-                    and(
-                        eq(schema.recordedHistory.name, name),
-                        eq(schema.recordedHistory.channelId, channelId),
-                        eq(schema.recordedHistory.endAt, endAt),
-                    ),
-                )
+                .where(this.createHistoryCondition(schema, name, channelId, endAt))
                 .limit(1);
 
             if (rows.length === 0) {
@@ -162,7 +144,18 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
         });
     }
 
-    private toEntity(row: any): RecordedHistory {
+    /**
+     * 重複判定履歴の照合条件を生成
+     */
+    private createHistoryCondition(schema: any, name: string, channelId: apid.ChannelId, endAt: apid.UnixtimeMS) {
+        return and(
+            eq(schema.recordedHistory.name, name),
+            eq(schema.recordedHistory.channelId, channelId),
+            eq(schema.recordedHistory.endAt, endAt),
+        );
+    }
+
+    private toEntity(row: { id: number; name: string; channelId: number; endAt: number }): RecordedHistory {
         const entity = new RecordedHistory();
         entity.id = row.id;
         entity.name = row.name;

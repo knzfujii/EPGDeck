@@ -363,6 +363,10 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `channelId` | `INTEGER` / `BIGINT` | NO | (FK) | 判定キー用放送局ID (`channel.id` 参照) |
 | `endAt` | `INTEGER` / `BIGINT` | NO | - | 放送終了日時 (期間判定 `periodToAvoidDuplicate` 用) |
 
+- **主要インデックス**:
+  - `idx_recorded_history_channel_end`: `(channelId, endAt)`
+  - `idx_recorded_history_end_at`: `(endAt)`
+
 ---
 
 ### 3.10 タグマスター & 中間テーブル (`recorded_tag`, `recorded_tags_recorded_tag`)

@@ -920,7 +920,14 @@ test.describe('Recorded List Page (/recorded)', () => {
             pageErrors.push(err.message);
         });
 
+        const requestedQueries: Array<Record<string, string>> = [];
         await page.route('**/api/recorded?*', async route => {
+            const url = new URL(route.request().url());
+            const q: Record<string, string> = {};
+            url.searchParams.forEach((val, key) => {
+                q[key] = val;
+            });
+            requestedQueries.push(q);
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -941,22 +948,31 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.waitForURL(/genre=7/);
         await expect(animeBtn).toHaveClass(/bg-blue-600/);
 
-        // 2. 検索キーワードを入力して送信
+        // 2. 検索キーワードを入力して送信 (1回目のEnterで直ちにAPIがキーワード付きで発火することを検証)
+        requestedQueries.length = 0;
         const searchInput = page.getByPlaceholder('録画を検索...');
         await searchInput.fill('最新アニメ');
         await searchInput.press('Enter');
         await page.waitForURL(/genre=7/);
         await expect(page).toHaveURL(/keyword=%E6%9C%80%E6%96%B0%E3%82%A2%E3%83%8B%E3%83%A1/);
+        await expect.poll(() => requestedQueries.some(q => q.keyword === '最新アニメ')).toBe(true);
+
+        // キーワード検索バッジが表示されていることを確認
+        await expect(page.getByTitle('キーワード検索を解除')).toBeVisible();
 
         // 3. ブラウザの「戻る」で前の状態（キーワードなし、ジャンル=7）に戻る
+        requestedQueries.length = 0;
         await page.goBack();
         await page.waitForURL(url => !url.searchParams.has('keyword') && url.searchParams.get('genre') === '7');
         await expect(searchInput).toHaveValue('');
+        await expect.poll(() => requestedQueries.some(q => !q.keyword)).toBe(true);
 
         // 4. ブラウザの「進む」でキーワードあり状態に復帰
+        requestedQueries.length = 0;
         await page.goForward();
         await page.waitForURL(url => url.searchParams.get('keyword') === '最新アニメ');
         await expect(searchInput).toHaveValue('最新アニメ');
+        await expect.poll(() => requestedQueries.some(q => q.keyword === '最新アニメ')).toBe(true);
 
         // 5. ジャンル「すべて」をクリックしてジャンル絞り込みを解除
         const allGenreBtn = page.getByRole('button', { name: 'すべて' }).first();
@@ -964,10 +980,14 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.waitForURL(url => !url.searchParams.has('genre'));
         await expect(allGenreBtn).toHaveClass(/bg-blue-600/);
 
-        // 6. キーワードをクリアして Enter
-        await searchInput.clear();
-        await searchInput.press('Enter');
+        // 6. 入力欄のクリアボタンをクリックしてクリア
+        requestedQueries.length = 0;
+        const clearBtn = page.getByTitle('検索をクリア');
+        await expect(clearBtn).toBeVisible();
+        await clearBtn.click();
         await page.waitForURL(url => !url.searchParams.has('keyword'));
+        await expect(searchInput).toHaveValue('');
+        await expect.poll(() => requestedQueries.some(q => !q.keyword)).toBe(true);
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

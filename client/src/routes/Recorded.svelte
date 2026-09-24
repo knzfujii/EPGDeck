@@ -74,6 +74,7 @@
 
     // 検索・絞り込み状態
     let keyword = $state(router.current.query.keyword || '');
+    let activeKeyword = $state(router.current.query.keyword || '');
     let selectedGenre = $state<number | null>(
         router.current.query.genre ? parseInt(router.current.query.genre, 10) : null,
     );
@@ -118,7 +119,7 @@
                 limit,
                 offset: (currentPage - 1) * limit,
             };
-            if (keyword.trim()) query.keyword = keyword.trim();
+            if (activeKeyword.trim()) query.keyword = activeKeyword.trim();
             if (selectedGenre !== null) query.genre = selectedGenre;
             if (selectedRuleId !== null) query.ruleId = selectedRuleId;
 
@@ -203,6 +204,7 @@
             if (!isInitialized) {
                 isInitialized = true;
                 keyword = qKeyword;
+                activeKeyword = qKeyword;
                 selectedGenre = Number.isNaN(qGenre) ? null : qGenre;
                 selectedRuleId = Number.isNaN(qRuleId) ? null : qRuleId;
                 selectedYear = Number.isNaN(qYear) ? null : qYear;
@@ -213,8 +215,9 @@
             }
 
             let hasChanged = false;
-            if (qKeyword !== keyword) {
+            if (qKeyword !== activeKeyword) {
                 keyword = qKeyword;
+                activeKeyword = qKeyword;
                 hasChanged = true;
             }
             if (qGenre !== selectedGenre) {
@@ -276,8 +279,7 @@
 
     function handleSearch() {
         const trimmed = keyword.trim();
-        const currentKeyword = router.current.query.keyword || '';
-        if (trimmed === currentKeyword && currentPage === 1) {
+        if (trimmed === activeKeyword && currentPage === 1) {
             fetchRecorded();
         } else {
             router.setQuery({
@@ -286,6 +288,25 @@
             });
         }
         scrollToTop();
+    }
+
+    function clearSearch() {
+        if (activeKeyword === '') {
+            keyword = '';
+            return;
+        }
+        keyword = '';
+        router.setQuery({
+            page: null,
+            keyword: null,
+        });
+        scrollToTop();
+    }
+
+    function onInputKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
     }
 
     function selectGenre(id: number | null) {
@@ -515,6 +536,22 @@
                             </button>
                         </span>
                     {/if}
+                    {#if activeKeyword}
+                        <span
+                            class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
+                            <Search size={12} class="text-blue-500" />
+                            <span class="max-w-[150px] sm:max-w-[200px] truncate">"{activeKeyword}"</span>
+                            <button
+                                type="button"
+                                onclick={clearSearch}
+                                class="hover:text-blue-900 dark:hover:text-white cursor-pointer ml-0.5"
+                                title="キーワード検索を解除"
+                            >
+                                <X size={12} />
+                            </button>
+                        </span>
+                    {/if}
                 </div>
             </div>
 
@@ -530,10 +567,26 @@
                     <input
                         type="text"
                         bind:value={keyword}
+                        onkeydown={onInputKeydown}
                         placeholder="録画を検索..."
-                        class="h-10 w-52 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-72 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
+                        aria-label="録画を検索"
+                        class="h-10 w-52 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-72 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
                     />
-                    <Search size={16} class="absolute left-3 text-slate-400" />
+                    <Search
+                        size={16}
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                    {#if keyword}
+                        <button
+                            type="button"
+                            onclick={clearSearch}
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                            title="検索をクリア"
+                            aria-label="検索をクリア"
+                        >
+                            <X size={14} />
+                        </button>
+                    {/if}
                 </form>
 
                 <div class="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">

@@ -36,6 +36,7 @@
     "migrate-thumbnails": "node --enable-source-maps dist/tools/MigrateThumbnails.js",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
+    "test:compat": "mise exec node@22 -- vitest run",
     "test:esm": "node test/smoke/esm_interop.js",
     "test:watch": "vitest",
     "test:mysql": "TEST_MYSQL=true vitest run test/integration/mysql.test.ts",

@@ -139,6 +139,8 @@ const createFileStreamResponse = (
         }
     };
 
+    stream.on('error', cleanup);
+
     const outgoing = c.env?.outgoing;
     if (outgoing && !outgoing.headersSent) {
         outgoing.writeHead(status, headers);
@@ -176,13 +178,18 @@ const createFileStreamResponse = (
  * @hono/node-server の内部キャッシュシンボルを剥奪した「送信済みダミーレスポンス」を生成する。
  * CORS ミドルウェア等で c.res が先行初期化されている環境において、
  * @hono/node-server の responseViaCache() による writeHead 二重呼出（ERR_HTTP_HEADERS_SENT）を防止する。
+ * 注意: Node.js 22 等の undici 実装では内部スロット/Headers 参照が Symbol で管理されているため、
+ * 無差別に Symbol を削除すると res.headers が undefined となりクラッシュする。
+ * そのため、'cache' シンボルのみを対象に削除する。
  */
 const createAlreadySentResponse = (): Response => {
     const res = new Response(null, {
         headers: { 'x-hono-already-sent': 'true' },
     });
     for (const sym of Object.getOwnPropertySymbols(res)) {
-        delete (res as any)[sym];
+        if (sym.description === 'cache') {
+            delete (res as any)[sym];
+        }
     }
     return res;
 };

@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   ci:
-    name: Core Verification & E2E (Node 22)
+    name: Core Verification & E2E (Node 24)
     runs-on: ubuntu-latest
     services:
       mariadb:
@@ -55,10 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
@@ -146,4 +146,32 @@ jobs:
             playwright-report/
             logs/test_e2e.log
           retention-days: 7
+
+  compat-node22:
+    name: Compatibility Check (Node 22)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: TypeScript Compile (Server)
+        run: npm run compile
+
+      - name: Run Unit Tests (SQLite)
+        run: npm test
+
+      - name: Run ESM Interop Test
+        run: npm run test:esm
 

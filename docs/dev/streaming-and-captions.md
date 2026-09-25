@@ -292,6 +292,24 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
   - **WebM / MP4 トランスコードとの住み分け**:
     - WebM やトランスコード MP4 等の HTTP パイプ配信は、シークごとのプロセス再起動を行わずブラウザ標準の `<video>` シーク（`currentTime` 操作）に委ねることで、FFmpeg プロセスの過剰生成・上限到達を防止します。広範囲のシークを行いたいユースケースでは HLS または録画済み MP4 の直接再生を推奨します。
 
+---
 
+## 9. ファイルストリーミング配信アーキテクチャと Node.js バージョン互換性
 
+### 9.1 ファイル配信パイプラインとデッドロック回避 (`responseFile`)
+- **Web Streams バックプレッシャーストールの回避**:
+  - `@hono/node-server` の標準 Web Streams ループ（`Readable.toWeb(stream)`）は、巨大な動画ファイル（数十MB〜数GB）配信時にクライアントの受信速度や TCP ウィンドウの停滞によってバックプレッシャーが蓄積し、転送が途中で完全停止（デッドロック）する問題があります。
+  - そのため、Node.js 実行環境（`c.env.outgoing` が存在する場合）では、Express 時代と同様に Node.js ネイティブの `stream.pipe(outgoing)` を用いて直接ソケットへ流し込みます。
+- **二重ヘッダー送信防止 (`createAlreadySentResponse` / `x-hono-already-sent`)**:
+  - `stream.pipe(outgoing)` で手動送信した後、Hono のミドルウェアチェーンや `@hono/node-server` の `responseViaResponseObject()` に対してレスポンス送信済みであることを通知するため、`headers: { 'x-hono-already-sent': 'true' }` を付与したダミーレスポンスを返却します。
+  - `@hono/node-server` は `x-hono-already-sent` ヘッダーを検知すると `outgoing.writeHead()` や `outgoing.end()` の重複呼出を安全にスキップします。
 
+### 9.2 Node.js 22 / 24 間の `Response` 内部実装差異と Symbol 削除の注意点
+- **背景**:
+  - Hono では、ミドルウェア（CORS 等）が `c.res` を先行参照するとレスポンスに内部キャッシュシンボル（`cacheKey = Symbol("cache")`）が付与され、`@hono/node-server` の `responseViaCache()` が意図せず起動して `ERR_HTTP_HEADERS_SENT` を引き起こす場合があります。
+- **Node.js 22 と 24 の差異**:
+  - **Node.js 24**: Web 標準 `Response` クラスの内部フィールドが Private Identifier（`#kHeaders` 等）に移行しており、`Object.getOwnPropertySymbols(res)` は空配列 `[]` となります。
+  - **Node.js 22**: undici の `Response` 実装において `Headers` インスタンス参照等の内部スロットが `Symbol` で管理されています。
+- **実装上の教訓**:
+  - `for (const sym of Object.getOwnPropertySymbols(res)) delete res[sym]` のように無差別にすべての Symbol を削除すると、Node.js 22 環境では `res.headers` が `undefined` に破壊され、後続処理やテストコードで `TypeError: Cannot read properties of undefined (reading 'get')` クラッシュを引き起こします。
+  - キャッシュ Symbol を剥奪する場合は、必ず `if (sym.description === 'cache')` のように対象 Symbol を限定して削除する必要があります。

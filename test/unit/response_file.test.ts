@@ -194,4 +194,25 @@ describe('HonoApiUtil - responseFile', () => {
         if (closeCallback) closeCallback();
         await new Promise(resolve => setTimeout(resolve, 20));
     });
+
+    it('should preserve response headers and not destroy native symbols in createAlreadySentResponse', async () => {
+        const mockOutgoing: any = {
+            headersSent: false,
+            writeHead: () => {},
+            write: () => true,
+            end: () => {},
+            once: () => {},
+            on: () => mockOutgoing,
+            emit: () => true,
+        };
+
+        const c = createMockContext({});
+        c.env.outgoing = mockOutgoing;
+
+        const res = await responseFile(c, testFilePath, 'video/mp4');
+        expect(res).toBeDefined();
+        expect(res.headers).toBeDefined();
+        expect(res.headers.get('x-hono-already-sent')).toBe('true');
+        expect(res.status).toBe(200);
+    });
 });

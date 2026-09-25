@@ -22,6 +22,7 @@ graph TD
 | :--- | :--- | :--- | :--- | :--- |
 | **超高速チェック** | サーバー型検査＋単体テスト＋ESMスモーク＋クライアント構文検査（並列実行） | Node.js + Vitest + Svelte Check | 約 3〜5 秒 | `npm run check:quick` |
 | **単体テスト** | ビジネスロジック、Hono ルート、Drizzle Helper、設定パース、Client HTTP | Node.js + Vitest (SQLite インメモリ `:memory:`) | 約 1.8 秒 | `npm test` |
+| **下限バージョン互換テスト** | Node.js 22 環境での単体テスト全件実行（ランタイム・Web標準互換性検証） | Node.js 22 (`mise exec node@22`) + Vitest | 約 2〜4 秒 | `npm run test:compat` |
 | **ESM スモークテスト** | Node.js ネイティブでの CJS/ESM 相互運用、全外部依存のインスタンス化、CLI 構文検査 | Node.js 直接実行（Vitest 非経由） | 約 0.05 秒 | `npm run test:esm` |
 | **実機結合テスト** | MySQL / MariaDB 固有の方言、インデックス作成、Auto-Increment ID、主要 DAO CRUD | Node.js + Vitest (Docker コンテナ: ポート 13306) | 約 3 秒 | `npm run test:mysql` |
 | **E2E テスト (単一ファイル)** | 特定画面・機能の E2E スペック単体実行（反復開発用） | Playwright + Chromium (スタンドアロン E2E サーバー) | 約 1.5〜2 秒 | `npm run test:e2e:file -- <path>` |
@@ -168,22 +169,27 @@ Playwright は 1 つのロケータに対して複数要素がヒットすると
 
 ## 5. GitHub Actions CI/CD パイプライン
 
-### 5.1 設計思想: コスト効率と 1 ジョブ統合
-クラウド CI（GitHub Actions）の課金体系（分単位切り上げ）および仮想マシン（VM）の起動オーバーヘッド（約20〜30秒）を最小化するため、**「1つの高性能ジョブに全検証を集約する統合パイプライン」** を構築しています。
+### 5.1 設計思想: コスト効率と Node.js バージョン互換性検証
+クラウド CI（GitHub Actions）の課金体系および仮想マシン起動時間を最小化しつつ、推奨環境（Node.js 24）での完全保証とサポート下限（Node.js 22）での互換性を両立するため、**「Node 24 フル統合ジョブ ＋ Node 22 軽量互換検証ジョブ」の並列構成**を採用しています。
 
 ```
-GitHub Actions Runner (ubuntu-latest)
-  ├── サービスコンテナ起動 (MariaDB 10.11 :3306 & MySQL 8.0 :3307)
-  ├── 依存関係キャッシュ復元
-  ├── Lint & フォーマット検証 (Server & Client)
-  ├── 型チェック & Svelte コンパイル
-  ├── クライアント本番ビルド
-  ├── 単体テスト (SQLite)
-  ├── DB 実機結合テスト (MariaDB & MySQL)
-  ├── Playwright ブラウザキャッシュ復元
-  └── Playwright E2E テスト (Chromium / 2ワーカー並列 / 全63シナリオ)
-  ───────────────────────────────────────────────────
-  ★ 所要時間: 約 1分30秒 〜 1分50秒 でオールパス
+GitHub Actions Parallel Jobs
+├── [Job 1: Core Verification & E2E (Node 24)] (メイン統合パイプライン)
+│     ├── サービスコンテナ起動 (MariaDB 10.11 :3306 & MySQL 8.0 :3307)
+│     ├── Lint & フォーマット検証 (Server & Client)
+│     ├── 型チェック & Svelte コンパイル & 本番ビルド
+│     ├── 単体テスト (SQLite) & DB 実機結合テスト (MariaDB & MySQL)
+│     └── Playwright E2E テスト (Chromium / 2ワーカー並列 / 全65シナリオ)
+│     ───────────────────────────────────────────────────
+│     ★ 所要時間: 約 1分40秒 〜 2分 でオールパス
+│
+└── [Job 2: Compatibility Check (Node 22)] (下限バージョン互換検証)
+      ├── Setup Node.js 22 (キャッシュ復元)
+      ├── TypeScript Compile (Server)
+      ├── 単体テスト (SQLite)
+      └── ESM Interop スモークテスト
+      ───────────────────────────────────────────────────
+      ★ 所要時間: 約 25〜30 秒 で完了（並列実行のため全体の待ち時間増加ゼロ）
 ```
 
 ### 5.2 主な最適化テクニック

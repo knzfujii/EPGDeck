@@ -509,6 +509,7 @@
     <div
         class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
     >
+        <!-- 上段: タイトル・件数・アクティブ条件バッジ ＆ コントロール（ルール、年月、表示切替、選択モード） -->
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -536,6 +537,24 @@
                             </button>
                         </span>
                     {/if}
+                    {#if selectedYear !== null || selectedMonth !== null}
+                        <span
+                            class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
+                            <Calendar size={12} class="text-blue-500" />
+                            <span>
+                                {selectedYear ? `${selectedYear}年` : ''}{selectedMonth ? `${selectedMonth}月` : ''}
+                            </span>
+                            <button
+                                type="button"
+                                onclick={() => handleDateJump(null, null)}
+                                class="hover:text-blue-900 dark:hover:text-white cursor-pointer ml-0.5"
+                                title="年月指定を解除"
+                            >
+                                <X size={12} />
+                            </button>
+                        </span>
+                    {/if}
                     {#if activeKeyword}
                         <span
                             class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
@@ -555,180 +574,184 @@
                 </div>
             </div>
 
-            <!-- 表示切り替え & 検索 -->
-            <div class="flex items-center gap-2.5">
-                <form
-                    onsubmit={e => {
-                        e.preventDefault();
-                        handleSearch();
-                    }}
-                    class="relative flex items-center"
-                >
-                    <input
-                        type="text"
-                        bind:value={keyword}
-                        onkeydown={onInputKeydown}
-                        placeholder="録画を検索..."
-                        aria-label="録画を検索"
-                        class="h-10 w-52 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden sm:w-72 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
-                    />
-                    <Search
-                        size={16}
-                        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                    />
-                    {#if keyword}
+            <!-- 右側: ルール選択・年月選択・表示切替・選択モード -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <!-- ルール選択 -->
+                <div class="relative flex items-center">
+                    <select
+                        value={selectedRuleId !== null ? String(selectedRuleId) : ''}
+                        onchange={e => {
+                            const val = e.currentTarget.value;
+                            selectRule(val === '' ? null : parseInt(val, 10));
+                        }}
+                        class="h-9 max-w-[140px] sm:max-w-[180px] truncate rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 {selectedRuleId !==
+                        null
+                            ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
+                    >
+                        <option value="">すべてのルール</option>
+                        <option value="0">手動録画のみ (ルールなし)</option>
+                        {#each rulesList as r}
+                            <option value={String(r.id)}>{r.name}</option>
+                        {/each}
+                    </select>
+                    {#if selectedRuleId !== null}
                         <button
                             type="button"
-                            onclick={clearSearch}
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
-                            title="検索をクリア"
-                            aria-label="検索をクリア"
+                            onclick={() => selectRule(null)}
+                            class="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                            title="ルール絞り込みを解除"
                         >
                             <X size={14} />
                         </button>
                     {/if}
-                </form>
+                </div>
 
+                <!-- 年月選択 -->
+                <div class="flex items-center gap-1">
+                    <select
+                        value={selectedYear ?? ''}
+                        onchange={e => {
+                            const val = e.currentTarget.value;
+                            const newYear = val === '' ? null : parseInt(val, 10);
+                            handleDateJump(newYear, newYear === null ? null : selectedMonth);
+                        }}
+                        class="h-9 w-[88px] sm:w-[94px] rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 {selectedYear !==
+                        null
+                            ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
+                    >
+                        <option value="">年</option>
+                        {#each years as y}
+                            <option value={y}>{y}年</option>
+                        {/each}
+                    </select>
+
+                    <select
+                        value={selectedMonth ?? ''}
+                        disabled={selectedYear === null}
+                        onchange={e => {
+                            const val = e.currentTarget.value;
+                            handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
+                        }}
+                        class="h-9 w-[78px] sm:w-[82px] rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed {selectedMonth !==
+                        null
+                            ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
+                    >
+                        <option value="">月</option>
+                        {#each months as m}
+                            <option value={m}>{m}月</option>
+                        {/each}
+                    </select>
+
+                    {#if selectedYear !== null || selectedMonth !== null}
+                        <button
+                            type="button"
+                            onclick={() => handleDateJump(null, null)}
+                            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                            title="年月指定を解除"
+                        >
+                            <X size={14} />
+                        </button>
+                    {/if}
+                </div>
+
+                <!-- 垂直ディバイダー -->
+                <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+
+                <!-- 表示切り替え -->
                 <div class="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
                     <button
                         type="button"
                         onclick={() => setViewMode('card')}
-                        class="rounded-lg p-2 cursor-pointer transition {viewMode === 'card'
+                        class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'card'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="カード表示"
                         aria-label="カード表示"
                     >
-                        <LayoutGrid size={18} />
+                        <LayoutGrid size={16} />
                     </button>
                     <button
                         type="button"
                         onclick={() => setViewMode('table')}
-                        class="rounded-lg p-2 cursor-pointer transition {viewMode === 'table'
+                        class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'table'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
                         title="テーブル表示"
                         aria-label="テーブル表示"
                     >
-                        <TableIcon size={18} />
+                        <TableIcon size={16} />
                     </button>
                 </div>
 
+                <!-- 複数選択モード -->
                 {#if !readOnlyStore.isReadOnly}
                     <button
                         type="button"
                         onclick={toggleSelectionMode}
-                        class="flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition cursor-pointer {isSelectionMode
+                        class="flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer {isSelectionMode
                             ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/50 dark:text-blue-300'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                         title={isSelectionMode ? '選択モードを終了' : '複数選択モードを開始'}
                     >
-                        <CheckSquare size={16} />
+                        <CheckSquare size={15} />
                         <span class="hidden sm:inline">{isSelectionMode ? '選択終了' : '選択'}</span>
                     </button>
                 {/if}
             </div>
         </div>
 
-        <!-- フィルターナビゲーション (ルール指定 & 年月指定) -->
-        <div class="flex flex-wrap items-center gap-3 sm:gap-4 border-t border-slate-100 pt-3 dark:border-slate-800">
-            <!-- ルール指定 -->
-            <div class="flex items-center gap-1.5 shrink-0">
-                <span
-                    class="flex items-center gap-1 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
-                >
-                    <SlidersHorizontal size={15} class="text-blue-500" /> ルール:
-                </span>
-                <select
-                    value={selectedRuleId !== null ? String(selectedRuleId) : ''}
-                    onchange={e => {
-                        const val = e.currentTarget.value;
-                        selectRule(val === '' ? null : parseInt(val, 10));
-                    }}
-                    class="h-10 max-w-[150px] sm:max-w-[210px] truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
-                >
-                    <option value="">すべてのルール</option>
-                    <option value="0">手動録画のみ (ルールなし)</option>
-                    {#each rulesList as r}
-                        <option value={String(r.id)}>{r.name}</option>
-                    {/each}
-                </select>
-                {#if selectedRuleId !== null}
+        <!-- 下段: キーワード検索 ＆ ジャンルチップ（横スクロール対応） -->
+        <div
+            class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80"
+        >
+            <!-- 検索入力 (フォーム) -->
+            <form
+                onsubmit={e => {
+                    e.preventDefault();
+                    handleSearch();
+                }}
+                class="relative w-full sm:w-64 shrink-0"
+            >
+                <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                    type="text"
+                    bind:value={keyword}
+                    onkeydown={onInputKeydown}
+                    placeholder="録画を検索..."
+                    aria-label="録画を検索"
+                    class="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-8 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800 transition-colors"
+                />
+                {#if keyword}
                     <button
                         type="button"
-                        onclick={() => selectRule(null)}
-                        class="btn-secondary h-10 px-2.5 text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0"
-                        title="ルール絞り込みを解除"
+                        onclick={clearSearch}
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                        title="検索をクリア"
+                        aria-label="検索をクリア"
                     >
                         <X size={14} />
                     </button>
                 {/if}
-            </div>
+            </form>
 
-            <!-- 年月指定 -->
-            <div class="flex items-center gap-1.5 shrink-0">
-                <span
-                    class="flex items-center gap-1 text-sm font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0"
-                >
-                    <Calendar size={15} class="text-blue-500" /> 年月:
-                </span>
-                <select
-                    value={selectedYear ?? ''}
-                    onchange={e => {
-                        const val = e.currentTarget.value;
-                        handleDateJump(val === '' ? null : parseInt(val, 10), selectedMonth);
-                    }}
-                    class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
-                >
-                    <option value="">すべての年</option>
-                    {#each years as y}
-                        <option value={y}>{y}年</option>
-                    {/each}
-                </select>
-
-                {#if selectedYear !== null}
-                    <select
-                        value={selectedMonth ?? ''}
-                        onchange={e => {
-                            const val = e.currentTarget.value;
-                            handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
-                        }}
-                        class="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors shrink-0"
-                    >
-                        <option value="">すべての月</option>
-                        {#each months as m}
-                            <option value={m}>{m}月</option>
-                        {/each}
-                    </select>
-                {/if}
-
-                {#if selectedYear !== null || selectedMonth !== null}
+            <!-- ジャンルチップ (横スクロール) -->
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
+                {#each genres as g}
                     <button
                         type="button"
-                        onclick={() => handleDateJump(null, null)}
-                        class="btn-secondary h-10 px-2.5 text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0"
-                        title="年月指定を解除"
+                        onclick={() => selectGenre(g.id)}
+                        class="rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedGenre ===
+                        g.id
+                            ? 'bg-blue-600 text-white font-bold shadow-xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                     >
-                        <X size={14} />
+                        {g.name}
                     </button>
-                {/if}
+                {/each}
             </div>
-        </div>
-
-        <!-- ジャンルフィルターチップ -->
-        <div class="flex flex-wrap gap-2">
-            {#each genres as g}
-                <button
-                    type="button"
-                    onclick={() => selectGenre(g.id)}
-                    class="rounded-xl px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedGenre ===
-                    g.id
-                        ? 'bg-blue-600 text-white font-bold shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
-                >
-                    {g.name}
-                </button>
-            {/each}
         </div>
     </div>
 

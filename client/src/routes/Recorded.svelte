@@ -667,7 +667,7 @@
                         onclick={() => setViewMode('card')}
                         class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'card'
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'}"
                         title="カード表示"
                         aria-label="カード表示"
                     >
@@ -678,7 +678,7 @@
                         onclick={() => setViewMode('table')}
                         class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'table'
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'}"
                         title="テーブル表示"
                         aria-label="テーブル表示"
                     >

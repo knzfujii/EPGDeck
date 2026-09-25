@@ -460,15 +460,6 @@
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-md">
                     検索キーワードの誤字・脱字がないか確認するか、ジャンルや検索対象の絞り込み条件を広げてお試しください。
                 </p>
-                {#if !readOnlyStore.isReadOnly}
-                    <button
-                        type="button"
-                        onclick={openCreateRuleModal}
-                        class="btn-primary mt-4 flex items-center gap-1.5 h-10 px-4 text-xs font-bold cursor-pointer"
-                    >
-                        <Plus size={16} /> この条件で自動録画ルールを作成
-                    </button>
-                {/if}
             </div>
         {/if}
     </div>

@@ -412,7 +412,7 @@
         <button
             type="button"
             onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
         >
             録画一覧へ
         </button>
@@ -443,7 +443,7 @@
                             class="rounded-xl px-4 py-2 text-sm font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedType ===
                             type.id
                                 ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
-                                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                         >
                             {type.name}
                         </button>

@@ -392,7 +392,7 @@
                         class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
                         'enabled'
                             ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                     >
                         <Power size={14} class={filterStatus === 'enabled' ? 'text-emerald-500' : 'text-slate-400'} />
                         有効 ({enabledCount})
@@ -403,7 +403,7 @@
                         class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
                         'disabled'
                             ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                     >
                         <Power
                             size={14}
@@ -419,7 +419,7 @@
                         class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
                         'all'
                             ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                     >
                         <Layers size={14} class={filterStatus === 'all' ? 'text-blue-500' : 'text-slate-400'} />
                         すべて ({allCount})

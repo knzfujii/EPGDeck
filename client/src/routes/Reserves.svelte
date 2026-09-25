@@ -306,7 +306,7 @@
                     class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'all'
                         ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                 >
                     すべて ({total})
                 </button>
@@ -317,8 +317,8 @@
                     'recording'
                         ? 'bg-rose-600 text-white font-bold shadow-xs'
                         : recordingCount > 0
-                          ? 'text-rose-600 font-bold'
-                          : 'text-slate-500'}"
+                          ? 'text-rose-600 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                 >
                     <span
                         class="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full {recordingCount > 0
@@ -334,8 +334,8 @@
                     'conflicts'
                         ? 'bg-rose-600 text-white font-bold shadow-xs'
                         : conflictCount > 0
-                          ? 'text-rose-600 font-bold'
-                          : 'text-slate-500'}"
+                          ? 'text-rose-600 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                 >
                     <AlertTriangle size={14} /> 競合 ({conflictCount})
                 </button>
@@ -345,7 +345,7 @@
                     class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'skips'
                         ? 'bg-amber-500 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                 >
                     スキップ ({skipCount})
                 </button>
@@ -355,7 +355,7 @@
                     class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'overlaps'
                         ? 'bg-slate-700 text-white font-bold shadow-xs dark:bg-slate-600'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                 >
                     重複 ({overlapCount})
                 </button>

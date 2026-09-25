@@ -695,7 +695,7 @@
                         class="rounded-lg px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer {selectedType ===
                         type.id
                             ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
-                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
                     >
                         {type.name}
                     </button>

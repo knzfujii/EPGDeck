@@ -1038,7 +1038,7 @@
             <button
                 type="button"
                 onclick={() => router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded')}
-                class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 cursor-pointer"
+                class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
             >
                 {readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画一覧へ'}
             </button>
@@ -1215,7 +1215,7 @@
                                         onclick={() => toggleDayOfWeek(day.value)}
                                         class="h-10 w-full rounded-xl border text-sm font-bold transition cursor-pointer {isSelected
                                             ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/70 dark:text-blue-200 shadow-xs'
-                                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-500 hover:dark:bg-slate-900/60 hover:dark:text-slate-300'}"
+                                            : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-500 dark:hover:bg-slate-900/60 dark:hover:text-slate-300'}"
                                     >
                                         {day.label}
                                     </button>
@@ -1433,7 +1433,7 @@
                                             onclick={() => toggleDayOfWeek(day.value)}
                                             class="h-10 w-full rounded-xl border text-sm font-bold transition cursor-pointer {isSelected
                                                 ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/70 dark:text-blue-200 shadow-xs'
-                                                : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-500 hover:dark:bg-slate-900/60 hover:dark:text-slate-300'}"
+                                                : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-500 dark:hover:bg-slate-900/60 dark:hover:text-slate-300'}"
                                         >
                                             {day.label}
                                         </button>

@@ -138,9 +138,9 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await page.goto('/reserves');
         await page.waitForLoadState('networkidle');
 
-        // 1. フィルタータブに「録画中 (1)」が表示されていることを確認
-        const recordingTab = page.getByRole('button', { name: /録画中\s*\(1\)/ });
-        await expect(recordingTab).toBeVisible();
+        // 1. フィルタータブに「録画中」タブが存在しないことを確認（せいぜい8件のため絞り込み不要）
+        const recordingTab = page.getByRole('button', { name: /録画中\s*\(/ });
+        await expect(recordingTab).not.toBeVisible();
 
         // 2. テーブル行に「現在録画中アニメ番組」と「未来の通常予約番組」が表示されていることを確認
         const table = page.getByRole('table');
@@ -152,11 +152,6 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await expect(table.getByText(/50%/)).toBeVisible();
         const watchBtn = table.getByRole('button', { name: /視聴/ });
         await expect(watchBtn).toBeVisible();
-
-        // 4. 「録画中 (1)」タブをクリックして絞り込み確認
-        await recordingTab.click();
-        await expect(table.getByText('現在録画中アニメ番組')).toBeVisible();
-        await expect(table.getByText('未来の通常予約番組')).not.toBeVisible();
 
         // 5. 録画中行をクリックして詳細モーダルを開く
         await table.getByText('現在録画中アニメ番組').click();

@@ -171,16 +171,16 @@ test.describe('Dashboard Page (/)', () => {
         await cancelBtn.click();
         await expect(actionModal).not.toBeVisible();
 
-        // 3. 予約警告アコーディオン（競合・重複スキップ）の検証
+        // 3. 予約警告アコーディオン（チューナー競合のみ表示、重複スキップは除外）の検証
         const alertAccordionBtn = page.getByRole('button', { name: /予約の注意・警告/ });
         await expect(alertAccordionBtn).toBeVisible();
         await expect(page.getByText('競合 1件')).toBeVisible();
-        await expect(page.getByText('重複スキップ 1件')).toBeVisible();
+        await expect(page.getByText('重複スキップ')).not.toBeVisible();
 
         // アコーディオンを展開
         await alertAccordionBtn.click();
         await expect(page.getByText('ダッシュボード競合番組').first()).toBeVisible();
-        await expect(page.getByText('ダッシュボード重複番組').first()).toBeVisible();
+        await expect(page.getByText('ダッシュボード重複番組')).not.toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

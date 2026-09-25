@@ -48,7 +48,7 @@
     let reserves = $state<ReserveWithRecording[]>([]);
     let total = $state(0);
     let isLoading = $state(true);
-    let filterMode = $state<'all' | 'recording' | 'conflicts' | 'skips' | 'overlaps'>('all');
+    let filterMode = $state<'all' | 'conflicts' | 'skips' | 'overlaps'>('all');
 
     // 予約詳細モーダル状態
     let isDetailModalOpen = $state(false);
@@ -177,18 +177,15 @@
     });
 
     let filteredReserves = $derived(
-        filterMode === 'recording'
-            ? reserves.filter(r => r.isRecording)
-            : filterMode === 'conflicts'
-              ? reserves.filter(r => r.isConflict)
-              : filterMode === 'skips'
-                ? reserves.filter(r => r.isSkip)
-                : filterMode === 'overlaps'
-                  ? reserves.filter(r => r.isOverlap)
-                  : reserves,
+        filterMode === 'conflicts'
+            ? reserves.filter(r => r.isConflict)
+            : filterMode === 'skips'
+              ? reserves.filter(r => r.isSkip)
+              : filterMode === 'overlaps'
+                ? reserves.filter(r => r.isOverlap)
+                : reserves,
     );
 
-    let recordingCount = $derived(reserves.filter(r => r.isRecording).length);
     let conflictCount = $derived(reserves.filter(r => r.isConflict).length);
     let skipCount = $derived(reserves.filter(r => r.isSkip).length);
     let overlapCount = $derived(reserves.filter(r => r.isOverlap).length);
@@ -313,23 +310,6 @@
                 </button>
                 <button
                     type="button"
-                    onclick={() => (filterMode = 'recording')}
-                    class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
-                    'recording'
-                        ? 'bg-rose-600 text-white font-bold shadow-xs'
-                        : recordingCount > 0
-                          ? 'text-rose-600 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                >
-                    <span
-                        class="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full {recordingCount > 0
-                            ? 'bg-rose-500 animate-pulse'
-                            : 'bg-slate-400'}"
-                    ></span>
-                    録画中 ({recordingCount})
-                </button>
-                <button
-                    type="button"
                     onclick={() => (filterMode = 'conflicts')}
                     class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
                     'conflicts'
@@ -384,9 +364,7 @@
         >
             <Clock size={40} class="text-slate-300 dark:text-slate-600" />
             <p class="mt-2 text-base font-bold text-slate-700 dark:text-slate-300">
-                {#if filterMode === 'recording'}
-                    現在録画中の予約はありません
-                {:else if filterMode === 'conflicts'}
+                {#if filterMode === 'conflicts'}
                     チューナー競合している予約はありません
                 {:else if filterMode === 'skips'}
                     スキップ中の予約はありません

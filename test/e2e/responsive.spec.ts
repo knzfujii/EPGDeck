@@ -137,6 +137,73 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             await exitModeBtn.click();
             await expect(floatingBar).not.toBeVisible();
         });
+
+        test('should render responsive shortened button labels with unified height on /recorded/detail', async ({
+            page,
+        }) => {
+            const mockDetail = {
+                id: 802,
+                channelId: 1,
+                startAt: Date.now() - 3600000,
+                endAt: Date.now(),
+                name: 'スマホ表示テスト録画番組',
+                description: 'モバイル幅での上部ボタン短縮表示テスト',
+                isRecording: false,
+                isEncoding: false,
+                isProtected: false,
+                hasDuplicateHistory: true,
+                videoFiles: [{ id: 10, name: 'default', filename: 'test.ts', type: 'ts', size: 1024 * 1024 * 50 }],
+            };
+
+            await page.route('**/api/recorded/802*', async route => {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockDetail),
+                });
+            });
+
+            await page.goto('/recorded/detail?recordedId=802');
+            await page.waitForLoadState('networkidle');
+
+            // 1. 戻るボタンが「戻る」に短縮されていることを確認
+            const backBtn = page.getByRole('button', { name: /戻る/ });
+            await expect(backBtn).toBeVisible();
+            await expect(backBtn.locator('.sm\\:hidden')).toHaveText('戻る');
+            await expect(backBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+
+            // 2. 重複除外ボタンが「重複除外」に短縮されていることを確認
+            const duplicateBtn = page.getByRole('button', { name: /重複除外/ });
+            await expect(duplicateBtn).toBeVisible();
+            await expect(duplicateBtn.locator('.sm\\:hidden')).toHaveText('重複除外');
+            await expect(duplicateBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+
+            // 3. 保護ボタンが「保護」に短縮されていることを確認
+            const protectBtn = page.getByRole('button', { name: /保護/ });
+            await expect(protectBtn).toBeVisible();
+            await expect(protectBtn.locator('.sm\\:hidden')).toHaveText('保護');
+            await expect(protectBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+
+            // 4. 削除ボタンが表示され、各ボタンの高さ（h-9: 36px）が揃っていることを確認
+            const deleteBtn = page.getByRole('button', { name: '削除', exact: true });
+            await expect(deleteBtn).toBeVisible();
+
+            const backBox = await backBtn.boundingBox();
+            const duplicateBox = await duplicateBtn.boundingBox();
+            const protectBox = await protectBtn.boundingBox();
+            const deleteBox = await deleteBtn.boundingBox();
+
+            expect(backBox).not.toBeNull();
+            expect(duplicateBox).not.toBeNull();
+            expect(protectBox).not.toBeNull();
+            expect(deleteBox).not.toBeNull();
+
+            // 高さが36px（誤差1px以内）で揃っていることを検証
+            expect(Math.round(duplicateBox!.height)).toBe(36);
+            expect(Math.round(protectBox!.height)).toBe(36);
+            expect(Math.round(deleteBox!.height)).toBe(36);
+            expect(Math.round(backBox!.height)).toBe(36);
+        });
     });
 
     // =========================================================================

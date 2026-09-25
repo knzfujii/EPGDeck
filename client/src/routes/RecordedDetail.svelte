@@ -506,32 +506,42 @@
 
 <div class="w-full max-w-5xl min-w-0 space-y-5">
     <!-- ヘッダー & ナビゲーション -->
-    <div class="flex items-center justify-between">
-        <button type="button" onclick={goBackToRecordedList} class="btn-secondary">
-            <ArrowLeft size={16} /> 録画一覧へ戻る
+    <div class="flex items-center justify-between gap-2">
+        <button
+            type="button"
+            onclick={goBackToRecordedList}
+            class="btn-secondary whitespace-nowrap shrink-0 px-3 sm:px-4 text-xs sm:text-sm h-9 sm:h-10 min-h-0"
+        >
+            <ArrowLeft size={16} />
+            <span class="hidden sm:inline">録画一覧へ戻る</span>
+            <span class="sm:hidden">戻る</span>
         </button>
 
         {#if recorded}
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {#if !readOnlyStore.isReadOnly}
                     <!-- 重複判定除外 / 追加ボタン -->
                     {#if recorded.hasDuplicateHistory === false}
                         <button
                             type="button"
                             onclick={includeInDuplicate}
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer"
+                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10"
                             title="重複判定履歴に登録し、二重録画防止の対象に戻します"
                         >
-                            <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" /> 重複判定に追加
+                            <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" />
+                            <span class="hidden sm:inline">重複判定に追加</span>
+                            <span class="sm:hidden">+重複</span>
                         </button>
                     {:else}
                         <button
                             type="button"
                             onclick={excludeFromDuplicate}
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer"
+                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10"
                             title="二重録画防止（重複判定）の履歴から削除し、次回放送を録画できるようにします"
                         >
-                            <CopyX size={15} class="text-slate-400 dark:text-slate-400" /> 重複判定から除外
+                            <CopyX size={15} class="text-slate-400 dark:text-slate-400" />
+                            <span class="hidden sm:inline">重複判定から除外</span>
+                            <span class="sm:hidden">重複除外</span>
                         </button>
                     {/if}
 
@@ -539,21 +549,29 @@
                     <button
                         type="button"
                         onclick={toggleProtect}
-                        class="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-bold transition cursor-pointer {recorded.isProtected
+                        class="flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10 {recorded.isProtected
                             ? 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
                             : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
                         title={recorded.isProtected ? '保護を解除' : '誤削除から保護'}
                     >
                         {#if recorded.isProtected}
-                            <Lock size={15} class="text-amber-500" /> 保護中
+                            <Lock size={15} class="text-amber-500" />
+                            <span>保護中</span>
                         {:else}
-                            <Unlock size={15} /> 保護する
+                            <Unlock size={15} />
+                            <span class="hidden sm:inline">保護する</span>
+                            <span class="sm:hidden">保護</span>
                         {/if}
                     </button>
 
                     <!-- 削除ボタン -->
                     {#if !recorded.isProtected}
-                        <button type="button" onclick={deleteRecorded} class="btn-danger" title="録画を削除">
+                        <button
+                            type="button"
+                            onclick={deleteRecorded}
+                            class="btn-danger whitespace-nowrap shrink-0 px-3 sm:px-4 text-xs sm:text-sm h-9 sm:h-10 min-h-0"
+                            title="録画を削除"
+                        >
                             <Trash2 size={15} /> 削除
                         </button>
                     {/if}
@@ -680,12 +698,12 @@
                     </div>
 
                     <!-- 再生 & アクションボタン列 -->
-                    <div class="flex items-center gap-3 flex-wrap pt-2">
+                    <div class="flex items-center gap-2 sm:gap-3 flex-wrap pt-2">
                         {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
                             <button
                                 type="button"
                                 onclick={handleDetailPlay}
-                                class="btn-primary"
+                                class="btn-primary whitespace-nowrap shrink-0"
                                 title="再生方法や画質を選択して再生"
                             >
                                 <Play size={16} fill="currentColor" /> 詳細再生
@@ -693,13 +711,21 @@
                         {/if}
 
                         {#if !readOnlyStore.isReadOnly}
-                            <button type="button" onclick={() => (isEncodeModalOpen = true)} class="btn-secondary">
+                            <button
+                                type="button"
+                                onclick={() => (isEncodeModalOpen = true)}
+                                class="btn-secondary whitespace-nowrap shrink-0"
+                            >
                                 <Sparkles size={16} class="text-amber-500" /> エンコード追加
                             </button>
                         {/if}
 
                         {#if recorded.dropLogFile}
-                            <button type="button" onclick={openDropLog} class="btn-secondary">
+                            <button
+                                type="button"
+                                onclick={openDropLog}
+                                class="btn-secondary whitespace-nowrap shrink-0"
+                            >
                                 <FileText size={16} /> ドロップログ
                             </button>
                         {/if}

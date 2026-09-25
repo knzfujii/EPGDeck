@@ -61,10 +61,10 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
   - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
 - **[データベース & マイグレーション運用ガイド](dev/database.md)**
   - Drizzle ORM の Schema 設計、Entity 構造、EPGStation 完全互換ポリシー。
-- **[画面変更仕様書 (Svelte 5 刷新・開発履歴)](dev/epgdeck_change_spec.md)**
-  - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、新機能（次番組予約・スキップ復活・ルール詳細編集・ダークモードジャンル色等）の変更設計書。
-- **[オリジナル EPGStation 画面仕様書](dev/epgstation_ui_spec.md)**
-  - フォーク元である EPGStation の全画面仕様・画面遷移・機能対比の参考資料。
+- **[画面仕様書 (Svelte 5 刷新)](dev/epgdeck_change_spec.md)**
+  - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、UI/UX 設計・アーキテクチャ仕様書。
+- **[オリジナル EPGStation 画面仕様リファレンス](dev/epgstation_ui_spec.md)**
+  - フォーク元である EPGStation (v2.x) の全画面構成・提供機能・API 連携の参考資料。
 - **[改善 TODO リスト（タスク管理ボード）](TODO.md)**
-  - 今後の機能改善・UX 向上・仕様検討タスク一覧。
+  - 機能改善ロードマップ、未解決 Issue、完了済みタスク一覧。
 

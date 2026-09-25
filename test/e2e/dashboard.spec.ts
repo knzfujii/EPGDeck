@@ -185,4 +185,73 @@ test.describe('Dashboard Page (/)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should limit upcoming reserves list to the most recent 10 items while showing total count', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const now = Date.now();
+        // 15件の予約データを作成（直近順）
+        const mockReserves = Array.from({ length: 15 }, (_, i) => ({
+            id: 1000 + i,
+            programId: 2000 + i,
+            channelId: 1,
+            name: `直近テスト予約番組 #${String(i + 1).padStart(2, '0')}`,
+            startAt: now + (i + 1) * 30 * 60 * 1000,
+            endAt: now + (i + 1) * 30 * 60 * 1000 + 25 * 60 * 1000,
+            isHalfWidth: true,
+            isSkip: false,
+            isConflict: false,
+            isOverlap: false,
+            allowEndLack: true,
+        }));
+
+        await page.route('**/api/reserves*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    reserves: mockReserves,
+                    total: 15,
+                }),
+            });
+        });
+
+        await page.goto('/');
+        await page.waitForLoadState('networkidle');
+
+        // 予約一覧のカードセクションを特定
+        const reservesSection = page.locator('div', {
+            has: page.getByRole('heading', { name: '予約一覧', exact: true }),
+        });
+
+        // 1. バッジには総件数「15 件」が表示されること
+        await expect(reservesSection.getByText('15 件')).toBeVisible();
+
+        // 2. 表示される番組カードは直近10件に制限されていること
+        const titles = reservesSection.locator('h3.program-title');
+        await expect(titles).toHaveCount(10);
+
+        // 3. 1件目〜10件目が表示され、11件目以降は表示されないこと
+        await expect(page.getByText('直近テスト予約番組 #01')).toBeVisible();
+        await expect(page.getByText('直近テスト予約番組 #10')).toBeVisible();
+        await expect(page.getByText('直近テスト予約番組 #11')).not.toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

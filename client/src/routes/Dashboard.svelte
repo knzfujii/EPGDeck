@@ -101,8 +101,9 @@
                 };
             });
             conflictReserves = mappedReserves.filter(r => r.isConflict);
-            upcomingReserves = mappedReserves.filter(r => !r.isOverlap);
-            reservesTotal = upcomingReserves.length;
+            const nonOverlapReserves = mappedReserves.filter(r => !r.isOverlap);
+            reservesTotal = nonOverlapReserves.length;
+            upcomingReserves = nonOverlapReserves.slice(0, 10);
         } catch (e) {
             console.error('Failed to fetch dashboard data', e);
         } finally {
@@ -574,7 +575,7 @@
                         <span
                             class="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
                         >
-                            {reservesTotal} 件
+                            {reservesTotal.toLocaleString()} 件
                         </span>
                     </div>
                     <button

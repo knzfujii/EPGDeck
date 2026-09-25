@@ -21,6 +21,7 @@
     } from '../lib/utils/recording';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
+    import LoadingState from '../lib/components/common/LoadingState.svelte';
     import {
         Clock,
         Plus,
@@ -376,11 +377,7 @@
 
     <!-- コンテンツ表示 -->
     {#if isLoading}
-        <div
-            class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-        >
-            <p class="text-sm font-medium text-slate-400">予約データを読み込み中...</p>
-        </div>
+        <LoadingState message="予約データを読み込み中..." />
     {:else if filteredReserves.length === 0}
         <div
             class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"

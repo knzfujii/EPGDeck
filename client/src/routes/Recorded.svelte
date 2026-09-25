@@ -8,6 +8,10 @@
     import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import { getSmartWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import EmptyState from '../lib/components/common/EmptyState.svelte';
+    import LoadingState from '../lib/components/common/LoadingState.svelte';
+    import Pagination from '../lib/components/common/Pagination.svelte';
+    import { QUICK_GENRES } from '../lib/constants/genres';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
     import {
@@ -29,8 +33,6 @@
         Lock,
         Unlock,
         MoreVertical,
-        ChevronLeft,
-        ChevronRight,
         AlertTriangle,
         Sparkles,
         CheckSquare,
@@ -92,17 +94,7 @@
     let selectedItemForStream = $state<apid.RecordedItem | null>(null);
 
     // ジャンル定義
-    const genres = [
-        { id: null, name: 'すべて' },
-        { id: 7, name: 'アニメ' },
-        { id: 6, name: '映画' },
-        { id: 3, name: 'ドラマ' },
-        { id: 0, name: 'ニュース' },
-        { id: 5, name: 'バラエティ' },
-        { id: 1, name: 'スポーツ' },
-        { id: 4, name: '音楽' },
-        { id: 2, name: '情報' },
-    ];
+    const genres = [{ id: null, name: 'すべて' }, ...QUICK_GENRES];
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
@@ -757,19 +749,13 @@
 
     <!-- コンテンツ表示 (テーブル or カード) -->
     {#if isLoading}
-        <div
-            class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-        >
-            <p class="text-sm font-medium text-slate-400">録画データを読み込み中...</p>
-        </div>
+        <LoadingState message="録画データを読み込み中..." />
     {:else if recorded.length === 0}
-        <div
-            class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-        >
-            <Video size={36} class="text-slate-300 dark:text-slate-600" />
-            <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">該当する録画が見つかりません</p>
-            <p class="text-xs text-slate-400">検索条件やフィルターを変更してお試しください</p>
-        </div>
+        <EmptyState
+            icon={Video}
+            title="該当する録画が見つかりません"
+            description="検索条件やフィルターを変更してお試しください"
+        />
     {:else if viewMode === 'table'}
         <!-- テーブル表示 (再生ボタンを目立たせる) -->
         <div
@@ -1151,29 +1137,7 @@
     {/if}
 
     <!-- ページネーションコントロール -->
-    {#if Math.ceil(total / limit) > 1}
-        <div class="flex items-center justify-center gap-2 pt-2">
-            <button
-                type="button"
-                disabled={currentPage <= 1}
-                onclick={() => changePage(currentPage - 1)}
-                class="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-            >
-                <ChevronLeft size={14} /> 前へ
-            </button>
-            <span class="px-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                {currentPage} / {Math.ceil(total / limit)} ページ
-            </span>
-            <button
-                type="button"
-                disabled={currentPage >= Math.ceil(total / limit)}
-                onclick={() => changePage(currentPage + 1)}
-                class="flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-            >
-                次へ <ChevronRight size={14} />
-            </button>
-        </div>
-    {/if}
+    <Pagination {currentPage} {total} {limit} onPageChange={changePage} />
 
     <!-- フローティング一括操作バー (画面下部固定) -->
     {#if isSelectionMode}

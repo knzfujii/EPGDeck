@@ -7,6 +7,7 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
+    import { QUICK_GENRES } from '../lib/constants/genres';
     import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles, X } from '@lucide/svelte';
 
     let keyword = $state(router.current.query.keyword || '');
@@ -76,17 +77,7 @@
         });
     });
 
-    const genres = [
-        { id: null, name: 'すべてのジャンル' },
-        { id: 7, name: 'アニメ' },
-        { id: 6, name: '映画' },
-        { id: 3, name: 'ドラマ' },
-        { id: 0, name: 'ニュース' },
-        { id: 5, name: 'バラエティ' },
-        { id: 1, name: 'スポーツ' },
-        { id: 4, name: '音楽' },
-        { id: 2, name: '情報' },
-    ];
+    const genres = [{ id: null, name: 'すべてのジャンル' }, ...QUICK_GENRES];
 
     async function fetchExistingReserves() {
         try {

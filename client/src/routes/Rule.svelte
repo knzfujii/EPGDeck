@@ -9,6 +9,7 @@
     import { saveLastRulePath, saveLastRuleTargetId, consumeLastRuleTargetId } from '../lib/navigationHistory';
     import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
+    import LoadingState from '../lib/components/common/LoadingState.svelte';
     import {
         SlidersHorizontal,
         Plus,
@@ -476,11 +477,7 @@
 
         <!-- ルール一覧テーブル -->
         {#if isLoading}
-            <div
-                class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-            >
-                <p class="text-sm font-medium text-slate-400">ルール一覧を取得中...</p>
-            </div>
+            <LoadingState message="ルール一覧を取得中..." />
         {:else if filteredRules.length === 0}
             <div
                 class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"

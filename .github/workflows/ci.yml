@@ -166,8 +166,14 @@ jobs:
       - name: Install Root Dependencies
         run: npm ci
 
+      - name: Install Client Dependencies
+        run: npm --prefix client ci
+
       - name: TypeScript Compile (Server)
         run: npm run compile
+
+      - name: Build Client
+        run: npm --prefix client run build
 
       - name: Run Unit Tests (SQLite)
         run: npm test

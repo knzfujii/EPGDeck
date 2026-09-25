@@ -31,9 +31,11 @@ test.describe('Guide Page (/guide)', () => {
         // 3. 日付セレクタ（select）の検証
         const dateSelect = page.locator('select');
         const options = await dateSelect.locator('option').allInnerTexts();
-        expect(options.length).toBe(9); // 今日 + 8日 = 9日間
-        expect(options[0]).toContain('今日');
-        expect(options[1]).toContain('明日');
+        expect(options.length).toBe(8); // 今日 + 7日 = 8日間 (日本のEPG放送規格上限)
+        expect(options[0]).toMatch(/\d{1,2}\/\d{1,2}\s\([日月火水木金土]\)/);
+        expect(options[1]).toMatch(/\d{1,2}\/\d{1,2}\s\([日月火水木金土]\)/);
+        expect(options[0]).not.toContain('今日');
+        expect(options[1]).not.toContain('明日');
 
         // 4. 「翌日」ボタンをクリックして未来の日付へ進む
         const nextBtn = page.getByTitle('翌日');
@@ -471,5 +473,97 @@ test.describe('Guide Page (/guide)', () => {
 
         // /rule/edit?ruleId=42 への遷移を検証
         await page.waitForURL(/\/rule\/edit\?ruleId=42/);
+    });
+
+    test('should preserve vertical scroll position across dates and fit within viewport without hiding toolbar', async ({
+        page,
+    }) => {
+        const mockChannels = [
+            {
+                id: 1,
+                serviceId: 101,
+                networkId: 32736,
+                name: 'テスト局',
+                halfWidthName: 'テスト局',
+                channelTypeId: 1,
+                channelType: 'GR',
+                channel: '27',
+                hasLogoData: false,
+            },
+        ];
+
+        const mockSchedules = [
+            {
+                channel: mockChannels[0],
+                programs: [
+                    {
+                        id: 99001,
+                        channelId: 1,
+                        startAt: Date.now() - 3600000,
+                        endAt: Date.now() + 3600000,
+                        name: 'テスト番組 1',
+                        description: '番組概要 1',
+                        genre1: 0,
+                    },
+                ],
+            },
+        ];
+
+        await page.route('**/api/channels*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockChannels) });
+        });
+        await page.route('**/api/schedules*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockSchedules) });
+        });
+
+        await page.goto('/guide');
+
+        // 番組表のロードを待機
+        await expect(page.locator('text=時刻')).toBeVisible({ timeout: 10000 });
+
+        const scrollContainer = page.locator('.overflow-auto').first();
+        await expect(scrollContainer).toBeVisible();
+
+        // メインコンテナのオーバースクロールがないことを検証 (日めくりUIが隠れない構造)
+        const heights = await page.evaluate(() => {
+            const main = document.querySelector('main');
+            if (!main) return null;
+            return {
+                scrollHeight: main.scrollHeight,
+                clientHeight: main.clientHeight,
+                scrollTop: main.scrollTop,
+                styleOverflowY: window.getComputedStyle(main).overflowY,
+                parentHeight: main.parentElement?.clientHeight,
+            };
+        });
+        expect(heights?.scrollHeight).toBeLessThanOrEqual((heights?.clientHeight ?? 0) + 2);
+
+        // 縦スクロールを 1200px に設定
+        await scrollContainer.evaluate(el => {
+            el.scrollTop = 1200;
+        });
+        await page.waitForTimeout(100);
+
+        // 翌日へ進む
+        const nextBtn = page.getByTitle('翌日');
+        await nextBtn.click();
+        await page.waitForTimeout(400);
+
+        // 翌日でも scrollTop が維持されていること (誤差 ±5px 以内)
+        const scrollTopAfterNext = await scrollContainer.evaluate(el => el.scrollTop);
+        expect(Math.abs(scrollTopAfterNext - 1200)).toBeLessThanOrEqual(5);
+
+        // 前日に戻る
+        const prevBtn = page.getByTitle('前日');
+        await prevBtn.click();
+        await page.waitForTimeout(400);
+
+        // 前日でも scrollTop が維持されていること
+        const scrollTopAfterPrev = await scrollContainer.evaluate(el => el.scrollTop);
+        expect(Math.abs(scrollTopAfterPrev - 1200)).toBeLessThanOrEqual(5);
+
+        // ツールバーが引き続きビューポート内で視認可能であること
+        await expect(page.getByTitle('前日')).toBeInViewport();
+        await expect(page.getByTitle('翌日')).toBeInViewport();
     });
 });

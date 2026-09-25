@@ -36,6 +36,7 @@
         Ban,
         RotateCcw,
         Square,
+        Loader2,
     } from '@lucide/svelte';
 
     import {
@@ -70,11 +71,10 @@
             const day = d.getDate();
             const dayOfWeek = dayNames[d.getDay()];
             const isToday = i === 0;
-            const prefix = isToday ? '今日 ' : i === 1 ? '明日 ' : i === 2 ? '明後日 ' : '';
 
             list.push({
                 date: d,
-                label: `${prefix}${month}/${day} (${dayOfWeek})`,
+                label: `${month}/${day} (${dayOfWeek})`,
                 value: d.toDateString(),
                 isToday,
             });
@@ -153,12 +153,12 @@
         }
     });
 
-    // 時間帯ジャンプのプリセット (早朝4時は削除)
+    // 時間帯ジャンプのプリセット
     const timeJumps = [
-        { hour: 9, name: '朝 9時' },
-        { hour: 12, name: '昼 12時' },
-        { hour: 19, name: 'ゴールデン 19時' },
-        { hour: 23, name: '深夜 23時' },
+        { hour: 9, name: '9時' },
+        { hour: 12, name: '12時' },
+        { hour: 19, name: '19時' },
+        { hour: 23, name: '23時' },
     ];
 
     // 「現在」ボタンのクリック処理 (今日以外なら今日に復帰して現在時刻へスクロール)
@@ -360,6 +360,22 @@
         unsubscribeSocket?.();
     });
 
+    async function updateDate(newDate: Date, keepScroll = true) {
+        const prevScrollTop = keepScroll ? (scrollContainer?.scrollTop ?? null) : null;
+        const prevScrollLeft = keepScroll ? (scrollContainer?.scrollLeft ?? null) : null;
+
+        selectedDate = newDate;
+        await fetchGuide(false);
+
+        if (scrollContainer && prevScrollTop !== null) {
+            await tick();
+            scrollContainer.scrollTop = prevScrollTop;
+            if (prevScrollLeft !== null) {
+                scrollContainer.scrollLeft = prevScrollLeft;
+            }
+        }
+    }
+
     function changeDate(days: number) {
         const base = getBaseDate();
         const max = new Date(base);
@@ -369,8 +385,7 @@
         if (days < 0 && nextTime < base.getTime()) return;
         if (days > 0 && nextTime > max.getTime()) return;
 
-        selectedDate = new Date(nextTime);
-        fetchGuide(true);
+        updateDate(new Date(nextTime), true);
     }
 
     function setDateToday() {
@@ -555,34 +570,35 @@
     }
 </script>
 
-<div class="space-y-3 sm:space-y-5 w-full max-w-full min-w-0">
+<div class="flex flex-col w-full max-w-full gap-2 sm:gap-2.5">
     <!-- 日付 & 放送波ツールバー -->
     <div
-        class="flex flex-col gap-2 sm:gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        class="sticky top-0 z-30 shrink-0 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-2.5 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur p-2.5 sm:p-3 lg:py-2 lg:px-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/95"
     >
-        <!-- 1行目: 日付ナビゲーション + 現在ボタン + スマホ用絞り込みトグル -->
-        <div class="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+        <!-- 左側グループ: 日付ナビゲーション + 現在ボタン + 時間帯ジャンプ (9時/12時/19時/23時) + スマホ用トグル -->
+        <div
+            class="flex items-center justify-between lg:justify-start gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap shrink-0"
+        >
             <!-- 日付ナビゲーション -->
-            <div class="flex items-center gap-1 sm:gap-2">
+            <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 <button
                     type="button"
                     onclick={() => changeDate(-1)}
                     disabled={isMinDate}
-                    class="rounded-xl border border-slate-200 p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                    class="rounded-xl border border-slate-200 p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer shrink-0"
                     title="前日"
                 >
                     <ChevronLeft size={16} />
                 </button>
 
                 <!-- 日付クイックドロップダウン選択 -->
-                <div class="relative flex items-center">
+                <div class="relative flex items-center shrink-0">
                     <select
                         value={selectedDate.toDateString()}
                         onchange={e => {
                             const target = availableDates.find(d => d.value === e.currentTarget.value);
                             if (target) {
-                                selectedDate = target.date;
-                                fetchGuide(true);
+                                updateDate(target.date, true);
                             }
                         }}
                         class="appearance-none h-9 sm:h-10 rounded-xl border border-slate-200 bg-slate-50 pl-7 sm:pl-8 pr-6 sm:pr-7 text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
@@ -601,53 +617,36 @@
                     type="button"
                     onclick={() => changeDate(1)}
                     disabled={isMaxDate}
-                    class="rounded-xl border border-slate-200 p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                    class="rounded-xl border border-slate-200 p-1.5 sm:p-2 text-slate-600 transition hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer shrink-0"
                     title="翌日"
                 >
                     <ChevronRight size={16} />
                 </button>
             </div>
 
-            <!-- アクションボタングループ (現在ボタン ＋ スマホ用絞り込みトグル) -->
-            <div class="flex items-center gap-1.5 shrink-0">
-                <!-- 🔴 目立つ「現在」ボタン -->
-                <button
-                    type="button"
-                    onclick={jumpToNow}
-                    class="flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-black text-rose-700 shadow-xs transition hover:bg-rose-100 hover:border-rose-300 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 cursor-pointer"
-                    title="現在の放送時刻へ移動（別の日を表示中の場合は今日に戻ります）"
-                >
-                    <span class="relative flex h-2 w-2">
-                        <span
-                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"
-                        ></span>
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-rose-600"></span>
-                    </span>
-                    現在
-                </button>
+            <!-- 「現在」ボタン (時計アイコン ＋ ブルーアクセント) -->
+            <button
+                type="button"
+                onclick={jumpToNow}
+                class="flex shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold text-blue-700 shadow-xs transition hover:bg-blue-100 hover:border-blue-300 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 cursor-pointer"
+                title="現在の放送時刻へ移動（別の日を表示中の場合は今日に戻ります）"
+            >
+                <Clock size={15} class="shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>現在</span>
+            </button>
 
-                <!-- スマホ用絞り込み開閉トグル (sm以上は非表示) -->
-                <button
-                    type="button"
-                    onclick={() => (isFilterExpanded = !isFilterExpanded)}
-                    class="sm:hidden flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer {isFilterExpanded
-                        ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60 dark:text-blue-400'
-                        : ''}"
-                >
-                    <SlidersHorizontal size={14} />
-                    <span>フィルタ</span>
-                </button>
-            </div>
-        </div>
+            <!-- 垂直ディバイダー (「現在」と時間帯ボタンのグループ分離) -->
+            <div
+                class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0"
+                aria-hidden="true"
+            ></div>
 
-        <!-- 2行目: 時間帯クイックジャンプ & 放送波セレクター (スマホではトグル時のみ、sm以上は常時表示) -->
-        <div
-            class="items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 {isFilterExpanded
-                ? 'flex flex-wrap'
-                : 'hidden sm:flex'}"
-        >
-            <!-- 時間帯クイックジャンプ -->
-            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+            <!-- 時間帯クイックジャンプ (sm以上は「現在」の横に配置、スマホはフィルタ展開時) -->
+            <div
+                class="items-center gap-1 overflow-x-auto no-scrollbar shrink-0 {isFilterExpanded
+                    ? 'flex'
+                    : 'hidden sm:flex'}"
+            >
                 {#each timeJumps as jump}
                     <button
                         type="button"
@@ -659,18 +658,43 @@
                 {/each}
             </div>
 
+            <!-- スマホ用絞り込み開閉トグル (sm以上は非表示) -->
+            <button
+                type="button"
+                onclick={() => (isFilterExpanded = !isFilterExpanded)}
+                class="sm:hidden flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer {isFilterExpanded
+                    ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60 dark:text-blue-400'
+                    : ''}"
+            >
+                <SlidersHorizontal size={14} />
+                <span>フィルタ</span>
+            </button>
+        </div>
+
+        <!-- 右側グループ: 放送波セレクター (スマホではトグル時のみ、sm以上は常時表示) -->
+        <div
+            class="items-center justify-between lg:justify-end gap-2 sm:gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800 shrink-0 {isFilterExpanded
+                ? 'flex flex-wrap'
+                : 'hidden sm:flex'}"
+        >
             <!-- 放送波セレクター -->
-            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800 shrink-0">
                 {#each channelTypes as type}
                     <button
                         type="button"
                         onclick={() => {
+                            const prevScrollTop = scrollContainer?.scrollTop ?? null;
                             selectedType = type.id;
-                            fetchGuide(true);
+                            fetchGuide(false).then(async () => {
+                                if (scrollContainer && prevScrollTop !== null) {
+                                    await tick();
+                                    scrollContainer.scrollTop = prevScrollTop;
+                                }
+                            });
                         }}
-                        class="rounded-lg px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer {selectedType ===
+                        class="rounded-lg px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer {selectedType ===
                         type.id
-                            ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400 font-bold'
+                            ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
                             : 'text-slate-600 hover:text-slate-900 dark:text-slate-400'}"
                     >
                         {type.name}
@@ -681,15 +705,15 @@
     </div>
 
     <!-- 番組表グリッド (絶対時間軸レイアウト) -->
-    {#if isLoading}
+    {#if isLoading && schedules.length === 0}
         <div
-            class="flex h-96 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-1 min-h-0 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
         >
             <p class="text-sm font-medium text-slate-400">番組表データを読み込み中...</p>
         </div>
     {:else if schedules.length === 0}
         <div
-            class="flex h-96 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-1 min-h-0 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
         >
             <Calendar size={36} class="text-slate-300 dark:text-slate-600" />
             <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">番組表データがありません</p>
@@ -697,30 +721,53 @@
     {:else}
         <div
             bind:this={scrollContainer}
-            class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
-            style="max-height: calc(100vh - 150px);"
+            class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 h-[calc(100dvh-180px)] sm:h-[calc(100dvh-190px)] lg:h-[calc(100dvh-200px)]"
         >
+            <!-- データ再読み込み時のスピナーオーバーレイ (DOM再生成・ちらつき防止) -->
+            {#if isLoading}
+                <div
+                    class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-2xs dark:bg-slate-900/40"
+                >
+                    <div
+                        class="rounded-xl border border-slate-200 bg-white/90 p-2.5 shadow-lg dark:border-slate-700 dark:bg-slate-800/90"
+                    >
+                        <Loader2 size={24} class="animate-spin text-blue-600 dark:text-blue-400" />
+                    </div>
+                </div>
+            {/if}
+
             <!-- 番組表グリッド親コンテナ -->
             <div class="inline-flex min-w-full">
-                <!-- 左端: タイムスケール目盛り列 (横固定) - 幅を w-9 sm:w-16 にスリム化 -->
+                <!-- 左端: タイムスケール目盛り列 (横固定) - 幅を w-8 sm:w-11 にスリム化 -->
                 <div
-                    class="sticky left-0 z-40 w-9 sm:w-16 shrink-0 border-r border-slate-200 bg-slate-100/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 shadow-xs"
+                    class="sticky left-0 z-40 w-8 sm:w-11 shrink-0 border-r border-slate-200 bg-slate-100/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 shadow-xs"
                 >
                     <!-- 左上コーナーヘッダー (局名行と高さ合わせ) -->
                     <div
-                        class="sticky top-0 z-50 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-200/95 font-bold text-[10px] sm:text-xs text-slate-600 backdrop-blur dark:border-slate-800 dark:bg-slate-800/95 dark:text-slate-300"
+                        class="sticky top-0 z-50 flex h-12 items-center justify-center border-b border-slate-200 bg-slate-200/95 font-bold text-xs sm:text-sm text-slate-700 backdrop-blur dark:border-slate-800 dark:bg-slate-800/95 dark:text-slate-200"
                     >
                         時刻
                     </div>
 
-                    <!-- 24時間目盛り (絶対配置) -->
+                    <!-- 24時間目盛り (絶対配置 - クロック・クロノグラフ風) -->
                     <div class="relative w-full" style="height: {GRID_HEIGHT}px;">
                         {#each timeScaleHours as hour}
                             <div
-                                class="absolute left-0 right-0 border-t border-slate-200/80 px-0.5 sm:px-1 pt-0.5 sm:pt-1 text-center font-mono text-[10px] sm:text-xs font-black text-slate-700 dark:border-slate-800 dark:text-slate-300"
+                                class="absolute left-0 right-0 border-t border-slate-200/80 px-0.5 pt-1 text-center dark:border-slate-800"
                                 style="top: {hour.top}px; height: {HOUR_HEIGHT}px;"
                             >
-                                {hour.label}
+                                <div class="inline-flex items-start justify-center">
+                                    <span
+                                        class="font-sans text-xs sm:text-sm font-black tracking-tight text-slate-800 dark:text-slate-200 leading-none"
+                                    >
+                                        {hour.hour}
+                                    </span>
+                                    <span
+                                        class="font-mono text-[8px] sm:text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none ml-0.5 mt-[-1px]"
+                                    >
+                                        00
+                                    </span>
+                                </div>
                             </div>
                         {/each}
 
@@ -851,9 +898,9 @@
                                                     </div>
                                                 {/if}
 
-                                                <!-- 番組タイトル (高密度化) -->
+                                                <!-- 番組タイトル (高密度化・視認性向上) -->
                                                 <p
-                                                    class="text-[11px] sm:text-xs font-bold leading-tight text-slate-900 dark:text-slate-100 {heightPx <=
+                                                    class="text-xs sm:text-sm font-bold leading-tight text-slate-900 dark:text-slate-100 {heightPx <=
                                                     30
                                                         ? 'truncate'
                                                         : heightPx <= 60

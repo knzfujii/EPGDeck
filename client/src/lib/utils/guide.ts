@@ -4,7 +4,7 @@ export const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // 3px
 export const DISPLAY_HOURS = 24; // 24時間
 export const GRID_HEIGHT = DISPLAY_HOURS * HOUR_HEIGHT; // 4320px
 export const HEADER_HEIGHT = 48; // 局名・時刻ヘッダーの高さ (h-12 = 48px)
-export const MAX_DAYS_AHEAD = 8; // 今日から最大8日先まで (計9日間)
+export const MAX_DAYS_AHEAD = 7; // 今日から最大7日先まで (ARIB EPG規格準拠: 当日含め計8日間)
 
 /**
  * 番組表の基準日 (朝 4:00) を取得

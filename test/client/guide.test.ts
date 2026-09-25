@@ -9,6 +9,7 @@ import {
     DISPLAY_HOURS,
     GRID_HEIGHT,
     HEADER_HEIGHT,
+    MAX_DAYS_AHEAD,
 } from '../../client/src/lib/utils/guide.js';
 
 describe('guide utils', () => {
@@ -19,6 +20,7 @@ describe('guide utils', () => {
             expect(DISPLAY_HOURS).toBe(24);
             expect(GRID_HEIGHT).toBe(4320);
             expect(HEADER_HEIGHT).toBe(48);
+            expect(MAX_DAYS_AHEAD).toBe(7);
         });
     });
 

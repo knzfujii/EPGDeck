@@ -172,28 +172,20 @@
         if (isTranscodeStream && props.onHlsSeekRestart) {
             const localTarget = clampedTime - playbackOffset;
 
-            // バッファ内か判定
+            // バッファ内か判定 (HLS のみ hls.js によるバッファ内シークが可能。WebM/MP4 パイプストリームはシークインデックスがないため常にストリーム再開が必要)
             let isWithinBuffer = false;
             if (isHls || streamType === 'hls') {
                 isWithinBuffer = localTarget >= 0 && localTarget <= Math.max(0, bufferedEnd - playbackOffset + 2);
-            } else if (videoElement.buffered.length > 0) {
-                for (let i = 0; i < videoElement.buffered.length; i++) {
-                    if (localTarget >= videoElement.buffered.start(i) && localTarget <= videoElement.buffered.end(i)) {
-                        isWithinBuffer = true;
-                        break;
-                    }
-                }
             }
 
             if (isWithinBuffer) {
+                currentTime = clampedTime;
                 videoElement.currentTime = localTarget;
             } else {
-                // バッファ外へのシーク時は cleanupEngines() (unloadVideo) により旧ストリームを即時完全切断し、
-                // サーバーの旧 ffmpeg を確実に停止させた上でシーク先 URL でストリームを再開
-                cleanupEngines();
-                currentTime = clampedTime;
                 isLoading = true;
+                currentTime = clampedTime;
                 bufferedEnd = clampedTime;
+                cleanupEngines();
                 resetHideControlsTimer();
 
                 try {
@@ -214,6 +206,7 @@
             }
         } else {
             // 静的ファイル直接再生 (Direct) 等
+            currentTime = clampedTime;
             videoElement.currentTime = clampedTime;
         }
         resetHideControlsTimer();
@@ -428,8 +421,8 @@
     function initVideo() {
         if (!videoElement || !src) return;
 
-        cleanupEngines();
         isLoading = true;
+        cleanupEngines();
         errorMessage = null;
         hasSubtitle = false;
         bufferedEnd = playbackOffset;
@@ -675,7 +668,9 @@
             if (videoElement) {
                 duration = videoElement.duration;
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
-                isLoading = false;
+                if (streamType !== 'webm' && streamType !== 'mp4') {
+                    isLoading = false;
+                }
                 syncNativeTextTracks(isSubtitleOn);
             }
         }}

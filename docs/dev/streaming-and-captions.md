@@ -289,8 +289,11 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
   - **エンコード進行バーの視覚化 (`VideoControls.svelte`)**:
     - シークバーの背景に、生成済みバッファ範囲（`bufferedEnd / duration`）をグレーバー（`bg-slate-500/60`）として重畳描画。
     - ユーザーは「どこまでが即座にシーク可能か」「どこ以降がストリーム再起動になるか」を一目で直感的に把握できます。
-  - **WebM / MP4 トランスコードとの住み分け**:
-    - WebM やトランスコード MP4 等の HTTP パイプ配信は、シークごとのプロセス再起動を行わずブラウザ標準の `<video>` シーク（`currentTime` 操作）に委ねることで、FFmpeg プロセスの過剰生成・上限到達を防止します。広範囲のシークを行いたいユースケースでは HLS または録画済み MP4 の直接再生を推奨します。
+  - **WebM / MP4 トランスコード配信のシーク処理とポジション保護**:
+    - WebM やトランスコード MP4 の HTTP リアルタイムパイプ配信は、Cues（シーク用インデックス情報）を持たないため、ブラウザネイティブの `videoElement.currentTime` 設定によるバッファ内シークは行えず、0 秒へリセットされる原因となります。
+    - そのため、WebM / MP4 トランスコードストリームのシーク時は常にサーバー側 API（`-ss ${seekSecond}`）を用いたストリーム再生成（`onHlsSeekRestart`）を行います。
+    - この際、`Watch.svelte` は `videoSrc` を空文字にクリアして `VideoPlayer` コンポーネントをアンマウント・再生成（`{#if videoSrc}` による破棄）させるのではなく、`playbackOffset = currentTarget` と新しい URL を直接更新します。
+    - `VideoPlayer.svelte` 側でもアンロード処理（`cleanupEngines()`）の前に `isLoading = true` とシーク先 `currentTime` を先行確定し、メタデータロード直後ではなく再生開始時（`onplaying`）に `isLoading = false` へ復帰させることで、シーク時にポジションが一瞬 0 に移動するチラつきや巻き戻りを完全に防止しています。
 
 ---
 

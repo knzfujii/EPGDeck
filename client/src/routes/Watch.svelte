@@ -392,8 +392,6 @@
                     );
                 } else if (streamType === 'webm' || streamType === 'mp4') {
                     statusMessage = `${formatPlayerTime(currentTarget)} からストリームを再開中...`;
-                    videoSrc = '';
-                    await new Promise(resolve => setTimeout(resolve, 100));
                     playbackOffset = currentTarget;
                     videoSrc = withAuthToken(
                         `/api/streams/recorded/${currentVideoFile.id}/${streamType}?mode=${currentStreamMode}&ss=${currentTarget}&t=${Date.now()}`,

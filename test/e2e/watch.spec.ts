@@ -238,4 +238,108 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
 
         expect(pageErrors).toEqual([]);
     });
+
+    test('should maintain seek position without resetting to 0 when seeking in WebM stream', async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', err => pageErrors.push(err.message));
+
+        const mockRecorded = {
+            id: 9903,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800 * 1000,
+            name: 'WebMシーク検証テスト番組',
+            description: 'WebMシーク時のポジション保持検証用',
+            extended: '',
+            genre1: 0,
+            isProtected: false,
+            videoFiles: [
+                {
+                    id: 9003,
+                    name: 'TS',
+                    filename: 'test_webm.ts',
+                    type: 'ts',
+                    size: 1024 * 1024 * 500,
+                },
+            ],
+        };
+
+        await page.route(/\/api\/recorded\/9903/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockRecorded),
+            });
+        });
+
+        await page.route(/\/api\/videos\/9003\/duration/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ duration: 1800 }),
+            });
+        });
+
+        let requestedSs: string | null = null;
+        await page.route(/\/api\/streams\/recorded\/9003\/webm/, async route => {
+            const url = new URL(route.request().url());
+            requestedSs = url.searchParams.get('ss');
+            await route.fulfill({
+                status: 200,
+                contentType: 'video/webm',
+                body: Buffer.from([]),
+            });
+        });
+
+        await page.addInitScript(() => {
+            HTMLMediaElement.prototype.play = async () => {};
+            HTMLMediaElement.prototype.load = () => {};
+            Object.defineProperty(HTMLMediaElement.prototype, 'duration', { get: () => Infinity });
+            Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => 4 });
+            const origAdd = HTMLMediaElement.prototype.addEventListener;
+            HTMLMediaElement.prototype.addEventListener = function (
+                type: string,
+                listener: EventListenerOrEventListenerObject,
+                options?: boolean | AddEventListenerOptions,
+            ) {
+                if (type === 'error') return;
+                return origAdd.call(this, type, listener, options);
+            };
+        });
+
+        await page.goto('/recorded/watch?recordedId=9903&videoFileId=9003&type=webm&mode=0');
+        await page.waitForLoadState('networkidle');
+
+        // videoElement の loadedmetadata & playing を発火させて初期表示
+        await page.evaluate(() => {
+            const v = document.querySelector('video');
+            if (v) {
+                v.dispatchEvent(new Event('loadedmetadata'));
+                v.dispatchEvent(new Event('playing'));
+            }
+        });
+
+        const videoRegion = page.locator('div[role="region"][aria-label="動画プレーヤー"]');
+        await expect(videoRegion).toBeVisible();
+        await videoRegion.hover();
+
+        // 30秒進むボタンをクリックしてシークを実行
+        const forwardBtn = videoRegion.getByRole('button', { name: '30秒進む' });
+        await expect(forwardBtn).toBeVisible();
+        await forwardBtn.click();
+
+        // サーバーに対して ss=30 で再リクエストが送信されたことを確認
+        await expect.poll(() => requestedSs).toBe('30');
+
+        // シーク後、シークバーの値が 0 にリセットされずに 30 以上を維持していることを検証
+        const seekInput = videoRegion.locator('input[type="range"]').first();
+        const seekValue = await seekInput.inputValue();
+        expect(Number(seekValue)).toBeGreaterThanOrEqual(30);
+
+        // 時間表示テキストも 00:00 ではなく 00:30 以上が表示されていること
+        await expect(videoRegion.locator('span:has-text("00:30")').first()).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+    });
 });

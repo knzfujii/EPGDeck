@@ -3,6 +3,112 @@
 [Mirakurun](https://github.com/Chinachu/Mirakurun) を使用した録画管理ソフトです（[EPGStation](https://github.com/l3tnun/EPGStation) からフォークして開発されています）  
 **Hono + Drizzle ORM** の高速バックエンドと、**Svelte 5 Runes + Tailwind CSS v4** のモダンで軽量な Web インターフェイス（PC / iOS / Android / PWA 完全対応）を備えています。
 
+## スクリーンショット
+
+誤操作を防止する「**リードオンリー（閲覧専用）モード**」と、保護・削除・管理が行える「**管理者モード**」をワンクリックで切り替え可能です。
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <b>管理者モード（録画保護・削除・一括操作）</b><br>
+      <img src="docs/img/recorded_card.webp" alt="録画一覧（管理者モード）">
+    </td>
+    <td width="50%" align="center">
+      <b>リードオンリーモード（誤操作防止・安全な視聴）</b><br>
+      <img src="docs/img/ro_recorded_card.webp" alt="録画一覧（リードオンリーモード）">
+    </td>
+  </tr>
+</table>
+
+<details>
+  <summary><b>その他の画面スクリーンショット一覧（クリックで展開）</b></summary>
+  <br>
+
+  <h3>🛡️ リードオンリー（閲覧専用）モード</h3>
+  <p>家族共有や公共端末での誤操作（誤削除・予約変更）を防ぐセキュアな表示モードです。</p>
+  <table>
+    <tr>
+      <td width="50%" align="center">
+        <b>番組表（リードオンリー）</b><br>
+        <img src="docs/img/ro_guide.webp" alt="番組表（リードオンリー）">
+      </td>
+      <td width="50%" align="center">
+        <b>予約一覧（リードオンリー）</b><br>
+        <img src="docs/img/ro_reserves.webp" alt="予約一覧（リードオンリー）">
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center">
+        <b>録画一覧（リスト表示 / リードオンリー）</b><br>
+        <img src="docs/img/ro_recorded_list.webp" alt="録画一覧（リスト表示 / リードオンリー）">
+      </td>
+    </tr>
+  </table>
+
+  <h3>⚙️ 管理者モード</h3>
+  <p>ダッシュボード、番組検索、ルール作成、エンコード、システムログなどフル機能を操作できます。</p>
+  <table>
+    <tr>
+      <td width="50%" align="center">
+        <b>ダッシュボード</b><br>
+        <img src="docs/img/dashboard.webp" alt="ダッシュボード">
+      </td>
+      <td width="50%" align="center">
+        <b>番組表（ライトテーマ / 管理者モード）</b><br>
+        <img src="docs/img/guide_light.webp" alt="番組表（ライトテーマ）">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>録画詳細・プレイヤー</b><br>
+        <img src="docs/img/recorded_detail.webp" alt="録画詳細・プレイヤー">
+      </td>
+      <td width="50%" align="center">
+        <b>放送中（全局の現在・次番組俯瞰＆即時視聴）</b><br>
+        <img src="docs/img/onair.webp" alt="放送中">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>予約一覧（重複調停・録画中3択操作）</b><br>
+        <img src="docs/img/reserves.webp" alt="予約一覧（管理者モード）">
+      </td>
+      <td width="50%" align="center">
+        <b>ルール管理</b><br>
+        <img src="docs/img/rules.webp" alt="ルール管理">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>ルール作成・編集</b><br>
+        <img src="docs/img/rules_edit.webp" alt="ルール作成・編集">
+      </td>
+      <td width="50%" align="center">
+        <b>番組検索</b><br>
+        <img src="docs/img/search.webp" alt="番組検索">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>録画詳細（関連録画・メタ情報）</b><br>
+        <img src="docs/img/recorded_detail_related.webp" alt="録画詳細（関連録画）">
+      </td>
+      <td width="50%" align="center">
+        <b>エンコード一覧・進捗</b><br>
+        <img src="docs/img/encode.webp" alt="エンコード一覧・進捗">
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center">
+        <b>リアルタイムシステムログ追尾</b><br>
+        <img src="docs/img/logs.webp" alt="リアルタイムシステムログ追尾">
+      </td>
+    </tr>
+  </table>
+</details>
+
+---
+
 ## 特徴 ＆ 主な機能
 
 ### 📺 放送番組の視聴・録画・アーカイブ管理

@@ -562,8 +562,91 @@
             </div>
         {/if}
 
-        <!-- 直近の予約 & 最新録画 2カラム -->
+        <!-- 最新録画 & 直近の予約 2カラム -->
         <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <!-- 録画一覧 (再生ボタンを目立たせて配置) -->
+            <div
+                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            >
+                <div class="mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <h2
+                            class="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100"
+                        >
+                            <Video size={20} class="text-emerald-500" />
+                            録画一覧
+                        </h2>
+                        <span
+                            class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                        >
+                            {recordedTotal.toLocaleString()} 件
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onclick={() => router.push('/recorded')}
+                        class="flex items-center gap-1 text-sm font-bold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
+                    >
+                        すべて見る <ArrowRight size={15} />
+                    </button>
+                </div>
+                {#if isLoading}
+                    <p class="py-8 text-center text-sm text-slate-400">読み込み中...</p>
+                {:else if latestRecorded.length === 0}
+                    <p class="py-8 text-center text-sm text-slate-400">録画データがありません</p>
+                {:else}
+                    <div class="space-y-3">
+                        {#each latestRecorded as item}
+                            <div
+                                class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40"
+                            >
+                                <div
+                                    onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
+                                    class="min-w-0 flex-1 cursor-pointer group"
+                                    role="button"
+                                    tabindex="0"
+                                    onkeydown={e => {
+                                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
+                                    }}
+                                >
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span
+                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                                        >
+                                            {channelStore.getChannelName(item.channelId)}
+                                        </span>
+                                        <span class="text-xs text-slate-400 whitespace-nowrap">
+                                            {formatDate(item.startAt)}
+                                            {formatTime(item.startAt)}
+                                        </span>
+                                    </div>
+                                    <h3
+                                        class="program-title mt-1 truncate transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
+                                    >
+                                        {item.name}
+                                    </h3>
+                                </div>
+
+                                <!-- 再生ボタン (目立つ青色ボタン) -->
+                                {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
+                                    <button
+                                        type="button"
+                                        onclick={e => {
+                                            e.stopPropagation();
+                                            handleRecordedPlay(item);
+                                        }}
+                                        class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                                        title="今すぐ再生"
+                                    >
+                                        <Play size={14} fill="currentColor" /> 再生
+                                    </button>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+
             <!-- 予約一覧 (一覧の中で録画中を自然に表現) -->
             <div
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
@@ -691,89 +774,6 @@
                                             )} - {formatTime(item.endAt)})
                                         </span>
                                     </div>
-                                {/if}
-                            </div>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-
-            <!-- 録画一覧 (再生ボタンを目立たせて配置) -->
-            <div
-                class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-            >
-                <div class="mb-4 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <h2
-                            class="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100"
-                        >
-                            <Video size={20} class="text-emerald-500" />
-                            録画一覧
-                        </h2>
-                        <span
-                            class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
-                        >
-                            {recordedTotal.toLocaleString()} 件
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        onclick={() => router.push('/recorded')}
-                        class="flex items-center gap-1 text-sm font-bold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
-                    >
-                        すべて見る <ArrowRight size={15} />
-                    </button>
-                </div>
-                {#if isLoading}
-                    <p class="py-8 text-center text-sm text-slate-400">読み込み中...</p>
-                {:else if latestRecorded.length === 0}
-                    <p class="py-8 text-center text-sm text-slate-400">録画データがありません</p>
-                {:else}
-                    <div class="space-y-3">
-                        {#each latestRecorded as item}
-                            <div
-                                class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40"
-                            >
-                                <div
-                                    onclick={() => router.push(`/recorded/detail?recordedId=${item.id}`)}
-                                    class="min-w-0 flex-1 cursor-pointer group"
-                                    role="button"
-                                    tabindex="0"
-                                    onkeydown={e => {
-                                        if (e.key === 'Enter') router.push(`/recorded/detail?recordedId=${item.id}`);
-                                    }}
-                                >
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span
-                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
-                                        >
-                                            {channelStore.getChannelName(item.channelId)}
-                                        </span>
-                                        <span class="text-xs text-slate-400 whitespace-nowrap">
-                                            {formatDate(item.startAt)}
-                                            {formatTime(item.startAt)}
-                                        </span>
-                                    </div>
-                                    <h3
-                                        class="program-title mt-1 truncate transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
-                                    >
-                                        {item.name}
-                                    </h3>
-                                </div>
-
-                                <!-- 再生ボタン (目立つ青色ボタン) -->
-                                {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
-                                    <button
-                                        type="button"
-                                        onclick={e => {
-                                            e.stopPropagation();
-                                            handleRecordedPlay(item);
-                                        }}
-                                        class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
-                                        title="今すぐ再生"
-                                    >
-                                        <Play size={14} fill="currentColor" /> 再生
-                                    </button>
                                 {/if}
                             </div>
                         {/each}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="1024" height="1024" fill="none">
+  <defs>
+    <linearGradient id="epgdeck-blue-grad" x1="2" y1="2" x2="126" y2="126" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="epgdeck-rec-grad" cx="38%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ff5252"/>
+      <stop offset="85%" stop-color="#dc2626"/>
+    </radialGradient>
+  </defs>
+  <!-- Edge-to-Edge Extra Bold Blue "D" Stroke (width=26, margin=2px) -->
+  <path d="M15 15 H65 C91 15, 113 37, 113 64 C113 91, 91 113, 65 113 H15 Z" fill="none" stroke="url(#epgdeck-blue-grad)" stroke-width="26" stroke-linejoin="round"/>
+  <!-- Big Red REC Circle (cx=60, r=30) -->
+  <circle cx="60" cy="64" r="30" fill="url(#epgdeck-rec-grad)"/>
+  <ellipse cx="51" cy="55" rx="9.5" ry="5.5" transform="rotate(-30 51 55)" fill="#ffffff" opacity="0.45"/>
+</svg>

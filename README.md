@@ -144,8 +144,8 @@
 ## 動作環境
 
 -   Linux / macOS
--   [Node.js](http://nodejs.org/) : `^22.3.0 ~ v26.x`（本番環境は Mirakurun 互換性のため **`v24.x`** 推奨。リポジトリ内に `.mise.toml` を同梱しており、[mise](https://mise.jdx.dev/) を用いた `v26.x` 開発環境でのビルド・検証にも完全対応しています）
--   [Mirakurun](https://github.com/Chinachu/Mirakurun) : ^3.8.0 or [mirakc](https://github.com/mirakc/mirakc) : ^3.1.10
+-   [Node.js](http://nodejs.org/) : `^22.3.0 ~ v26.x`（本番環境は Mirakurun 互換性のため **`v24.x`** 推奨。リポジトリ内に `mise.toml` を同梱しており、[mise](https://mise.jdx.dev/) を用いた開発環境でのビルド・検証にも完全対応しています）
+-   [Mirakurun](https://github.com/Chinachu/Mirakurun) : **`v4.1.x`** 動作確認済み（推奨）。※ [mirakc](https://github.com/mirakc/mirakc) はコード互換処理を含みますが実機未検証です
 
 -   いずれかのデータベース
     -   [SQLite3](https://www.sqlite.org/)（設定不要、Drizzle ORM で自動管理）[標準]

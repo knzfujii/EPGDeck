@@ -20,7 +20,6 @@
 </script>
 
 <div
-    role="tablist"
     class="flex items-center overflow-x-auto max-w-full rounded-xl border border-slate-200/80 bg-slate-100 p-1 dark:border-slate-700/80 dark:bg-slate-800 no-scrollbar shrink-0 {customClass}"
 >
     {#each tabs as tab}
@@ -28,8 +27,6 @@
         {@const Icon = tab.icon}
         <button
             type="button"
-            role="tab"
-            aria-selected={isActive}
             onclick={() => onselect(tab.id)}
             aria-label={typeof tab.count === 'number' ? `${tab.label} (${tab.count})` : tab.label}
             class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {isActive

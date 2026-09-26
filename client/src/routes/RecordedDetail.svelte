@@ -584,7 +584,6 @@
                             onclick={deleteRecorded}
                             class="whitespace-nowrap shrink-0 px-3 sm:px-4"
                             title="録画を削除"
-                            aria-label="録画を削除"
                         >
                             <Trash2 size={15} /> 削除
                         </Button>

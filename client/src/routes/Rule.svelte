@@ -342,12 +342,22 @@
                 </h1>
                 <div class="flex items-center gap-2 flex-wrap mt-0.5">
                     <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                        {#if (activeKeyword || filterStatus !== 'all') && totalAllRules > 0}
-                            <span class="font-bold text-slate-900 dark:text-slate-100">{filteredRules.length}</span>
-                            件 / 全 {totalAllRules} 件
-                        {:else}
-                            全 <span class="font-bold text-slate-900 dark:text-slate-100">{filteredRules.length}</span>
+                        {#if activeKeyword}
+                            絞り込み結果: <span class="font-bold text-slate-800 dark:text-slate-200">
+                                {filteredRules.length}
+                            </span>
                             件
+                            {#if totalAllRules > 0}
+                                <span class="text-slate-400">（全 {totalAllRules} 件）</span>
+                            {/if}
+                        {:else}
+                            表示中: <span class="font-bold text-slate-800 dark:text-slate-200">
+                                {filteredRules.length}
+                            </span>
+                            件
+                            {#if totalAllRules > 0 && filterStatus !== 'all'}
+                                <span class="text-slate-400">（全 {totalAllRules} 件）</span>
+                            {/if}
                         {/if}
                     </p>
                     {#if activeKeyword}

@@ -314,7 +314,7 @@ test.describe('Search and Rules Management Pages', () => {
         await expect(
             page.locator('text=「存在しない架空タイトル」に一致する有効なルールは見つかりませんでした'),
         ).toBeVisible();
-        const emptyClearBtn = page.locator('button.btn-secondary', { hasText: 'キーワード絞り込みを解除' });
+        const emptyClearBtn = page.getByRole('button', { name: 'キーワード絞り込みを解除' });
         await expect(emptyClearBtn).toBeVisible();
         await emptyClearBtn.click();
         await expect(page.locator('text=表示中: 3 件')).toBeVisible();

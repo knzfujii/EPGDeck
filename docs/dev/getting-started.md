@@ -8,7 +8,7 @@
 
 - **Node.js**: 本番推奨 `v24.x`（Mirakurun 互換性のため）、開発サポート: `v22.x ~ v26.x`
 - **mise** (推奨バージョンマネージャー):
-  リポジトリルートに `.mise.toml` が含まれているため、以下を実行するだけで適切な Node.js がセットアップされます。
+  リポジトリルートに `mise.toml` が含まれているため、以下を実行するだけで適切な Node.js がセットアップされます。
   ```bash
   $ mise install
   ```
@@ -103,13 +103,13 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
   ```bash
   $ npm run test:watch
   ```
-- **高速チェック (`check:quick`)【実装中の反復・推奨】**:
-  サーバー型チェック、単体テスト、クライアント構文チェック（Svelte Check）を完全並列で実行します（約3〜5秒）。
+- **高速品質チェック (`check:quick`)【ローカルコミット前・DoD 必須】**:
+  サーバー型チェック、単体テスト、クライアント構文チェック（Svelte Check）を完全並列で実行します（約2〜3秒）。ローカルでのコミット承認要請前には本コマンドの全パスを確認します。
   ```bash
   $ npm run check:quick
   ```
-- **包括品質チェック (DoD / コミット前必須)**:
-  サーバー・クライアントの Lint、フォーマットチェック、型チェック、単体テスト、ビルド、および Playwright E2E テストを一括実行して完全性を検証します。
+- **包括品質チェック (`check`)【ローカル全件検証】**:
+  サーバー・クライアントの Lint、フォーマットチェック、型チェック、単体テスト、ビルド、および Playwright E2E テスト全件を一括実行します。通常、E2E 全件はリモート PR（GitHub Actions CI）で自動検証されますが、ローカルで事前に全件確認したい場合に利用します。
   ```bash
   $ npm run check
   ```
@@ -151,4 +151,39 @@ EPGDeck では Vitest を採用しており、超高速な単体テストが実�
 ## 6. テスト・CI/CD アーキテクチャの詳細
 
 テスト環境の分離構造、スタンドアロンサーバーのモック機構、Playwright のライフサイクル仕様、GitHub Actions の最適化などについては、**[テスト & CI/CD アーキテクチャ仕様書](testing.md)** をご参照ください。
+
+---
+
+## 7. 複数ブランチの並行開発 (`git worktree`)
+
+EPGDeck では、新機能開発やバグ修正時にブランチ切り替えの手間（`git stash`、依存パッケージの再インストール等）を排除するため、**`git worktree`** による並行開発を推奨しています。
+
+### 基本操作フロー
+
+1. **新しいブランチと作業ディレクトリの作成**:
+   リポジトリの外側（隣のディレクトリなど）に独立した作業ツリーを作成します。
+   ```bash
+   # 例: feature/new-player ブランチを作成して作業ディレクトリを展開
+   $ git worktree add ../EPGDeck-feature-player -b feature/new-player
+   ```
+
+2. **作業ディレクトリでの開発**:
+   独立したディレクトリとして存在するため、VS Code で別ウィンドウとして同時に開いて並行作業できます。
+   ```bash
+   $ cd ../EPGDeck-feature-player
+   $ npm run all-install   # 必要に応じてパッケージ同期
+   $ npm run dev           # 開発サーバー起動
+   ```
+
+3. **コミット・PR 作成**:
+   ローカルで `npm run check:quick` をパスした後、コミットおよび GitHub への push、PR 作成を行います。
+
+4. **作業完了後のクリーンアップ**:
+   PR がマージされた後、作業ツリーを安全に削除します。
+   ```bash
+   $ cd /path/to/EPGDeck                  # 元のディレクトリに戻る
+   $ git worktree remove ../EPGDeck-feature-player
+   $ git branch -d feature/new-player     # ローカルブランチ削除
+   ```
+
 

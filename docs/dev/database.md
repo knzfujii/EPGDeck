@@ -27,7 +27,7 @@
 
 EPGDeck は以下の 2 種類のデータベースエンジンをサポートしています。
 
-- **SQLite3** (デフォルト): `@libsql/client` を使用し、ローカルファイル（`data/database.db`）で手軽に動作します。
+- **SQLite3** (デフォルト): `@libsql/client` を使用し、ローカルファイル（デフォルト: `data/database.db`）で手軽に動作します。`config.yml` の `database.path`（絶対パスまたは `%ROOT%` マクロ対応）で任意の配置場所（別ディレクトリや外部ストレージ等）を指定可能です。
 - **MySQL / MariaDB** (推奨): `mysql2` を使用し、大規模運用や高速な検索に適しています。必ず文字コードを `utf8mb4` に設定してください。
 
 ---

@@ -376,4 +376,38 @@ describe('Structured Config Schema', () => {
         } as any);
         expect(confBoth.recording.storageCheckIntervalSeconds).toBe(30);
     });
+
+    it('should parse database.path and format macros properly', () => {
+        // 未指定時
+        const confDefault = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confDefault.database.path).toBeUndefined();
+
+        // 明示的パス指定 (%ROOT% 置換テスト)
+        const confWithMacro = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: {
+                type: 'sqlite',
+                path: '%ROOT%/custom/data/my_database.db',
+            },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confWithMacro.database.path).toBe(
+            path.join(Configuration.ROOT_PATH, 'custom', 'data', 'my_database.db'),
+        );
+
+        // 絶対パス指定
+        const confAbs = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: {
+                type: 'sqlite',
+                path: '/opt/epgdeck-storage/data/database.db',
+            },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+        } as any);
+        expect(confAbs.database.path).toBe('/opt/epgdeck-storage/data/database.db');
+    });
 });

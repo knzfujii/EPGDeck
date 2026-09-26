@@ -97,6 +97,7 @@ class Configuration implements IConfiguration {
         // 2. データベース設定
         const db = raw.database || {};
         const dbtype = db.type || raw.dbtype || 'sqlite';
+        const dbPath = typeof db.path === 'string' ? Configuration.directoryFormatting(db.path) : undefined;
 
         // 3. ログ設定
         const logConf = raw.log || {};
@@ -332,6 +333,7 @@ class Configuration implements IConfiguration {
             },
             database: {
                 type: dbtype,
+                path: dbPath,
                 mysql: db.mysql || raw.mysql,
             },
             log,

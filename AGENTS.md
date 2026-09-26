@@ -18,6 +18,9 @@
   - DB スキーマ、設定形式、公開 API 変更など既存環境に影響する変更は必ず事前に合意を得る。
 - **ブランチ戦略 (GitHub Flow)**:
   - **`main` は常にデプロイ可能な安定版**: `main` への直接 push は原則禁止とし、トピックブランチ（`feat/...`, `fix/...`, `chore/...` 等）から Pull Request（PR）を作成してマージする。
+- **Git Worktree の利用規約 (`misc/worktree.sh`)**:
+  - トピックブランチ等で git worktree を作成・セットアップする際は、手動の `git worktree add` ではなく、**`./misc/worktree.sh <branch-name> [target-path]`** の使用を推奨する。
+  - 本スクリプトにより、未追跡の設定ファイル（`config/config.yml`、`config/enc_*.js`）のシンボリックリンクが自動作成され、共通ストレージ構成と整合した開発環境が即座にセットアップされる。既存 worktree へのリンク再適用は `./misc/worktree.sh --link-only <target-path>` で行う。
 
 
 ---

@@ -26,9 +26,14 @@
         Ban,
         RotateCcw,
         AlertTriangle,
-        Lock,
     } from '@lucide/svelte';
     import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
+    import ReadOnlyGuard from '@/lib/components/common/ReadOnlyGuard.svelte';
+    import Button from '@/lib/components/common/Button.svelte';
+    import Input from '@/lib/components/common/Input.svelte';
+    import Select from '@/lib/components/common/Select.svelte';
+    import Checkbox from '@/lib/components/common/Checkbox.svelte';
+    import Divider from '@/lib/components/common/Divider.svelte';
     import { buildEncodeOption, type EncodeRow } from '@/lib/utils/recordingOptions';
 
     // 編集対象のルールID (?ruleId=<ruleId>)。未指定なら新規作成
@@ -1020,29 +1025,16 @@
                 <SlidersHorizontal size={20} class="text-blue-600 dark:text-blue-400" />
                 {ruleId ? `ルール編集: ${rule?.searchOption?.keyword || '#' + ruleId}` : '新規自動録画ルールの作成'}
             </h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-                検索条件・予約・保存先・エンコードをまとめて設定します
-            </p>
+            <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">自動録画の検索条件と予約設定</p>
         </div>
     </div>
 
     {#if readOnlyStore.isReadOnly}
-        <div
-            class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-        >
-            <Lock size={32} class="text-amber-500 mb-2" />
-            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                ルールの編集および新規作成は管理者のみ許可されています。
-            </p>
-            <button
-                type="button"
-                onclick={() => router.replace(readOnlyStore.canViewRules ? '/rule' : '/recorded')}
-                class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
-            >
-                {readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画一覧へ'}
-            </button>
-        </div>
+        <ReadOnlyGuard
+            description="ルールの編集および新規作成は管理者のみ許可されています。"
+            returnPath={readOnlyStore.canViewRules ? '/rule' : '/recorded'}
+            returnText={readOnlyStore.canViewRules ? 'ルール一覧へ戻る' : '録画一覧へ'}
+        />
     {:else if isLoading}
         <div class="flex justify-center py-16">
             <div class="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"></div>
@@ -1109,12 +1101,11 @@
                         >
                             録画タイトル / 番組名 <span class="text-rose-500 font-bold">*必須</span>
                         </label>
-                        <input
+                        <Input
                             id="rule-time-keyword"
                             type="text"
                             bind:value={keyword}
                             placeholder="例: 日曜討論 / 深夜アニメ枠"
-                            class="form-input h-11 text-sm sm:text-base rounded-xl"
                             required
                         />
                         <p class="text-xs text-slate-400 mt-1">録画ファイル名や一覧に表示されるタイトルになります。</p>
@@ -1134,13 +1125,7 @@
                                     <span class="text-xs font-bold text-blue-600 dark:text-blue-400 mr-1">
                                         {selectedChannelIds.length} 局選択中
                                     </span>
-                                    <button
-                                        type="button"
-                                        onclick={clearAllChannels}
-                                        class="h-8 rounded-lg bg-amber-50 px-3 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer transition-colors"
-                                    >
-                                        クリア
-                                    </button>
+                                    <Button variant="secondary" size="sm" onclick={clearAllChannels}>クリア</Button>
                                 {/if}
                             </div>
                         </div>
@@ -1236,13 +1221,7 @@
                                     >
                                         開始時刻
                                     </label>
-                                    <input
-                                        id="rule-time-start-spec"
-                                        type="time"
-                                        bind:value={startTimeStr}
-                                        class="form-input text-xs sm:text-sm"
-                                        required
-                                    />
+                                    <Input id="rule-time-start-spec" type="time" bind:value={startTimeStr} required />
                                 </div>
                                 <div>
                                     <label
@@ -1251,13 +1230,7 @@
                                     >
                                         終了時刻
                                     </label>
-                                    <input
-                                        id="rule-time-end-spec"
-                                        type="time"
-                                        bind:value={endTimeStr}
-                                        class="form-input text-xs sm:text-sm"
-                                        required
-                                    />
+                                    <Input id="rule-time-end-spec" type="time" bind:value={endTimeStr} required />
                                 </div>
                             </div>
                             <p class="text-xs text-slate-400 mt-1.5">
@@ -1283,12 +1256,11 @@
                             >
                                 検索キーワード
                             </label>
-                            <input
+                            <Input
                                 id="rule-keyword"
                                 type="text"
                                 bind:value={keyword}
                                 placeholder="例: 葬送のフリーレン (未指定の場合は全番組)"
-                                class="form-input h-11 text-sm sm:text-base rounded-xl"
                             />
                             <div
                                 class="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-bold text-slate-700 dark:text-slate-300"
@@ -1296,36 +1268,19 @@
                                 <span class="text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                                     対象項目:
                                 </span>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isName} class="form-checkbox" />
-                                    <span>番組名</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isDescription} class="form-checkbox" />
-                                    <span>概要</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isExtended} class="form-checkbox" />
-                                    <span>詳細・出演者</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 sm:ml-2 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={keyRegExp} class="form-checkbox" />
-                                    <span>正規表現</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={keyCS} class="form-checkbox" />
-                                    <span>大小区別</span>
-                                </label>
+                                <Checkbox bind:checked={isName} label="番組名" class="py-1 whitespace-nowrap" />
+                                <Checkbox bind:checked={isDescription} label="概要" class="py-1 whitespace-nowrap" />
+                                <Checkbox
+                                    bind:checked={isExtended}
+                                    label="詳細・出演者"
+                                    class="py-1 whitespace-nowrap"
+                                />
+                                <Checkbox
+                                    bind:checked={keyRegExp}
+                                    label="正規表現"
+                                    class="py-1 sm:ml-2 whitespace-nowrap"
+                                />
+                                <Checkbox bind:checked={keyCS} label="大小区別" class="py-1 whitespace-nowrap" />
                             </div>
                         </div>
 
@@ -1336,12 +1291,11 @@
                             >
                                 除外キーワード (任意)
                             </label>
-                            <input
+                            <Input
                                 id="rule-ignore-keyword"
                                 type="text"
                                 bind:value={ignoreKeyword}
                                 placeholder="例: 再放送 / ダイジェスト"
-                                class="form-input h-11 text-sm sm:text-base rounded-xl"
                             />
                             <div
                                 class="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-bold text-slate-700 dark:text-slate-300"
@@ -1349,36 +1303,19 @@
                                 <span class="text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                                     除外対象:
                                 </span>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isIgnoreName} class="form-checkbox" />
-                                    <span>番組名</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isIgnoreDescription} class="form-checkbox" />
-                                    <span>概要</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={isIgnoreExtended} class="form-checkbox" />
-                                    <span>詳細</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 sm:ml-2 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={ignoreKeyRegExp} class="form-checkbox" />
-                                    <span>正規表現</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer select-none py-1 whitespace-nowrap"
-                                >
-                                    <input type="checkbox" bind:checked={ignoreKeyCS} class="form-checkbox" />
-                                    <span>大小区別</span>
-                                </label>
+                                <Checkbox bind:checked={isIgnoreName} label="番組名" class="py-1 whitespace-nowrap" />
+                                <Checkbox
+                                    bind:checked={isIgnoreDescription}
+                                    label="概要"
+                                    class="py-1 whitespace-nowrap"
+                                />
+                                <Checkbox bind:checked={isIgnoreExtended} label="詳細" class="py-1 whitespace-nowrap" />
+                                <Checkbox
+                                    bind:checked={ignoreKeyRegExp}
+                                    label="正規表現"
+                                    class="py-1 sm:ml-2 whitespace-nowrap"
+                                />
+                                <Checkbox bind:checked={ignoreKeyCS} label="大小区別" class="py-1 whitespace-nowrap" />
                             </div>
                         </div>
 
@@ -1468,12 +1405,7 @@
                                         >
                                             開始時刻
                                         </label>
-                                        <input
-                                            id="rule-time-start"
-                                            type="time"
-                                            bind:value={startTimeStr}
-                                            class="form-input text-xs sm:text-sm"
-                                        />
+                                        <Input id="rule-time-start" type="time" bind:value={startTimeStr} />
                                     </div>
                                     <div>
                                         <label
@@ -1482,12 +1414,7 @@
                                         >
                                             終了時刻
                                         </label>
-                                        <input
-                                            id="rule-time-end"
-                                            type="time"
-                                            bind:value={endTimeStr}
-                                            class="form-input text-xs sm:text-sm"
-                                        />
+                                        <Input id="rule-time-end" type="time" bind:value={endTimeStr} />
                                     </div>
                                 </div>
                                 <p class="text-xs text-slate-400 mt-1">
@@ -1508,21 +1435,9 @@
                                     番組の長さ (分)
                                 </span>
                                 <div class="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        bind:value={durationMin}
-                                        placeholder="最小 (分)"
-                                        class="form-input text-xs sm:text-sm"
-                                    />
+                                    <Input type="number" min="0" bind:value={durationMin} placeholder="最小 (分)" />
                                     <span class="text-slate-400 font-bold">~</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        bind:value={durationMax}
-                                        placeholder="最大 (分)"
-                                        class="form-input text-xs sm:text-sm"
-                                    />
+                                    <Input type="number" min="0" bind:value={durationMax} placeholder="最大 (分)" />
                                 </div>
                             </div>
 
@@ -1549,19 +1464,9 @@
                                     {/if}
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <input
-                                        type="datetime-local"
-                                        bind:value={periodStart}
-                                        class="form-input text-xs sm:text-sm"
-                                        title="開始日時"
-                                    />
+                                    <Input type="datetime-local" bind:value={periodStart} title="開始日時" />
                                     <span class="text-slate-400 font-bold">~</span>
-                                    <input
-                                        type="datetime-local"
-                                        bind:value={periodEnd}
-                                        class="form-input text-xs sm:text-sm"
-                                        title="終了日時"
-                                    />
+                                    <Input type="datetime-local" bind:value={periodEnd} title="終了日時" />
                                 </div>
                             </div>
                         </div>
@@ -1611,13 +1516,9 @@
                                         ジャンル絞り込み (複数選択可)
                                     </span>
                                     {#if selectedGenreKeys.length > 0}
-                                        <button
-                                            type="button"
-                                            onclick={clearAllGenres}
-                                            class="h-9 rounded-xl bg-amber-50 px-3.5 text-sm font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer transition-colors"
-                                        >
+                                        <Button variant="secondary" size="compact" onclick={clearAllGenres}>
                                             全解除
-                                        </button>
+                                        </Button>
                                     {/if}
                                 </div>
                                 <p class="text-sm text-slate-500 dark:text-slate-400 mb-2">
@@ -1664,7 +1565,7 @@
                                                         onclick={() => toggleMainGenre(g)}
                                                         class="h-9 rounded-xl border px-3 text-sm font-bold transition cursor-pointer {isMainAll ||
                                                         hasSelectedSub
-                                                            ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300'
+                                                            ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900/60'
                                                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                                                     >
                                                         {isMainAll || hasSelectedSub ? '解除' : '全選択'}
@@ -1747,48 +1648,24 @@
                                         <div
                                             class="flex items-center gap-5 text-sm font-bold text-slate-700 dark:text-slate-300"
                                         >
-                                            <label
-                                                class="flex items-center gap-2 select-none py-1 {selectedChannelIds.length >
-                                                0
-                                                    ? 'cursor-not-allowed opacity-50'
-                                                    : 'cursor-pointer'}"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    bind:checked={isGR}
-                                                    disabled={selectedChannelIds.length > 0}
-                                                    class="form-checkbox disabled:opacity-50"
-                                                />
-                                                <span>地デジ (GR)</span>
-                                            </label>
-                                            <label
-                                                class="flex items-center gap-2 select-none py-1 {selectedChannelIds.length >
-                                                0
-                                                    ? 'cursor-not-allowed opacity-50'
-                                                    : 'cursor-pointer'}"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    bind:checked={isBS}
-                                                    disabled={selectedChannelIds.length > 0}
-                                                    class="form-checkbox disabled:opacity-50"
-                                                />
-                                                <span>BS</span>
-                                            </label>
-                                            <label
-                                                class="flex items-center gap-2 select-none py-1 {selectedChannelIds.length >
-                                                0
-                                                    ? 'cursor-not-allowed opacity-50'
-                                                    : 'cursor-pointer'}"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    bind:checked={isCS}
-                                                    disabled={selectedChannelIds.length > 0}
-                                                    class="form-checkbox disabled:opacity-50"
-                                                />
-                                                <span>CS</span>
-                                            </label>
+                                            <Checkbox
+                                                bind:checked={isGR}
+                                                disabled={selectedChannelIds.length > 0}
+                                                label="地デジ (GR)"
+                                                class="py-1"
+                                            />
+                                            <Checkbox
+                                                bind:checked={isBS}
+                                                disabled={selectedChannelIds.length > 0}
+                                                label="BS"
+                                                class="py-1"
+                                            />
+                                            <Checkbox
+                                                bind:checked={isCS}
+                                                disabled={selectedChannelIds.length > 0}
+                                                label="CS"
+                                                class="py-1"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -1816,50 +1693,50 @@
                                             </p>
                                         </div>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="secondary"
+                                                size="compact"
                                                 data-testid="select-all-channels-btn"
                                                 onclick={selectAllChannels}
-                                                class="h-9 rounded-xl bg-blue-50 px-3.5 text-sm font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer transition-colors"
                                             >
                                                 全選択
-                                            </button>
+                                            </Button>
                                             {#if selectedChannelIds.length > 0}
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="secondary"
+                                                    size="compact"
                                                     data-testid="clear-channels-btn"
                                                     onclick={clearAllChannels}
-                                                    class="h-9 rounded-xl bg-amber-50 px-3.5 text-sm font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300 cursor-pointer transition-colors"
                                                 >
                                                     選択クリア
-                                                </button>
+                                                </Button>
                                             {/if}
                                         </div>
                                     </div>
 
                                     <div class="flex items-center gap-2 pt-0.5 flex-wrap">
                                         <span class="text-sm font-bold text-slate-500">放送波ごとに追加:</span>
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="secondary"
+                                            size="compact"
                                             onclick={() => selectChannelsByType('GR')}
-                                            class="h-9 rounded-xl border border-slate-200 px-3.5 text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer transition-colors"
                                         >
                                             + 地デジ局
-                                        </button>
-                                        <button
-                                            type="button"
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="compact"
                                             onclick={() => selectChannelsByType('BS')}
-                                            class="h-9 rounded-xl border border-slate-200 px-3.5 text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer transition-colors"
                                         >
                                             + BS局
-                                        </button>
-                                        <button
-                                            type="button"
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="compact"
                                             onclick={() => selectChannelsByType('CS')}
-                                            class="h-9 rounded-xl border border-slate-200 px-3.5 text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer transition-colors"
                                         >
                                             + CS局
-                                        </button>
+                                        </Button>
                                     </div>
 
                                     <div
@@ -1911,12 +1788,11 @@
                                             </button>
                                         {/if}
                                     </div>
-                                    <input
+                                    <Input
                                         id="rule-recorded-format"
                                         type="text"
                                         bind:value={recordedFormat}
                                         placeholder="例: %YEAR%-%MONTH%-%DAY%_%TITLE%_%EPISODE%"
-                                        class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 focus:border-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                                     />
                                     <p class="mt-1 text-[11px] text-slate-400">
                                         空欄の場合は config.yml
@@ -1943,11 +1819,11 @@
                                 現在の検索条件に一致する未来の放送番組を検索し、録画予約の確認やスキップ（除外）を行えます
                             </p>
                         </div>
-                        <button
-                            type="button"
+                        <Button
+                            variant="primary"
                             onclick={handlePreviewSearch}
                             disabled={isPreviewSearching}
-                            class="btn-primary flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                            class="shrink-0"
                         >
                             {#if isPreviewSearching}
                                 <div
@@ -1958,7 +1834,7 @@
                                 <Search size={15} />
                                 <span>録画予定を検索する</span>
                             {/if}
-                        </button>
+                        </Button>
                     </div>
 
                     <!-- 検索結果表示エリア -->
@@ -2105,23 +1981,23 @@
                                                 <td class="whitespace-nowrap px-3.5 py-3 text-right">
                                                     {#if reserve}
                                                         {#if reserve.isSkip}
-                                                            <button
-                                                                type="button"
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="compact"
                                                                 onclick={() => handleToggleSkip(p, reserve)}
                                                                 disabled={isProcessing}
-                                                                class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300 cursor-pointer"
                                                             >
                                                                 <RotateCcw size={13} /> スキップ解除
-                                                            </button>
+                                                            </Button>
                                                         {:else}
-                                                            <button
-                                                                type="button"
+                                                            <Button
+                                                                variant="danger-outline"
+                                                                size="compact"
                                                                 onclick={() => handleToggleSkip(p, reserve)}
                                                                 disabled={isProcessing}
-                                                                class="btn-danger inline-flex items-center gap-1 px-2.5 py-1 text-xs cursor-pointer"
                                                             >
                                                                 <Ban size={13} /> スキップ
-                                                            </button>
+                                                            </Button>
                                                         {/if}
                                                     {:else}
                                                         <span class="text-xs text-slate-400">-</span>
@@ -2147,19 +2023,17 @@
                 <div
                     class="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-3"
                 >
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" bind:checked={isEnable} class="form-checkbox" />
+                    <Checkbox bind:checked={isEnable}>
                         <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">
                             ルールを有効にする
                         </span>
-                    </label>
+                    </Checkbox>
 
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" bind:checked={avoidDuplicate} class="form-checkbox" />
+                    <Checkbox bind:checked={avoidDuplicate}>
                         <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">
                             同一番組の二重録画を防止
                         </span>
-                    </label>
+                    </Checkbox>
 
                     {#if avoidDuplicate}
                         <div class="ml-8 pt-1">
@@ -2169,23 +2043,22 @@
                             >
                                 重複確認期間 (日) (空欄で全期間)
                             </label>
-                            <input
+                            <Input
                                 id="rule-period-avoid-dup"
                                 type="number"
-                                min="1"
+                                min={1}
                                 bind:value={periodToAvoidDuplicate}
                                 placeholder="空欄で無期限（デフォルト）"
-                                class="h-10 w-56 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                class="w-56 text-sm"
                             />
                         </div>
                     {/if}
 
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" bind:checked={isFree} class="form-checkbox" />
+                    <Checkbox bind:checked={isFree}>
                         <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">
                             無料放送（ノンスクランブル）のみ録画
                         </span>
-                    </label>
+                    </Checkbox>
 
                     <!-- 優先度設定 -->
                     <div class="pt-3 border-t border-slate-200/80 dark:border-slate-700/80">
@@ -2200,11 +2073,7 @@
                             5、最高: 10、最低: 1）。
                         </p>
                         <div class="flex items-center gap-3">
-                            <select
-                                id="rule-priority"
-                                bind:value={priority}
-                                class="h-10 w-48 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                            >
+                            <Select id="rule-priority" bind:value={priority} class="w-48 font-bold">
                                 <option value={10}>10 (最高・最優先)</option>
                                 <option value={9}>9 (より高)</option>
                                 <option value={8}>8 (より高)</option>
@@ -2215,7 +2084,7 @@
                                 <option value={3}>3 (低)</option>
                                 <option value={2}>2 (低)</option>
                                 <option value={1}>1 (最低)</option>
-                            </select>
+                            </Select>
                             <span
                                 class="text-xs font-bold px-2.5 py-1 rounded-md {priority >= 8
                                     ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
@@ -2263,18 +2132,12 @@
             <div
                 class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
-                <button type="button" onclick={goBackToRuleList} class="btn-secondary cursor-pointer">
-                    キャンセル
-                </button>
+                <Button variant="secondary" onclick={goBackToRuleList}>キャンセル</Button>
                 {#if !readOnlyStore.isReadOnly}
-                    <button
-                        type="submit"
-                        disabled={isSaving}
-                        class="btn-primary flex items-center gap-1.5 cursor-pointer"
-                    >
+                    <Button type="submit" variant="primary" disabled={isSaving} class="flex items-center gap-1.5">
                         <Save size={16} />
                         {ruleId ? 'ルールを更新する' : '新規ルールを作成する'}
-                    </button>
+                    </Button>
                 {:else}
                     <p class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">
                         ※閲覧専用モードのためルールの変更・作成はできません

@@ -3,6 +3,7 @@
     import { readOnlyStore } from '../../stores/readOnly.svelte';
     import { Play, Radio, FileVideo, X, Zap, CheckCircle2, Lock } from '@lucide/svelte';
     import { formatSize } from '../../utils/format';
+    import Button from '../common/Button.svelte';
 
     import type * as apid from '../../../../../api';
     import {
@@ -354,14 +355,14 @@
 
             <!-- アクションボタン -->
             <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-                <button type="button" onclick={onClose} class="btn-secondary">キャンセル</button>
-                <button type="button" disabled={!canStartPlayback} onclick={startPlayback} class="btn-primary">
+                <Button variant="secondary" onclick={onClose}>キャンセル</Button>
+                <Button variant="primary" disabled={!canStartPlayback} onclick={startPlayback}>
                     {#if !canStartPlayback}
                         <Lock size={15} /> 閲覧制限中
                     {:else}
                         <Play size={15} fill="currentColor" /> 再生開始
                     {/if}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

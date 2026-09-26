@@ -28,14 +28,14 @@ export function formatTime(timeMs: number | undefined | null): string {
 }
 
 /**
- * 開始時刻と終了時刻から "YYYY/MM/DD(曜日) HH:MM〜HH:MM" を生成
+ * 開始時刻と終了時刻から "YYYY/MM/DD(曜日) HH:MM - HH:MM" を生成
  */
 export function formatTimeRange(startAt: number | undefined | null, endAt: number | undefined | null): string {
     if (!startAt) return '';
     const dateStr = formatDate(startAt);
     const startStr = formatTime(startAt);
     const endStr = endAt ? formatTime(endAt) : '';
-    return endStr ? `${dateStr} ${startStr}〜${endStr}` : `${dateStr} ${startStr}〜`;
+    return endStr ? `${dateStr} ${startStr} - ${endStr}` : `${dateStr} ${startStr}`;
 }
 
 /**

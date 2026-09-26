@@ -7,7 +7,10 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
-    import { Film, CheckCircle2, Trash2, RefreshCw, Lock } from '@lucide/svelte';
+    import { Film, CheckCircle2, Trash2, RefreshCw } from '@lucide/svelte';
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import IconButton from '../lib/components/common/IconButton.svelte';
 
     let running = $state<apid.EncodeProgramItem[]>([]);
     let waitList = $state<apid.EncodeProgramItem[]>([]);
@@ -85,18 +88,11 @@
 </script>
 
 {#if !readOnlyStore.canViewEncode}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            エンコード一覧の閲覧は制限されています。録画一覧へリダイレクトします...
-        </p>
-        <button type="button" onclick={() => router.replace('/recorded')} class="btn-secondary mt-4 cursor-pointer">
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="エンコード一覧の閲覧は制限されています。録画一覧へリダイレクトします..."
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
         <div
@@ -107,17 +103,19 @@
                     <Film size={20} class="text-blue-600 dark:text-blue-400" />
                     エンコード一覧
                 </h1>
-                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    録画ファイルのバックグラウンド変換キュー（リアルタイム同期中）
+                <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    全 <span class="font-bold text-slate-900 dark:text-slate-100">
+                        {running.length + waitList.length}
+                    </span>
+                    件
+                    {#if running.length > 0}
+                        <span class="text-slate-400">（実行中 {running.length} / 待機中 {waitList.length}）</span>
+                    {/if}
                 </p>
             </div>
-            <button
-                type="button"
-                onclick={() => fetchEncode()}
-                class="btn-secondary flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-            >
+            <Button variant="secondary" onclick={() => fetchEncode()} class="whitespace-nowrap shrink-0">
                 <RefreshCw size={14} class={isLoading ? 'animate-spin' : ''} /> 更新
-            </button>
+            </Button>
         </div>
 
         <!-- 実行中のエンコード -->
@@ -149,14 +147,15 @@
                                     </h3>
                                 </div>
                                 {#if !readOnlyStore.isReadOnly}
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        variant="danger-outline"
                                         onclick={() => cancelEncode(item.id)}
-                                        class="btn-danger p-2 shrink-0 cursor-pointer"
+                                        class="mr-1 shrink-0"
                                         title="キャンセル"
+                                        aria-label="エンコードをキャンセル"
                                     >
                                         <Trash2 size={16} />
-                                    </button>
+                                    </IconButton>
                                 {/if}
                             </div>
 
@@ -207,14 +206,16 @@
                                 {item.recorded?.name}
                             </span>
                             {#if !readOnlyStore.isReadOnly}
-                                <button
-                                    type="button"
+                                <IconButton
+                                    variant="danger-outline"
+                                    size="sm"
                                     onclick={() => cancelEncode(item.id)}
-                                    class="btn-danger p-1.5 shrink-0 cursor-pointer"
+                                    class="mr-1 shrink-0"
                                     title="キャンセル"
+                                    aria-label="エンコードをキャンセル"
                                 >
                                     <Trash2 size={15} />
-                                </button>
+                                </IconButton>
                             {/if}
                         </div>
                     {/each}

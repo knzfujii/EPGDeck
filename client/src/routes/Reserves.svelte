@@ -22,6 +22,11 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
+    import EmptyState from '../lib/components/common/EmptyState.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
+    import FilterTabs from '../lib/components/common/FilterTabs.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
     import {
         Clock,
         Plus,
@@ -275,82 +280,52 @@
                     <Clock size={20} class="text-amber-500" />
                     予約一覧
                 </h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                    全 <span class="font-bold text-slate-900 dark:text-slate-100">{total}</span>
-                    件の録画予約（クリックで詳細確認・キャンセル）
+                <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    {#if filterMode !== 'all'}
+                        <span class="font-bold text-slate-900 dark:text-slate-100">{filteredReserves.length}</span>
+                        件 / 全 {total} 件
+                    {:else}
+                        全 <span class="font-bold text-slate-900 dark:text-slate-100">{total}</span>
+                        件
+                    {/if}
                 </p>
             </div>
 
             <!-- スマホ用手動予約ボタン -->
             {#if !readOnlyStore.isReadOnly}
-                <button
-                    type="button"
+                <Button
+                    variant="primary"
+                    size="compact"
                     onclick={() => router.push('/reserves/manual')}
-                    class="btn-primary sm:hidden whitespace-nowrap shrink-0 text-xs py-1.5 px-3 min-h-0"
+                    class="sm:hidden whitespace-nowrap shrink-0"
                 >
                     <Plus size={14} /> 手動予約
-                </button>
+                </Button>
             {/if}
         </div>
 
         <div class="flex items-center gap-2.5 min-w-0 max-w-full">
-            <!-- フィルタータブ (スマホではカード幅内で横スクロール可能に) -->
-            <div
-                class="flex overflow-x-auto min-w-0 max-w-full rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar"
-            >
-                <button
-                    type="button"
-                    onclick={() => (filterMode = 'all')}
-                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
-                    'all'
-                        ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                >
-                    すべて ({total})
-                </button>
-                <button
-                    type="button"
-                    onclick={() => (filterMode = 'conflicts')}
-                    class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
-                    'conflicts'
-                        ? 'bg-rose-600 text-white font-bold shadow-xs'
-                        : conflictCount > 0
-                          ? 'text-rose-600 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                >
-                    <AlertTriangle size={14} /> 競合 ({conflictCount})
-                </button>
-                <button
-                    type="button"
-                    onclick={() => (filterMode = 'skips')}
-                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
-                    'skips'
-                        ? 'bg-amber-500 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                >
-                    スキップ ({skipCount})
-                </button>
-                <button
-                    type="button"
-                    onclick={() => (filterMode = 'overlaps')}
-                    class="rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterMode ===
-                    'overlaps'
-                        ? 'bg-slate-700 text-white font-bold shadow-xs dark:bg-slate-600'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                >
-                    重複 ({overlapCount})
-                </button>
-            </div>
+            <!-- フィルタータブ -->
+            <FilterTabs
+                tabs={[
+                    { id: 'all', label: 'すべて', count: total },
+                    { id: 'conflicts', label: '競合', count: conflictCount, icon: AlertTriangle },
+                    { id: 'skips', label: 'スキップ', count: skipCount },
+                    { id: 'overlaps', label: '重複', count: overlapCount },
+                ]}
+                activeTab={filterMode}
+                onselect={id => (filterMode = id)}
+            />
 
             <!-- 手動予約ボタン (PC用) -->
             {#if !readOnlyStore.isReadOnly}
-                <button
-                    type="button"
+                <Button
+                    variant="primary"
                     onclick={() => router.push('/reserves/manual')}
-                    class="btn-primary hidden sm:inline-flex whitespace-nowrap shrink-0"
+                    class="hidden sm:inline-flex whitespace-nowrap shrink-0"
                 >
                     <Plus size={16} /> 手動予約を追加
-                </button>
+                </Button>
             {/if}
         </div>
     </div>
@@ -359,21 +334,15 @@
     {#if isLoading}
         <LoadingState message="予約データを読み込み中..." />
     {:else if filteredReserves.length === 0}
-        <div
-            class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-        >
-            <Clock size={40} class="text-slate-300 dark:text-slate-600" />
-            <p class="mt-2 text-base font-bold text-slate-700 dark:text-slate-300">
-                {#if filterMode === 'conflicts'}
-                    チューナー競合している予約はありません
-                {:else if filterMode === 'skips'}
-                    スキップ中の予約はありません
-                {:else}
-                    録画予約はありません
-                {/if}
-            </p>
-            <p class="text-sm text-slate-400 mt-0.5">番組表や検索画面から録画予約を追加できます</p>
-        </div>
+        <EmptyState
+            icon={Clock}
+            title={filterMode === 'conflicts'
+                ? 'チューナー競合している予約はありません'
+                : filterMode === 'skips'
+                  ? 'スキップ中の予約はありません'
+                  : '録画予約はありません'}
+            description="番組表や検索画面から録画予約を追加できます"
+        />
     {:else}
         <!-- テーブル表示 -->
         <!-- モバイル表示: カード型予約リスト (md:hidden) -->
@@ -402,54 +371,26 @@
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="font-bold text-slate-900 dark:text-slate-100">
                                 {formatDate(item.startAt)}
-                                {formatTime(item.startAt)}〜
+                                {formatTime(item.startAt)}{item.endAt ? ` - ${formatTime(item.endAt)}` : ''}
                             </span>
-                            <span
-                                class="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            >
-                                {channelStore.getChannelName(item.channelId)}
-                            </span>
-                            {#if item.ruleId}
-                                <span
-                                    class="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                                >
-                                    ルール
-                                </span>
-                            {:else}
-                                <span
-                                    class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                                >
-                                    個別
-                                </span>
-                            {/if}
+                            <Badge variant="channel" text={channelStore.getChannelName(item.channelId)} />
+                            <Badge
+                                variant={item.ruleId ? 'rule' : 'manual'}
+                                text={item.ruleId ? 'ルール' : '個別'}
+                                size="xs"
+                            />
                         </div>
 
                         <!-- 状態バッジ -->
                         <div>
                             {#if item.isRecording}
-                                <span
-                                    class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white animate-pulse"
-                                >
-                                    ● 録画中
-                                </span>
+                                <Badge variant="recording" size="xs" />
                             {:else if item.isConflict}
-                                <span
-                                    class="inline-flex items-center gap-1 rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                >
-                                    <AlertTriangle size={11} /> 競合
-                                </span>
+                                <Badge variant="conflict" size="xs" />
                             {:else if item.isSkip}
-                                <span
-                                    class="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                >
-                                    <Ban size={11} /> スキップ
-                                </span>
+                                <Badge variant="skip" size="xs" />
                             {:else if item.isOverlap}
-                                <span
-                                    class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                                >
-                                    重複
-                                </span>
+                                <Badge variant="overlap" size="xs" />
                             {/if}
                         </div>
                     </div>
@@ -481,9 +422,9 @@
                         </div>
                     {/if}
 
-                    <!-- 3行目: 長さ & アクションボタン -->
+                    <!-- 3行目: 長さ & アクションボタン（端からのインセット余白確保） -->
                     <div
-                        class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between"
+                        class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between pr-1"
                     >
                         <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
                             {formatDuration(item.endAt - item.startAt)}
@@ -491,31 +432,35 @@
 
                         <div class="flex items-center gap-2">
                             {#if item.isRecording && readOnlyStore.canLiveStream}
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="primary"
+                                    size="compact"
                                     onclick={e => {
                                         e.stopPropagation();
                                         router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
                                     }}
-                                    class="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition cursor-pointer"
                                 >
-                                    <Play size={12} fill="currentColor" /> 視聴
-                                </button>
+                                    <Play size={13} fill="currentColor" /> 視聴
+                                </Button>
                             {/if}
                             {#if !readOnlyStore.isReadOnly}
                                 {#if item.isSkip}
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
                                         onclick={e => restoreSkip(item, e)}
-                                        class="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                        class="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900/60"
                                     >
-                                        <RotateCcw size={12} /> 復活
-                                    </button>
+                                        <RotateCcw size={13} /> 復活
+                                    </Button>
                                 {:else}
-                                    <button
-                                        type="button"
+                                    {#if item.isRecording && readOnlyStore.canLiveStream}
+                                        <Divider orientation="vertical" />
+                                    {/if}
+                                    <Button
+                                        variant="danger-outline"
+                                        size="compact"
                                         onclick={e => cancelReserve(item, e)}
-                                        class="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 transition cursor-pointer"
                                         title={item.isRecording
                                             ? '録画を停止・破棄'
                                             : item.ruleId
@@ -527,7 +472,7 @@
                                         {:else}
                                             <Trash2 size={12} /> キャンセル
                                         {/if}
-                                    </button>
+                                    </Button>
                                 {/if}
                             {/if}
                         </div>
@@ -575,34 +520,21 @@
                                         {formatDate(item.startAt)}
                                     </div>
                                     <div class="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                                        {formatTime(item.startAt)}〜
+                                        {formatTime(item.startAt)}{item.endAt ? ` - ${formatTime(item.endAt)}` : ''}
                                     </div>
                                 </td>
 
                                 <!-- 放送局 -->
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    <span
-                                        class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                    >
-                                        {channelStore.getChannelName(item.channelId)}
-                                    </span>
+                                    <Badge variant="channel" text={channelStore.getChannelName(item.channelId)} />
                                 </td>
 
                                 <!-- 種別 (ルール / 個別) -->
                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                    {#if item.ruleId}
-                                        <span
-                                            class="rounded-lg bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                                        >
-                                            ルール
-                                        </span>
-                                    {:else}
-                                        <span
-                                            class="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                                        >
-                                            個別予約
-                                        </span>
-                                    {/if}
+                                    <Badge
+                                        variant={item.ruleId ? 'rule' : 'manual'}
+                                        text={item.ruleId ? 'ルール' : '個別予約'}
+                                    />
                                 </td>
 
                                 <!-- 番組名 & 概要 -->
@@ -642,29 +574,13 @@
                                 <!-- 状態バッジ -->
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     {#if item.isRecording}
-                                        <span
-                                            class="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs animate-pulse"
-                                        >
-                                            ● 録画中
-                                        </span>
+                                        <Badge variant="recording" />
                                     {:else if item.isConflict}
-                                        <span
-                                            class="inline-flex items-center gap-1 rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                        >
-                                            <AlertTriangle size={12} /> チューナー競合
-                                        </span>
+                                        <Badge variant="conflict" text="チューナー競合" />
                                     {:else if item.isSkip}
-                                        <span
-                                            class="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                        >
-                                            <Ban size={12} /> スキップ中
-                                        </span>
+                                        <Badge variant="skip" text="スキップ中" />
                                     {:else if item.isOverlap}
-                                        <span
-                                            class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                                        >
-                                            重複スキップ
-                                        </span>
+                                        <Badge variant="overlap" text="重複スキップ" />
                                     {:else}
                                         <span
                                             class="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
@@ -674,39 +590,43 @@
                                     {/if}
                                 </td>
 
-                                <!-- キャンセル / 操作ボタン -->
-                                <td class="whitespace-nowrap px-4 py-3.5 text-right">
+                                <!-- キャンセル / 操作ボタン (端からの余白確保 & 分離) -->
+                                <td class="whitespace-nowrap px-4 pr-5 sm:pr-6 py-3.5 text-right">
                                     <div class="inline-flex items-center justify-end gap-1.5">
                                         {#if item.isRecording && readOnlyStore.canLiveStream}
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="primary"
+                                                size="compact"
                                                 onclick={e => {
                                                     e.stopPropagation();
                                                     router.push(
                                                         `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
                                                     );
                                                 }}
-                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-sm font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
                                                 title="放送中の番組を視聴"
                                             >
                                                 <Play size={14} fill="currentColor" /> 視聴
-                                            </button>
+                                            </Button>
                                         {/if}
                                         {#if !readOnlyStore.isReadOnly}
                                             {#if item.isSkip}
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="secondary"
+                                                    size="compact"
                                                     onclick={e => restoreSkip(item, e)}
-                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-1.5 text-sm font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 transition cursor-pointer"
+                                                    class="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900/60"
                                                     title="スキップを解除して予約を復活"
                                                 >
                                                     <RotateCcw size={14} /> 復活
-                                                </button>
+                                                </Button>
                                             {:else}
-                                                <button
-                                                    type="button"
+                                                {#if item.isRecording && readOnlyStore.canLiveStream}
+                                                    <Divider orientation="vertical" />
+                                                {/if}
+                                                <Button
+                                                    variant="danger-outline"
+                                                    size="compact"
                                                     onclick={e => cancelReserve(item, e)}
-                                                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-1.5 text-sm font-bold text-rose-600 shadow-2xs hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
                                                     title={item.isRecording
                                                         ? '録画を停止・破棄'
                                                         : item.ruleId
@@ -718,7 +638,7 @@
                                                     {:else}
                                                         <Trash2 size={14} /> キャンセル
                                                     {/if}
-                                                </button>
+                                                </Button>
                                             {/if}
                                         {:else if !item.isRecording}
                                             <span class="text-xs text-slate-400">-</span>
@@ -931,56 +851,53 @@
             >
                 <div class="flex items-center gap-2">
                     {#if item.isRecording && readOnlyStore.canLiveStream}
-                        <button
-                            type="button"
+                        <Button
+                            variant="primary"
+                            size="compact"
                             onclick={() => {
                                 isDetailModalOpen = false;
                                 router.push(`/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`);
                             }}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
                         >
                             <Play size={14} fill="currentColor" /> ライブ視聴
-                        </button>
+                        </Button>
                     {/if}
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        size="compact"
                         onclick={() => {
                             isDetailModalOpen = false;
                             const kw = extractFirstSearchWord(item.name);
                             router.push(`/search?keyword=${encodeURIComponent(kw)}`);
                         }}
-                        class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >
                         <Search size={14} /> 類似番組を検索
-                    </button>
+                    </Button>
                 </div>
 
                 <div class="flex items-center gap-2">
                     {#if !readOnlyStore.isReadOnly}
                         {#if !item.ruleId}
-                            <button
-                                type="button"
+                            <Button
+                                variant="primary"
+                                size="compact"
                                 disabled={isUpdating}
                                 onclick={() => updateReserve(item)}
-                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
                             >
                                 <CheckCircle2 size={14} /> 設定を更新
-                            </button>
+                            </Button>
+                            <Divider orientation="vertical" />
                         {/if}
                         {#if item.isSkip}
-                            <button
-                                type="button"
-                                onclick={() => restoreSkip(item)}
-                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 cursor-pointer"
-                            >
+                            <Button variant="primary" size="compact" onclick={() => restoreSkip(item)}>
                                 <RotateCcw size={14} /> 予約を復活する
-                            </button>
+                            </Button>
                         {:else}
-                            <button
-                                type="button"
+                            <Button
+                                variant="danger-outline"
+                                size="compact"
                                 disabled={isCanceling}
                                 onclick={() => cancelReserve(item)}
-                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                             >
                                 {#if item.isRecording}
                                     <Square size={14} fill="currentColor" /> 停止
@@ -988,7 +905,7 @@
                                     <Trash2 size={14} />
                                     {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
                                 {/if}
-                            </button>
+                            </Button>
                         {/if}
                     {/if}
                 </div>

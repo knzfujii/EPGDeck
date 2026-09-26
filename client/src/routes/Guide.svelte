@@ -11,6 +11,8 @@
     import { extractFirstSearchWord, getChannelTypeBadgeClass } from '../lib/utils/format';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
+    import FilterTabs from '../lib/components/common/FilterTabs.svelte';
+    import Button from '../lib/components/common/Button.svelte';
     import { RecordingOptionFormState } from '../lib/stores/recordingOptionForm.svelte';
     import {
         isReserveCurrentlyRecording,
@@ -601,7 +603,7 @@
                                 updateDate(target.date, true);
                             }
                         }}
-                        class="appearance-none h-9 sm:h-10 rounded-xl border border-slate-200 bg-slate-50 pl-7 sm:pl-8 pr-6 sm:pr-7 text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                        class="appearance-none h-10 rounded-xl border border-slate-200 bg-slate-50 pl-7 sm:pl-8 pr-6 sm:pr-7 text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
                     >
                         {#each availableDates as opt}
                             <option value={opt.value}>{opt.label}</option>
@@ -678,29 +680,20 @@
                 : 'hidden sm:flex'}"
         >
             <!-- 放送波セレクター -->
-            <div class="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800 shrink-0">
-                {#each channelTypes as type}
-                    <button
-                        type="button"
-                        onclick={() => {
-                            const prevScrollTop = scrollContainer?.scrollTop ?? null;
-                            selectedType = type.id;
-                            fetchGuide(false).then(async () => {
-                                if (scrollContainer && prevScrollTop !== null) {
-                                    await tick();
-                                    scrollContainer.scrollTop = prevScrollTop;
-                                }
-                            });
-                        }}
-                        class="rounded-lg px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer {selectedType ===
-                        type.id
-                            ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                    >
-                        {type.name}
-                    </button>
-                {/each}
-            </div>
+            <FilterTabs
+                tabs={channelTypes.map(t => ({ id: t.id, label: t.name }))}
+                activeTab={selectedType}
+                onselect={id => {
+                    const prevScrollTop = scrollContainer?.scrollTop ?? null;
+                    selectedType = id;
+                    fetchGuide(false).then(async () => {
+                        if (scrollContainer && prevScrollTop !== null) {
+                            await tick();
+                            scrollContainer.scrollTop = prevScrollTop;
+                        }
+                    });
+                }}
+            />
         </div>
     </div>
 
@@ -1127,72 +1120,73 @@
                     {#if !readOnlyStore.isReadOnly}
                         {#if selectedProgram.reserve}
                             {#if selectedProgram.reserve.isRecording}
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="danger"
+                                    size="compact"
                                     onclick={() => {
                                         recordingActionItem = selectedProgram!.reserve;
                                         isRecordingActionModalOpen = true;
                                     }}
-                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer whitespace-nowrap shrink-0"
                                     title="録画を停止・破棄"
                                 >
                                     <Square size={14} fill="currentColor" /> 停止
-                                </button>
+                                </Button>
                             {:else if selectedProgram.reserve.isSkip}
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="primary"
+                                    size="compact"
                                     disabled={isReserving}
                                     onclick={() => restoreSkip(selectedProgram!.reserve!.id, selectedProgram!.name)}
-                                    class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <RotateCcw size={14} /> 予約を復活 (スキップ解除)
-                                </button>
+                                </Button>
                             {:else if selectedProgram.reserve.ruleId}
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="danger-outline"
+                                    size="compact"
                                     disabled={isReserving}
                                     onclick={() =>
                                         deleteReserve(selectedProgram!.reserve!.id, selectedProgram!.name, true)}
-                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <Trash2 size={14} /> この回をスキップ (除外)
-                                </button>
+                                </Button>
                             {:else}
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="primary"
+                                    size="compact"
                                     disabled={isReserving}
                                     onclick={() => updateReserve(selectedProgram!.reserve!.id, selectedProgram!)}
-                                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <CheckCircle2 size={14} /> 設定を更新
-                                </button>
-                                <button
-                                    type="button"
+                                </Button>
+                                <Button
+                                    variant="danger-outline"
+                                    size="compact"
                                     disabled={isReserving}
                                     onclick={() =>
                                         deleteReserve(selectedProgram!.reserve!.id, selectedProgram!.name, false)}
-                                    class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                                 >
                                     <Trash2 size={14} /> 予約解除
-                                </button>
+                                </Button>
                             {/if}
                         {:else if selectedProgram.endAt <= now}
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                size="compact"
                                 disabled={true}
-                                class="flex items-center gap-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-500 cursor-not-allowed whitespace-nowrap shrink-0"
+                                class="bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                             >
                                 <Ban size={14} /> 放送終了
-                            </button>
+                            </Button>
                         {:else}
-                            <button
-                                type="button"
+                            <Button
+                                variant="primary"
+                                size="compact"
                                 disabled={isReserving}
                                 onclick={() => addReserve(selectedProgram!)}
-                                class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
                             >
                                 <Plus size={14} /> 録画予約する
-                            </button>
+                            </Button>
                         {/if}
                     {/if}
                 </div>

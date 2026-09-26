@@ -14,6 +14,7 @@
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
+    import Button from '../lib/components/common/Button.svelte';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -231,25 +232,15 @@
             isStreamModalOpen = true;
         }
     }
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
 </script>
 
 {#if !readOnlyStore.canViewDashboard}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            ダッシュボードの閲覧は制限されています。録画一覧へリダイレクトします...
-        </p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
-        >
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="ダッシュボードの閲覧は制限されています。録画一覧へリダイレクトします..."
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
         <!-- ストレージ使用状況カード (デフォルト折りたたみ) -->
@@ -263,13 +254,13 @@
                     class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
                 >
                     <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                        <div class="flex items-center gap-2">
+                        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
                             <HardDrive
                                 size={18}
                                 class={worstStorageStatus?.iconColor || 'text-blue-600 dark:text-blue-400'}
                             />
-                            <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">ストレージ容量</h2>
-                        </div>
+                            ストレージ容量
+                        </h2>
 
                         <!-- 健全性ステータスバッジ (一番悪いステータス) -->
                         {#if worstStorageStatus}
@@ -312,11 +303,11 @@
                                 <div
                                     class="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-800/60"
                                 >
-                                    <div class="flex items-center justify-between text-xs">
+                                    <div class="flex items-center justify-between text-sm sm:text-base">
                                         <span
-                                            class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200"
+                                            class="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200"
                                         >
-                                            <Server size={15} class="text-blue-500" />
+                                            <Server size={18} class="text-blue-500" />
                                             {st.name}
                                         </span>
                                         <span
@@ -332,7 +323,7 @@
 
                                     <!-- プログレスバー -->
                                     <div
-                                        class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+                                        class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
                                     >
                                         <div
                                             class="h-full rounded-full transition-all duration-500 {percent > 90
@@ -346,7 +337,7 @@
 
                                     <!-- 容量詳細数値 -->
                                     <div
-                                        class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium"
+                                        class="mt-3 flex items-center justify-between text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium"
                                     >
                                         <span>
                                             使用: <strong class="text-slate-800 dark:text-slate-200">
@@ -383,10 +374,12 @@
                     class="flex w-full items-center justify-between p-4 sm:p-5 text-left transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 cursor-pointer"
                 >
                     <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                        <div class="flex items-center gap-2">
-                            <AlertTriangle size={18} class="text-rose-500" />
-                            <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">予約の注意・警告</h2>
-                        </div>
+                        <h2
+                            class="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100"
+                        >
+                            <AlertTriangle size={20} class="text-rose-500" />
+                            予約の注意・警告
+                        </h2>
 
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400"
@@ -483,10 +476,8 @@
             >
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <h2
-                            class="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100"
-                        >
-                            <Video size={20} class="text-emerald-500" />
+                        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                            <Video size={18} class="text-emerald-500" />
                             録画一覧
                         </h2>
                         <span
@@ -529,8 +520,7 @@
                                             {channelStore.getChannelName(item.channelId)}
                                         </span>
                                         <span class="text-xs text-slate-400 whitespace-nowrap">
-                                            {formatDate(item.startAt)}
-                                            {formatTime(item.startAt)}
+                                            {formatTimeRange(item.startAt, item.endAt)}
                                         </span>
                                     </div>
                                     <h3
@@ -542,17 +532,18 @@
 
                                 <!-- 再生ボタン (目立つ青色ボタン) -->
                                 {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="primary"
+                                        size="compact"
                                         onclick={e => {
                                             e.stopPropagation();
                                             handleRecordedPlay(item);
                                         }}
-                                        class="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 cursor-pointer"
+                                        class="shrink-0 whitespace-nowrap"
                                         title="今すぐ再生"
                                     >
                                         <Play size={14} fill="currentColor" /> 再生
-                                    </button>
+                                    </Button>
                                 {/if}
                             </div>
                         {/each}
@@ -566,10 +557,8 @@
             >
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <h2
-                            class="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100"
-                        >
-                            <Clock size={20} class="text-amber-500" />
+                        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                            <Clock size={18} class="text-amber-500" />
                             予約一覧
                         </h2>
                         <span
@@ -597,10 +586,18 @@
                             <div
                                 class="flex flex-col gap-2 rounded-xl border p-3.5 transition {item.isRecording
                                     ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
-                                    : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40'}"
+                                    : 'border-slate-100 bg-slate-50/50 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40'}"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div
+                                        onclick={() => router.push('/reserves')}
+                                        class="min-w-0 flex-1 cursor-pointer group"
+                                        role="button"
+                                        tabindex="0"
+                                        onkeydown={e => {
+                                            if (e.key === 'Enter') router.push('/reserves');
+                                        }}
+                                    >
                                         <div class="flex items-center gap-2 flex-wrap">
                                             {#if item.isRecording}
                                                 <span
@@ -617,49 +614,56 @@
                                                 </span>
                                             {/if}
 
-                                            <span class="text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            <span
+                                                class="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                                            >
                                                 {channelStore.getChannelName(item.channelId)}
                                             </span>
+                                            <span class="text-xs text-slate-400 whitespace-nowrap">
+                                                {formatTimeRange(item.startAt, item.endAt)}
+                                            </span>
                                         </div>
-                                        <h3 class="program-title mt-1 truncate">
+                                        <h3
+                                            class="program-title mt-1 truncate transition group-hover:text-blue-600 dark:group-hover:text-blue-400"
+                                        >
                                             {item.name}
                                         </h3>
                                     </div>
 
-                                    <div class="shrink-0 text-right flex items-center gap-2">
-                                        {#if item.isRecording}
+                                    {#if item.isRecording}
+                                        <div class="shrink-0 flex items-center gap-2">
                                             {#if readOnlyStore.canLiveStream}
-                                                <button
-                                                    type="button"
-                                                    onclick={() =>
+                                                <Button
+                                                    variant="primary"
+                                                    size="compact"
+                                                    onclick={e => {
+                                                        e.stopPropagation();
                                                         router.push(
                                                             `/onair/watch?channelId=${item.channelId}&type=m2tsll&mode=0`,
-                                                        )}
-                                                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+                                                        );
+                                                    }}
+                                                    class="shrink-0 whitespace-nowrap"
                                                 >
                                                     <Play size={13} fill="currentColor" /> 視聴
-                                                </button>
+                                                </Button>
                                             {/if}
                                             {#if !readOnlyStore.isReadOnly}
-                                                <button
-                                                    type="button"
-                                                    onclick={() => {
+                                                <Button
+                                                    variant="danger-outline"
+                                                    size="compact"
+                                                    onclick={e => {
+                                                        e.stopPropagation();
                                                         recordingActionItem = item;
                                                         isRecordingActionModalOpen = true;
                                                     }}
-                                                    class="flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                                    class="shrink-0 whitespace-nowrap"
                                                     title="録画を停止・破棄"
                                                 >
                                                     <Square size={12} fill="currentColor" /> 停止
-                                                </button>
+                                                </Button>
                                             {/if}
-                                        {:else}
-                                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                                {formatDate(item.startAt)}
-                                                {formatTime(item.startAt)}
-                                            </span>
-                                        {/if}
-                                    </div>
+                                        </div>
+                                    {/if}
                                 </div>
 
                                 <!-- 録画中番組の進行状況バー -->
@@ -675,10 +679,10 @@
                                                 style="width: {getRecordingProgress(item.startAt, item.endAt)}%"
                                             ></div>
                                         </div>
-                                        <span class="text-xs font-bold text-rose-600 dark:text-rose-400">
-                                            {getRecordingProgress(item.startAt, item.endAt)}% ({formatTime(
-                                                item.startAt,
-                                            )} - {formatTime(item.endAt)})
+                                        <span
+                                            class="text-xs font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+                                        >
+                                            {getRecordingProgress(item.startAt, item.endAt)}%
                                         </span>
                                     </div>
                                 {/if}

@@ -7,6 +7,7 @@
     import { confirmDialog } from '../../stores/confirm.svelte';
     import { snackbar } from '../../stores/snackbar.svelte';
     import { Moon, Sun, Monitor, Menu, Lock, Unlock } from '@lucide/svelte';
+    import IconButton from '../common/IconButton.svelte';
 
     let { title = 'EPGDeck', onToggleDrawer }: { title?: string; onToggleDrawer?: () => void } = $props();
 
@@ -44,14 +45,9 @@
     class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-3 sm:px-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90"
 >
     <div class="flex items-center gap-2.5 sm:gap-3.5">
-        <button
-            type="button"
-            onclick={() => onToggleDrawer?.()}
-            class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
-            aria-label="メニューを開閉"
-        >
+        <IconButton variant="ghost" onclick={() => onToggleDrawer?.()} aria-label="メニューを開閉">
             <Menu size={22} />
-        </button>
+        </IconButton>
 
         <button
             type="button"
@@ -95,10 +91,9 @@
             {/if}
         {/if}
 
-        <button
-            type="button"
+        <IconButton
+            variant="ghost"
             onclick={() => themeStore.cycleMode()}
-            class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
             aria-label="テーマ切り替え"
             title={themeStore.mode === 'auto'
                 ? 'テーマ: 自動 (OS準拠) - クリックでライトに変更'
@@ -113,6 +108,6 @@
             {:else}
                 <Moon size={20} class="text-indigo-400" />
             {/if}
-        </button>
+        </IconButton>
     </div>
 </header>

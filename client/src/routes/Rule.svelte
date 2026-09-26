@@ -10,6 +10,13 @@
     import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
+    import EmptyState from '../lib/components/common/EmptyState.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
+    import SearchInput from '../lib/components/common/SearchInput.svelte';
+    import FilterTabs from '../lib/components/common/FilterTabs.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import IconButton from '../lib/components/common/IconButton.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
     import {
         SlidersHorizontal,
         Plus,
@@ -57,7 +64,7 @@
             const sM = String(startMin % 60).padStart(2, '0');
             const eH = String(Math.floor(endMin / 60) % 24).padStart(2, '0');
             const eM = String(endMin % 60).padStart(2, '0');
-            return `${weekStr} ${sH}:${sM}〜${eH}:${eM}`;
+            return `${weekStr} ${sH}:${sM} - ${eH}:${eM}`;
         }
         return weekStr;
     }
@@ -246,15 +253,8 @@
         scrollToTop();
     }
 
-    function onInputKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            clearSearch();
-        }
-    }
-
-    function onInput(e: Event) {
-        const target = e.target as HTMLInputElement;
-        if (target.value === '' && activeKeyword !== '') {
+    function onInput(val: string) {
+        if (val === '' && activeKeyword !== '') {
             clearSearch();
         }
     }
@@ -327,9 +327,7 @@
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
             ルール一覧の閲覧は制限されています。録画一覧へリダイレクトします...
         </p>
-        <button type="button" onclick={() => router.replace('/recorded')} class="btn-secondary mt-4 cursor-pointer">
-            録画一覧へ
-        </button>
+        <Button variant="secondary" onclick={() => router.replace('/recorded')} class="mt-4">録画一覧へ</Button>
     </div>
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
@@ -383,94 +381,36 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-                <!-- 有効 / 無効 / すべて フィルタタブ (検索の左) -->
-                <div
-                    class="flex h-10 items-center overflow-x-auto min-w-0 rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar shrink-0"
-                >
-                    <button
-                        type="button"
-                        onclick={() => setFilterStatus('enabled')}
-                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
-                        'enabled'
-                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                    >
-                        <Power size={14} class={filterStatus === 'enabled' ? 'text-emerald-500' : 'text-slate-400'} />
-                        有効 ({enabledCount})
-                    </button>
-                    <button
-                        type="button"
-                        onclick={() => setFilterStatus('disabled')}
-                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
-                        'disabled'
-                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                    >
-                        <Power
-                            size={14}
-                            class={filterStatus === 'disabled'
-                                ? 'text-slate-400'
-                                : 'text-slate-300 dark:text-slate-600'}
-                        />
-                        無効 ({disabledCount})
-                    </button>
-                    <button
-                        type="button"
-                        onclick={() => setFilterStatus('all')}
-                        class="flex h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {filterStatus ===
-                        'all'
-                            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                    >
-                        <Layers size={14} class={filterStatus === 'all' ? 'text-blue-500' : 'text-slate-400'} />
-                        すべて ({allCount})
-                    </button>
+                <!-- 有効 / 無効 / すべて フィルタタブ -->
+                <FilterTabs
+                    tabs={[
+                        { id: 'enabled', label: '有効', count: enabledCount, icon: Power },
+                        { id: 'disabled', label: '無効', count: disabledCount, icon: Power },
+                        { id: 'all', label: 'すべて', count: allCount, icon: Layers },
+                    ]}
+                    activeTab={filterStatus}
+                    onselect={status => setFilterStatus(status)}
+                />
+
+                <!-- 検索入力 -->
+                <div class="flex-1 sm:w-60 md:w-64 min-w-[160px]">
+                    <SearchInput
+                        bind:value={keyword}
+                        placeholder="ルールを検索..."
+                        ariaLabel="ルールをキーワードで絞り込み"
+                        size="md"
+                        onsubmit={handleSearch}
+                        onclear={clearSearch}
+                        oninput={onInput}
+                    />
                 </div>
 
-                <!-- 検索フォーム -->
-                <form
-                    onsubmit={e => {
-                        e.preventDefault();
-                        handleSearch();
-                    }}
-                    class="relative flex-1 sm:w-60 md:w-64 min-w-[160px]"
-                >
-                    <input
-                        type="text"
-                        bind:value={keyword}
-                        onkeydown={onInputKeydown}
-                        oninput={onInput}
-                        placeholder="ルールを検索..."
-                        aria-label="ルールをキーワードで絞り込み"
-                        class="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"
-                    />
-                    <Search
-                        size={16}
-                        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                    />
-                    {#if keyword}
-                        <button
-                            type="button"
-                            onclick={clearSearch}
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
-                            title="検索をクリア"
-                            aria-label="検索をクリア"
-                        >
-                            <X size={14} />
-                        </button>
-                    {/if}
-                </form>
-
                 {#if !readOnlyStore.isReadOnly}
-                    <button
-                        type="button"
-                        onclick={goCreateRule}
-                        class="btn-primary flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                    >
+                    <Button variant="primary" onclick={goCreateRule} class="whitespace-nowrap shrink-0">
                         <Plus size={16} />
                         <span class="hidden sm:inline">新規ルール作成</span>
                         <span class="sm:hidden">新規作成</span>
-                    </button>
+                    </Button>
                 {/if}
             </div>
         </div>
@@ -479,59 +419,51 @@
         {#if isLoading}
             <LoadingState message="ルール一覧を取得中..." />
         {:else if filteredRules.length === 0}
-            <div
-                class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-            >
-                {#if activeKeyword}
-                    <Search size={36} class="text-slate-300 dark:text-slate-600" />
-                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                        「{activeKeyword}」に一致する{filterStatus === 'enabled'
-                            ? '有効な'
-                            : filterStatus === 'disabled'
-                              ? '無効な'
-                              : ''}ルールは見つかりませんでした
-                    </p>
-                    <p class="mt-1 text-xs text-slate-400">キーワードを変更するか、絞り込みを解除してください</p>
-                    <button type="button" onclick={clearSearch} class="btn-secondary mt-3 cursor-pointer">
-                        キーワード絞り込みを解除
-                    </button>
-                {:else if filterStatus === 'enabled'}
-                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
-                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">有効なルールはありません</p>
-                    {#if disabledCount > 0}
-                        <p class="mt-1 text-xs text-slate-400">無効化されたルールが {disabledCount} 件あります</p>
-                        <button
-                            type="button"
-                            onclick={() => setFilterStatus('all')}
-                            class="btn-secondary mt-3 cursor-pointer"
-                        >
-                            すべてのルールを表示
-                        </button>
-                    {:else}
-                        <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
-                            最初のルールを作成する
-                        </button>
-                    {/if}
-                {:else if filterStatus === 'disabled'}
-                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
-                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">無効なルールはありません</p>
-                    <button
-                        type="button"
-                        onclick={() => setFilterStatus('enabled')}
-                        class="btn-secondary mt-3 cursor-pointer"
-                    >
-                        有効なルールを表示
-                    </button>
-                {:else}
-                    <SlidersHorizontal size={36} class="text-slate-300 dark:text-slate-600" />
-                    <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                        登録されたルールはありません
-                    </p>
-                    <button type="button" onclick={goCreateRule} class="btn-primary mt-3 cursor-pointer">
-                        最初のルールを作成する
-                    </button>
-                {/if}
-            </div>
+            {#if activeKeyword}
+                <EmptyState
+                    icon={Search}
+                    title="「{activeKeyword}」に一致する{filterStatus === 'enabled'
+                        ? '有効な'
+                        : filterStatus === 'disabled'
+                          ? '無効な'
+                          : ''}ルールは見つかりませんでした"
+                    description="キーワードを変更するか、絞り込みを解除してください"
+                >
+                    {#snippet action()}
+                        <Button variant="secondary" onclick={clearSearch}>キーワード絞り込みを解除</Button>
+                    {/snippet}
+                </EmptyState>
+            {:else if filterStatus === 'enabled'}
+                <EmptyState
+                    icon={SlidersHorizontal}
+                    title="有効なルールはありません"
+                    description={disabledCount > 0 ? `無効化されたルールが ${disabledCount} 件あります` : undefined}
+                >
+                    {#snippet action()}
+                        {#if disabledCount > 0}
+                            <Button variant="secondary" onclick={() => setFilterStatus('all')}>
+                                すべてのルールを表示
+                            </Button>
+                        {:else}
+                            <Button variant="primary" onclick={goCreateRule}>最初のルールを作成する</Button>
+                        {/if}
+                    {/snippet}
+                </EmptyState>
+            {:else if filterStatus === 'disabled'}
+                <EmptyState icon={SlidersHorizontal} title="無効なルールはありません">
+                    {#snippet action()}
+                        <Button variant="secondary" onclick={() => setFilterStatus('enabled')}>
+                            有効なルールを表示
+                        </Button>
+                    {/snippet}
+                </EmptyState>
+            {:else}
+                <EmptyState icon={SlidersHorizontal} title="登録されたルールはありません">
+                    {#snippet action()}
+                        <Button variant="primary" onclick={goCreateRule}>最初のルールを作成する</Button>
+                    {/snippet}
+                </EmptyState>
+            {/if}
         {:else}
             <!-- モバイル表示: カード型ルールリスト (md:hidden) -->
             <div class="space-y-3 md:hidden">
@@ -567,8 +499,8 @@
                                         type="button"
                                         onclick={e => toggleRuleEnable(r, e)}
                                         class="shrink-0 inline-flex items-center justify-center rounded-full p-1.5 transition cursor-pointer {isEnabled
-                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
-                                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400'}"
+                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900'
+                                            : 'bg-slate-200 text-slate-500 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-300'}"
                                         title={isEnabled ? 'クリックして無効化' : 'クリックして有効化'}
                                     >
                                         <Power size={14} />
@@ -766,43 +698,44 @@
 
                             <div class="flex items-center gap-2">
                                 <!-- 録画一覧ボタン -->
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="secondary"
+                                    size="compact"
                                     onclick={e => {
                                         e.stopPropagation();
                                         router.push(`/recorded?ruleId=${r.id}`);
                                     }}
-                                    class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/60 dark:hover:text-blue-400 transition-colors shadow-2xs cursor-pointer shrink-0"
                                     title="このルールの録画一覧を表示"
                                     aria-label="このルールの録画一覧を表示"
                                 >
                                     <ListVideo size={14} class="text-blue-500 dark:text-blue-400" />
                                     <span>録画一覧</span>
-                                </button>
+                                </Button>
 
                                 {#if !readOnlyStore.isReadOnly}
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
                                         onclick={e => {
                                             e.stopPropagation();
                                             goEditRule(r);
                                         }}
-                                        class="btn-secondary flex h-8 min-h-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold cursor-pointer shrink-0"
                                         title="ルールを編集"
                                     >
                                         <Edit3 size={13} /> 編集
-                                    </button>
+                                    </Button>
 
-                                    <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                                    <Divider orientation="vertical" />
 
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        variant="danger-outline"
+                                        size="compact"
                                         onclick={e => deleteRule(r, e)}
-                                        class="btn-danger flex h-8 w-8 min-h-0 items-center justify-center rounded-lg p-0 cursor-pointer shrink-0"
                                         title="削除"
+                                        aria-label="ルールを削除"
                                     >
                                         <Trash2 size={14} />
-                                    </button>
+                                    </IconButton>
                                 {/if}
                             </div>
                         </div>
@@ -1106,48 +1039,49 @@
                                     </td>
 
                                     <!-- 操作ボタン -->
-                                    <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                                    <td class="pl-4 pr-5 sm:pr-6 py-3.5 text-right whitespace-nowrap">
                                         <div class="flex items-center justify-end gap-2">
                                             <!-- 録画一覧ボタン -->
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="secondary"
+                                                size="compact"
                                                 onclick={e => {
                                                     e.stopPropagation();
                                                     router.push(`/recorded?ruleId=${r.id}`);
                                                 }}
-                                                class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 dark:hover:bg-blue-950/60 dark:hover:text-blue-400 transition-colors shadow-2xs cursor-pointer shrink-0"
                                                 title="このルールの録画一覧を表示"
                                                 aria-label="このルールの録画一覧を表示"
                                             >
                                                 <ListVideo size={14} class="text-blue-500 dark:text-blue-400" />
                                                 <span>録画一覧</span>
-                                            </button>
+                                            </Button>
 
                                             <!-- 編集ボタン -->
                                             {#if !readOnlyStore.isReadOnly}
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    variant="secondary"
+                                                    size="compact"
                                                     onclick={e => {
                                                         e.stopPropagation();
                                                         goEditRule(r);
                                                     }}
-                                                    class="btn-secondary flex h-8 min-h-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold cursor-pointer shrink-0"
                                                     title="ルールを編集"
                                                 >
                                                     <Edit3 size={13} /> 編集
-                                                </button>
+                                                </Button>
 
-                                                <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                                                <Divider orientation="vertical" />
 
                                                 <!-- 削除ボタン -->
-                                                <button
-                                                    type="button"
+                                                <IconButton
+                                                    variant="danger-outline"
+                                                    size="compact"
                                                     onclick={e => deleteRule(r, e)}
-                                                    class="btn-danger flex h-8 w-8 min-h-0 items-center justify-center rounded-lg p-0 cursor-pointer shrink-0"
                                                     title="削除"
+                                                    aria-label="ルールを削除"
                                                 >
                                                     <Trash2 size={14} />
-                                                </button>
+                                                </IconButton>
                                             {/if}
                                         </div>
                                     </td>

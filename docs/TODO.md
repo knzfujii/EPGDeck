@@ -31,10 +31,11 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
   - EPGDeck のブラウザ視聴画面ではそもそも内部字幕を使用せず、API から WebVTT をオンデマンド抽出して表示しているため、MP4 内部の字幕は不要である。
   - しかし、現状の API (`/api/videos/:id/vtt`) は「MP4 本体から字幕を抽出する」仕様のため、単にエンコード時の `-c:s mov_text` を削除 (`-sn`) すると字幕自体が表示できなくなる。
   - **根本対応案**: エンコード時に MP4 には字幕を含めず、同名の `.vtt` ファイルを別ファイルとして生成・保存するアーキテクチャへ改修する。ただし、これに伴うファイル削除ロジック (`VideoApiModel.deleteVideoFile` 等)、DB スキーマ、移行ツールの広範囲な改修影響を精査して進めること。
-- [ ] **UI コンポーネントおよびボタンサイズの統一・デザインシステム標準化**
-  - 現在、各画面・モーダルごとにボタンの高さ（`btn-primary` / `btn-secondary` / `btn-danger` の `min-height: 2.5rem`、インライン指定の `py-2` や `h-9`/`h-10` 等）、パディング、フォントサイズにばらつきがあり、画面間で統一感が不足している
-  - ボタン（Primary / Secondary / Danger / ツールアイコンボタン等）のサイズ規格（例: `sm` = 36px, `md` = 40px 等）とスタイル体系を整理し、CSS Utility クラスまたは共通コンポーネント化して標準化
-  - ボタンにとどまらず、モーダルヘッダー/フッター構造、フォーム入力コンポーネント、カード、バッジ等の各種 UI コンポーネントのスタイリング基準を策定・統一する
+- [x] **UI コンポーネントおよびボタンサイズの統一・デザインシステム標準化**
+  - Tailwind CSS の局所性原則に基づき、`app.css` の独自 CSS クラス（`.btn-*`, `.form-*`, `.divider-v`, `.card-base` 等）を完全撤廃
+  - Svelte 5 共通 UI コンポーネント群へ全面移行：`Button`, `IconButton`, `Divider`, `Input`, `Select`, `Textarea`, `Checkbox`, `Card`, `Badge`, `SearchInput`, `FilterTabs`, `PageHeader`, `ReadOnlyGuard`, `LoadingState`, `EmptyState`
+  - 削除・破壊的アクションボタンの物理的分離（`<Divider orientation="vertical" />`）および控えめなアウトライン化（`variant="danger-outline"`）による誤タップ防止
+  - スマホ（390px）端末でのベゼル直付け誤タップを防ぐ安全マージン・インセット余白を全画面に適用完了
 
 ---
 

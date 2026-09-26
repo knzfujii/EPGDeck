@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import VideoFile from '../../db/entities/VideoFile.js';
@@ -147,6 +147,27 @@ export default class VideoFileDB implements IVideoFileDB {
         return await this.promiseRetry.run(async () => {
             const { db, schema } = client;
             const rows = await (db as any).select().from(schema.videoFiles);
+            return rows.map((r: any) => this.toEntity(r));
+        });
+    }
+
+    /**
+     * 親ディレクトリ名とファイルパス（部分一致）で検索
+     */
+    public async findByParentAndQuery(parentDirectoryName: string, query: string): Promise<VideoFile[]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            const rows = await (db as any)
+                .select()
+                .from(schema.videoFiles)
+                .where(
+                    and(
+                        eq(schema.videoFiles.parentDirectoryName, parentDirectoryName),
+                        like(schema.videoFiles.filePath, `%${query}%`),
+                    ),
+                );
             return rows.map((r: any) => this.toEntity(r));
         });
     }

@@ -66,7 +66,7 @@
     "aribts": "2.1.12",
     "drizzle-orm": "0.45.3",
     "hono": "4.13.9",
-    "inversify": "6.0.2",
+    "inversify": "8.2.3",
     "js-yaml": "5.4.2",
     "log4js": "6.9.1",
     "mirakurun": "4.1.3",

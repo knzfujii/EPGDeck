@@ -64,6 +64,7 @@ export interface ServerConfig {
 
 export interface DatabaseConfig {
     type: Enums.DBType;
+    path?: string;
     mysql?: {
         host: string;
         user: string;

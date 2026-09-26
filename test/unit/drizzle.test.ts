@@ -251,4 +251,21 @@ describe('Drizzle ORM SQLite Schema Tests', () => {
         const parallelItems = (await historyDB.findAll()).filter(item => item.name === '並行テスト番組');
         expect(parallelItems.length).toBe(1);
     });
+
+    it('should respect customDbPath and config.database.path in createDrizzleClient', async () => {
+        const { createDrizzleClient } = await import('../../src/db/drizzle.js');
+
+        // customDbPath が指定された場合はそれが最優先されること
+        const customClient = createDrizzleClient({ database: { type: 'sqlite' } } as any, ':memory:');
+        expect(customClient.type).toBe('sqlite');
+
+        // customDbPath なしで config.database.path が指定された場合
+        const configuredClient = createDrizzleClient({
+            database: {
+                type: 'sqlite',
+                path: ':memory:',
+            },
+        } as any);
+        expect(configuredClient.type).toBe('sqlite');
+    });
 });

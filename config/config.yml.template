@@ -26,6 +26,9 @@ server:
 database:
   type: sqlite   # sqlite | mysql
 
+  # SQLite 設定 (type: sqlite の場合に使用。未指定時は %ROOT%/data/database.db)
+  # path: '%ROOT%/data/database.db'
+
   # MySQL 設定 (type: mysql の場合に使用)
   # mysql:
   #   host: 127.0.0.1

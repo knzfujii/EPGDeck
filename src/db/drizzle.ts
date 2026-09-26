@@ -37,7 +37,8 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
             process.env.NODE_ENV === 'test'
                 ? path.join(appRootPath, 'data', 'test_e2e.db')
                 : path.join(appRootPath, 'data', 'database.db');
-        const dbPath = customDbPath || process.env.EPGDECK_DB_PATH || defaultDbPath;
+        const configuredDbPath = process.env.NODE_ENV !== 'test' ? config.database.path : undefined;
+        const dbPath = customDbPath || process.env.EPGDECK_DB_PATH || configuredDbPath || defaultDbPath;
         const client = createClient({
             url: `file:${dbPath}`,
             timeout: 10000,

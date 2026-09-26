@@ -1,6 +1,7 @@
 <script lang="ts">
     import { confirmStore } from '../../stores/confirm.svelte';
     import { AlertTriangle, HelpCircle, X } from '@lucide/svelte';
+    import Button from './Button.svelte';
 
     function handleKeydown(e: KeyboardEvent) {
         if (!confirmStore.isOpen) return;
@@ -74,16 +75,15 @@
 
             <!-- アクションボタン -->
             <div class="mt-6 flex items-center justify-end gap-3">
-                <button type="button" onclick={() => confirmStore.handleCancel()} class="btn-secondary">
+                <Button variant="secondary" onclick={() => confirmStore.handleCancel()}>
                     {confirmStore.cancelText}
-                </button>
-                <button
-                    type="button"
+                </Button>
+                <Button
+                    variant={confirmStore.isDestructive ? 'danger' : 'primary'}
                     onclick={() => confirmStore.handleConfirm()}
-                    class={confirmStore.isDestructive ? 'btn-danger' : 'btn-primary'}
                 >
                     {confirmStore.confirmText}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

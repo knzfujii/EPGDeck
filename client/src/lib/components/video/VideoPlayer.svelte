@@ -804,7 +804,7 @@
                 e.stopPropagation();
                 seekRelative(offset);
             }}
-            class="pointer-events-auto relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/20 text-white shadow-lg backdrop-blur-xs transition hover:scale-110 hover:bg-black/40 active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
+            class="pointer-events-auto relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/20 text-white/75 shadow-lg backdrop-blur-xs transition hover:scale-110 hover:bg-black/40 hover:text-white active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
             {title}
             aria-label={title}
         >
@@ -827,7 +827,7 @@
             class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-5 sm:gap-10 transition-opacity duration-200"
         >
             {#if canSeek}
-                {@render seekButton(-10, 'ccw', '-10s', '10秒戻る')}
+                {@render seekButton(-10, 'ccw', '10s', '10秒戻る')}
             {/if}
 
             <button
@@ -837,7 +837,7 @@
                     togglePlay();
                     resetHideControlsTimer();
                 }}
-                class="pointer-events-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-blue-600/35 text-white shadow-xl backdrop-blur-xs transition hover:scale-110 hover:bg-blue-600/60 active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
+                class="pointer-events-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-blue-600/35 text-white/75 shadow-xl backdrop-blur-xs transition hover:scale-110 hover:bg-blue-600/60 hover:text-white active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
                 title={isPlaying ? '一時停止' : '再生'}
                 aria-label={isPlaying ? '一時停止' : '再生'}
             >
@@ -849,7 +849,7 @@
             </button>
 
             {#if canSeek}
-                {@render seekButton(30, 'cw', '+30s', '30秒進む')}
+                {@render seekButton(30, 'cw', '30s', '30秒進む')}
             {/if}
         </div>
     {/if}

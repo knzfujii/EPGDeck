@@ -4,6 +4,7 @@
     import { channelStore } from '../../stores/channels.svelte';
     import { formatTimeRange, formatDuration } from '../../utils/format';
     import { X, CheckCircle2, PauseCircle, Trash2, Loader2 } from '@lucide/svelte';
+    import Button from '../common/Button.svelte';
 
     interface Props {
         isOpen: boolean;
@@ -201,7 +202,7 @@
 
             <!-- フッター -->
             <div class="mt-5 flex items-center justify-end">
-                <button type="button" disabled={isProcessing} onclick={onClose} class="btn-secondary">
+                <Button variant="secondary" disabled={isProcessing} onclick={onClose}>
                     {#if isProcessing}
                         <span class="inline-flex items-center gap-1.5">
                             <Loader2 size={16} class="animate-spin" />
@@ -210,7 +211,7 @@
                     {:else}
                         何もしない（閉じる）
                     {/if}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

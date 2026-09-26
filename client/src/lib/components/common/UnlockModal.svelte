@@ -2,6 +2,8 @@
     import { readOnlyStore } from '../../stores/readOnly.svelte';
     import { snackbar } from '../../stores/snackbar.svelte';
     import { Lock, X, KeyRound, Loader2 } from '@lucide/svelte';
+    import Button from './Button.svelte';
+    import Input from './Input.svelte';
 
     let password = $state('');
     let errorMessage = $state('');
@@ -112,14 +114,12 @@
                     >
                         管理者パスワード
                     </label>
-                    <input
+                    <Input
                         id="admin-password"
-                        bind:this={inputEl}
                         type="password"
                         bind:value={password}
                         placeholder="パスワードを入力..."
                         disabled={isSubmitting}
-                        class="form-input"
                     />
                     {#if errorMessage}
                         <p class="mt-1.5 text-xs text-rose-500 font-medium">{errorMessage}</p>
@@ -127,10 +127,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2.5 pt-2">
-                    <button type="button" onclick={close} disabled={isSubmitting} class="btn-secondary">
-                        キャンセル
-                    </button>
-                    <button type="submit" disabled={!password || isSubmitting} class="btn-primary">
+                    <Button variant="secondary" onclick={close} disabled={isSubmitting}>キャンセル</Button>
+                    <Button type="submit" variant="primary" disabled={!password || isSubmitting}>
                         {#if isSubmitting}
                             <Loader2 size={16} class="animate-spin" />
                             解除中...
@@ -138,7 +136,7 @@
                             <Lock size={14} />
                             ロック解除
                         {/if}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>

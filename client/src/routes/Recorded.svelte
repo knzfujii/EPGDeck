@@ -11,6 +11,11 @@
     import EmptyState from '../lib/components/common/EmptyState.svelte';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
     import Pagination from '../lib/components/common/Pagination.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
+    import SearchInput from '../lib/components/common/SearchInput.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import IconButton from '../lib/components/common/IconButton.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
     import { QUICK_GENRES } from '../lib/constants/genres';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
@@ -509,9 +514,15 @@
                     録画一覧
                 </h1>
                 <div class="flex items-center gap-2 flex-wrap mt-0.5">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">
-                        全 <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>
-                        件中 {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        {#if total === 0}
+                            全 <span class="font-bold text-slate-900 dark:text-slate-100">0</span>
+                            件
+                        {:else}
+                            {(currentPage - 1) * limit + 1} - {Math.min(currentPage * limit, total)} 件 / 全
+                            <span class="font-bold text-slate-900 dark:text-slate-100">{total.toLocaleString()}</span>
+                            件
+                        {/if}
                     </p>
                     {#if selectedRuleName}
                         <span
@@ -576,7 +587,7 @@
                             const val = e.currentTarget.value;
                             selectRule(val === '' ? null : parseInt(val, 10));
                         }}
-                        class="h-9 max-w-[140px] sm:max-w-[180px] truncate rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 {selectedRuleId !==
+                        class="h-10 max-w-[140px] sm:max-w-[180px] truncate rounded-xl border pl-2.5 pr-7 text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0 {selectedRuleId !==
                         null
                             ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
@@ -608,7 +619,7 @@
                             const newYear = val === '' ? null : parseInt(val, 10);
                             handleDateJump(newYear, newYear === null ? null : selectedMonth);
                         }}
-                        class="h-9 w-[88px] sm:w-[94px] rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 {selectedYear !==
+                        class="h-10 w-[88px] sm:w-[96px] rounded-xl border pl-2.5 pr-7 text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0 {selectedYear !==
                         null
                             ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
@@ -626,7 +637,7 @@
                             const val = e.currentTarget.value;
                             handleDateJump(selectedYear, val === '' ? null : parseInt(val, 10));
                         }}
-                        class="h-9 w-[78px] sm:w-[82px] rounded-xl border pl-2.5 pr-7 text-xs font-semibold transition-colors cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed {selectedMonth !==
+                        class="h-10 w-[78px] sm:w-[84px] rounded-xl border pl-2.5 pr-7 text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed {selectedMonth !==
                         null
                             ? 'border-blue-500 bg-blue-50/50 text-blue-900 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-200'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}"
@@ -653,11 +664,12 @@
                 <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
 
                 <!-- 表示切り替え -->
-                <div class="flex rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
+                <div class="flex items-center h-10 rounded-xl border border-slate-200 p-0.5 dark:border-slate-700">
                     <button
                         type="button"
                         onclick={() => setViewMode('card')}
-                        class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'card'
+                        class="h-full rounded-lg px-2 cursor-pointer transition flex items-center justify-center {viewMode ===
+                        'card'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'}"
                         title="カード表示"
@@ -668,7 +680,8 @@
                     <button
                         type="button"
                         onclick={() => setViewMode('table')}
-                        class="rounded-lg p-1.5 cursor-pointer transition {viewMode === 'table'
+                        class="h-full rounded-lg px-2 cursor-pointer transition flex items-center justify-center {viewMode ===
+                        'table'
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'}"
                         title="テーブル表示"
@@ -683,7 +696,7 @@
                     <button
                         type="button"
                         onclick={toggleSelectionMode}
-                        class="flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition cursor-pointer {isSelectionMode
+                        class="flex h-10 items-center gap-1.5 rounded-xl border px-3 sm:px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer {isSelectionMode
                             ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/50 dark:text-blue-300'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}"
                         title={isSelectionMode ? '選択モードを終了' : '複数選択モードを開始'}
@@ -699,35 +712,17 @@
         <div
             class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80"
         >
-            <!-- 検索入力 (フォーム) -->
-            <form
-                onsubmit={e => {
-                    e.preventDefault();
-                    handleSearch();
-                }}
-                class="relative w-full sm:w-64 shrink-0"
-            >
-                <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                    type="text"
+            <!-- 検索入力 -->
+            <div class="w-full sm:w-64 shrink-0">
+                <SearchInput
                     bind:value={keyword}
-                    onkeydown={onInputKeydown}
                     placeholder="録画を検索..."
-                    aria-label="録画を検索"
-                    class="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-9 pr-8 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800 transition-colors"
+                    ariaLabel="録画を検索"
+                    size="md"
+                    onsubmit={handleSearch}
+                    onclear={clearSearch}
                 />
-                {#if keyword}
-                    <button
-                        type="button"
-                        onclick={clearSearch}
-                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
-                        title="検索をクリア"
-                        aria-label="検索をクリア"
-                    >
-                        <X size={14} />
-                    </button>
-                {/if}
-            </form>
+            </div>
 
             <!-- ジャンルチップ (横スクロール) -->
             <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
@@ -774,7 +769,7 @@
                                         checked={isAllSelected}
                                         onchange={toggleSelectAll}
                                         aria-label="ページ内の未保護番組を全選択"
-                                        class="form-checkbox"
+                                        class="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                         title="ページ内の未保護番組を全選択"
                                     />
                                 </th>
@@ -813,7 +808,7 @@
                                             onclick={e => e.stopPropagation()}
                                             onchange={() => toggleSelectItem(item.id)}
                                             aria-label={`${item.name}を選択`}
-                                            class="form-checkbox disabled:opacity-30"
+                                            class="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-30"
                                         />
                                     </td>
                                 {/if}
@@ -825,11 +820,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3.5">
                                     <div class="flex items-center gap-1.5">
-                                        <span
-                                            class="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                        >
-                                            {channelStore.getChannelName(item.channelId)}
-                                        </span>
+                                        <Badge variant="channel" text={channelStore.getChannelName(item.channelId)} />
                                         {#if item.ruleId}
                                             <button
                                                 type="button"
@@ -848,11 +839,7 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center gap-1.5">
                                         {#if item.isProtected}
-                                            <span
-                                                class="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs leading-none"
-                                            >
-                                                保護中
-                                            </span>
+                                            <Badge variant="protected" size="xs" />
                                         {/if}
                                         <button
                                             type="button"
@@ -895,49 +882,54 @@
                                         <span class="text-xs text-slate-400">-</span>
                                     {/if}
                                 </td>
-                                <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                    <div class="flex items-center justify-end gap-2">
+                                <td class="whitespace-nowrap px-4 pr-5 sm:pr-6 py-3.5 text-right">
+                                    <div class="flex items-center justify-end gap-1.5 sm:gap-2">
                                         <!-- 目立つ青色の再生ボタン -->
                                         {#if readOnlyStore.canPlayRecorded(item.videoFiles)}
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="primary"
+                                                size="compact"
                                                 onclick={() => handlePlayClick(item)}
-                                                class="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-1.5 text-sm font-bold text-white shadow-xs transition hover:bg-blue-700 hover:shadow-md cursor-pointer shrink-0 whitespace-nowrap"
+                                                class="whitespace-nowrap"
                                                 title="今すぐ再生"
                                             >
-                                                <Play size={15} fill="currentColor" /> 再生
-                                            </button>
+                                                <Play size={14} fill="currentColor" /> 再生
+                                            </Button>
                                         {/if}
 
                                         <!-- 保護トグルボタン -->
                                         {#if !readOnlyStore.isReadOnly}
-                                            <button
-                                                type="button"
+                                            <IconButton
+                                                variant="secondary"
+                                                size="compact"
                                                 onclick={() => toggleProtect(item)}
-                                                class="rounded-lg p-2 shrink-0 {item.isProtected
-                                                    ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40'
-                                                    : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'} cursor-pointer transition-colors"
+                                                class={item.isProtected
+                                                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 border-amber-200 dark:border-amber-800'
+                                                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
                                                 title={item.isProtected ? '保護解除' : '番組を保護'}
+                                                aria-label={item.isProtected ? '保護解除' : '番組を保護'}
                                             >
                                                 {#if item.isProtected}
-                                                    <Lock size={16} />
+                                                    <Lock size={15} />
                                                 {:else}
-                                                    <Unlock size={16} />
+                                                    <Unlock size={15} />
                                                 {/if}
-                                            </button>
+                                            </IconButton>
 
-                                            <!-- 削除ボタン (保護中は不可視プレースホルダーで幅32pxを維持し再生ボタンのズレを防止) -->
+                                            <!-- 削除ボタン（パーティションで分離し、押し間違いを防止する控えめなアウトライン） -->
                                             {#if !item.isProtected}
-                                                <button
-                                                    type="button"
+                                                <Divider orientation="vertical" />
+                                                <IconButton
+                                                    variant="danger-outline"
+                                                    size="compact"
                                                     onclick={() => deleteRecorded(item.id, item.name)}
-                                                    class="rounded-lg p-2 shrink-0 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer transition-colors"
-                                                    title="削除"
+                                                    title="番組を削除"
+                                                    aria-label="番組を削除"
                                                 >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                    <Trash2 size={15} />
+                                                </IconButton>
                                             {:else}
-                                                <div class="h-8 w-8 shrink-0" aria-hidden="true"></div>
+                                                <div class="w-10 shrink-0" aria-hidden="true"></div>
                                             {/if}
                                         {/if}
                                     </div>
@@ -991,7 +983,7 @@
                                     onclick={e => e.stopPropagation()}
                                     onchange={() => toggleSelectItem(item.id)}
                                     aria-label={`${item.name}を選択`}
-                                    class="form-checkbox disabled:opacity-30 cursor-pointer"
+                                    class="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-30"
                                 />
                             </div>
                         {/if}
@@ -1036,26 +1028,18 @@
                         </span>
 
                         {#if item.isProtected}
-                            <span
-                                class="absolute {isSelectionMode
-                                    ? 'top-2.5 left-9.5'
-                                    : 'top-1.5 left-1.5'} z-10 flex items-center gap-1 rounded-md bg-amber-500/90 px-1.5 py-0.5 text-xs font-bold text-white shadow-2xs leading-none"
-                            >
-                                <Lock size={12} /> 保護中
-                            </span>
+                            <div class="absolute {isSelectionMode ? 'top-2.5 left-9.5' : 'top-1.5 left-1.5'} z-10">
+                                <Badge variant="protected" size="xs" />
+                            </div>
                         {/if}
                     </div>
 
                     <!-- カード本文 (コンパクト) -->
-                    <div class="flex flex-1 flex-col justify-between p-3">
+                    <div class="flex flex-1 flex-col justify-between p-3.5 sm:p-4">
                         <div>
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-1.5 min-w-0 max-w-[68%]">
-                                    <span
-                                        class="truncate rounded-lg bg-blue-50 px-2.5 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                    >
-                                        {channelStore.getChannelName(item.channelId)}
-                                    </span>
+                                    <Badge variant="channel" text={channelStore.getChannelName(item.channelId)} />
                                     {#if item.ruleId}
                                         <button
                                             type="button"
@@ -1070,7 +1054,7 @@
                                         </button>
                                     {/if}
                                 </div>
-                                <span class="text-sm font-medium text-slate-400 shrink-0">
+                                <span class="text-xs sm:text-sm font-medium text-slate-400 shrink-0">
                                     {formatSize(getTotalVideoFileSize(item.videoFiles))}
                                 </span>
                             </div>
@@ -1087,45 +1071,51 @@
                             {/if}
                         </div>
 
-                        <!-- 下部メタ & アクションボタン -->
+                        <!-- 下部メタ & アクションボタン（端からの余白確保 & パーティション分離） -->
                         <div
-                            class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-sm text-slate-400 dark:border-slate-800"
+                            class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-sm text-slate-400 dark:border-slate-800 pr-1"
                         >
-                            <span class="font-medium text-sm">
+                            <span class="font-medium text-xs sm:text-sm">
                                 {formatDate(item.startAt)}
                                 {formatTime(item.startAt)}
                             </span>
-                            <div class="flex items-center gap-1">
+                            <div class="flex items-center gap-1.5">
                                 {#if !readOnlyStore.isReadOnly}
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        variant="secondary"
+                                        size="compact"
                                         onclick={e => {
                                             e.stopPropagation();
                                             toggleProtect(item);
                                         }}
-                                        class="rounded-lg p-2 {item.isProtected
-                                            ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40'
-                                            : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'} cursor-pointer transition-colors"
+                                        class={item.isProtected
+                                            ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 border-amber-200 dark:border-amber-800'
+                                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
                                         title={item.isProtected ? '保護解除' : '番組を保護'}
+                                        aria-label={item.isProtected ? '保護解除' : '番組を保護'}
                                     >
                                         {#if item.isProtected}
-                                            <Lock size={16} />
+                                            <Lock size={15} />
                                         {:else}
-                                            <Unlock size={16} />
+                                            <Unlock size={15} />
                                         {/if}
-                                    </button>
+                                    </IconButton>
+
+                                    <!-- 削除ボタン（パーティションで分離し、控えめなアウトライン型） -->
                                     {#if !item.isProtected}
-                                        <button
-                                            type="button"
+                                        <Divider orientation="vertical" />
+                                        <IconButton
+                                            variant="danger-outline"
+                                            size="compact"
                                             onclick={e => {
                                                 e.stopPropagation();
                                                 deleteRecorded(item.id, item.name);
                                             }}
-                                            class="rounded-lg p-2 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950 cursor-pointer transition-colors"
-                                            title="削除"
+                                            title="番組を削除"
+                                            aria-label="番組を削除"
                                         >
-                                            <Trash2 size={16} />
-                                        </button>
+                                            <Trash2 size={15} />
+                                        </IconButton>
                                     {/if}
                                 {/if}
                             </div>

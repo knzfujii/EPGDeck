@@ -4,6 +4,10 @@
     import { snackbar } from '../../stores/snackbar.svelte';
     import { formatPlayerTime, parsePlayerTime } from '../../utils/format';
     import type * as apid from '../../../../../api';
+    import Button from '../common/Button.svelte';
+    import Input from '../common/Input.svelte';
+    import Select from '../common/Select.svelte';
+    import Checkbox from '../common/Checkbox.svelte';
 
     interface Props {
         isOpen: boolean;
@@ -121,10 +125,10 @@
                 <button
                     type="button"
                     onclick={onClose}
-                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 cursor-pointer"
+                    class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer transition"
                     aria-label="閉じる"
                 >
-                    <X size={18} />
+                    <X size={20} />
                 </button>
             </div>
 
@@ -140,15 +144,11 @@
                             <Film size={14} class="text-slate-400" />
                             対象動画ファイル
                         </label>
-                        <select
-                            id="thumbnail-video-select"
-                            bind:value={selectedVideoFileId}
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 transition focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:bg-slate-800"
-                        >
+                        <Select id="thumbnail-video-select" bind:value={selectedVideoFileId}>
                             {#each videoFiles as file}
                                 <option value={file.id}>{file.name} ({file.type.toUpperCase()})</option>
                             {/each}
-                        </select>
+                        </Select>
                     </div>
                 {/if}
 
@@ -162,14 +162,14 @@
                         切り出し位置（時:分:秒）
                     </label>
                     <div class="relative">
-                        <input
+                        <Input
                             id="thumbnail-time-input"
                             type="text"
                             bind:value={timeInput}
                             placeholder="00:01:30 または 90"
-                            class="w-full rounded-xl border px-3.5 py-2.5 text-sm font-mono transition focus:outline-hidden {isValidTime
-                                ? 'border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800'
-                                : 'border-rose-300 bg-rose-50/50 text-rose-900 placeholder:text-rose-400 focus:border-rose-500 focus:bg-white dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200 dark:placeholder:text-rose-500 dark:focus:bg-slate-800'}"
+                            class="font-mono {isValidTime
+                                ? ''
+                                : '!border-rose-400 !bg-rose-50/50 dark:!bg-rose-950/40 text-rose-900 dark:text-rose-200'}"
                         />
                     </div>
                     {#if isValidTime && parsedSeconds !== null}
@@ -187,34 +187,21 @@
 
                 <!-- 既存サムネイル置き換えオプション -->
                 <div class="pt-1">
-                    <label
-                        class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none"
-                    >
-                        <input
-                            type="checkbox"
-                            bind:checked={isReplace}
-                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
-                        />
-                        <span>既存のサムネイルを削除して置き換える（推奨）</span>
-                    </label>
+                    <Checkbox
+                        bind:checked={isReplace}
+                        label="既存のサムネイルを削除して置き換える（推奨）"
+                        class="text-xs text-slate-700 dark:text-slate-300"
+                    />
                 </div>
             </div>
 
             <!-- アクションボタン -->
             <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                    type="button"
-                    onclick={onClose}
-                    disabled={isSubmitting}
-                    class="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-50"
-                >
-                    キャンセル
-                </button>
-                <button
-                    type="button"
+                <Button variant="secondary" onclick={onClose} disabled={isSubmitting}>キャンセル</Button>
+                <Button
+                    variant="primary"
                     onclick={handleRecreate}
                     disabled={!isValidTime || !selectedVideoFileId || isSubmitting}
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-blue-500 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {#if isSubmitting}
                         <Loader2 size={16} class="animate-spin" />
@@ -223,7 +210,7 @@
                         <Camera size={16} />
                         再作成を実行
                     {/if}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

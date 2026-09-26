@@ -18,6 +18,8 @@
     } from '../lib/utils/format';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
     import {
         executeRecordingAction,
         type RecordingActionType,
@@ -29,7 +31,6 @@
         Radio,
         Play,
         Tv,
-        X,
         Clock,
         Info,
         Plus,
@@ -39,12 +40,18 @@
         CheckCircle2,
         Bookmark,
         ArrowRight,
-        Lock,
         CircleDot,
         Check,
         Filter,
         Square,
+        X,
     } from '@lucide/svelte';
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
+    import SearchInput from '../lib/components/common/SearchInput.svelte';
+    import EmptyState from '../lib/components/common/EmptyState.svelte';
+    import LoadingState from '../lib/components/common/LoadingState.svelte';
+    import FilterTabs from '../lib/components/common/FilterTabs.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
 
     type OnAirChannel = apid.ScheduleChannleItem | apid.ChannelItem;
 
@@ -401,22 +408,11 @@
 </script>
 
 {#if !readOnlyStore.canLiveStream}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            放送中画面の閲覧は制限されています。録画一覧へリダイレクトします...
-        </p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
-        >
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="放送中画面の閲覧は制限されています。録画一覧へリダイレクトします..."
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
         <!-- ツールバー & フィルター -->
@@ -429,50 +425,35 @@
                         <Radio size={20} class="text-blue-600 dark:text-blue-400" />
                         放送中の番組
                     </h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">
-                        現在放送中の番組をリアルタイムに視聴・録画、次の番組を即座に予約
+                    <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        {#if filteredList.length !== onAirList.length}
+                            <span class="font-bold text-slate-900 dark:text-slate-100">{filteredList.length}</span>
+                            局 / 全 {onAirList.length} 局
+                        {:else}
+                            全 <span class="font-bold text-slate-900 dark:text-slate-100">{onAirList.length}</span>
+                            局
+                        {/if}
                     </p>
                 </div>
 
                 <!-- 放送波タブ -->
-                <div class="flex overflow-x-auto max-w-full rounded-xl bg-slate-100 p-1 dark:bg-slate-800 no-scrollbar">
-                    {#each channelTypes as type}
-                        <button
-                            type="button"
-                            onclick={() => (selectedType = type.id)}
-                            class="rounded-xl px-4 py-2 text-sm font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 {selectedType ===
-                            type.id
-                                ? 'bg-white text-blue-600 shadow-xs dark:bg-slate-700 dark:text-blue-400'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
-                        >
-                            {type.name}
-                        </button>
-                    {/each}
-                </div>
+                <FilterTabs
+                    tabs={channelTypes.map(t => ({ id: t.id, label: t.name }))}
+                    activeTab={selectedType}
+                    onselect={id => (selectedType = id)}
+                />
             </div>
 
             <!-- キーワード検索 & ジャンルチップ -->
             <div class="flex flex-wrap items-center gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
                 <!-- 検索入力 -->
-                <div class="relative flex-1 min-w-[220px] max-w-md">
-                    <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        bind:value={keyword}
-                        placeholder="番組名や概要で絞り込み..."
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-400 dark:focus:bg-slate-800 transition-colors"
-                    />
-                    {#if keyword}
-                        <button
-                            type="button"
-                            onclick={() => (keyword = '')}
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
-                            aria-label="検索ワードをクリア"
-                        >
-                            <X size={15} />
-                        </button>
-                    {/if}
-                </div>
+                <SearchInput
+                    bind:value={keyword}
+                    placeholder="番組名や概要で絞り込み..."
+                    ariaLabel="番組名や概要で絞り込み"
+                    class="max-w-md"
+                    onclear={() => (keyword = '')}
+                />
 
                 <!-- ジャンルチップ -->
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -494,21 +475,13 @@
 
         <!-- 一覧テーブル -->
         {#if isLoading}
-            <div
-                class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-            >
-                <p class="text-sm font-medium text-slate-400">放送中データを取得中...</p>
-            </div>
+            <LoadingState message="放送中データを取得中..." />
         {:else if filteredList.length === 0}
-            <div
-                class="flex h-64 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-900"
-            >
-                <Tv size={36} class="text-slate-300 dark:text-slate-600" />
-                <p class="mt-2 text-sm font-bold text-slate-700 dark:text-slate-300">
-                    条件に一致する放送中の番組が見つかりません
-                </p>
-                <p class="text-xs text-slate-400 mt-1">放送波タブやジャンル条件を変更してみてください</p>
-            </div>
+            <EmptyState
+                icon={Tv}
+                title="条件に一致する放送中の番組が見つかりません"
+                description="放送波タブやジャンル条件を変更してみてください"
+            />
         {:else}
             <!-- モバイル向けカードリスト (md:hidden) -->
             <div class="space-y-3 md:hidden">
@@ -591,33 +564,34 @@
                                 <!-- 視聴・録画ボタン -->
                                 <div class="flex items-center gap-2 pt-1">
                                     {#if readOnlyStore.canLiveStream}
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="primary"
                                             onclick={() => openStreamModal(item.channel, current.name)}
-                                            class="flex-1 btn-primary h-10 text-sm font-bold cursor-pointer"
+                                            class="flex-1"
                                         >
                                             <Play size={15} fill="currentColor" /> 視聴する
-                                        </button>
+                                        </Button>
                                     {/if}
                                     {#if !readOnlyStore.isReadOnly}
                                         {#if isRec}
-                                            <button
-                                                type="button"
+                                            <Divider orientation="vertical" />
+                                            <Button
+                                                variant="danger-outline"
                                                 onclick={() => openRecordingAction(item)}
-                                                class="h-10 px-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950 dark:text-rose-300 text-sm font-bold cursor-pointer transition-colors flex items-center gap-1.5"
+                                                class="px-3.5"
                                                 title="録画を停止・破棄"
                                             >
                                                 <Square size={14} fill="currentColor" /> 停止
-                                            </button>
+                                            </Button>
                                         {:else}
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="danger-outline"
                                                 disabled={isReserving}
                                                 onclick={() => startRecordCurrentProgram(item)}
-                                                class="h-10 px-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 text-sm font-bold cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                                class="border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60"
                                             >
                                                 <Bookmark size={14} /> 録画
-                                            </button>
+                                            </Button>
                                         {/if}
                                     {/if}
                                 </div>
@@ -645,16 +619,17 @@
                                     </button>
                                 </div>
                                 {#if !readOnlyStore.isReadOnly}
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
                                         disabled={isReserving}
                                         onclick={() => toggleReserveProgram(next)}
-                                        class="shrink-0 h-9 px-3.5 text-xs font-bold rounded-xl border transition-colors cursor-pointer disabled:opacity-50 {next.isReserved
+                                        class="shrink-0 {next.isReserved
                                             ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                            : 'btn-secondary'}"
+                                            : ''}"
                                     >
                                         {next.isReserved ? '予約中' : '予約'}
-                                    </button>
+                                    </Button>
                                 {/if}
                             </div>
                         {/if}
@@ -766,38 +741,40 @@
                                                     <div class="flex items-center gap-2 shrink-0">
                                                         <!-- 【▶ 視聴】ボタン -->
                                                         {#if readOnlyStore.canLiveStream}
-                                                            <button
-                                                                type="button"
+                                                            <Button
+                                                                variant="primary"
+                                                                size="compact"
                                                                 onclick={() =>
                                                                     openStreamModal(item.channel, current.name)}
-                                                                class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-xs hover:shadow-md transition cursor-pointer"
                                                                 title="ライブ視聴を開始"
                                                             >
                                                                 <Play size={13} fill="currentColor" /> 視聴
-                                                            </button>
+                                                            </Button>
                                                         {/if}
 
                                                         <!-- 【🔴 録画】/【● 録画中 (3択)】ボタン -->
                                                         {#if !readOnlyStore.isReadOnly}
                                                             {#if isRec}
-                                                                <button
-                                                                    type="button"
+                                                                <Divider orientation="vertical" />
+                                                                <Button
+                                                                    variant="danger-outline"
+                                                                    size="compact"
                                                                     onclick={() => openRecordingAction(item)}
-                                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
                                                                     title="録画を停止・破棄"
                                                                 >
                                                                     <Square size={13} fill="currentColor" /> 停止
-                                                                </button>
+                                                                </Button>
                                                             {:else}
-                                                                <button
-                                                                    type="button"
+                                                                <Button
+                                                                    variant="danger-outline"
+                                                                    size="compact"
                                                                     disabled={isReserving}
                                                                     onclick={() => startRecordCurrentProgram(item)}
-                                                                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 text-xs font-bold text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
+                                                                    class="border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60"
                                                                     title="この番組を今すぐ録画"
                                                                 >
                                                                     <Bookmark size={13} /> 録画
-                                                                </button>
+                                                                </Button>
                                                             {/if}
                                                         {/if}
                                                     </div>
@@ -860,7 +837,7 @@
                                                             <button
                                                                 type="button"
                                                                 onclick={() => router.push('/reserves')}
-                                                                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
+                                                                class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer"
                                                                 title="予約一覧で確認"
                                                             >
                                                                 <Check size={15} /> 予約中
@@ -1059,32 +1036,33 @@
                     {#if !readOnlyStore.isReadOnly}
                         {#if isRec}
                             <!-- 録画中の場合は3択モーダルを開く -->
-                            <button
-                                type="button"
+                            <Button
+                                variant="danger"
+                                size="compact"
                                 onclick={() => {
                                     isDetailModalOpen = false;
                                     const item = onAirList.find(s => s.channel.id === ch.id);
                                     if (item) openRecordingAction(item);
                                 }}
-                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 cursor-pointer"
                                 title="録画を停止・破棄"
                             >
                                 <Square size={14} fill="currentColor" /> 停止
-                            </button>
+                            </Button>
                         {:else if isNext && p.isReserved}
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
+                                size="compact"
                                 onclick={() => {
                                     isDetailModalOpen = false;
                                     router.push('/reserves');
                                 }}
-                                class="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
                             >
                                 <Check size={14} /> 予約一覧で確認
-                            </button>
+                            </Button>
                         {:else}
-                            <button
-                                type="button"
+                            <Button
+                                variant="danger-outline"
+                                size="compact"
                                 disabled={isReserving}
                                 onclick={() => {
                                     if (isNext) {
@@ -1094,25 +1072,24 @@
                                         if (item) startRecordCurrentProgram(item);
                                     }
                                 }}
-                                class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
                             >
                                 <Bookmark size={14} />
                                 {isNext ? 'この番組を予約' : '今すぐ録画'}
-                            </button>
+                            </Button>
                         {/if}
                     {/if}
 
                     {#if !isNext && readOnlyStore.canLiveStream}
-                        <button
-                            type="button"
+                        <Button
+                            variant="primary"
+                            size="compact"
                             onclick={() => {
                                 isDetailModalOpen = false;
                                 openStreamModal(ch, p.name);
                             }}
-                            class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700 cursor-pointer"
                         >
                             <Play size={14} fill="currentColor" /> 今すぐ視聴
-                        </button>
+                        </Button>
                     {/if}
                 </div>
             </div>

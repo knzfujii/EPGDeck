@@ -10,6 +10,7 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { ArrowLeft, Radio, Clock, FileVideo, Loader2 } from '@lucide/svelte';
+    import Button from '@/lib/components/common/Button.svelte';
 
     let videoSrc = $state<string>('');
     let vttSrc = $state<string | undefined>(undefined);
@@ -426,8 +427,8 @@
 <div class="w-full max-w-5xl min-w-0 space-y-4">
     <!-- ヘッダー & 戻るボタン -->
     <div class="flex items-center justify-between">
-        <button
-            type="button"
+        <Button
+            variant="secondary"
             onclick={() => {
                 if (window.history.length > 1) {
                     window.history.back();
@@ -439,11 +440,11 @@
                     router.push('/recorded');
                 }
             }}
-            class="btn-secondary flex items-center gap-2 cursor-pointer"
+            class="flex items-center gap-2"
         >
             <ArrowLeft size={16} />
             {isLive ? '放送中へ戻る' : '戻る'}
-        </button>
+        </Button>
 
         {#if channelName}
             {@const ch = channelStore.channels.find(c => c.name === channelName)}

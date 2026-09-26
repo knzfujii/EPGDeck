@@ -17,6 +17,13 @@
     import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import IconButton from '../lib/components/common/IconButton.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
+    import Checkbox from '../lib/components/common/Checkbox.svelte';
+    import Select from '../lib/components/common/Select.svelte';
+    import Input from '../lib/components/common/Input.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
     import { getLastRecordedPath } from '../lib/navigationHistory';
@@ -507,73 +514,80 @@
 <div class="w-full max-w-5xl min-w-0 space-y-5">
     <!-- ヘッダー & ナビゲーション -->
     <div class="flex items-center justify-between gap-2">
-        <button
-            type="button"
+        <Button
+            variant="secondary"
+            size="compact"
             onclick={goBackToRecordedList}
-            class="btn-secondary whitespace-nowrap shrink-0 px-3 sm:px-4 text-xs sm:text-sm h-9 sm:h-10 min-h-0"
+            class="whitespace-nowrap shrink-0 px-3 sm:px-4"
         >
             <ArrowLeft size={16} />
             <span class="hidden sm:inline">録画一覧へ戻る</span>
             <span class="sm:hidden">戻る</span>
-        </button>
+        </Button>
 
         {#if recorded}
             <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {#if !readOnlyStore.isReadOnly}
                     <!-- 重複判定除外 / 追加ボタン -->
                     {#if recorded.hasDuplicateHistory === false}
-                        <button
-                            type="button"
+                        <Button
+                            variant="secondary"
+                            size="compact"
                             onclick={includeInDuplicate}
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10"
+                            class="whitespace-nowrap shrink-0 px-2.5 sm:px-3.5"
                             title="重複判定履歴に登録し、二重録画防止の対象に戻します"
                         >
                             <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" />
                             <span class="hidden sm:inline">重複判定に追加</span>
                             <span class="sm:hidden">+重複</span>
-                        </button>
+                        </Button>
                     {:else}
-                        <button
-                            type="button"
+                        <Button
+                            variant="secondary"
+                            size="compact"
                             onclick={excludeFromDuplicate}
-                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10"
+                            class="whitespace-nowrap shrink-0 px-2.5 sm:px-3.5"
                             title="二重録画防止（重複判定）の履歴から削除し、次回放送を録画できるようにします"
                         >
                             <CopyX size={15} class="text-slate-400 dark:text-slate-400" />
                             <span class="hidden sm:inline">重複判定から除外</span>
                             <span class="sm:hidden">重複除外</span>
-                        </button>
+                        </Button>
                     {/if}
 
                     <!-- 保護トグルボタン -->
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        size="compact"
                         onclick={toggleProtect}
-                        class="flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3.5 text-xs sm:text-sm font-bold transition cursor-pointer whitespace-nowrap shrink-0 h-9 sm:h-10 {recorded.isProtected
-                            ? 'border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'}"
+                        class="whitespace-nowrap shrink-0 px-2.5 sm:px-3.5 {recorded.isProtected
+                            ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                            : ''}"
                         title={recorded.isProtected ? '保護を解除' : '誤削除から保護'}
                     >
                         {#if recorded.isProtected}
-                            <Lock size={15} class="text-amber-500" />
+                            <Lock size={15} class="text-amber-600 dark:text-amber-400" />
                             <span>保護中</span>
                         {:else}
                             <Unlock size={15} />
                             <span class="hidden sm:inline">保護する</span>
                             <span class="sm:hidden">保護</span>
                         {/if}
-                    </button>
+                    </Button>
 
-                    <!-- 削除ボタン -->
+                    <!-- 削除ボタン（パーティションで明確に分離し、押し間違いを防止する控えめなアウトライン） -->
                     {#if !recorded.isProtected}
-                        <button
-                            type="button"
+                        <Divider orientation="vertical" />
+                        <Button
+                            variant="danger-outline"
+                            size="compact"
                             onclick={deleteRecorded}
-                            class="btn-danger whitespace-nowrap shrink-0 px-3 sm:px-4 text-xs sm:text-sm h-9 sm:h-10 min-h-0"
+                            class="whitespace-nowrap shrink-0 px-3 sm:px-4"
                             title="録画を削除"
+                            aria-label="録画を削除"
                         >
                             <Trash2 size={15} /> 削除
-                        </button>
+                        </Button>
                     {/if}
                 {/if}
             </div>
@@ -592,7 +606,7 @@
         >
             <AlertTriangle size={40} class="text-amber-500 mb-2" />
             <p class="text-base font-bold text-slate-800 dark:text-slate-200">録画情報が見つかりませんでした</p>
-            <button type="button" onclick={goBackToRecordedList} class="btn-primary mt-4">録画一覧へ戻る</button>
+            <Button variant="primary" onclick={goBackToRecordedList} class="mt-4">録画一覧へ戻る</Button>
         </div>
     {:else}
         <!-- メイン詳細カード -->
@@ -647,11 +661,7 @@
                 <div class="p-6 md:col-span-2 space-y-4">
                     <div>
                         <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <span
-                                class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            >
-                                {channelStore.getChannelName(recorded.channelId)}
-                            </span>
+                            <Badge variant="channel" text={channelStore.getChannelName(recorded.channelId)} size="md" />
                             {#if typeof recorded.genre1 === 'number'}
                                 <span
                                     class="rounded-lg border px-2.5 py-1 text-xs font-bold {getGenreBadgeClass(
@@ -662,11 +672,7 @@
                                 </span>
                             {/if}
                             {#if recorded.isProtected}
-                                <span
-                                    class="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                                >
-                                    <Lock size={13} /> 保護中
-                                </span>
+                                <Badge variant="protected" size="md" />
                             {/if}
                             {#if recorded.hasDuplicateHistory !== false}
                                 <span
@@ -700,34 +706,30 @@
                     <!-- 再生 & アクションボタン列 -->
                     <div class="flex items-center gap-2 sm:gap-3 flex-wrap pt-2">
                         {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
-                            <button
-                                type="button"
+                            <Button
+                                variant="primary"
                                 onclick={handleDetailPlay}
-                                class="btn-primary whitespace-nowrap shrink-0"
+                                class="whitespace-nowrap shrink-0"
                                 title="再生方法や画質を選択して再生"
                             >
                                 <Play size={16} fill="currentColor" /> 詳細再生
-                            </button>
+                            </Button>
                         {/if}
 
                         {#if !readOnlyStore.isReadOnly}
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
                                 onclick={() => (isEncodeModalOpen = true)}
-                                class="btn-secondary whitespace-nowrap shrink-0"
+                                class="whitespace-nowrap shrink-0"
                             >
                                 <Sparkles size={16} class="text-amber-500" /> エンコード追加
-                            </button>
+                            </Button>
                         {/if}
 
                         {#if recorded.dropLogFile}
-                            <button
-                                type="button"
-                                onclick={openDropLog}
-                                class="btn-secondary whitespace-nowrap shrink-0"
-                            >
+                            <Button variant="secondary" onclick={openDropLog} class="whitespace-nowrap shrink-0">
                                 <FileText size={16} /> ドロップログ
-                            </button>
+                            </Button>
                         {/if}
                     </div>
                 </div>
@@ -901,159 +903,203 @@
         {/if}
 
         <!-- 録画ファイル一覧カード -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
-                <HardDrive size={16} class="text-blue-500" />
-                生成ファイル一覧 ({(recorded.videoFiles || []).length}件)
-            </h2>
-
-            <div class="space-y-3">
-                {#each recorded.videoFiles || [] as file}
-                    <div
-                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40"
+        <div
+            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
+            <div class="mb-4 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <h2 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                        <HardDrive size={18} class="text-blue-500 shrink-0" />
+                        生成ファイル一覧
+                    </h2>
+                    <span
+                        class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-400"
                     >
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2">
-                                <span
-                                    class="rounded px-2 py-0.5 text-[11px] font-black uppercase {file.type === 'encoded'
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}"
-                                >
-                                    {file.name}
-                                </span>
-                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                                    {file.filename}
-                                </span>
-                            </div>
-                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                容量: <strong class="text-slate-700 dark:text-slate-300">
-                                    {formatSize(file.size)}
-                                </strong>
-                            </p>
-                        </div>
+                        {(recorded.videoFiles || []).length} 件
+                    </span>
+                </div>
+            </div>
 
-                        <!-- ファイルアクション -->
-                        <div class="flex items-center gap-2 shrink-0">
-                            <!-- 直接再生 / トランスコード再生 -->
-                            {#if isMp4VideoFile(file) || readOnlyStore.canRecordedStream}
-                                <button
-                                    type="button"
-                                    onclick={() => handleFilePlay(file)}
-                                    class="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 cursor-pointer"
-                                >
-                                    <Play size={13} fill="currentColor" /> 再生
-                                </button>
-                            {/if}
-
-                            <!-- Kodi で再生 -->
-                            {#if (readOnlyStore.serverConfig?.kodiHosts?.length ?? 0) > 0 && readOnlyStore.canPlayRecorded( [file] )}
-                                {@const kodiHosts = readOnlyStore.serverConfig?.kodiHosts || []}
-                                {#if kodiHosts.length === 1}
-                                    <button
-                                        type="button"
-                                        disabled={sendingKodiFileId === file.id}
-                                        onclick={() => sendToKodi(file.id, kodiHosts[0])}
-                                        class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                                        title={`Kodi (${kodiHosts[0]}) で再生`}
+            {#if (recorded.videoFiles || []).length === 0}
+                <p class="py-8 text-center text-sm text-slate-400">生成された動画ファイルはありません</p>
+            {:else}
+                <div class="space-y-3">
+                    {#each recorded.videoFiles || [] as file}
+                        <div
+                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 sm:p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap mb-1">
+                                    <span
+                                        class="inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide shrink-0 whitespace-nowrap {file.type ===
+                                        'encoded'
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800'
+                                            : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}"
                                     >
-                                        {#if sendingKodiFileId === file.id}
-                                            <Loader2 size={13} class="animate-spin text-blue-500" />
-                                        {:else}
-                                            <Tv size={13} class="text-blue-500" />
-                                        {/if}
-                                        <span>Kodi</span>
-                                    </button>
-                                {:else}
-                                    <div class="relative">
-                                        {#if activeKodiMenuFileId === file.id}
-                                            <div
-                                                class="fixed inset-0 z-20 cursor-default"
-                                                onclick={() => (activeKodiMenuFileId = null)}
-                                                role="presentation"
-                                            ></div>
-                                        {/if}
-                                        <button
-                                            type="button"
+                                        {file.name}
+                                    </span>
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">
+                                        容量: <strong class="text-slate-700 dark:text-slate-300 font-bold">
+                                            {formatSize(file.size)}
+                                        </strong>
+                                    </span>
+                                    {#if file.type === 'ts'}
+                                        <span
+                                            class="rounded bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300"
+                                        >
+                                            MPEG-2 TS
+                                        </span>
+                                    {:else if file.type === 'encoded'}
+                                        <span
+                                            class="rounded bg-emerald-100/70 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                        >
+                                            エンコード済み
+                                        </span>
+                                    {/if}
+                                </div>
+                                <div
+                                    class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate"
+                                    title={file.filename}
+                                >
+                                    {file.filename}
+                                </div>
+                            </div>
+
+                            <!-- ファイルアクション -->
+                            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                <!-- 直接再生 / トランスコード再生 -->
+                                {#if isMp4VideoFile(file) || readOnlyStore.canRecordedStream}
+                                    <Button
+                                        variant="primary"
+                                        size="compact"
+                                        onclick={() => handleFilePlay(file)}
+                                        class="whitespace-nowrap shrink-0"
+                                        title="再生"
+                                    >
+                                        <Play size={14} fill="currentColor" />
+                                        <span>再生</span>
+                                    </Button>
+                                {/if}
+
+                                <!-- Kodi で再生 -->
+                                {#if (readOnlyStore.serverConfig?.kodiHosts?.length ?? 0) > 0 && readOnlyStore.canPlayRecorded( [file] )}
+                                    {@const kodiHosts = readOnlyStore.serverConfig?.kodiHosts || []}
+                                    {#if kodiHosts.length === 1}
+                                        <Button
+                                            variant="secondary"
+                                            size="compact"
                                             disabled={sendingKodiFileId === file.id}
-                                            onclick={() => {
-                                                activeKodiMenuFileId =
-                                                    activeKodiMenuFileId === file.id ? null : file.id;
-                                            }}
-                                            class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                            title="Kodi を選んで再生"
+                                            onclick={() => sendToKodi(file.id, kodiHosts[0])}
+                                            class="whitespace-nowrap shrink-0"
+                                            title={`Kodi (${kodiHosts[0]}) で再生`}
                                         >
                                             {#if sendingKodiFileId === file.id}
-                                                <Loader2 size={13} class="animate-spin text-blue-500" />
+                                                <Loader2 size={14} class="animate-spin text-blue-500" />
                                             {:else}
-                                                <Tv size={13} class="text-blue-500" />
+                                                <Tv size={14} class="text-blue-500" />
                                             {/if}
                                             <span>Kodi</span>
-                                            <ChevronDown size={11} />
-                                        </button>
-                                        {#if activeKodiMenuFileId === file.id}
-                                            <div
-                                                class="absolute right-0 top-full mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg z-30 dark:border-slate-700 dark:bg-slate-800"
-                                            >
+                                        </Button>
+                                    {:else}
+                                        <div class="relative">
+                                            {#if activeKodiMenuFileId === file.id}
                                                 <div
-                                                    class="px-2.5 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
+                                                    class="fixed inset-0 z-20 cursor-default"
+                                                    onclick={() => (activeKodiMenuFileId = null)}
+                                                    role="presentation"
+                                                ></div>
+                                            {/if}
+                                            <Button
+                                                variant="secondary"
+                                                size="compact"
+                                                disabled={sendingKodiFileId === file.id}
+                                                onclick={() => {
+                                                    activeKodiMenuFileId =
+                                                        activeKodiMenuFileId === file.id ? null : file.id;
+                                                }}
+                                                class="whitespace-nowrap shrink-0"
+                                                title="Kodi を選んで再生"
+                                            >
+                                                {#if sendingKodiFileId === file.id}
+                                                    <Loader2 size={14} class="animate-spin text-blue-500" />
+                                                {:else}
+                                                    <Tv size={14} class="text-blue-500" />
+                                                {/if}
+                                                <span>Kodi</span>
+                                                <ChevronDown size={13} />
+                                            </Button>
+                                            {#if activeKodiMenuFileId === file.id}
+                                                <div
+                                                    class="absolute right-0 top-full mt-1.5 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg z-30 dark:border-slate-700 dark:bg-slate-800"
                                                 >
-                                                    送信先の Kodi を選択
-                                                </div>
-                                                {#each kodiHosts as hostName}
-                                                    <button
-                                                        type="button"
-                                                        onclick={() => sendToKodi(file.id, hostName)}
-                                                        class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-200 dark:hover:bg-slate-700/60 dark:hover:text-blue-400 text-left cursor-pointer"
+                                                    <div
+                                                        class="px-2.5 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider"
                                                     >
-                                                        <Tv size={12} class="text-slate-400" />
-                                                        <span class="truncate">{hostName}</span>
-                                                    </button>
-                                                {/each}
-                                            </div>
-                                        {/if}
-                                    </div>
+                                                        送信先の Kodi を選択
+                                                    </div>
+                                                    {#each kodiHosts as hostName}
+                                                        <button
+                                                            type="button"
+                                                            onclick={() => sendToKodi(file.id, hostName)}
+                                                            class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-200 dark:hover:bg-slate-700/60 dark:hover:text-blue-400 text-left cursor-pointer"
+                                                        >
+                                                            <Tv size={13} class="text-slate-400" />
+                                                            <span class="truncate">{hostName}</span>
+                                                        </button>
+                                                    {/each}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
                                 {/if}
-                            {/if}
 
-                            <!-- 外部プレーヤー起動 (スマホ・タブレットのみ) -->
-                            {#if isMobileDevice && readOnlyStore.canPlayRecorded([file])}
-                                <button
-                                    type="button"
-                                    onclick={() => playWithExternalApp(file.id, file.filename)}
-                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
-                                    title="外部プレーヤーで再生 (VLC等)"
-                                >
-                                    <ExternalLink size={13} /> 外部再生
-                                </button>
-                            {/if}
+                                <!-- 外部プレーヤー起動 (スマホ・タブレットのみ) -->
+                                {#if isMobileDevice && readOnlyStore.canPlayRecorded([file])}
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
+                                        onclick={() => playWithExternalApp(file.id, file.filename)}
+                                        class="whitespace-nowrap shrink-0"
+                                        title="外部プレーヤーで再生 (VLC等)"
+                                    >
+                                        <ExternalLink size={14} />
+                                        <span>外部再生</span>
+                                    </Button>
+                                {/if}
 
-                            <!-- ダウンロード -->
-                            {#if readOnlyStore.canDownload}
-                                <a
-                                    href={`/api/videos/${file.id}?isDownload=true${readOnlyStore.token ? `&token=${readOnlyStore.token}` : ''}`}
-                                    download
-                                    class="btn-secondary px-2.5 py-1.5 text-xs flex items-center gap-1 cursor-pointer"
-                                    title="ファイルをダウンロード"
-                                >
-                                    <Download size={13} />
-                                </a>
-                            {/if}
+                                <!-- ダウンロード -->
+                                {#if readOnlyStore.canDownload}
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
+                                        href={`/api/videos/${file.id}?isDownload=true${readOnlyStore.token ? `&token=${readOnlyStore.token}` : ''}`}
+                                        download
+                                        class="whitespace-nowrap shrink-0 max-sm:px-2.5"
+                                        title="ファイルをダウンロード"
+                                    >
+                                        <Download size={14} />
+                                        <span class="hidden sm:inline">ダウンロード</span>
+                                    </Button>
+                                {/if}
 
-                            <!-- ファイル削除 -->
-                            {#if !readOnlyStore.isReadOnly && !recorded.isProtected}
-                                <button
-                                    type="button"
-                                    onclick={() => deleteVideoFile(file.id, file.filename)}
-                                    class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 cursor-pointer"
-                                    title="この動画ファイルのみ削除"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            {/if}
+                                <!-- ファイル削除（安全ディバイダーで分離） -->
+                                {#if !readOnlyStore.isReadOnly && !recorded.isProtected}
+                                    <Divider orientation="vertical" />
+                                    <IconButton
+                                        variant="danger-outline"
+                                        size="compact"
+                                        onclick={() => deleteVideoFile(file.id, file.filename)}
+                                        title="この動画ファイルのみ削除"
+                                        aria-label="この動画ファイルのみ削除"
+                                    >
+                                        <Trash2 size={15} />
+                                    </IconButton>
+                                {/if}
+                            </div>
                         </div>
-                    </div>
-                {/each}
-            </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
     {/if}
 </div>
@@ -1107,34 +1153,29 @@
                                     <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
                                     <div class="flex flex-wrap items-center gap-x-5 gap-y-3 p-3.5">
                                         <!-- チェックボックス + 名前 -->
-                                        <label
-                                            class="flex shrink-0 items-center gap-2.5 cursor-pointer min-w-[140px] select-none py-1"
-                                        >
-                                            <input type="checkbox" bind:checked={sel.enabled} class="form-checkbox" />
-                                            <span
-                                                class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100"
-                                            >
-                                                {mode.name}
-                                            </span>
-                                            {#if mode.suffix}
-                                                <span class="text-xs text-slate-400 font-mono">({mode.suffix})</span>
-                                            {/if}
-                                        </label>
+                                        <div class="flex shrink-0 items-center gap-2.5 min-w-[140px] py-1">
+                                            <Checkbox bind:checked={sel.enabled}>
+                                                <span
+                                                    class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100"
+                                                >
+                                                    {mode.name}
+                                                </span>
+                                                {#if mode.suffix}
+                                                    <span class="text-xs text-slate-400 font-mono">
+                                                        ({mode.suffix})
+                                                    </span>
+                                                {/if}
+                                            </Checkbox>
+                                        </div>
 
                                         {#if sel.enabled}
                                             <!-- 元ファイルと同じ場所トグル -->
-                                            <label
-                                                class="flex shrink-0 items-center gap-2 cursor-pointer select-none py-1"
-                                            >
-                                                <input
-                                                    type="checkbox"
+                                            <div class="flex shrink-0 items-center gap-2 py-1">
+                                                <Checkbox
                                                     bind:checked={sel.isSaveSameDirectory}
-                                                    class="form-checkbox"
+                                                    label="元ファイルと同じ場所"
                                                 />
-                                                <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                    元ファイルと同じ場所
-                                                </span>
-                                            </label>
+                                            </div>
 
                                             {#if !sel.isSaveSameDirectory}
                                                 <!-- 保存先ドロップダウン -->
@@ -1144,14 +1185,11 @@
                                                     >
                                                         保存先
                                                     </span>
-                                                    <select
-                                                        bind:value={sel.parentDir}
-                                                        class="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                                                    >
+                                                    <Select bind:value={sel.parentDir} class="flex-1">
                                                         {#each recordedDirs as dir}
                                                             <option value={dir}>{dir}</option>
                                                         {/each}
-                                                    </select>
+                                                    </Select>
                                                 </div>
 
                                                 <!-- サブディレクトリ入力 -->
@@ -1161,11 +1199,11 @@
                                                     >
                                                         ディレクトリ
                                                     </span>
-                                                    <input
+                                                    <Input
                                                         type="text"
                                                         bind:value={sel.directory}
                                                         placeholder="省略可"
-                                                        class="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                                        class="flex-1"
                                                     />
                                                 </div>
                                             {/if}
@@ -1179,30 +1217,17 @@
 
                 <!-- 全体共通: 元ファイル削除 -->
                 <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
-                    <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                        <input type="checkbox" bind:checked={isRemoveOriginal} class="form-checkbox text-rose-600" />
+                    <Checkbox bind:checked={isRemoveOriginal}>
                         <span class="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400">
                             エンコード完了後に元ファイルを自動削除
                         </span>
-                    </label>
+                    </Checkbox>
                 </div>
             </div>
 
             <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-                <button
-                    type="button"
-                    onclick={() => (isEncodeModalOpen = false)}
-                    class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                >
-                    キャンセル
-                </button>
-                <button
-                    type="button"
-                    onclick={addEncode}
-                    class="rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-blue-700"
-                >
-                    追加する
-                </button>
+                <Button variant="secondary" onclick={() => (isEncodeModalOpen = false)}>キャンセル</Button>
+                <Button variant="primary" onclick={addEncode}>追加する</Button>
             </div>
         </div>
     </div>
@@ -1264,13 +1289,7 @@
             {/if}
 
             <div class="mt-6 flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
-                <button
-                    type="button"
-                    onclick={() => (isDropLogModalOpen = false)}
-                    class="btn-secondary px-5 py-2 text-xs font-bold cursor-pointer"
-                >
-                    閉じる
-                </button>
+                <Button variant="secondary" onclick={() => (isDropLogModalOpen = false)}>閉じる</Button>
             </div>
         </div>
     </div>

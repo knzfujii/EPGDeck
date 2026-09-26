@@ -25,8 +25,13 @@
         Filter,
         Pause,
         Play,
-        Lock,
     } from '@lucide/svelte';
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
+    import SearchInput from '../lib/components/common/SearchInput.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import IconButton from '../lib/components/common/IconButton.svelte';
+    import Divider from '../lib/components/common/Divider.svelte';
+    import Select from '../lib/components/common/Select.svelte';
     let rawLogs = $state<LogEntry[]>([]);
     let isLoading = $state(true);
     let autoScroll = $state(true);
@@ -263,20 +268,11 @@
 </script>
 
 {#if readOnlyStore.isReadOnly}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">システムログの閲覧は管理者のみ許可されています。</p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="mt-4 h-10 rounded-xl bg-slate-900 px-5 py-2 text-sm font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
-        >
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="システムログの閲覧は管理者のみ許可されています。"
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="space-y-4">
         <!-- ヘッダー & ツールバー コンテナ -->
@@ -305,8 +301,8 @@
                             </span>
                         {/if}
                     </div>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        サーバー稼働ログのリアルタイム追尾・キーワード検索・ログ保存
+                    <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                        サーバー稼働ログのリアルタイム監視
                     </p>
                 </div>
 
@@ -334,23 +330,18 @@
                     </button>
 
                     <!-- 再取得 -->
-                    <button
-                        type="button"
-                        class="btn-secondary h-10 px-3 cursor-pointer"
+                    <IconButton
+                        variant="secondary"
                         onclick={fetchLogs}
                         title="ログを再取得"
+                        aria-label="ログを再取得"
                         disabled={isLoading}
                     >
                         <RefreshCw class="w-4 h-4 {isLoading ? 'animate-spin' : ''}" />
-                    </button>
+                    </IconButton>
 
                     <!-- コピー -->
-                    <button
-                        type="button"
-                        class="btn-secondary h-10 px-3.5 text-sm font-bold cursor-pointer flex items-center gap-1.5"
-                        onclick={copyToClipboard}
-                        title="表示中のログをコピー"
-                    >
+                    <Button variant="secondary" onclick={copyToClipboard} title="表示中のログをコピー">
                         {#if isCopied}
                             <Check class="w-4 h-4 text-emerald-500" />
                             <span>コピー完了</span>
@@ -358,38 +349,35 @@
                             <Copy class="w-4 h-4" />
                             <span>コピー</span>
                         {/if}
-                    </button>
+                    </Button>
 
                     <!-- ファイルダウンロード -->
-                    <button
-                        type="button"
-                        class="btn-secondary h-10 px-3.5 text-sm font-bold cursor-pointer flex items-center gap-1.5"
-                        onclick={downloadLogFile}
-                        title="ログファイル全体をダウンロード"
-                    >
+                    <Button variant="secondary" onclick={downloadLogFile} title="ログファイル全体をダウンロード">
                         <Download class="w-4 h-4" />
                         <span>保存</span>
-                    </button>
+                    </Button>
 
                     <!-- 画面クリア -->
-                    <button
-                        type="button"
-                        class="h-10 w-10 flex items-center justify-center text-slate-500 hover:text-slate-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    <IconButton
+                        variant="secondary"
                         onclick={clearScreen}
                         title="画面上のログを消去"
+                        aria-label="画面上のログを消去"
                     >
                         <Eraser class="w-4 h-4" />
-                    </button>
+                    </IconButton>
+
+                    <Divider orientation="vertical" />
 
                     <!-- サーバーログ消去 -->
-                    <button
-                        type="button"
-                        class="h-10 w-10 flex items-center justify-center text-rose-600 hover:text-rose-700 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                    <IconButton
+                        variant="danger-outline"
                         onclick={clearServerLogs}
                         title="サーバーログを消去"
+                        aria-label="サーバーログを消去"
                     >
                         <Trash2 class="w-4 h-4" />
-                    </button>
+                    </IconButton>
                 </div>
             </div>
 
@@ -398,43 +386,35 @@
                 class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3.5 border-t border-slate-100 dark:border-slate-800"
             >
                 <!-- キーワード検索 -->
-                <div class="relative">
-                    <Search class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="ログを検索..."
-                        bind:value={searchKeyword}
-                        class="h-10 w-full pl-9 pr-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400 transition-colors"
-                    />
-                </div>
+                <SearchInput
+                    bind:value={searchKeyword}
+                    placeholder="ログを検索..."
+                    ariaLabel="ログを検索"
+                    size="md"
+                    onclear={() => (searchKeyword = '')}
+                />
 
                 <!-- ログレベル -->
                 <div class="flex items-center gap-2 text-sm">
                     <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">Level:</span>
-                    <select
-                        bind:value={selectedLevel}
-                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
-                    >
+                    <Select bind:value={selectedLevel} class="flex-1">
                         <option value="all">すべて (All)</option>
                         <option value="debug">DEBUG 以上</option>
                         <option value="info">INFO 以上</option>
                         <option value="warn">WARN 以上</option>
                         <option value="error">ERROR / FATAL</option>
-                    </select>
+                    </Select>
                 </div>
 
                 <!-- プロセス -->
                 <div class="flex items-center gap-2 text-sm">
                     <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">Process:</span>
-                    <select
-                        bind:value={selectedProcess}
-                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
-                    >
+                    <Select bind:value={selectedProcess} class="flex-1">
                         <option value="all">全プロセス (All)</option>
                         <option value="Operator">Operator</option>
                         <option value="Service">Service</option>
                         <option value="EPGUpdater">EPGUpdater</option>
-                    </select>
+                    </Select>
                 </div>
 
                 <!-- カテゴリ -->
@@ -442,16 +422,13 @@
                     <span class="text-slate-600 dark:text-slate-300 text-sm font-bold whitespace-nowrap">
                         Category:
                     </span>
-                    <select
-                        bind:value={selectedCategory}
-                        class="h-10 flex-1 px-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
-                    >
+                    <Select bind:value={selectedCategory} class="flex-1">
                         <option value="all">全カテゴリ (All)</option>
                         <option value="system">system</option>
                         <option value="access">access</option>
                         <option value="stream">stream</option>
                         <option value="encode">encode</option>
-                    </select>
+                    </Select>
                 </div>
             </div>
         </div>

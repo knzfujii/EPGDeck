@@ -8,6 +8,10 @@
     import { Clock, Plus, ArrowLeft, Lock } from '@lucide/svelte';
     import RecordingOptionForm from '@/lib/components/recording/RecordingOptionForm.svelte';
     import { RecordingOptionFormState } from '@/lib/stores/recordingOptionForm.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import Input from '../lib/components/common/Input.svelte';
+    import Select from '../lib/components/common/Select.svelte';
+    import Textarea from '../lib/components/common/Textarea.svelte';
 
     let selectedChannelId = $state<number | null>(null);
     let name = $state('');
@@ -92,25 +96,15 @@
             isSubmitting = false;
         }
     }
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
 </script>
 
 {#if readOnlyStore.isReadOnly}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            手動予約の作成は制限されています。録画一覧へリダイレクトします...
-        </p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white cursor-pointer transition-colors"
-        >
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="手動予約の作成は制限されています。録画一覧へリダイレクトします..."
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="w-full max-w-3xl min-w-0 space-y-5">
         <div class="flex items-center gap-3">
@@ -127,7 +121,9 @@
                     <Clock size={20} class="text-blue-600 dark:text-blue-400" />
                     時間指定手動予約
                 </h1>
-                <p class="text-xs text-slate-500 dark:text-slate-400">日時と放送局を指定して直接録画予約を作成します</p>
+                <p class="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    日時・放送局を指定した録画予約
+                </p>
             </div>
         </div>
 
@@ -145,11 +141,11 @@
                 >
                     放送局
                 </label>
-                <select id="manual-channel-select" bind:value={selectedChannelId} class="form-select">
+                <Select id="manual-channel-select" bind:value={selectedChannelId}>
                     {#each channelStore.channels as ch}
                         <option value={ch.id}>[{ch.channelType}] {ch.name}</option>
                     {/each}
-                </select>
+                </Select>
             </div>
 
             <div>
@@ -159,13 +155,12 @@
                 >
                     番組名 *
                 </label>
-                <input
+                <Input
                     id="manual-program-name"
                     type="text"
                     bind:value={name}
                     placeholder="例: 深夜アニメ 第1話"
                     required
-                    class="form-input"
                 />
             </div>
 
@@ -176,12 +171,7 @@
                 >
                     番組概要 (任意)
                 </label>
-                <textarea
-                    id="manual-program-desc"
-                    bind:value={description}
-                    rows={3}
-                    placeholder="番組の詳細やメモ"
-                    class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 transition"></textarea>
+                <Textarea id="manual-program-desc" bind:value={description} rows={3} placeholder="番組の詳細やメモ" />
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -192,13 +182,7 @@
                     >
                         開始日時 *
                     </label>
-                    <input
-                        id="manual-start-time"
-                        type="datetime-local"
-                        bind:value={startAtStr}
-                        required
-                        class="form-input"
-                    />
+                    <Input id="manual-start-time" type="datetime-local" bind:value={startAtStr} required />
                 </div>
                 <div>
                     <label
@@ -207,13 +191,7 @@
                     >
                         終了日時 *
                     </label>
-                    <input
-                        id="manual-end-time"
-                        type="datetime-local"
-                        bind:value={endAtStr}
-                        required
-                        class="form-input"
-                    />
+                    <Input id="manual-end-time" type="datetime-local" bind:value={endAtStr} required />
                 </div>
             </div>
 
@@ -229,11 +207,11 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
-                <button type="button" onclick={() => router.push('/reserves')} class="btn-secondary">キャンセル</button>
+                <Button variant="secondary" onclick={() => router.push('/reserves')}>キャンセル</Button>
                 {#if !readOnlyStore.isReadOnly}
-                    <button type="submit" disabled={isSubmitting} class="btn-primary">
+                    <Button type="submit" variant="primary" disabled={isSubmitting}>
                         <Plus size={16} /> 予約を追加
-                    </button>
+                    </Button>
                 {:else}
                     <p class="text-xs text-amber-600 dark:text-amber-400 font-bold self-center">
                         ※閲覧専用モードのため予約は作成できません

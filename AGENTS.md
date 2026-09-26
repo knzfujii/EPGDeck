@@ -39,6 +39,9 @@
 - **フロントエンド・UI 設計規約**:
   - **マルチデバイス視点の徹底**: スマホ（390px / ドロワー・カード）、タブレット（768px）、PC（1280px / サイドバー・テーブル）の各幅でレイアウト崩れがないか確認。
   - **Svelte 5 Runes の落とし穴防止**: `$effect` 内で URL クエリと状態変数を同期する際は、状態変数を直接参照せず必ず `untrack` で囲み、入力値のリセット不具合を防止すること。
+  - **Tailwind CSS Utility-First 原則と Svelte 5 コンポーネント共通化の徹底**:
+    - `app.css` にコンポーネントクラス（`.btn-*`, `.form-*`, `.divider-v`, `.card-base` 等）を定義することは**原則禁止**。
+    - ボタン、フォーム部品、ディバイダー、カード等の共通化・再利用は CSS クラスではなく、必ず `client/src/lib/components/common/`（`Button`, `IconButton`, `Divider`, `Input`, `Select`, `Checkbox`, `Card` 等）の Svelte 5 コンポーネントとして実装・利用すること。
 - **E2E テスト & 環境分離原則**:
   - **テスト環境の完全分離**: 本番 DB（`data/database.db`）や `config/config.yml` は参照せず、`data/test_e2e.db` と `config/config.test.yml` を使用するスタンドアロン構成を厳守。
   - **ロケータ設計**: CSS クラス依存を排し、アクセシビリティ要素（`getByRole`, `getByLabel`）や `data-testid`（`getByTestId`）を使用。複数ヒット時は親要素や `first()` でコンテキストを限定。

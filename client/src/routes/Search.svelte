@@ -8,7 +8,15 @@
     import type * as apid from '../../../api';
     import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
     import { QUICK_GENRES } from '../lib/constants/genres';
-    import { Search as SearchIcon, Plus, Lock, CalendarPlus, Check, Loader2, Sparkles, X } from '@lucide/svelte';
+    import { Search as SearchIcon, Plus, CalendarPlus, Check, Loader2, Sparkles } from '@lucide/svelte';
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
+    import SearchInput from '../lib/components/common/SearchInput.svelte';
+    import EmptyState from '../lib/components/common/EmptyState.svelte';
+    import LoadingState from '../lib/components/common/LoadingState.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
+    import Button from '../lib/components/common/Button.svelte';
+    import Checkbox from '../lib/components/common/Checkbox.svelte';
+    import Select from '../lib/components/common/Select.svelte';
 
     let keyword = $state(router.current.query.keyword || '');
     let searchResults = $state<apid.ScheduleProgramItem[]>([]);
@@ -235,31 +243,14 @@
             executeSearch();
         }
     }
-
-    function onInputKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            clearSearch();
-        }
-    }
 </script>
 
 {#if !readOnlyStore.canViewSearch}
-    <div
-        class="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/50 p-8 text-center dark:border-amber-950/60 dark:bg-amber-950/20"
-    >
-        <Lock size={32} class="text-amber-500 mb-2" />
-        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">閲覧専用モード</h3>
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            番組検索の利用は制限されています。録画一覧へリダイレクトします...
-        </p>
-        <button
-            type="button"
-            onclick={() => router.replace('/recorded')}
-            class="btn-secondary h-10 px-5 text-sm font-bold mt-4 cursor-pointer"
-        >
-            録画一覧へ
-        </button>
-    </div>
+    <ReadOnlyGuard
+        description="番組検索の利用は制限されています。録画一覧へリダイレクトします..."
+        returnPath="/recorded"
+        returnText="録画一覧へ"
+    />
 {:else}
     <div class="space-y-5 w-full max-w-full min-w-0">
         <!-- 検索バー & 条件フォーム -->
@@ -277,34 +268,22 @@
                 class="mt-4 space-y-4"
             >
                 <div class="flex gap-2">
-                    <div class="relative flex-1">
-                        <input
-                            type="text"
-                            bind:value={keyword}
-                            onkeydown={onInputKeydown}
-                            placeholder="番組名やキーワードを入力..."
-                            aria-label="検索キーワード"
-                            class="form-input w-full h-11 text-sm sm:text-base rounded-xl pr-9"
-                        />
-                        {#if keyword}
-                            <button
-                                type="button"
-                                onclick={clearSearch}
-                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
-                                title="検索をクリア"
-                                aria-label="検索をクリア"
-                            >
-                                <X size={16} />
-                            </button>
-                        {/if}
-                    </div>
-                    <button
+                    <SearchInput
+                        bind:value={keyword}
+                        placeholder="番組名やキーワードを入力..."
+                        ariaLabel="検索キーワード"
+                        size="md"
+                        onsubmit={() => executeSearch()}
+                        onclear={clearSearch}
+                    />
+                    <Button
                         type="submit"
+                        variant="primary"
                         disabled={isLoading}
-                        class="btn-primary flex items-center gap-2 h-11 px-6 text-sm sm:text-base font-bold cursor-pointer shrink-0"
+                        class="px-5 text-xs sm:text-sm shrink-0"
                     >
-                        <SearchIcon size={18} /> 検索
-                    </button>
+                        <SearchIcon size={16} /> 検索
+                    </Button>
                 </div>
 
                 <!-- オプション行 -->
@@ -312,33 +291,23 @@
                     class="flex flex-wrap items-center justify-between gap-3 sm:gap-4 text-sm font-bold text-slate-700 dark:text-slate-300"
                 >
                     <div class="flex flex-wrap items-center gap-4 sm:gap-5">
-                        <label class="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
-                            <input type="checkbox" bind:checked={isName} class="form-checkbox" />
-                            <span>番組名</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer select-none whitespace-nowrap">
-                            <input type="checkbox" bind:checked={isDescription} class="form-checkbox" />
-                            <span>番組概要</span>
-                        </label>
+                        <Checkbox bind:checked={isName} label="番組名" class="whitespace-nowrap" />
+                        <Checkbox bind:checked={isDescription} label="番組概要" class="whitespace-nowrap" />
 
                         <div class="flex items-center gap-2 whitespace-nowrap shrink-0">
                             <span class="text-slate-600 dark:text-slate-400 whitespace-nowrap">ジャンル:</span>
-                            <select bind:value={selectedGenre} class="h-10 form-select py-1.5 px-3 text-sm rounded-xl">
+                            <Select bind:value={selectedGenre} class="w-auto">
                                 {#each genres as g}
                                     <option value={g.id}>{g.name}</option>
                                 {/each}
-                            </select>
+                            </Select>
                         </div>
                     </div>
 
                     {#if (keyword.trim() || selectedGenre !== null) && !readOnlyStore.isReadOnly}
-                        <button
-                            type="button"
-                            onclick={openCreateRuleModal}
-                            class="flex items-center gap-1.5 h-10 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60 cursor-pointer whitespace-nowrap shrink-0"
-                        >
+                        <Button variant="secondary" onclick={openCreateRuleModal} class="whitespace-nowrap shrink-0">
                             <Plus size={16} /> この条件でルール作成
-                        </button>
+                        </Button>
                     {/if}
                 </div>
             </form>
@@ -346,11 +315,7 @@
 
         <!-- 検索結果一覧 -->
         {#if isLoading}
-            <div
-                class="flex h-64 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-            >
-                <p class="text-sm font-medium text-slate-400">検索中...</p>
-            </div>
+            <LoadingState message="番組を検索中..." />
         {:else if searchResults.length > 0}
             <div
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
@@ -392,11 +357,7 @@
                             >
                                 <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                                     {#if p.endAt < Date.now()}
-                                        <span
-                                            class="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold text-[11px]"
-                                        >
-                                            放映終了
-                                        </span>
+                                        <Badge variant="skip" text="放映終了" />
                                     {:else if reservedProgramIds.has(p.id)}
                                         <span
                                             class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-xs"
@@ -408,30 +369,30 @@
 
                                 <div class="flex items-center gap-2 shrink-0">
                                     {#if !readOnlyStore.isReadOnly}
-                                        <button
-                                            type="button"
+                                        <Button
+                                            variant="secondary"
+                                            size="compact"
                                             onclick={() => openCreateRuleWithProgram(p)}
-                                            class="btn-secondary h-8 px-2.5 text-xs font-bold flex items-center gap-1 cursor-pointer"
                                             title="この番組名でルール作成"
                                         >
-                                            <Plus size={13} /> ルール作成
-                                        </button>
+                                            <Plus size={14} /> ルール作成
+                                        </Button>
                                         {#if p.endAt >= Date.now() && !reservedProgramIds.has(p.id)}
-                                            <button
-                                                type="button"
+                                            <Button
+                                                variant="primary"
+                                                size="compact"
                                                 disabled={reservingProgramId === p.id}
                                                 onclick={() => reserveProgram(p)}
-                                                class="btn-primary h-8 px-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                                                 title="この番組を予約"
                                             >
                                                 {#if reservingProgramId === p.id}
-                                                    <Loader2 size={13} class="animate-spin" />
+                                                    <Loader2 size={14} class="animate-spin" />
                                                     <span>予約中...</span>
                                                 {:else}
-                                                    <CalendarPlus size={13} />
+                                                    <CalendarPlus size={14} />
                                                     <span>予約</span>
                                                 {/if}
-                                            </button>
+                                            </Button>
                                         {/if}
                                     {/if}
                                 </div>
@@ -441,17 +402,11 @@
                 </div>
             </div>
         {:else if hasSearched && searchResults.length === 0}
-            <div
-                class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900"
-            >
-                <SearchIcon size={40} class="text-slate-300 dark:text-slate-600 mb-3" />
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">
-                    一致する番組が見つかりませんでした
-                </h3>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-md">
-                    検索キーワードの誤字・脱字がないか確認するか、ジャンルや検索対象の絞り込み条件を広げてお試しください。
-                </p>
-            </div>
+            <EmptyState
+                icon={SearchIcon}
+                title="一致する番組が見つかりませんでした"
+                description="検索キーワードの誤字・脱字がないか確認するか、ジャンルや検索対象の絞り込み条件を広げてお試しください。"
+            />
         {/if}
     </div>
 {/if}

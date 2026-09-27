@@ -2021,7 +2021,7 @@
                     <CheckCircle2 size={16} class="text-blue-600 dark:text-blue-400" /> 予約設定
                 </h2>
                 <div
-                    class="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-3"
+                    class="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40 flex flex-col gap-3"
                 >
                     <Checkbox bind:checked={isEnable}>
                         <span class="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200">

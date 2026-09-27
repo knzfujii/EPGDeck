@@ -79,15 +79,19 @@ flowchart TD
   3. **網羅的単体テスト（27 シナリオ）の配備**:
      - `test/unit/stream_routes.test.ts` を新設し、バックプレッシャーによる読み取り停止、正常 EOF、`AbortSignal` 切断、`reader.cancel()` 切断、ストリームエラー時の安全終了、事前破棄ソケット即時 400 拒絶、生成待機中切断クリーンアップ、`incoming`/`outgoing` ソケットの `close`/`error` イベント連動、キープアライブ失敗時の自動停止、Tuner 503 エラー、各種メディア配信（M2TS, M2TS-LL, MP4, WebM）を検証。
 
-#### 1.3 Node.js 22 互換用 Symbol 削除ハック (`createAlreadySentResponse`) の正規ストリーム移行
-- **対象ファイル**: `src/model/service/hono/HonoApiUtil.ts`
-- **経緯・現状**:
-  Node.js 22 の undici / Headers キャッシュ機構導入に伴い、`c.env.outgoing` に対して直接 `writeHead` / `pipe` を行った後に Hono の Response を返すと、`ERR_HTTP_HEADERS_SENT` や内部キャッシュ不整合が発生した。そのため、Node.js 22 を動作させるための暫定対応として、`Response` オブジェクトの非公開内部 Symbol（`sym.description === 'cache'`）を手動削除するワークアラウンドが導入されている。
-- **課題**:
-  ライブラリの非公開内部実装に強く依存しており、`@hono/node-server` や Node.js の今後のマイナーアップデートで突然壊れるリスクがある。
-- **改善方針**:
-  - `c.env.outgoing` を手動バイパスする方式から、Hono 公式の `stream()` ヘルパーまたは `new Response(Readable.toWeb(stream))` による正規の Web Standard レスポンスモデルへ安全にリファクタリングする。
-  - Range リクエスト（206 Partial Content）やクライアント切断時の安全な stream destroy が Web Standard の範囲で正しく動作することを検証・担保する。
+#### 1.3 静的ファイル配信における大容量ストール防止と Node 22 互換ガードの設計保護（完了）
+- **対象ファイル**: `src/model/service/hono/HonoApiUtil.ts`, `docs/dev/streaming-and-captions.md`
+- **経緯・技術的検証**:
+  Node.js 22 の undici / Headers キャッシュ機構導入に伴い、`c.env.outgoing` に対して直接 `writeHead` / `pipe` を行った後に Hono の Response を返すと、`ERR_HTTP_HEADERS_SENT` が発生した。そのため、Node.js 22 を動作させる対応として、`Response` オブジェクトの内部 Symbol（`sym.description === 'cache'`）を安全に削除する `createAlreadySentResponse()` が導入されていた。
+  今回、これを標準の `new Response(Readable.toWeb(stream))` へ一本化することを検討・検証した。
+- **アーキテクチャ上の結論と保護方針**:
+  1. **大容量ファイルストリーミングにおけるデッドロック回避**:
+     - 単体テスト（数KB〜数MB）では `Readable.toWeb(stream)` で正常に転送されるが、実運用のブラウザ動画プレーヤーから数GBの録画ファイルをプログレッシブ再生・シークする際、`@hono/node-server` の Web Streams ループと Node.js TCP ソケットの drain 競合により、数十MB〜数百MB転送した時点でバックプレッシャーストール（転送完全停止のデッドロック）が発生する既知の問題（コミット `34914f3f` にて実証・解決済み）が存在する。
+     - したがって、Express 時代と同様に Node.js ネイティブの `stream.pipe(outgoing)` でソケットに直接流し込む方式が、大容量動画配信における実稼働上の最適解・必須要件である。
+  2. **二重ヘッダー防止と Symbol 削除の安全性担保**:
+     - `createAlreadySentResponse()` において、無差別に Symbol を削除するのではなく `if (sym.description === 'cache')` と対象を限定して削除することで、Node.js 22（undici）の内部 Headers スロットを破壊することなく `ERR_HTTP_HEADERS_SENT` を完全に回避できている。
+  3. **将来の誤った巻き戻し防止（恒久的設計保護）**:
+     - コードベース（`HonoApiUtil.ts` の `createFileStreamResponse` および `createAlreadySentResponse`）および設計書（`docs/dev/streaming-and-captions.md`）に明確な警告・設計根拠を追記し、将来の AI エージェントや開発者が安易に `Readable.toWeb` へ巻き戻してデッドロックを再発させることを恒久的に防止した。
 
 ---
 

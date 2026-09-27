@@ -78,8 +78,9 @@ DB 内に保存されながら UI で活用されていないメタデータを�
   - `src/model/service/hono/routes/streams.ts` の手動 `ReadableStream` 変換を Node.js 17+ 標準の `Readable.toWeb(nodeStream)` に移行し、ブラウザ読み取り速度に応じた自動バックプレッシャー制御を導入
   - クライアント切断（`abort`, `close`, `error`）およびストリーム正常終了・エラー時に、`streamApiModel.stop(streamId, true)`、`nodeStream.destroy()`、キープアライブタイマーの即時停止・確実なクリーンアップ機構を配備
   - 開始前ソケット破棄の早期400拒絶、起動中非同期切断時のゾンビストリーム競合解消、および単体テスト（`test/unit/stream_routes.test.ts`、計27テスト）による網羅検証完了
-- [ ] **Node.js 22 互換用 Symbol 削除ハック (`createAlreadySentResponse`) の正規ストリーム移行**
-  - Node.js 22 の undici / Headers キャッシュ競合（`ERR_HTTP_HEADERS_SENT`）回避のために導入された `Response` 内部 Symbol（`cache`）削除ワークアラウンドを解消し、Hono 公式の `stream()` または Web Standard レスポンスへ安全に移行
+- [x] **静的ファイル配信における大容量ストール（デッドロック）防止と Node 22 互換ガードの設計保護・ドキュメント化**
+  - 当初は Web Streams（`Readable.toWeb`）への一本化を検討したが、実運用における GB 級大容量動画のブラウザシーク・再生時に `@hono/node-server` でバックプレッシャーストール（数十MBで停止）が発生する既知の問題があることを再確認
+  - Node.js ネイティブの `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）が実運用上の最善の防御策であることを確認し、安易な巻き戻しを防止するためコードコメントおよび `streaming-and-captions.md` に設計保護規約を明記・保護
 
 ### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
 - [ ] **npm workspaces によるパッケージ管理の一元化**

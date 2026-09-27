@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process';
+import { ChildProcess } from 'node:child_process';
 import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import IOperatorEncodeEvent, { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent.js';
@@ -16,6 +16,8 @@ import IReserveDB from '../db/IReserveDB.js';
 import { LogEntry } from '../ILogger.js';
 import IIPCServer from './IIPCServer.js';
 import {
+    IPCArgsMap,
+    IPCResponseMap,
     OperatorEncodeEventFunctions,
     ModelName,
     NotifyClientMessage,
@@ -31,9 +33,11 @@ import {
     ThumbnailFunctions,
 } from './IPCMessageDefine.js';
 
-interface IFunctionIndex {
-    [functionName: string]: (msg: SendMessage) => Promise<any>;
-}
+type ModelFunctions<M extends ModelName> = {
+    [F in keyof IPCArgsMap[M] & keyof IPCResponseMap[M] & string]?: (
+        msg: SendMessage<M, F>,
+    ) => Promise<IPCResponseMap[M][F]>;
+};
 
 @injectable()
 export default class IPCServer implements IIPCServer {
@@ -48,7 +52,7 @@ export default class IPCServer implements IIPCServer {
     private reserveDB: IReserveDB;
     private child: ChildProcess | null = null;
     private functions: {
-        [modelName: string]: IFunctionIndex;
+        [M in ModelName]?: Record<string, (msg: SendMessage<any, any>) => Promise<unknown>>;
     } = {};
 
     constructor(
@@ -86,13 +90,11 @@ export default class IPCServer implements IIPCServer {
         });
 
         this.child.on('message', async (msg: SendMessage) => {
-            if (
-                typeof this.functions[msg.model] !== 'undefined' &&
-                typeof this.functions[msg.model][msg.func] !== 'undefined'
-            ) {
+            const modelFunctions = this.functions[msg.model as ModelName];
+            if (typeof modelFunctions !== 'undefined' && typeof modelFunctions[msg.func] !== 'undefined') {
                 // 指定された関数が存在するなら実行
                 try {
-                    const result = await this.functions[msg.model][msg.func](msg);
+                    const result = await modelFunctions[msg.func](msg);
                     this.reply({
                         id: msg.id,
                         result: result,
@@ -121,9 +123,10 @@ export default class IPCServer implements IIPCServer {
         }
 
         try {
-            this.child.send(<any>(<NotifyClientMessage>{
+            const msg: NotifyClientMessage = {
                 type: 'notifyClient',
-            }));
+            };
+            this.child.send(msg);
         } catch {
             // ignore
         }
@@ -143,10 +146,11 @@ export default class IPCServer implements IIPCServer {
         }
 
         try {
-            this.child.send(<any>(<PushEncodeMessage>{
+            const msg: PushEncodeMessage = {
                 type: 'pushEncode',
                 value: addOption,
-            }));
+            };
+            this.child.send(msg);
         } catch {
             // ignore
         }
@@ -162,10 +166,11 @@ export default class IPCServer implements IIPCServer {
         }
 
         try {
-            this.child.send(<any>(<PushLogMessage>{
+            const msg: PushLogMessage = {
                 type: 'pushLog',
                 entry: entry,
-            }));
+            };
+            this.child.send(msg);
         } catch {
             // ignore
         }
@@ -199,8 +204,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set reservation functions
      */
-    private getReservationFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getReservationFunctions(): ModelFunctions<ModelName.reservation> {
+        const index: ModelFunctions<ModelName.reservation> = {};
 
         // getBroadcastStatus
         index[ReservationFunctions.getBroadcastStatus] = async () => {
@@ -268,8 +273,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set recorded functions
      */
-    private getRecordedFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getRecordedFunctions(): ModelFunctions<ModelName.recorded> {
+        const index: ModelFunctions<ModelName.recorded> = {};
 
         // delete
         index[RecordedFunctions.delete] = async msg => {
@@ -351,8 +356,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set recordedTag functions
      */
-    private getRecordedTagFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getRecordedTagFunctions(): ModelFunctions<ModelName.recordedTag> {
+        const index: ModelFunctions<ModelName.recordedTag> = {};
 
         index[RecordedTagFunctions.create] = async msg => {
             const name = this.getArgsValue<string>(msg, 'name');
@@ -395,8 +400,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set recording functions
      */
-    private getRecordingFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getRecordingFunctions(): ModelFunctions<ModelName.recording> {
+        const index: ModelFunctions<ModelName.recording> = {};
 
         // resetTimer
         index[RecordingFunctions.resetTimer] = async () => {
@@ -456,8 +461,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set rule functions
      */
-    private getRuleFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getRuleFunctions(): ModelFunctions<ModelName.rule> {
+        const index: ModelFunctions<ModelName.rule> = {};
 
         // add
         index[RuleFunctions.add] = async msg => {
@@ -498,7 +503,7 @@ export default class IPCServer implements IIPCServer {
         index[RuleFunctions.deletes] = async msg => {
             const ruleIds = this.getArgsValue<apid.RuleId[]>(msg, 'ruleIds');
 
-            await this.ruleManage.deletes(ruleIds);
+            return await this.ruleManage.deletes(ruleIds);
         };
 
         return index;
@@ -507,8 +512,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set thumbnail functions
      */
-    private getThumbnailFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getThumbnailFunctions(): ModelFunctions<ModelName.thumbnail> {
+        const index: ModelFunctions<ModelName.thumbnail> = {};
 
         // regenerate
         index[ThumbnailFunctions.regenerate] = async () => {
@@ -523,8 +528,8 @@ export default class IPCServer implements IIPCServer {
         // add
         index[ThumbnailFunctions.add] = async msg => {
             const videoFileId = this.getArgsValue<apid.VideoFileId>(msg, 'videoFileId');
-            const seconds = typeof msg.args?.['seconds'] === 'number' ? msg.args['seconds'] : undefined;
-            const replace = typeof msg.args?.['replace'] === 'boolean' ? msg.args['replace'] : undefined;
+            const seconds = typeof msg.args?.seconds === 'number' ? msg.args.seconds : undefined;
+            const replace = typeof msg.args?.replace === 'boolean' ? msg.args.replace : undefined;
 
             this.thumbnailManage.add(videoFileId, seconds, replace);
         };
@@ -542,8 +547,8 @@ export default class IPCServer implements IIPCServer {
     /**
      * set operator encode event functions
      */
-    private getOperatorEncodeEventFunctions(): IFunctionIndex {
-        const index: IFunctionIndex = {};
+    private getOperatorEncodeEventFunctions(): ModelFunctions<ModelName.encodeEvent> {
+        const index: ModelFunctions<ModelName.encodeEvent> = {};
 
         // emitFinishEncode
         index[OperatorEncodeEventFunctions.emitFinishEncode] = async msg => {
@@ -561,11 +566,12 @@ export default class IPCServer implements IIPCServer {
      * @param argsName: 引数名
      * @return T
      */
-    private getArgsValue<T>(msg: SendMessage, argsName: string): T {
-        if (typeof msg.args === 'undefined' || typeof msg.args[argsName] === 'undefined') {
+    private getArgsValue<T>(msg: SendMessage<any, any>, argsName: string): T {
+        const args = msg.args as Record<string, unknown> | undefined;
+        if (typeof args === 'undefined' || typeof args[argsName] === 'undefined') {
             throw new Error('IPCArgsError');
         }
 
-        return <T>msg.args[argsName];
+        return args[argsName] as T;
     }
 }

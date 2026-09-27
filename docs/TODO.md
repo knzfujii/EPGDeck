@@ -90,9 +90,10 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 - [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃**
   - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
   - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減
-- [ ] **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減**
-  - `IPCMessageDefine.ts` にジェネリクス型を導入し、プロセス間 RPC を型安全化
-  - 460 箇所以上存在する `any`（`: any` / `as any`）を順次 `unknown` + バリデーションまたは具体型へ置換し、`@typescript-eslint/no-explicit-any` を警告化
+- [x] **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減**
+  - `src/model/ipc/IPCMessageDefine.ts` に全 7 モデル・計 33 関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を網羅定義し、ジェネリクス型 RPC（`ClientMessageOption<M, F>`, `SendMessage<M, F>`, `ReplyMessage<T>`）を確立
+  - `ParentMessage` を Discriminated Union（`notifyClient`, `pushEncode`, `pushLog`）に再定義し、`IPCServer` / `IPCClient` 内の `<any>` キャストを完全撤廃
+  - `IPCServer.getArgsValue` による実行時引数検証（欠落時の `IPCArgsError` 応答）および戻り値ディスパッチの単体テスト（`test/unit/ipc.test.ts`、計11テスト）を拡充・完全 PASS
 - [x] **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行**
   - `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts` の `namespace` 構文を撤廃し、標準の ES Module named export および後方互換オブジェクト（`export const FileUtil = { ... }`）に刷新
   - `FileUtil.ts` 内の Node 8 時代の手動 `new Promise` コールバックラップを全廃し、Node.js 22 標準の `node:fs/promises` による直接非同期処理へ一本化
@@ -169,6 +170,8 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **予約一覧のフィルタタブ並び順改善 ＆ ステータス別背景色分け（左端アクセントボーダー付）による正常視認性向上** | 予約一覧のタブ並び順を「すべて・重複・スキップ・競合」に変更。左端アクセントボーダー（`border-l-4`）と明確な背景色分けを導入（重複・スキップは濃いめのグレー `bg-slate-200/80`＋`border-l-slate-400`、競合は警告赤 `bg-red-100`＋`border-l-red-600`、録画中は濃い赤 `bg-rose-100`＋`border-l-rose-600`）し、正常な録画予定（白背景＋緑の「予約完了」バッジ）の視認性を劇的に向上。モバイルカードにも「予約完了」バッジを表示 | [画面変更仕様書](dev/epgdeck_change_spec.md#34-予約一覧-reserves) |
 | **ダッシュボードヘッダー操作フォントサイズ統一（ストレージ容量・注意警告アコーディオン）** | ダッシュボードのストレージ容量カードにおけるドライブ数表示（`N ドライブ`）および「詳細 / 閉じる」トグルボタンを `text-xs` から `text-sm` へ1段階引き上げ。あわせて同型部品である「予約の注意・警告」カードの開閉トグルも `text-sm` に統一し、録画一覧・予約一覧カード（`text-sm`）を含めたダッシュボード全4カードのヘッダー右端アクションの視覚階層・可読性を統一 | [画面変更仕様書](dev/epgdeck_change_spec.md#31-ダッシュボード-) |
 | **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）** | SIGINT / SIGTERM 受信時のクリーンシャットダウンシーケンスを実装。OperatorShutdownModel 新設、StorageManageModel 停止、Service 子プロセス停止、RecordingManageModel.stopAll() による全録画ストリーム停止・TS 書き込みフラッシュ（finish/close/error 待機）・DB 実尺（duration/endAt）確定・tmp からの移動・ファイルサイズおよびドロップログ更新、IDrizzleOperator コネクション安全クローズ、2回目シグナル即時終了を網羅。単体テスト計16件新規拡充（全体748件 PASS） | [アーキテクチャ](dev/architecture.md#3-バックエンド設計パターン)、[近代化ロードマップ](dev/modernization-roadmap.md#11-operator-プロセスの-graceful-shutdown-実装) |
+| **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行** | `FileUtil.ts` / `ProcessUtil.ts` / `Util.ts` の `namespace` を ES Module named export および後方互換オブジェクトへ刷新、手動コールバックラップを全廃し `node:fs/promises` へ一本化、`rename` 失敗時 unlink の危険性撤廃、`move` のデファクトスタンダード化（rename優先 ➔ EXDEVフォールバック）、`ProcessUtil.isExited` のシグナル終了検知漏れ修正、単体テスト3件拡充 | [近代化ロードマップ](dev/modernization-roadmap.md#24-レガシー-namespace-構文の廃止と-nodefspromises-への完全移行完了) |
+| **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減** | 全7モデル・計33関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を網羅定義し、ジェネリクス型 RPC（`ClientMessageOption`, `SendMessage`, `ReplyMessage`）を確立。ユニオン型インデックス縮退を防ぐ条件付き型（Conditional Types）設計、`ParentMessage` の Discriminated Union 化による `<any>` キャスト完全撤廃、`IPCServer.getArgsValue` 引数検証（`IPCArgsError`）および戻り値ディスパッチの単体テスト拡充（計11件 PASS） | [近代化ロードマップ](dev/modernization-roadmap.md#23-プロセス間通信ipcの型安全化--コードベース全体の-any-削減完了) |
 
 
 

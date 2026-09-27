@@ -22,8 +22,6 @@ import {
     OperatorEncodeEventFunctions,
     ModelName,
     ParentMessage,
-    PushEncodeMessage,
-    PushLogMessage,
     RecordedFunctions,
     RecordedTagFunctions,
     RecordingFunctions,
@@ -49,7 +47,8 @@ export default class IPCClient implements IIPCClient {
 
     private log: ILogger;
     private listener: events.EventEmitter = new events.EventEmitter();
-    private messageHandler: ((msg: any) => Promise<void>) | null = null;
+    private messageHandler: ((msg: ReplyMessage | ParentMessage) => Promise<void>) | null = null;
+    private static messageSeq: number = 0;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
@@ -81,18 +80,24 @@ export default class IPCClient implements IIPCClient {
      */
     private ipcInit(): void {
         this.messageHandler = async (msg: ReplyMessage | ParentMessage) => {
-            if (typeof (<ReplyMessage>msg).id !== 'undefined') {
+            if ('id' in msg && typeof msg.id !== 'undefined') {
                 // 送信したメッセージの応答
-                this.listener.emit((<ReplyMessage>msg).id.toString(10), msg);
-            } else if ((<ParentMessage>msg).type === 'notifyClient') {
-                // socket.io によるクライアントへの状態更新通知
-                this.socketIO.notifyClient();
-            } else if ((<ParentMessage>msg).type === 'pushEncode') {
-                // エンコード依頼
-                await this.encodeManage.push((<PushEncodeMessage>msg).value);
-            } else if ((<ParentMessage>msg).type === 'pushLog') {
-                // 親プロセス（Operator）からのログ集約
-                this.logManage.push((<PushLogMessage>msg).entry);
+                this.listener.emit(msg.id.toString(10), msg);
+            } else if ('type' in msg) {
+                switch (msg.type) {
+                    case 'notifyClient':
+                        // socket.io によるクライアントへの状態更新通知
+                        this.socketIO.notifyClient();
+                        break;
+                    case 'pushEncode':
+                        // エンコード依頼
+                        await this.encodeManage.push(msg.value);
+                        break;
+                    case 'pushLog':
+                        // 親プロセス（Operator）からのログ集約
+                        this.logManage.push(msg.entry);
+                        break;
+                }
             }
         };
 
@@ -113,38 +118,52 @@ export default class IPCClient implements IIPCClient {
     /**
      * IPC 送信
      * @param option: ClientMessageOption
-     * @return MessageId
+     * @param timeout: number default 5000
+     * @return Promise<T>
      */
-    private send<T>(option: ClientMessageOption, timeout: number = 5000): Promise<T> {
+    private send<T = void>(option: ClientMessageOption, timeout: number = 5000): Promise<T> {
+        if (typeof process.send === 'undefined') {
+            this.log.system.error('process.send is undefined');
+            return Promise.reject(new Error('ProcessSendIsUndefined'));
+        }
+
         const msg: SendMessage = {
-            id: new Date().getTime(),
+            id: ++IPCClient.messageSeq,
             model: option.model,
             func: option.func,
             args: option.args,
         };
 
         process.nextTick(() => {
-            if (typeof process.send === 'undefined') {
-                this.log.system.error('process.send is undefined');
-
-                return;
+            try {
+                process.send!(msg);
+            } catch (err: any) {
+                this.log.system.error(`failed to send IPC message: ${err?.message || err}`);
             }
-
-            process.send(msg);
         });
 
-        return new Promise<T>((resolve: (value: T) => void, reject: (err: Error) => void) => {
-            this.listener.once(msg.id.toString(10), (reply: ReplyMessage) => {
+        return new Promise<T>((resolve, reject) => {
+            const eventName = msg.id.toString(10);
+            let timerId: NodeJS.Timeout | null = null;
+
+            const onReply = (reply: ReplyMessage<T>) => {
+                if (timerId !== null) {
+                    clearTimeout(timerId);
+                    timerId = null;
+                }
                 if (typeof reply.error === 'undefined') {
-                    resolve(<T>reply.result);
+                    resolve(reply.result as T);
                 } else {
                     reject(new Error(reply.error));
                 }
-            });
+            };
+
+            this.listener.once(eventName, onReply);
 
             if (timeout > 0) {
-                setTimeout(() => {
-                    this.listener.removeAllListeners(msg.id.toString(10));
+                timerId = setTimeout(() => {
+                    timerId = null;
+                    this.listener.removeListener(eventName, onReply);
                     reject(new Error('IPCTimeout'));
                 }, timeout);
             }

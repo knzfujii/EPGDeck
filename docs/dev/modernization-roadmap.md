@@ -115,13 +115,26 @@ flowchart TD
   1. 生 DDL ハードコードを全廃し、`drizzle-orm/migrator` によるスキーマ定義ベースの自動マイグレーションへ統一。
   2. Drizzle の推論型（`$inferSelect` / `$inferInsert`）を活用し、TypeORM 時代の旧エンティティクラスへの手動マッピング層を順次スリム化。
 
-#### 2.3 プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減
-- **対象ファイル**: `src/model/ipc/**/*.ts`, `eslint.config.mjs`
+#### 2.3 プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減（完了）
+- **対象ファイル**: `src/model/ipc/IPCMessageDefine.ts`, `src/model/ipc/IPCClient.ts`, `src/model/ipc/IPCServer.ts`, `test/unit/ipc.test.ts`
 - **課題**:
-  プロダクションコード内に `: any` が 301 箇所、`as any` が 165 箇所存在。特にプロセス間通信（IPC）で引数・返り値が `any` になっており、インターフェース変更時の不整合がコンパイル時に検知できない。
-- **改善方針**:
-  1. IPC メッセージ定義に Request/Response のジェネリクス型を導入し、モデル呼び出しを型安全化。
-  2. 主要 DAO 層・モデル層から順次 `any` を排除し、ESLint の `@typescript-eslint/no-explicit-any` を警告化できる水準を目指す。
+  Service 子プロセスと Operator 親プロセス間のプロセス間通信（IPC）において、送受信メッセージ（`SendMessage`, `ReplyMessage`, `ClientMessageOption`）が `args?: any`, `result?: any` と型安全性を欠いており、引数ミスやレスポンス型不一致がコンパイル時に検知できなかった。また `IPCServer.ts` 内で `<any>` キャストが多用され、プッシュ通知の型付けも曖昧であった。
+- **実施した改善**:
+  1. **網羅的な引数・戻り値型マップ（`IPCArgsMap` / `IPCResponseMap`）の導入**:
+     - 全 7 モデル（`reservation`, `recorded`, `recordedTag`, `recording`, `rule`, `thumbnail`, `encodeEvent`）に属する計 33 関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を `IPCMessageDefine.ts` に完全網羅定義。
+  2. **ジェネリクス型 RPC とユニオン縮退回避の条件付き型（Conditional Types）設計**:
+     - `ClientMessageOption<M, F>`, `SendMessage<M, F>`, `ReplyMessage<T>` にジェネリクス型を適用。
+     - 単一型引数 `send<T>(option)` 呼び出し時に TypeScript が `M` を全体ユニオンと評価して `keyof IPCArgsMap[ModelName]` が `never` に縮退する言語仕様上の落とし穴を、条件付き型 `args?: M extends ModelName ? (F extends keyof IPCArgsMap[M] ? IPCArgsMap[M][F] : unknown) : unknown;` で遅延解決し、厳格な型推論と柔軟性を両立。
+  3. **Discriminated Union による親プロセス通知の型安全化 & `<any>` キャスト完全撤廃**:
+     - 親プロセスから子プロセスへの通知メッセージ（`NotifyClientMessage`, `PushEncodeMessage`, `PushLogMessage`）を Discriminated Union `ParentMessage` として再定義。
+     - `IPCServer`（`notifyClient`, `setEncode`, `pushLog`）および `IPCClient`（`ipcInit` 内のメッセージ受信分岐）から `<any>` キャストを完全に撤廃し、型ガードに基づいた安全な実装へリファクタリング。
+  4. **実行時引数検証の堅牢化 & 包括的単体テスト拡充**:
+     - `IPCServer.getArgsValue` において未定義引数のアクセス時に `IPCArgsError` を送出する安全弁を確立。
+     - RPC 戻り値ディスパッチ（`reservation.add`）および必須引数欠落時の `IPCArgsError` 例外応答を検証する単体テストを新規配備（`test/unit/ipc.test.ts`、計 13 テスト PASS）。
+  5. **メッセージ ID の一意性保証とタイマーリーク解消**:
+     - `id: Date.now()` による同一ミリ秒衝突リスクを排除し、単調増加シーケンス番号（`++IPCClient.messageSeq`）による確実な一意採番へ移行。
+     - レスポンス受信時の `clearTimeout` によるタイマー破棄を徹底し、高頻度通信時のタイマーハンドル蓄積を解消。`process.send` 未定義時の即時 reject ガードを配備。
+
 
 #### 2.4 レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行（完了）
 - **対象ファイル**: `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts`

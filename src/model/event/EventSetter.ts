@@ -221,9 +221,17 @@ export default class EventSetter implements IEventSetter {
                 // サムネイル作成
                 this.thumbnailManage.add(recorded.videoFiles[0].id);
 
+                const pushEncodeSafely = (option: apid.AddEncodeProgramOption) => {
+                    try {
+                        this.ipc.setEncode(option);
+                    } catch (err: any) {
+                        this.log.system.warn(`cannot request encode: ${err?.message || err}`);
+                    }
+                };
+
                 // エンコード追加 1
                 if (reserve.encodeMode1 !== null) {
-                    this.ipc.setEncode({
+                    pushEncodeSafely({
                         recordedId: recorded.id,
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:
@@ -238,7 +246,7 @@ export default class EventSetter implements IEventSetter {
 
                 // エンコード追加 2
                 if (reserve.encodeMode2 !== null) {
-                    this.ipc.setEncode({
+                    pushEncodeSafely({
                         recordedId: recorded.id,
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:
@@ -253,7 +261,7 @@ export default class EventSetter implements IEventSetter {
 
                 // エンコード追加 3
                 if (reserve.encodeMode3 !== null) {
-                    this.ipc.setEncode({
+                    pushEncodeSafely({
                         recordedId: recorded.id,
                         sourceVideoFileId: recorded.videoFiles[0].id,
                         parentDir:

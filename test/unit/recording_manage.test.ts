@@ -5,6 +5,7 @@ import RecordingManageModel from '../../src/model/operator/recording/RecordingMa
 
 describe('RecordingManageModel Lifecycle Tests', () => {
     let dummyLogger: any;
+    let dummySystemLog: any;
     let dummyConfig: any;
     let dummyRecordedDB: any;
     let dummyReserveDB: any;
@@ -15,9 +16,10 @@ describe('RecordingManageModel Lifecycle Tests', () => {
     let dummyRecorderProvider: any;
 
     beforeEach(() => {
+        dummySystemLog = { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() };
         dummyLogger = {
             getLogger: () => ({
-                system: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+                system: dummySystemLog,
             }),
         };
         dummyConfig = {
@@ -307,6 +309,122 @@ describe('RecordingManageModel Lifecycle Tests', () => {
 
             expect(reset1).toHaveBeenCalled();
             expect(reset2).toHaveBeenCalled();
+        });
+    });
+
+    describe('stop & stopAll (Graceful Shutdown)', () => {
+        it('calls stop on recorder and removes from recordingIndex', async () => {
+            const model = createModel();
+            const stopFn = vi.fn().mockResolvedValue(undefined);
+            (model as any).recordingIndex[60] = {
+                stop: stopFn,
+            };
+
+            expect(model.hasReserve(60)).toBe(true);
+            await model.stop(60);
+
+            expect(stopFn).toHaveBeenCalled();
+            expect(model.hasReserve(60)).toBe(false);
+        });
+
+        it('ignores stop when reserveId does not exist', async () => {
+            const model = createModel();
+            await expect(model.stop(999)).resolves.not.toThrow();
+        });
+
+        it('stops all active recorders in parallel and clears recordingIndex during stopAll', async () => {
+            const model = createModel();
+            const stop1 = vi.fn().mockResolvedValue(undefined);
+            const stop2 = vi.fn().mockResolvedValue(undefined);
+            const stop3 = vi.fn().mockResolvedValue(undefined);
+
+            const r1 = new Reserve();
+            r1.id = 1;
+            const r2 = new Reserve();
+            r2.id = 2;
+            const r3 = new Reserve();
+            r3.id = 3;
+
+            (model as any).recordingIndex[1] = { reserve: r1, stop: stop1 };
+            (model as any).recordingIndex[2] = { reserve: r2, stop: stop2 };
+            (model as any).recordingIndex[3] = { reserve: r3, stop: stop3 };
+
+            expect(model.hasReserve(1)).toBe(true);
+            expect(model.hasReserve(2)).toBe(true);
+            expect(model.hasReserve(3)).toBe(true);
+
+            await model.stopAll();
+
+            expect(stop1).toHaveBeenCalled();
+            expect(stop2).toHaveBeenCalled();
+            expect(stop3).toHaveBeenCalled();
+
+            expect(model.hasReserve(1)).toBe(false);
+            expect(model.hasReserve(2)).toBe(false);
+            expect(model.hasReserve(3)).toBe(false);
+            expect(Object.keys((model as any).recordingIndex)).toHaveLength(0);
+        });
+
+        it('handles individual recorder stop errors gracefully in stopAll without throwing', async () => {
+            const model = createModel();
+            const stopSuccess = vi.fn().mockResolvedValue(undefined);
+            const stopFailure = vi.fn().mockRejectedValue(new Error('disk error'));
+
+            const r1 = new Reserve();
+            r1.id = 1;
+            const r2 = new Reserve();
+            r2.id = 2;
+
+            (model as any).recordingIndex[1] = { reserve: r1, stop: stopSuccess };
+            (model as any).recordingIndex[2] = { reserve: r2, stop: stopFailure };
+
+            await expect(model.stopAll()).resolves.not.toThrow();
+
+            expect(stopSuccess).toHaveBeenCalled();
+            expect(stopFailure).toHaveBeenCalled();
+            expect(Object.keys((model as any).recordingIndex)).toHaveLength(0);
+            expect(dummySystemLog.warn).toHaveBeenCalledWith(
+                expect.stringContaining('stopAll finished with 1 errors out of 2'),
+            );
+        });
+
+        it('handles empty recordingIndex in stopAll without error', async () => {
+            const model = createModel();
+            await expect(model.stopAll()).resolves.not.toThrow();
+            expect(Object.keys((model as any).recordingIndex)).toHaveLength(0);
+        });
+
+        it('prevents adding new timers in update and resetTimer once stopAll has been called', async () => {
+            const model = createModel();
+            await model.stopAll();
+
+            const r = new Reserve();
+            r.id = 50;
+            await model.update({ insert: [r], update: [], delete: [], isSuppressLog: false });
+
+            // Since stopAll stopped the manager, update should not add any recorder
+            expect(model.hasReserve(50)).toBe(false);
+
+            // resetTimer should also be a safe no-op
+            expect(() => model.resetTimer()).not.toThrow();
+        });
+
+        it('prevents re-adding recording on failure if manager is stopped', async () => {
+            let recordingFailedCallback: (reserve: Reserve) => Promise<void> = () => Promise.resolve();
+            dummyRecordingEvent.setRecordingFailed.mockImplementation((cb: (reserve: Reserve) => Promise<void>) => {
+                recordingFailedCallback = cb;
+            });
+
+            const model = createModel();
+            await model.stopAll();
+
+            const r = new Reserve();
+            r.id = 77;
+            await recordingFailedCallback(r);
+
+            // Should not re-add recording
+            expect(model.hasReserve(77)).toBe(false);
+            expect(dummyRecordedDB.findReserveId).not.toHaveBeenCalled();
         });
     });
 

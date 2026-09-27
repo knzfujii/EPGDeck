@@ -9,5 +9,7 @@ export default interface IRecordingManageModel {
     hasReserve(reserveId: apid.ReserveId): boolean;
     cancel(reserveId: apid.ReserveId, isPlanToDelete: boolean): Promise<void>;
     finish(reserveId: apid.ReserveId): Promise<void>;
+    stop(reserveId: apid.ReserveId): Promise<void>;
+    stopAll(): Promise<void>;
     resetTimer(): void;
 }

@@ -47,13 +47,20 @@ flowchart TD
 
 ### Phase 1: 安定性ハックの解消 & 信頼性強化 (最優先)
 
-#### 1.1 Operator プロセスの Graceful Shutdown 実装
-- **対象ファイル**: `src/index.ts`, `src/model/operator/recording/RecordingManageModel.ts`
+#### 1.1 Operator プロセスの Graceful Shutdown 実装（実装完了）
+- **対象ファイル**: `src/index.ts`, `src/model/operator/recording/RecordingManageModel.ts`, `src/model/operator/recording/RecorderModel.ts`, `src/model/operator/recording/IRecordingManageModel.ts`, `src/model/operator/recording/IRecorderModel.ts`
 - **課題**:
-  現在、SIGINT / SIGTERM 受信時に `shutdown` 関数は `serviceChild`（ServiceExecutor）の停止のみを待機し、`process.exit(0)` で即座に終了する。録画中のレコーダー（Mirakurun ストリーム、TS 書き込みパイプ、一時ファイル等）やエンコードキューの終了処理が呼ばれず、OS シャットダウンやサービス再起動時に書きかけの TS ファイルが破損するリスクがある。
-- **改善方針**:
-  1. `shutdown` シーケンスに `RecordingManageModel.stopAll()`（ストリームのフラッシュ、EOF クローズ、DB 実尺確定）を組み込む。
-  2. Mirakurun との接続を安全に閉じ、全ファイルディスクリプタを解放した後にプロセスを終了する。
+  従来、SIGINT / SIGTERM 受信時に `shutdown` 関数は `serviceChild`（ServiceExecutor）の停止のみを待機し、`process.exit(0)` で即座に終了していた。録画中のレコーダー（Mirakurun ストリーム、TS 書き込みパイプ、一時ファイル等）の終了処理が呼ばれず、OS シャットダウンやサービス再起動時に書きかけの TS ファイルが破損するリスクがあった。
+- **実装内容**:
+  1. `shutdown` シーケンスを刷新:
+     - `StorageManageModel.stop()` で定期空き容量チェックを安全に停止。
+     - `serviceChild` へ SIGTERM を送信して API 受信を遮断。
+     - `RecordingManageModel.stopAll()` により、録画中レコーダー群を並列で安全に停止・フラッシュ。
+     - `RecorderModel.stop()` / `recEnd()` において、Mirakurun ストリーム切断、`fs.WriteStream`（`recFile`）の書き込み完了（`finish`/`close`）待機、`recordedDB.removeRecording`（実録画時間 `duration` および `endAt` 確定、`isRecording: false`）、一時ディレクトリ（`tempDir`）からの移動、DB 動画ファイルサイズ更新、ドロップログ集計および 0 件時ログ削除を完遂。
+     - `serviceChild` のクリーン終了（最大 5 秒待機）を確認。
+     - `IDrizzleOperator.closeConnection()` で DB コネクション（SQLite / MySQL）を安全にクローズ。
+  2. 2 回目のシグナル受信時は即時強制終了（`process.exit(1)`）する二重安全機構を配備。
+  3. `recEndPromise` による並行終了処理の重複実行防止機構を実装。
 
 #### 1.2 動画・ライブストリーミングにおけるバックプレッシャー制御の導入
 - **対象ファイル**: `src/model/service/hono/routes/streams.ts`

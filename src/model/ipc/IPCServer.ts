@@ -79,6 +79,12 @@ export default class IPCServer implements IIPCServer {
     public register(child: ChildProcess): void {
         this.child = child;
 
+        this.child.once('exit', () => {
+            if (this.child === child) {
+                this.child = null;
+            }
+        });
+
         this.child.on('message', async (msg: SendMessage) => {
             if (
                 typeof this.functions[msg.model] !== 'undefined' &&
@@ -110,13 +116,17 @@ export default class IPCServer implements IIPCServer {
      * 子プロセスに socket.io による状態更新通知を依頼する
      */
     public notifyClient(): void {
-        if (this.child === null) {
+        if (this.child === null || !this.child.connected) {
             return;
         }
 
-        this.child.send(<any>(<NotifyClientMessage>{
-            type: 'notifyClient',
-        }));
+        try {
+            this.child.send(<any>(<NotifyClientMessage>{
+                type: 'notifyClient',
+            }));
+        } catch {
+            // ignore
+        }
     }
 
     /**
@@ -128,10 +138,18 @@ export default class IPCServer implements IIPCServer {
             throw new Error('ChildIsNull');
         }
 
-        this.child.send(<any>(<PushEncodeMessage>{
-            type: 'pushEncode',
-            value: addOption,
-        }));
+        if (!this.child.connected) {
+            return;
+        }
+
+        try {
+            this.child.send(<any>(<PushEncodeMessage>{
+                type: 'pushEncode',
+                value: addOption,
+            }));
+        } catch {
+            // ignore
+        }
     }
 
     /**
@@ -396,7 +414,7 @@ export default class IPCServer implements IIPCServer {
             const reserveId = this.getArgsValue<apid.ReserveId>(msg, 'reserveId');
             // 録画ストリームを未完了フラグ (isPlanToDelete = false, isNeedDeleteReservation = false) で停止
             if (this.recordingManage.hasReserve(reserveId)) {
-                await this.recordingManage.cancel(reserveId, false);
+                await this.recordingManage.stop(reserveId);
             }
             // 予約テーブル側も安全にキャンセル（手動なら削除、ルールならスキップ）
             await this.cancelReserveIfExists(reserveId);

@@ -119,6 +119,30 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - **定期バックグラウンドジョブのガード (`StorageManageModel`)**:
   定期実行ジョブが重なった場合の重複実行抑止には `isRunning` ガードを用いつつ、`try-finally` により例外発生時も確実にロック解除を保証しています。
 
+### プロセス停止と Graceful Shutdown 設計 (録画中ストリーム・ファイル保護)
+
+OS のシャットダウンやサービス再起動（`systemctl stop` / `docker stop` / SIGINT / SIGTERM）時に、進行中の録画ファイルやデータベースの整合性を確実に保護するための多層防御シーケンスを実装しています。
+
+1. **二重シグナル即時保護**:
+   - 初回の `SIGINT` / `SIGTERM` で Graceful Shutdown シーケンスを開始。
+   - シャットダウン処理中に 2 回目のシグナルを受信した場合は即時強制終了（`process.exit(1)`）し、運用時のハングを防止。
+2. **バックグラウンド定期処理の停止**:
+   - `StorageManageModel.stop()` により、録画削除を伴う空き容量チェックインターバルを即時停止。
+3. **Web API 受信の遮断と Service プロセス停止**:
+   - `serviceChild`（ServiceExecutor）へ `SIGTERM` を送信し、Web API / WebSocket の受付を停止。
+   - 子プロセスの終了を最大 5 秒間非同期待機（タイムアウト時は `SIGKILL`）。
+4. **録画中ストリームのフラッシュと DB 実尺確定 (`RecordingManageModel.stopAll`)**:
+   - 全てのアクティブなレコーダーを並列（`Promise.allSettled`）かつ安全に停止。
+   - **ストリーム切断**: Mirakurun との接続を安全に解除しチューナーを解放。
+   - **TS 書き込み完了待機**: `recFile`（`fs.WriteStream`）の `finish` / `close` イベントを安全に待機し、OS バッファへのフラッシュを完了。
+   - **DB 実録画時間（duration）確定**: 実測経過ミリ秒と終了時刻（`endAt`）を `recordedDB.removeRecording` で確定し、`isRecording: false` を反映。
+   - **ファイル移動 & サイズ同期**: 一時ディレクトリ（`tempDir`）使用時は本保存先へ移動し、実ファイルサイズを DB へ書き込み。
+   - **ドロップログ集計**: `DropChecker` を停止し、ドロップ数集計と 0 件時ログ実ファイル削除を完了。
+   - **二重終了防止**: `recEndPromise` により、API からの手動停止や Mirakurun 切断とシャットダウンが重複しても 1 度だけ安全に実行。
+   - **不要な後続ジョブ・通知の抑止**: シャットダウン時は番組録画が途中中断された状態となるため、エンコードキュー登録（`pushEncode`）、サムネイル生成、`RecordedHistory`（二重録画防止履歴）登録、予約削除、および通常完了フック（`recordingFinish`）の通知を意図して抑止し、終了間際の不要なプロセス起動や将来の再放送録画スキップ事故を防止。
+5. **DB コネクション安全クローズ**:
+   - `IDrizzleOperator.closeConnection()` により、SQLite ファイルロック解除または MySQL コネクションプールを安全に終了。
+
 ---
 
 ## 4. フロントエンド設計

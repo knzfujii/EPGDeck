@@ -29,6 +29,7 @@ class RecordingManageModel implements IRecordingManageModel {
     private recordingUtil: IRecordingUtilModel;
     private recordingEvent: IRecordingEvent;
     private recordingIndex: RecordingIndex = {};
+    private isStopped: boolean = false;
 
     constructor(
         @inject('ILoggerModel') logger: ILoggerModel,
@@ -67,6 +68,10 @@ class RecordingManageModel implements IRecordingManageModel {
 
         this.recordingEvent.setRecordingFailed(async reserve => {
             this.deleteRecording(reserve.id);
+
+            if (this.isStopped) {
+                return;
+            }
 
             const recordeds = await this.recordedDB.findReserveId(reserve.id);
 
@@ -194,6 +199,10 @@ class RecordingManageModel implements IRecordingManageModel {
      * @param diff: IReserveUpdateValues
      */
     public async update(diff: IReserveUpdateValues): Promise<void> {
+        if (this.isStopped) {
+            return;
+        }
+
         // 新規追加
         if (typeof diff.insert !== 'undefined') {
             for (const reserve of diff.insert) {
@@ -323,9 +332,66 @@ class RecordingManageModel implements IRecordingManageModel {
     }
 
     /**
+     * 指定された reserve id の録画を中断して保存する
+     * @param reserveId: ReserveId
+     * @return Promise<void>
+     */
+    public async stop(reserveId: apid.ReserveId): Promise<void> {
+        const recording = this.recordingIndex[reserveId];
+        if (typeof recording === 'undefined') {
+            return;
+        }
+
+        this.deleteRecording(reserveId);
+
+        this.log.system.info(`stop recording reserveId: ${reserveId}`);
+        return recording.stop();
+    }
+
+    /**
+     * 全ての録画およびタイマーを安全に停止・フラッシュする（Graceful Shutdown用）
+     * @return Promise<void>
+     */
+    public async stopAll(): Promise<void> {
+        this.isStopped = true;
+        this.log.system.info('start stopAll recordings');
+
+        const activeRecorders = Object.values(this.recordingIndex);
+        this.recordingIndex = {};
+
+        const results = await Promise.allSettled(
+            activeRecorders.map(async recorder => {
+                const reserveId = recorder.reserve?.id;
+                this.log.system.info(`stopping recorder reserveId: ${reserveId}`);
+                await recorder.stop();
+            }),
+        );
+
+        let failedCount = 0;
+        for (const [index, result] of results.entries()) {
+            if (result.status === 'rejected') {
+                failedCount++;
+                const reserveId = activeRecorders[index]?.reserve?.id;
+                this.log.system.error(`failed to stop recorder reserveId: ${reserveId}`);
+                this.log.system.error(result.reason);
+            }
+        }
+
+        if (failedCount > 0) {
+            this.log.system.warn(`stopAll finished with ${failedCount} errors out of ${activeRecorders.length}`);
+        } else {
+            this.log.system.info(`stopAll successfully stopped ${activeRecorders.length} recordings`);
+        }
+    }
+
+    /**
      * タイマーを再設定する
      */
     public resetTimer(): void {
+        if (this.isStopped) {
+            return;
+        }
+
         this.log.system.info('reset timer');
 
         for (const key in this.recordingIndex) {

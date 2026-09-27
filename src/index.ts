@@ -14,6 +14,7 @@ import IRecordingManageModel from './model/operator/recording/IRecordingManageMo
 import IRecordedManageModel from './model/operator/recorded/IRecordedManageModel.js';
 import IReservationManageModel from './model/operator/reservation/IReservationManageModel.js';
 import IStorageManageModel from './model/operator/storage/IStorageManageModel.js';
+import IOperatorShutdownModel from './model/operator/shutdown/IOperatorShutdownModel.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -102,63 +103,20 @@ const runOperator = async () => {
 };
 
 let serviceChild: child_process.ChildProcess | null = null;
-let isShuttingDown: boolean = false;
 let serviceRestartCount: number = 0;
 let serviceStartTime: number = 0;
 let serviceRestartTimer: NodeJS.Timeout | null = null;
 
-const shutdown = async (signal: string) => {
-    if (isShuttingDown) {
-        return;
-    }
-    isShuttingDown = true;
-
+const operatorShutdown = container.get<IOperatorShutdownModel>('IOperatorShutdownModel');
+operatorShutdown.setServiceRestartTimerClearer(() => {
     if (serviceRestartTimer !== null) {
         clearTimeout(serviceRestartTimer);
         serviceRestartTimer = null;
     }
+});
 
-    try {
-        const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
-        log.system.info(`received ${signal}, shutting down gracefully...`);
-    } catch {
-        // ignore
-    }
-
-    if (serviceChild !== null) {
-        const targetChild = serviceChild;
-        serviceChild = null;
-        targetChild.removeAllListeners();
-
-        try {
-            targetChild.kill('SIGTERM');
-        } catch {
-            // ignore
-        }
-
-        // 子プロセスのクリーン終了を最大 5 秒待つ
-        await new Promise<void>(resolve => {
-            const timeout = setTimeout(() => {
-                try {
-                    targetChild.kill('SIGKILL');
-                } catch {
-                    // ignore
-                }
-                resolve();
-            }, 5000);
-
-            targetChild.once('exit', () => {
-                clearTimeout(timeout);
-                resolve();
-            });
-        });
-    }
-
-    process.exit(0);
-};
-
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void operatorShutdown.shutdown('SIGINT'));
+process.on('SIGTERM', () => void operatorShutdown.shutdown('SIGTERM'));
 process.on('exit', () => {
     if (serviceChild !== null) {
         serviceChild.removeAllListeners();
@@ -175,7 +133,7 @@ process.on('exit', () => {
  * Service 起動処理
  */
 const runService = async () => {
-    if (isShuttingDown) {
+    if (operatorShutdown.isShuttingDown()) {
         return;
     }
 
@@ -188,12 +146,14 @@ const runService = async () => {
         },
     );
     serviceChild = child;
+    operatorShutdown.setServiceChild(child);
 
     // 終了したら再起動（バックオフ機構付き）
     const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
     const handleExit = () => {
         serviceChild = null;
-        if (isShuttingDown) {
+        operatorShutdown.setServiceChild(null);
+        if (operatorShutdown.isShuttingDown()) {
             return;
         }
 

@@ -25,6 +25,8 @@ export interface MoveRecordedCLIOptions {
     yes?: boolean;
     help?: boolean;
     cleanupEmptyDirs?: boolean;
+    ext?: string;
+    regex?: boolean;
 }
 
 export interface MoveRecordedSummary {
@@ -38,6 +40,7 @@ export interface MoveRecordedSummary {
 }
 
 export type ProgressCallback = (percent: number, transferred: number, total: number) => void;
+export type VideoFileMatcher = (filePath: string) => boolean;
 
 export class MoveRecordedFilesCore {
     public static parseCLIOptions(args: string[]): MoveRecordedCLIOptions {
@@ -53,6 +56,8 @@ export class MoveRecordedFilesCore {
                 help: { type: 'boolean', short: 'h', default: false },
                 'cleanup-empty-dirs': { type: 'boolean', short: 'c' },
                 'keep-empty-dirs': { type: 'boolean', short: 'k', default: false },
+                ext: { type: 'string', short: 'e' },
+                regex: { type: 'boolean', short: 'E', default: false },
             },
             allowPositionals: true,
             strict: false,
@@ -72,6 +77,66 @@ export class MoveRecordedFilesCore {
             yes: !!values.yes,
             help: !!values.help,
             cleanupEmptyDirs,
+            ext: values.ext as string | undefined,
+            regex: !!values.regex,
+        };
+    }
+
+    public static globToRegExp(
+        glob: string,
+        options: { caseInsensitive?: boolean } = { caseInsensitive: true },
+    ): RegExp {
+        const escaped = glob
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.');
+        return new RegExp(`^${escaped}$`, options.caseInsensitive ? 'i' : '');
+    }
+
+    public static normalizeExtension(ext?: string): string | undefined {
+        const trimmed = ext?.trim().toLowerCase();
+        if (!trimmed) {
+            return undefined;
+        }
+        return trimmed.startsWith('.') ? trimmed : `.${trimmed}`;
+    }
+
+    public static createMatcher(options: { query?: string; ext?: string; regex?: boolean }): VideoFileMatcher {
+        const normalizedExt = MoveRecordedFilesCore.normalizeExtension(options.ext);
+        const query = options.query?.trim();
+
+        let patternMatcher: ((filePath: string) => boolean) | null = null;
+
+        if (query) {
+            if (options.regex) {
+                const re = new RegExp(query, 'i');
+                patternMatcher = (fp: string) => re.test(fp) || re.test(path.basename(fp));
+            } else if (query.includes('*') || query.includes('?')) {
+                const hasSlash = query.includes('/');
+                const globRe = MoveRecordedFilesCore.globToRegExp(query, { caseInsensitive: true });
+                patternMatcher = (fp: string) => {
+                    if (hasSlash) {
+                        return globRe.test(fp);
+                    }
+                    return globRe.test(path.basename(fp)) || globRe.test(fp);
+                };
+            } else {
+                const lowerQuery = query.toLowerCase();
+                patternMatcher = (fp: string) => fp.toLowerCase().includes(lowerQuery);
+            }
+        }
+
+        return (filePath: string): boolean => {
+            if (normalizedExt) {
+                const fileExt = path.extname(filePath).toLowerCase();
+                if (fileExt !== normalizedExt) {
+                    return false;
+                }
+            }
+            if (patternMatcher) {
+                return patternMatcher(filePath);
+            }
+            return true;
         };
     }
 
@@ -95,7 +160,8 @@ export class MoveRecordedFilesCore {
             return originalFilePath;
         }
         const fileName = path.basename(originalFilePath);
-        return path.posix.join(trimmed.replace(/\\/g, '/'), fileName);
+        const normalizedRel = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
+        return path.posix.join(normalizedRel, fileName);
     }
 
     /**
@@ -180,10 +246,14 @@ export default class MoveRecordedFiles {
         console.log('使い方:');
         console.log('  npm run move-recorded [-- [<pattern>] [options]]');
         console.log('\nオプション:');
-        console.log('  <pattern>                 filePath に対する部分一致検索クエリ（位置引数）');
-        console.log('  -q, --query <pattern>     検索クエリ');
-        console.log('  -s, --src <name|index>    移動元親ディレクトリ名または番号 (1〜N)');
-        console.log('  -d, --dst <name|index>    移動先親ディレクトリ名または番号 (1〜N、省略時は移動元と同じ)');
+        console.log('  <pattern>                 filePath に対する検索クエリ（位置引数）');
+        console.log(
+            '  -q, --query <pattern>     検索キーワードまたはワイルドカード (例: キーワード, *キーワード*.mp4)',
+        );
+        console.log('  -e, --ext <ext>           対象の拡張子で絞り込み (例: mp4, ts / 省略時は全拡張子)');
+        console.log('  -E, --regex               クエリを正規表現として解釈');
+        console.log('  -s, --src <name|index>    移動元ストレージ名または番号 (1〜N)');
+        console.log('  -d, --dst <name|index>    移動先ストレージ名または番号 (1〜N、省略時は移動元と同じ)');
         console.log('  -r, --dest-relpath <path> 移動先相対ディレクトリパス（省略時は元の filePath を維持）');
         console.log('  -n, --dry-run             ファイル移動やDB更新を行わずにシミュレーション');
         console.log('  -y, --yes                 実行前の確認プロンプトをスキップ');
@@ -221,7 +291,7 @@ export default class MoveRecordedFiles {
 
         const directories = this.config.recording.directories;
         if (!directories || directories.length === 0) {
-            this.log.system.error('No recording directories configured in config.yml (recording.directories).');
+            this.log.system.error('config.yml に録画ストレージ (recording.directories) が設定されていません。');
             process.exit(1);
         }
 
@@ -231,54 +301,77 @@ export default class MoveRecordedFiles {
         });
 
         try {
-            // 1. 検索パターンの取得
-            let query = cliOpts.query;
+            // 1. 検索パターンおよび拡張子の取得
+            let query = cliOpts.query?.trim();
+            let ext = cliOpts.ext;
+
             if (!query) {
-                query = (await rl.question('Search pattern for filePath: ')).trim();
-                if (!query) {
-                    console.error('Error: query pattern is required.');
+                if (!process.stdin.isTTY) {
+                    console.error('エラー: 検索キーワード (-q / --query) の指定は必須です。');
                     process.exit(1);
+                } else {
+                    while (!query) {
+                        const answer = (
+                            await rl.question('検索キーワードまたはパターン (必須, 例: キーワード, *キーワード*.mp4): ')
+                        ).trim();
+                        if (!answer) {
+                            console.log('エラー: 検索キーワードの入力は必須です。空欄での全件移動はできません。');
+                            continue;
+                        }
+                        query = answer;
+                    }
                 }
             }
 
-            // 2. 移動元親ディレクトリの取得
+            if (ext === undefined) {
+                if (process.stdin.isTTY && !cliOpts.yes) {
+                    const answer = (await rl.question('対象の拡張子 (例: mp4, ts / 未入力で全拡張子): ')).trim();
+                    ext = answer.length > 0 ? answer : undefined;
+                }
+            }
+
+            // 2. 移動元ストレージの取得
             let srcDir: RecordedDirInfo | null = null;
             if (cliOpts.src) {
                 srcDir = MoveRecordedFilesCore.resolveParent(cliOpts.src, directories);
                 if (!srcDir) {
-                    console.error(`Error: source parent not found in config: ${cliOpts.src}`);
+                    console.error(`エラー: 移動元ストレージが config に見つかりません: ${cliOpts.src}`);
                     this.printAvailableParents(directories);
                     process.exit(1);
                 }
             } else {
+                if (!process.stdin.isTTY) {
+                    console.error('エラー: 非対話モードでは移動元ストレージ (-s) の指定が必要です。');
+                    process.exit(1);
+                }
                 this.printAvailableParents(directories);
-                const answer = (await rl.question('Source parent (name or number): ')).trim();
+                const answer = (await rl.question('移動元ストレージ (番号または名前): ')).trim();
                 srcDir = MoveRecordedFilesCore.resolveParent(answer, directories);
                 if (!srcDir) {
-                    console.error(`Error: invalid source parent: ${answer}`);
+                    console.error(`エラー: 無効な移動元ストレージです: ${answer}`);
                     process.exit(1);
                 }
             }
 
-            // 3. 移動先親ディレクトリの取得
+            // 3. 移動先ストレージの取得
             let dstDir: RecordedDirInfo | null = null;
             if (cliOpts.dst !== undefined) {
                 dstDir = MoveRecordedFilesCore.resolveParent(cliOpts.dst, directories);
                 if (!dstDir) {
-                    console.error(`Error: destination parent not found in config: ${cliOpts.dst}`);
+                    console.error(`エラー: 移動先ストレージが config に見つかりません: ${cliOpts.dst}`);
                     this.printAvailableParents(directories);
                     process.exit(1);
                 }
+            } else if (cliOpts.yes || !process.stdin.isTTY) {
+                dstDir = srcDir;
             } else {
-                const answer = (
-                    await rl.question('Destination parent (leave empty to use same as source) [name or number]: ')
-                ).trim();
+                const answer = (await rl.question('移動先ストレージ (未入力で移動元と同じ) [番号または名前]: ')).trim();
                 if (!answer) {
                     dstDir = srcDir;
                 } else {
                     dstDir = MoveRecordedFilesCore.resolveParent(answer, directories);
                     if (!dstDir) {
-                        console.error(`Error: invalid destination parent: ${answer}`);
+                        console.error(`エラー: 無効な移動先ストレージです: ${answer}`);
                         process.exit(1);
                     }
                 }
@@ -287,19 +380,31 @@ export default class MoveRecordedFiles {
             // 4. 移動先相対パスの取得
             let destRelPath = cliOpts.destRelPath;
             if (destRelPath === undefined) {
-                const answer = (
-                    await rl.question('Destination relative path (leave blank to preserve original filePath): ')
-                ).trim();
-                destRelPath = answer.length > 0 ? answer : undefined;
+                if (cliOpts.yes || !process.stdin.isTTY) {
+                    destRelPath = undefined;
+                } else {
+                    const answer = (await rl.question('移動先サブフォルダ (未入力で元の階層を維持): ')).trim();
+                    destRelPath = answer.length > 0 ? answer : undefined;
+                }
             }
 
             // 5. DB 接続確認
             await this.connectionChecker.checkDB();
 
-            // 6. レコード検索
-            const matchedRecords = await this.videoFileDB.findByParentAndQuery(srcDir.name, query);
+            // 6. レコード検索とフィルタリング
+            const isPlainSubstring = query && !cliOpts.regex && !query.includes('*') && !query.includes('?');
+            const dbSearchQuery = isPlainSubstring ? query : '';
+            const allCandidateRecords = await this.videoFileDB.findByParentAndQuery(srcDir.name, dbSearchQuery);
+
+            const matcher = MoveRecordedFilesCore.createMatcher({
+                query,
+                ext,
+                regex: cliOpts.regex,
+            });
+            const matchedRecords = allCandidateRecords.filter(r => matcher(r.filePath));
+
             if (matchedRecords.length === 0) {
-                console.log(`No matching records found for query '${query}' under parent '${srcDir.name}'.`);
+                console.log(`条件に一致する録画ファイルが見つかりませんでした (ストレージ: '${srcDir.name}')`);
                 return {
                     totalRecords: 0,
                     movedCount: 0,
@@ -311,50 +416,60 @@ export default class MoveRecordedFiles {
                 };
             }
 
-            console.log(`\nFound ${matchedRecords.length} matching records under parent '${srcDir.name}'.`);
-            console.log(`Source root:             ${srcDir.path}`);
-            console.log(`Destination parent:      ${dstDir.name}`);
-            console.log(`Destination root:        ${dstDir.path}`);
+            console.log(`\n一致したレコード:        ${matchedRecords.length} 件 (移動元: '${srcDir.name}')`);
+            console.log(`移動元ルート:            ${srcDir.path}`);
+            console.log(`移動先ストレージ:        ${dstDir.name}`);
+            console.log(`移動先ルート:            ${dstDir.path}`);
             if (destRelPath) {
-                console.log(`Destination relative:    ${destRelPath}`);
+                console.log(`移動先サブフォルダ:      ${destRelPath}`);
             } else {
-                console.log(`Destination relative:    preserve original filePath`);
+                console.log(`移動先サブフォルダ:      元の階層を維持`);
             }
-            console.log(`Cleanup empty folders:   ${cliOpts.cleanupEmptyDirs ? 'Yes' : 'No'}`);
+            if (ext) {
+                console.log(`対象拡張子:              ${MoveRecordedFilesCore.normalizeExtension(ext)}`);
+            }
+            console.log(`空フォルダ自動削除:      ${cliOpts.cleanupEmptyDirs ? '有効' : '無効'}`);
 
             // 7. Dry-run 判断
             let isDryRun = cliOpts.dryRun;
             if (isDryRun === undefined) {
-                if (cliOpts.yes) {
+                if (cliOpts.yes || !process.stdin.isTTY) {
                     isDryRun = false;
                 } else {
-                    const ans = (await rl.question('\nExecute as dry-run only? [Y/n]: ')).trim().toLowerCase();
+                    const ans = (await rl.question('\ndry-run (シミュレーション) のみ実行しますか？ [Y/n]: '))
+                        .trim()
+                        .toLowerCase();
                     isDryRun = ans !== 'n' && ans !== 'no';
                 }
             }
 
             // 8. プレビュー表示（最大10件）
-            console.log('\n--- Preview (up to 10 records) ---');
+            console.log('\n--- 移動対象プレビュー (最大10件) ---');
             const previewLimit = Math.min(matchedRecords.length, 10);
             for (let i = 0; i < previewLimit; i++) {
                 const rec = matchedRecords[i];
-                console.log(`id=${rec.id} filePath=${rec.filePath}`);
+                const targetPath = MoveRecordedFilesCore.calculateNewFilePath(rec.filePath, destRelPath);
+                console.log(`id=${rec.id} [${srcDir.name}] ${rec.filePath} -> [${dstDir.name}] ${targetPath}`);
             }
             if (matchedRecords.length > 10) {
-                console.log(`...and ${matchedRecords.length - 10} more rows.`);
+                console.log(`...他 ${matchedRecords.length - 10} 件`);
             }
-            console.log('----------------------------------\n');
+            console.log('--------------------------------------\n');
 
             // 9. 実行確認プロンプト
             if (isDryRun) {
-                console.log('Dry-run mode: no changes will be applied.\n');
+                console.log('【dry-run モード】実際のファイル移動やDB更新は行われません。\n');
             } else {
-                console.log('This operation will move files and update the DB.');
+                console.log('この操作により、ファイルの移動とDBの更新が実行されます。');
                 if (!cliOpts.yes) {
-                    const ans = (await rl.question('Proceed? [y/N]: ')).trim().toLowerCase();
-                    if (ans !== 'y' && ans !== 'yes') {
-                        console.log('Aborted.');
+                    if (!process.stdin.isTTY) {
+                        console.error('エラー: 実行確認が必要です。非対話実行には -y / --yes を指定してください。');
                         process.exit(1);
+                    }
+                    const ans = (await rl.question('移動処理を実行しますか？ [y/N]: ')).trim().toLowerCase();
+                    if (ans !== 'y' && ans !== 'yes') {
+                        console.log('処理を中断しました。');
+                        process.exit(0);
                     }
                 }
             }
@@ -376,12 +491,13 @@ export default class MoveRecordedFiles {
             return summary;
         } finally {
             rl.close();
+            process.stdin.pause();
             await this.drizzleOperator.closeConnection();
         }
     }
 
     private printAvailableParents(directories: RecordedDirInfo[]): void {
-        console.log('Available parents:');
+        console.log('利用可能なストレージ:');
         directories.forEach((d, i) => {
             console.log(`  ${i + 1}: ${d.name} (${d.path})`);
         });
@@ -412,7 +528,7 @@ export default class MoveRecordedFiles {
 
             if (!changedParent && !changedFilePath) {
                 if (isDryRun) {
-                    console.log(`  no-op: same parent and same filePath (${originalFilePath})`);
+                    console.log(`  変更なし: 移動元と移動先が同一です (${originalFilePath})`);
                 }
                 noOpCount++;
                 continue;
@@ -420,22 +536,9 @@ export default class MoveRecordedFiles {
 
             const srcFullPath = path.join(srcDir.path, originalFilePath);
             const dstFullPath = path.join(dstDir.path, newFilePath);
+            const isSameResolvedPath = path.resolve(srcFullPath) === path.resolve(dstFullPath);
 
-            if (isDryRun) {
-                console.log(`Record (id=${rec.id}): ${originalFilePath}`);
-                console.log(`  src: ${srcFullPath}`);
-                console.log(`  dst: ${dstFullPath}`);
-                console.log(`  DB update: parentDirectoryName='${dstDir.name}', filePath='${newFilePath}'`);
-                console.log(`  file move: mv '${srcFullPath}' '${dstFullPath}'`);
-                if (cleanupEmptyDirs) {
-                    console.log(`  cleanup: would remove empty parent folders under '${srcDir.path}' if empty`);
-                }
-                console.log();
-                movedCount++;
-                continue;
-            }
-
-            // 実行モード
+            // ディスク上の存在確認
             let srcExists = false;
             try {
                 await FileUtil.stat(srcFullPath);
@@ -444,17 +547,67 @@ export default class MoveRecordedFiles {
                 // not found
             }
 
-            if (!srcExists) {
-                // 自己修復チェック: 移動先ファイルが既に存在するか確認
-                let dstExists = false;
+            let dstExists = false;
+            if (!isSameResolvedPath) {
                 try {
                     await FileUtil.stat(dstFullPath);
                     dstExists = true;
                 } catch {
                     // not found
                 }
+            }
 
+            // 1. 移動元ファイルが存在しない場合
+            if (!srcExists) {
                 if (dstExists) {
+                    // 自己修復チェック: 移動先ファイルが既に存在する場合
+                    if (isDryRun) {
+                        console.log(`レコード (id=${rec.id}): ${originalFilePath}`);
+                        console.log(
+                            `  [dry-run 自己修復] 移動元が見つかりませんが、移動先に既に存在します: '${dstFullPath}'`,
+                        );
+                        console.log(`  DB更新のみ: parentDirectoryName='${dstDir.name}', filePath='${newFilePath}'`);
+                        console.log();
+                        selfHealedCount++;
+                    } else {
+                        try {
+                            await this.videoFileDB.updateFilePath({
+                                videoFileId: rec.id,
+                                parentDirectoryName: dstDir.name,
+                                filePath: newFilePath,
+                            });
+                            this.log.system.info(
+                                `[自己修復] DB のパス情報を更新しました (id: ${rec.id}): ${originalFilePath} -> ${newFilePath}`,
+                            );
+                            selfHealedCount++;
+                        } catch (err: any) {
+                            this.log.system.error(`自己修復中のDB更新に失敗しました (id: ${rec.id}): ${err.message}`);
+                            errorCount++;
+                        }
+                    }
+                    continue;
+                }
+
+                if (isDryRun) {
+                    console.log(`レコード (id=${rec.id}): ${originalFilePath}`);
+                    console.log(`  [dry-run 欠落] 移動元ファイルが存在しません: '${srcFullPath}'`);
+                    console.log();
+                } else {
+                    this.log.system.warn(`警告: 移動元ファイルが存在しません: ${srcFullPath}`);
+                }
+                missingCount++;
+                continue;
+            }
+
+            // 2. 移動元ファイルが存在し、実質同一パス（同一実体）の場合（DBの親ディレクトリ名のみ更新等）
+            if (isSameResolvedPath) {
+                if (isDryRun) {
+                    console.log(`レコード (id=${rec.id}): ${originalFilePath}`);
+                    console.log(`  [dry-run パス同一] 実ファイルパスが同一のため移動は不要です: '${srcFullPath}'`);
+                    console.log(`  DB更新: parentDirectoryName='${dstDir.name}', filePath='${newFilePath}'`);
+                    console.log();
+                    movedCount++;
+                } else {
                     try {
                         await this.videoFileDB.updateFilePath({
                             videoFileId: rec.id,
@@ -462,23 +615,49 @@ export default class MoveRecordedFiles {
                             filePath: newFilePath,
                         });
                         this.log.system.info(
-                            `[Self-Heal] Updated DB (id: ${rec.id}): ${originalFilePath} -> ${newFilePath}`,
+                            `DB の親ストレージ情報を更新しました (id: ${rec.id}): '${originalFilePath}' (DB: ${dstDir.name} / ${newFilePath})`,
                         );
-                        selfHealedCount++;
+                        movedCount++;
                     } catch (err: any) {
-                        this.log.system.error(
-                            `Failed to update DB during self-healing (id: ${rec.id}): ${err.message}`,
-                        );
+                        this.log.system.error(`同一パスレコードのDB更新に失敗しました (id: ${rec.id}): ${err.message}`);
                         errorCount++;
                     }
-                    continue;
                 }
-
-                this.log.system.warn(`Warning: source file missing: ${srcFullPath}`);
-                missingCount++;
                 continue;
             }
 
+            // 3. 移動元が存在し、移動先にも既に別のファイルが存在する場合（コリジョン保護）
+            if (dstExists) {
+                if (isDryRun) {
+                    console.log(`レコード (id=${rec.id}): ${originalFilePath}`);
+                    console.log(`  [dry-run 衝突] 移動先に同名ファイルが既に存在します: '${dstFullPath}'`);
+                    console.log(`  上書きを防ぐためスキップします。`);
+                    console.log();
+                } else {
+                    this.log.system.error(
+                        `移動先に同名ファイルが既に存在します (id: ${rec.id}): '${dstFullPath}'。上書きを防ぐためスキップしました。`,
+                    );
+                }
+                errorCount++;
+                continue;
+            }
+
+            // 4. 通常の移動処理 (isDryRun)
+            if (isDryRun) {
+                console.log(`レコード (id=${rec.id}): ${originalFilePath}`);
+                console.log(`  移動元: ${srcFullPath}`);
+                console.log(`  移動先: ${dstFullPath}`);
+                console.log(`  DB更新: parentDirectoryName='${dstDir.name}', filePath='${newFilePath}'`);
+                console.log(`  ファイル移動: mv '${srcFullPath}' '${dstFullPath}'`);
+                if (cleanupEmptyDirs) {
+                    console.log(`  掃除予定: 移動後に '${srcDir.path}' 配下の親フォルダが空になれば安全に削除`);
+                }
+                console.log();
+                movedCount++;
+                continue;
+            }
+
+            // 5. 通常の移動処理 (実行モード)
             try {
                 await FileUtil.mkdir(path.dirname(dstFullPath));
 
@@ -499,7 +678,7 @@ export default class MoveRecordedFiles {
                             (filled < barWidth ? '>' : '') +
                             ' '.repeat(Math.max(0, empty - (filled < barWidth ? 1 : 0)));
                         process.stdout.write(
-                            `\r[Moving id=${rec.id}] [${bar}] ${percent.toFixed(1)}% (${formatBytes(transferred)} / ${formatBytes(total)})`,
+                            `\r[移動中 id=${rec.id}] [${bar}] ${percent.toFixed(1)}% (${formatBytes(transferred)} / ${formatBytes(total)})`,
                         );
                     }
                 });
@@ -516,13 +695,13 @@ export default class MoveRecordedFiles {
                     });
                 } catch (dbErr: any) {
                     // ロールバック: DB更新失敗時はファイルを元の場所に戻す
-                    this.log.system.error(`DB update failed for id: ${rec.id}. Rolling back file move...`);
+                    this.log.system.error(`DB更新失敗 (id: ${rec.id})。ファイルを元の場所へロールバックします...`);
                     await MoveRecordedFilesCore.moveFile(dstFullPath, srcFullPath).catch(() => {});
                     throw dbErr;
                 }
 
                 this.log.system.info(
-                    `Moved (id: ${rec.id}): '${srcFullPath}' -> '${dstFullPath}' (DB: ${dstDir.name} / ${newFilePath})`,
+                    `移動完了 (id: ${rec.id}): '${srcFullPath}' -> '${dstFullPath}' (DB: ${dstDir.name} / ${newFilePath})`,
                 );
                 movedCount++;
 
@@ -532,14 +711,12 @@ export default class MoveRecordedFiles {
                     if (removed.length > 0) {
                         cleanedDirsCount += removed.length;
                         for (const rDir of removed) {
-                            this.log.system.info(`Cleaned up empty directory: ${rDir}`);
+                            this.log.system.info(`空フォルダを掃除しました: ${rDir}`);
                         }
                     }
                 }
             } catch (err: any) {
-                this.log.system.error(
-                    `Error processing file (id: ${rec.id}, path: ${originalFilePath}): ${err.message}`,
-                );
+                this.log.system.error(`ファイル処理エラー (id: ${rec.id}, path: ${originalFilePath}): ${err.message}`);
                 errorCount++;
             }
         }
@@ -556,21 +733,24 @@ export default class MoveRecordedFiles {
     }
 
     private printSummary(summary: MoveRecordedSummary, isDryRun: boolean): void {
-        console.log('\n================ Move Summary ================');
+        console.log('\n================ 移動サマリー ================');
         if (isDryRun) {
-            console.log('Mode:             DRY-RUN (no actual changes applied)');
-            console.log(`Matched records:  ${summary.totalRecords}`);
-            console.log(`Planned moves:    ${summary.movedCount}`);
-            console.log(`No-op (no change):${summary.noOpCount}`);
+            console.log('実行モード:       シミュレーション (dry-run)');
+            console.log(`対象レコード数:   ${summary.totalRecords} 件`);
+            console.log(`移動予定:         ${summary.movedCount} 件`);
+            console.log(`自己修復:         ${summary.selfHealedCount} 件`);
+            console.log(`変更なし:         ${summary.noOpCount} 件`);
+            console.log(`ファイル欠落:     ${summary.missingCount} 件`);
+            console.log(`衝突・エラー:     ${summary.errorCount} 件`);
         } else {
-            console.log('Mode:             EXECUTE');
-            console.log(`Matched records:  ${summary.totalRecords}`);
-            console.log(`Moved & updated:  ${summary.movedCount}`);
-            console.log(`Self-healed:      ${summary.selfHealedCount}`);
-            console.log(`No-op (no change):${summary.noOpCount}`);
-            console.log(`Missing files:    ${summary.missingCount}`);
-            console.log(`Errors:           ${summary.errorCount}`);
-            console.log(`Empty dirs cleaned:${summary.cleanedDirsCount}`);
+            console.log('実行モード:       本番実行 (EXECUTE)');
+            console.log(`対象レコード数:   ${summary.totalRecords} 件`);
+            console.log(`移動＆DB更新:     ${summary.movedCount} 件`);
+            console.log(`自己修復:         ${summary.selfHealedCount} 件`);
+            console.log(`変更なし:         ${summary.noOpCount} 件`);
+            console.log(`ファイル欠落:     ${summary.missingCount} 件`);
+            console.log(`エラー:           ${summary.errorCount} 件`);
+            console.log(`空フォルダ削除:   ${summary.cleanedDirsCount} 件`);
         }
         console.log('==============================================\n');
     }
@@ -578,8 +758,13 @@ export default class MoveRecordedFiles {
 
 // 直接実行された場合のエントリポイント
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
-    new MoveRecordedFiles().run().catch(err => {
-        console.error('Fatal error during move-recorded:', err);
-        process.exit(1);
-    });
+    new MoveRecordedFiles()
+        .run()
+        .then(summary => {
+            process.exit(summary.errorCount > 0 ? 1 : 0);
+        })
+        .catch(err => {
+            console.error('Fatal error during move-recorded:', err);
+            process.exit(1);
+        });
 }

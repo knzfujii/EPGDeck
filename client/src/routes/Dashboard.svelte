@@ -278,12 +278,12 @@
                             </span>
                         {/if}
 
-                        <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">
+                        <span class="text-sm text-slate-500 dark:text-slate-400 hidden sm:inline">
                             ({storages.length} ドライブ)
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <div class="flex items-center gap-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
                         <span>{isStorageOpen ? '閉じる' : '詳細'}</span>
                         {#if isStorageOpen}
                             <ChevronDown size={16} />
@@ -389,7 +389,7 @@
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <div class="flex items-center gap-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
                         <span>{isAlertsOpen ? '閉じる' : '詳細'}</span>
                         {#if isAlertsOpen}
                             <ChevronDown size={16} />

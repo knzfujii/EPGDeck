@@ -6,8 +6,11 @@
   "engines": {
     "node": ">=22.3.0"
   },
+  "workspaces": [
+    "client"
+  ],
   "scripts": {
-    "all-install": "npm i --no-save && npm --prefix client i --no-save",
+    "all-install": "npm i --no-save",
     "start": "node --enable-source-maps dist/index.js",
     "build": "run-p build:server build:client",
     "build:server": "npm run compile",

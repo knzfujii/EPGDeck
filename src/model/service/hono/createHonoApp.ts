@@ -193,6 +193,10 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
         app.get(createUrl('/'), handleClientFile);
         app.get(`${createUrl('/')}*`, handleClientFile);
         app.get('*', handleClientFile);
+    } else {
+        log.system.warn(
+            `client/dist not found at ${clientDist}. Web UI will not be served until "npm run build" is executed.`,
+        );
     }
 
     return app;

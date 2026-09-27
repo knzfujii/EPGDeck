@@ -60,15 +60,10 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install Root Dependencies
+      - name: Install Dependencies (Root & Workspaces)
         run: npm ci
-
-      - name: Install Client Dependencies
-        run: npm --prefix client ci
 
       - name: Lint Check (Server & Test)
         run: npm run lint:check
@@ -94,7 +89,6 @@ jobs:
       - name: Security Audit (Warning only)
         run: |
           npm audit || true
-          npm --prefix client audit || true
 
       - name: Run Unit Tests (SQLite)
         run: npm test
@@ -159,15 +153,10 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            client/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install Root Dependencies
+      - name: Install Dependencies (Root & Workspaces)
         run: npm ci
-
-      - name: Install Client Dependencies
-        run: npm --prefix client ci
 
       - name: TypeScript Compile (Server)
         run: npm run compile

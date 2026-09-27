@@ -30,8 +30,8 @@ EPGDeck プロジェクトへのご関心および貢献をご検討いただき
 git clone https://github.com/knzfujii/EPGDeck.git
 cd EPGDeck
 
-# サーバーおよびクライアントの依存パッケージを一括インストール
-npm run all-install
+# サーバーおよびクライアントの依存パッケージを一括インストール (npm workspaces)
+npm install
 ```
 
 ### 開発用設定ファイルの準備

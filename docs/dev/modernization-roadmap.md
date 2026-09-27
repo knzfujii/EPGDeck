@@ -97,14 +97,15 @@ flowchart TD
 
 ### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
 
-#### 2.1 npm workspaces によるパッケージ管理の一元化
-- **対象ファイル**: `package.json`, `client/package.json`
+#### 2.1 npm workspaces によるパッケージ管理の一元化（完了）
+- **対象ファイル**: `package.json`, `client/package.json`, `Dockerfile`, `.github/workflows/ci.yml`
 - **課題**:
-  ルートと `client/` で個別に `package.json` を持ち、`npm run all-install`（`--no-save`）で手動インストールしている。また、ESLint 設定がルート（Flat Config `eslint.config.mjs`）とクライアント（レガシー `.eslintrc.cjs`）で分断している。
-- **改善方針**:
-  1. ルートの `package.json` に `"workspaces": ["client"]` を追加。
-  2. ルートでの `npm install` だけで依存関係の重複排除とシンボリックリンクを一元管理。
-  3. Dependabot や Renovate による依存パッケージの自動検知・一括更新を可能にする。
+  ルートと `client/` で個別に `package.json` を持ち、`npm run all-install`（`--no-save`）で手動インストールしていた。また、CI や Dockerfile でも 2 段階の `npm ci` が必要で、重複パッケージによるディスク・キャッシュ浪費や lockfile 乖離のリスクがあった。
+- **実施した改善**:
+  1. **npm workspaces の導入**: ルート `package.json` に `"workspaces": ["client"]` を設定し、`package-lock.json` をルートに一本化。76 個の重複パッケージを削減。
+  2. **CI・コンテナビルドの最適化**: `Dockerfile` および `.github/workflows/ci.yml` のインストール手順をルートの `npm ci` 一発に集約。
+  3. **レガシー設定の撤廃**: クライアント側の不要なレガシー設定（`.eslintrc.cjs`、`.eslintignore`）および個別 `package-lock.json` を完全撤廃。
+  4. **依存パッケージ自動検知の基盤確立**: Renovate や Dependabot がリポジトリ全体の依存関係を単一の lockfile で安全に検知・自動更新できる状態を整備。
 
 #### 2.2 Drizzle ORM スキーマの一元化 & 生 DDL 文字列の撤廃
 - **対象ファイル**: `src/db/schema/**/*.ts`, `src/model/db/DrizzleOperator.ts`, `src/model/db/*DB.ts`

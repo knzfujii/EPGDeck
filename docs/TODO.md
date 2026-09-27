@@ -83,9 +83,10 @@ DB 内に保存されながら UI で活用されていないメタデータを�
   - Node.js ネイティブの `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）が実運用上の最善の防御策であることを確認し、安易な巻き戻しを防止するためコードコメントおよび `streaming-and-captions.md` に設計保護規約を明記・保護
 
 ### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
-- [ ] **npm workspaces によるパッケージ管理の一元化**
-  - ルート `package.json` に `"workspaces": ["client"]` を設定し、`npm run all-install` の手動運用を撤廃、依存関係の重複排除・リンク・更新を一元化
-  - クライアントのレガシー `.eslintrc.cjs` をルートの Flat Config（`eslint.config.mjs`）へ統合
+- [x] **npm workspaces によるパッケージ管理の一元化**
+  - ルート `package.json` に `"workspaces": ["client"]` を設定し、ルート `package-lock.json` で全体を一元ロック・重複排除（76パッケージ削減）
+  - `Dockerfile`、GitHub Actions CI（`.github/workflows/ci.yml`）のインストールパイプラインを `npm ci` 一発に最適化
+  - クライアントの不要なレガシー設定（`.eslintrc.cjs`、`.eslintignore`）および個別 `package-lock.json` を整理・撤廃
 - [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃**
   - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
   - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減

@@ -40,6 +40,9 @@ describe('MoveRecordedFiles', () => {
                 'archives',
                 '-n',
                 '-y',
+                '-e',
+                'mp4',
+                '-E',
             ]);
             expect(result.query).toBe('news');
             expect(result.src).toBe('1');
@@ -47,9 +50,11 @@ describe('MoveRecordedFiles', () => {
             expect(result.destRelPath).toBe('archives');
             expect(result.dryRun).toBe(true);
             expect(result.yes).toBe(true);
+            expect(result.ext).toBe('mp4');
+            expect(result.regex).toBe(true);
         });
 
-        it('should parse long options: --src, --dst, --dest-relpath, --dry-run, --yes', () => {
+        it('should parse long options: --src, --dst, --dest-relpath, --dry-run, --yes, --ext, --regex', () => {
             const result = MoveRecordedFilesCore.parseCLIOptions([
                 '--query',
                 'movie',
@@ -61,6 +66,9 @@ describe('MoveRecordedFiles', () => {
                 'movies/2026',
                 '--dry-run',
                 '--yes',
+                '--ext',
+                'ts',
+                '--regex',
             ]);
             expect(result.query).toBe('movie');
             expect(result.src).toBe('recorded');
@@ -68,6 +76,8 @@ describe('MoveRecordedFiles', () => {
             expect(result.destRelPath).toBe('movies/2026');
             expect(result.dryRun).toBe(true);
             expect(result.yes).toBe(true);
+            expect(result.ext).toBe('ts');
+            expect(result.regex).toBe(true);
         });
 
         it('should handle help flag', () => {
@@ -128,6 +138,100 @@ describe('MoveRecordedFiles', () => {
             expect(MoveRecordedFilesCore.calculateNewFilePath('sample.mp4', 'anime\\season1')).toBe(
                 'anime/season1/sample.mp4',
             );
+        });
+
+        it('should normalize leading slashes', () => {
+            expect(MoveRecordedFilesCore.calculateNewFilePath('sample.mp4', '/anime')).toBe('anime/sample.mp4');
+            expect(MoveRecordedFilesCore.calculateNewFilePath('sample.mp4', '///anime/nested/')).toBe(
+                'anime/nested/sample.mp4',
+            );
+            expect(MoveRecordedFilesCore.calculateNewFilePath('sample.mp4', '/')).toBe('sample.mp4');
+        });
+    });
+
+    describe('MoveRecordedFilesCore Extension Normalization', () => {
+        it('should normalize extensions to lowercase with leading dot', () => {
+            expect(MoveRecordedFilesCore.normalizeExtension('mp4')).toBe('.mp4');
+            expect(MoveRecordedFilesCore.normalizeExtension('.MP4')).toBe('.mp4');
+            expect(MoveRecordedFilesCore.normalizeExtension('  ts  ')).toBe('.ts');
+            expect(MoveRecordedFilesCore.normalizeExtension('.m2ts')).toBe('.m2ts');
+        });
+
+        it('should return undefined for empty or whitespace-only extension', () => {
+            expect(MoveRecordedFilesCore.normalizeExtension(undefined)).toBeUndefined();
+            expect(MoveRecordedFilesCore.normalizeExtension('')).toBeUndefined();
+            expect(MoveRecordedFilesCore.normalizeExtension('   ')).toBeUndefined();
+        });
+    });
+
+    describe('MoveRecordedFilesCore Glob to RegExp Conversion', () => {
+        it('should convert * and ? to regex patterns while escaping special regex chars', () => {
+            const re = MoveRecordedFilesCore.globToRegExp('*キーワード*.mp4');
+            expect(re.test('2026_09_07-キーワード番組 #01.mp4')).toBe(true);
+            expect(re.test('キーワード.mp4')).toBe(true);
+            expect(re.test('キーワード.ts')).toBe(false);
+
+            const reWithBrackets = MoveRecordedFilesCore.globToRegExp('*[新]*キーワード*.mp4');
+            expect(reWithBrackets.test('2026_09_07-[新] キーワード番組 #01.mp4')).toBe(true);
+            expect(reWithBrackets.test('2026_09_07-キーワード番組 #01.mp4')).toBe(false);
+        });
+    });
+
+    describe('MoveRecordedFilesCore Matcher (Glob / Regex / Ext / Substring)', () => {
+        const keywordMp4 = 'anime/2026_09_07-キーワード番組 #01.mp4';
+        const keywordTs = 'anime/2026_09_07-キーワード番組 #01.m2ts';
+        const otherMp4 = 'anime/2026_09_08-別番組 #01.mp4';
+
+        it('should match by plain substring (case-insensitive)', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({ query: 'キーワード' });
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(true);
+            expect(matcher(otherMp4)).toBe(false);
+        });
+
+        it('should filter by extension only when query is empty', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({ ext: 'mp4' });
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(false);
+            expect(matcher(otherMp4)).toBe(true);
+        });
+
+        it('should match filename glob like *キーワード*.mp4', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({ query: '*キーワード*.mp4' });
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(false);
+            expect(matcher(otherMp4)).toBe(false);
+        });
+
+        it('should match path glob when query contains slash', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({ query: 'anime/*キーワード*' });
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(true);
+            expect(matcher('movie/2026_09_07-キーワード番組 #01.mp4')).toBe(false);
+        });
+
+        it('should combine query and ext filter', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({ query: 'キーワード', ext: 'm2ts' });
+            expect(matcher(keywordMp4)).toBe(false);
+            expect(matcher(keywordTs)).toBe(true);
+            expect(matcher(otherMp4)).toBe(false);
+        });
+
+        it('should support regular expressions when regex flag is true', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({
+                query: 'キーワード.*#01\\.(mp4|m2ts)',
+                regex: true,
+            });
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(true);
+            expect(matcher('anime/2026_09_07-キーワード番組 #02.mp4')).toBe(false);
+        });
+
+        it('should return true for all files when no query or ext is provided', () => {
+            const matcher = MoveRecordedFilesCore.createMatcher({});
+            expect(matcher(keywordMp4)).toBe(true);
+            expect(matcher(keywordTs)).toBe(true);
+            expect(matcher(otherMp4)).toBe(true);
         });
     });
 
@@ -576,6 +680,134 @@ describe('MoveRecordedFiles', () => {
             expect(summary.movedCount).toBe(1);
             expect(summary.cleanedDirsCount).toBe(0);
             expect(fs.existsSync(nestedDir)).toBe(true); // 残る
+        });
+
+        it('should prevent overwriting existing files when destination already exists (collision)', async () => {
+            const srcFilePath = path.join(srcDirInfo.path, 'anime', 'ep01.mp4');
+            const dstFilePath = path.join(dstDirInfo.path, 'archive', 'ep01.mp4');
+            await fs.promises.mkdir(path.dirname(srcFilePath), { recursive: true });
+            await fs.promises.mkdir(path.dirname(dstFilePath), { recursive: true });
+            await fs.promises.writeFile(srcFilePath, 'source content');
+            await fs.promises.writeFile(dstFilePath, 'existing dest content');
+
+            const record = new VideoFile();
+            record.id = 107;
+            record.parentDirectoryName = 'recorded1';
+            record.filePath = 'anime/ep01.mp4';
+
+            const summary = await moveRecordedTool.executeMove({
+                records: [record],
+                srcDir: srcDirInfo,
+                dstDir: dstDirInfo,
+                destRelPath: 'archive',
+                isDryRun: false,
+            });
+
+            expect(summary.errorCount).toBe(1);
+            expect(summary.movedCount).toBe(0);
+            // 既存ファイルが上書きされていないことを確認
+            expect(await fs.promises.readFile(dstFilePath, 'utf-8')).toBe('existing dest content');
+            expect(await fs.promises.readFile(srcFilePath, 'utf-8')).toBe('source content');
+            expect(mockVideoFileDB.updateFilePath).not.toHaveBeenCalled();
+            expect(mockLogger.system.error).toHaveBeenCalledWith(
+                expect.stringContaining('移動先に同名ファイルが既に存在します'),
+            );
+        });
+
+        it('should report collision in dry-run mode without modifying anything', async () => {
+            const srcFilePath = path.join(srcDirInfo.path, 'anime', 'ep01.mp4');
+            const dstFilePath = path.join(dstDirInfo.path, 'archive', 'ep01.mp4');
+            await fs.promises.mkdir(path.dirname(srcFilePath), { recursive: true });
+            await fs.promises.mkdir(path.dirname(dstFilePath), { recursive: true });
+            await fs.promises.writeFile(srcFilePath, 'source content');
+            await fs.promises.writeFile(dstFilePath, 'existing dest content');
+
+            const record = new VideoFile();
+            record.id = 108;
+            record.parentDirectoryName = 'recorded1';
+            record.filePath = 'anime/ep01.mp4';
+
+            const summary = await moveRecordedTool.executeMove({
+                records: [record],
+                srcDir: srcDirInfo,
+                dstDir: dstDirInfo,
+                destRelPath: 'archive',
+                isDryRun: true,
+            });
+
+            expect(summary.errorCount).toBe(1);
+            expect(summary.movedCount).toBe(0);
+            expect(mockVideoFileDB.updateFilePath).not.toHaveBeenCalled();
+        });
+
+        it('should report missing source files in dry-run mode', async () => {
+            const record = new VideoFile();
+            record.id = 109;
+            record.parentDirectoryName = 'recorded1';
+            record.filePath = 'nonexistent.mp4';
+
+            const summary = await moveRecordedTool.executeMove({
+                records: [record],
+                srcDir: srcDirInfo,
+                dstDir: dstDirInfo,
+                destRelPath: 'archive',
+                isDryRun: true,
+            });
+
+            expect(summary.missingCount).toBe(1);
+            expect(summary.movedCount).toBe(0);
+        });
+
+        it('should report self-heal in dry-run mode when destination exists', async () => {
+            const dstFilePath = path.join(dstDirInfo.path, 'archive', 'ep01.mp4');
+            await fs.promises.mkdir(path.dirname(dstFilePath), { recursive: true });
+            await fs.promises.writeFile(dstFilePath, 'already at destination');
+
+            const record = new VideoFile();
+            record.id = 110;
+            record.parentDirectoryName = 'recorded1';
+            record.filePath = 'anime/ep01.mp4';
+
+            const summary = await moveRecordedTool.executeMove({
+                records: [record],
+                srcDir: srcDirInfo,
+                dstDir: dstDirInfo,
+                destRelPath: 'archive',
+                isDryRun: true,
+            });
+
+            expect(summary.selfHealedCount).toBe(1);
+            expect(summary.movedCount).toBe(0);
+            expect(mockVideoFileDB.updateFilePath).not.toHaveBeenCalled();
+        });
+
+        it('should update DB only without file move when physical paths are identical', async () => {
+            // srcDirInfo と dstDirInfo が同じパスを指す（名前だけ異なる）場合
+            const aliasDstDir: RecordedDirInfo = { name: 'recorded1_alias', path: srcDirInfo.path };
+            const srcFilePath = path.join(srcDirInfo.path, 'same_file.mp4');
+            await fs.promises.writeFile(srcFilePath, 'content');
+
+            const record = new VideoFile();
+            record.id = 111;
+            record.parentDirectoryName = 'recorded1';
+            record.filePath = 'same_file.mp4';
+
+            const summary = await moveRecordedTool.executeMove({
+                records: [record],
+                srcDir: srcDirInfo,
+                dstDir: aliasDstDir,
+                destRelPath: undefined,
+                isDryRun: false,
+            });
+
+            expect(summary.movedCount).toBe(1);
+            expect(summary.errorCount).toBe(0);
+            expect(fs.existsSync(srcFilePath)).toBe(true);
+            expect(mockVideoFileDB.updateFilePath).toHaveBeenCalledWith({
+                videoFileId: 111,
+                parentDirectoryName: 'recorded1_alias',
+                filePath: 'same_file.mp4',
+            });
         });
     });
 });

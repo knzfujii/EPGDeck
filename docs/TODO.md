@@ -93,9 +93,10 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 - [ ] **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減**
   - `IPCMessageDefine.ts` にジェネリクス型を導入し、プロセス間 RPC を型安全化
   - 460 箇所以上存在する `any`（`: any` / `as any`）を順次 `unknown` + バリデーションまたは具体型へ置換し、`@typescript-eslint/no-explicit-any` を警告化
-- [ ] **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行**
-  - `FileUtil.ts` / `ProcessUtil.ts` の `namespace` を ES モジュール export に移行
-  - `FileUtil.ts` 内の手動 `new Promise` コールバックラップを撤廃し、Node.js 22 標準の `node:fs/promises` に一本化
+- [x] **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行**
+  - `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts` の `namespace` 構文を撤廃し、標準の ES Module named export および後方互換オブジェクト（`export const FileUtil = { ... }`）に刷新
+  - `FileUtil.ts` 内の Node 8 時代の手動 `new Promise` コールバックラップを全廃し、Node.js 22 標準の `node:fs/promises` による直接非同期処理へ一本化
+  - エッジケースの批判的検証と不要コード撤廃: `rename` 失敗時の危険な `dest` unlink（既存ファイル誤削除リスク）を完全撤廃、`move` を業界標準の `rename` 優先 ➔ `EXDEV` 時 copy + unlink フォールバックに刷新、`ProcessUtil.isExited` のシグナル終了（`signalCode`）検知漏れバグを解消、型参照（`FileUtil.FileList`, `ProcessUtil.Cmds`）の完全互換を担保
 
 ### Phase 3: アーキテクチャ近代化 & DX 向上 (長期的な保守性)
 - [ ] **InversifyJS 6.x とレガシーデコレータからの脱却（モダン DI / 軽量設計への移行）**

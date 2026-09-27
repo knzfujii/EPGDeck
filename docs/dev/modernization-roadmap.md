@@ -123,13 +123,22 @@ flowchart TD
   1. IPC メッセージ定義に Request/Response のジェネリクス型を導入し、モデル呼び出しを型安全化。
   2. 主要 DAO 層・モデル層から順次 `any` を排除し、ESLint の `@typescript-eslint/no-explicit-any` を警告化できる水準を目指す。
 
-#### 2.4 レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行
-- **対象ファイル**: `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`
+#### 2.4 レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行（完了）
+- **対象ファイル**: `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts`
 - **課題**:
-  TypeScript 独自仕様の `namespace` 構文が残存。また `FileUtil.ts` では Node 8 時代の手動 `new Promise` コールバックラップが多数残っている。
-- **改善方針**:
-  1. 通常の ES モジュール export (`export const ...`) に統一。
-  2. 手動ラップを撤廃し、Node.js 22 標準の `node:fs/promises` を直接使用する。
+  TypeScript 独自仕様の `namespace` 構文が残存。また `FileUtil.ts` では Node 8 時代の手動 `new Promise` コールバックラップが多数残っており、コードの可読性や例外伝播の透明性が損なわれていた。
+- **実施した改善**:
+  1. **ES モジュール named export への移行**:
+     - `export const unlink = ...` のように標準的な named export に統一。
+     - 同時に既存呼び出し箇所の互換性を維持するため、集約オブジェクト（`export const FileUtil = { ... }`、`export const ProcessUtil = { ... }`）および型名前空間（`export namespace FileUtil { export type FileList = _FileList; }`）を提供し、呼び出し側コードの修正を不要とした。
+  2. **`node:fs/promises` への完全移行**:
+     - 手動コールバックラップ（`fs.readFile`, `fs.writeFile`, `fs.rename`, `fs.copyFile`, `fs.stat`, `fs.readdir`, `fs.rmdir` 等）を全廃し、Node.js 22 標準の `node:fs/promises`（`fsp`）に置換。
+     - `node:*` プレフィックスを全インポート（`node:fs`, `node:fs/promises`, `node:path`, `node:child_process`）に適用。
+  3. **エッジケースの批判的検証と不要コードの撤廃・王道設計への刷新**:
+     - **`FileUtil.rename` 失敗時 unlink の撤廃（有害コードの排除）**: 旧コードに存在した「`rename` 失敗時に `dest` を unlink する」処理は、POSIX `rename` がアトミックであるため不要なだけでなく、`src` 不在時や EXDEV 発生時に無関係な既存の `dest` ファイルを破壊・誤消去する潜在的危険があったため完全撤廃しました。
+     - **`FileUtil.move` のデファクトスタンダード化**: 旧コードの愚直な全バイト `copyFile` + `unlink` を改め、まず `rename` を試みて同一ファイルシステムなら一瞬でアトミック移動し、クロスデバイス（`EXDEV`）時のみ `copyFile` + `unlink(src)` にフォールバックする業界標準パターン（`fs-extra` 等と同様）に刷新。コピー中断時のみ不完全な `dest` をクリーンアップする安全策を実装しました。
+     - **`ProcessUtil.isExited` のシグナル検知漏れ修正（真に意味のあるエッジケース）**: Node.js の `ChildProcess` は SIGKILL / SIGTERM 等で強制停止された場合、`exitCode` は `null` のままで `signalCode` に値が入る仕様です。旧コードは `child.exitCode !== null` のみ判定していたため、シグナル停止されたプロセスが「未終了」と誤判定され続けるバグがあり、これを `child.exitCode !== null || (typeof child.signalCode !== 'undefined' && child.signalCode !== null)` に修正しました。
+     - **`FileUtil.getFileSize` のエラー契約維持**: ファイル不在時に `throw new Error('FileIsNotFound')` を投げる既存契約を維持し、呼び出し側や単体テストとの整合性を担保しました。
 
 ---
 

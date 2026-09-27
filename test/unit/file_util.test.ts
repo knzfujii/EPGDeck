@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -126,6 +126,90 @@ describe('FileUtil Unit Tests', () => {
             expect(fs.existsSync(src)).toBe(false);
             expect(fs.existsSync(dest)).toBe(true);
             expect(await FileUtil.readFile(dest)).toBe('rename test');
+        });
+
+        it('does not unlink existing dest when rename fails', async () => {
+            const nonExistentSrc = path.join(testRoot, 'missing_src.txt');
+            const dest = path.join(testRoot, 'pre_existing_dest.txt');
+            await FileUtil.writeFile(dest, 'keep me');
+
+            // 存在しない src からの rename は失敗するが、既存の dest を消してはならない
+            await expect(FileUtil.rename(nonExistentSrc, dest)).rejects.toThrow();
+            expect(fs.existsSync(dest)).toBe(true);
+            expect(await FileUtil.readFile(dest)).toBe('keep me');
+        });
+
+        it('falls back to copy and unlink on EXDEV error during move', async () => {
+            const src = path.join(testRoot, 'exdev_src.txt');
+            const dest = path.join(testRoot, 'exdev_dest.txt');
+            await FileUtil.writeFile(src, 'cross-device move test');
+
+            const exdevErr = new Error('EXDEV: cross-device link not permitted') as any;
+            exdevErr.code = 'EXDEV';
+
+            const renameSpy = vi.spyOn(FileUtil, 'rename').mockRejectedValueOnce(exdevErr);
+
+            try {
+                await FileUtil.move(src, dest);
+                expect(renameSpy).toHaveBeenCalledWith(src, dest);
+            } finally {
+                renameSpy.mockRestore();
+            }
+
+            expect(fs.existsSync(src)).toBe(false);
+            expect(fs.existsSync(dest)).toBe(true);
+            expect(await FileUtil.readFile(dest)).toBe('cross-device move test');
+        });
+
+        it('falls back to copy and unlink on EPERM error (Windows cross-drive) during move', async () => {
+            const src = path.join(testRoot, 'eperm_src.txt');
+            const dest = path.join(testRoot, 'eperm_dest.txt');
+            await FileUtil.writeFile(src, 'windows cross-drive test');
+
+            const epermErr = new Error('EPERM: operation not permitted, rename') as any;
+            epermErr.code = 'EPERM';
+
+            const renameSpy = vi.spyOn(FileUtil, 'rename').mockRejectedValueOnce(epermErr);
+
+            try {
+                await FileUtil.move(src, dest);
+                expect(renameSpy).toHaveBeenCalledWith(src, dest);
+            } finally {
+                renameSpy.mockRestore();
+            }
+
+            expect(fs.existsSync(src)).toBe(false);
+            expect(fs.existsSync(dest)).toBe(true);
+            expect(await FileUtil.readFile(dest)).toBe('windows cross-drive test');
+        });
+
+        it('cleans up incomplete dest and preserves src when copy fails during EXDEV fallback', async () => {
+            const src = path.join(testRoot, 'fail_src.txt');
+            const dest = path.join(testRoot, 'fail_dest.txt');
+            await FileUtil.writeFile(src, 'important data');
+
+            const exdevErr = new Error('EXDEV: cross-device link not permitted') as any;
+            exdevErr.code = 'EXDEV';
+
+            const renameSpy = vi.spyOn(FileUtil, 'rename').mockRejectedValueOnce(exdevErr);
+            const copySpy = vi.spyOn(FileUtil, 'copyFile').mockImplementation(async (_s, d) => {
+                // 部分コピーをシミュレート
+                await FileUtil.writeFile(d, 'incomplete');
+                throw new Error('ENOSPC: no space left on device');
+            });
+
+            try {
+                await expect(FileUtil.move(src, dest)).rejects.toThrow('ENOSPC');
+            } finally {
+                renameSpy.mockRestore();
+                copySpy.mockRestore();
+            }
+
+            // 元データ src は保護されていること
+            expect(fs.existsSync(src)).toBe(true);
+            expect(await FileUtil.readFile(src)).toBe('important data');
+            // 不完全な dest はクリーンアップされていること
+            expect(fs.existsSync(dest)).toBe(false);
         });
 
         it('unlinks file', async () => {

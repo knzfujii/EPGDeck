@@ -434,18 +434,19 @@ test.describe('Guide Page (/guide)', () => {
         // スナックバー成功通知の確認
         await expect(page.getByText('「【新】テストアニメ第1話」を録画予約しました')).toBeVisible();
 
-        // 2. 「ルール検索へ」ボタンの遷移検証
+        // 2. 「ルール作成へ」ボタンの遷移検証
         // 番組を再度クリックしてモーダルを開く
         await unreservedBtn.click();
-        const searchRuleBtn = page.getByRole('button', { name: 'ルール検索へ' });
-        await expect(searchRuleBtn).toBeVisible();
-        await searchRuleBtn.click();
+        const createRuleBtn = page.getByRole('button', { name: 'ルール作成へ' });
+        await expect(createRuleBtn).toBeVisible();
+        await createRuleBtn.click();
 
-        // 記号が除去されたキーワードで /search に遷移すること
-        await page.waitForURL(/\/search\?keyword=/);
+        // 記号が除去されたキーワードと channelId で /rule/edit に遷移すること
+        await page.waitForURL(/\/rule\/edit\?/);
         expect(page.url()).toContain(
             'keyword=%E3%83%86%E3%82%B9%E3%83%88%E3%82%A2%E3%83%8B%E3%83%A1%E7%AC%AC1%E8%A9%B1',
         ); // テストアニメ第1話
+        expect(page.url()).toContain('channelId=');
 
         // 3. 再度ガイドに戻り、手動予約済み番組の予約解除を検証
         await page.goto('/guide');

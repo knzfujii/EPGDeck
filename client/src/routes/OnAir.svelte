@@ -10,7 +10,7 @@
         formatTime,
         formatTimeRange,
         formatDuration,
-        extractFirstSearchWord,
+        buildRuleEditUrl,
         getGenreName,
         getGenreBadgeClass,
         getChannelTypeBadgeClass,
@@ -524,42 +524,48 @@
                         <!-- 現在放送中 -->
                         {#if current}
                             <div class="space-y-2.5">
-                                <div
-                                    class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"
-                                >
-                                    <span class="flex items-center gap-1 font-semibold">
-                                        <Clock size={13} />
-                                        {formatTime(current.startAt)} - {formatTime(current.endAt)}
-                                    </span>
-                                    <span
-                                        class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded"
-                                    >
-                                        {formatTimeRemaining(current.endAt, currentTime)}
-                                    </span>
-                                </div>
-
-                                <!-- 番組名 -->
                                 <button
                                     type="button"
                                     onclick={() => openProgramDetail(current, item.channel, false)}
-                                    class="program-title hover:text-blue-600 dark:hover:text-blue-400 text-left line-clamp-2 cursor-pointer transition-colors w-full"
+                                    class="group/current block w-full text-left cursor-pointer rounded-xl p-1.5 -m-1.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition space-y-2.5"
                                 >
-                                    {current.name}
-                                </button>
-
-                                <!-- 進捗バー -->
-                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                                     <div
-                                        class="h-full bg-blue-500 transition-all duration-500"
-                                        style="width: {progress}%"
-                                    ></div>
-                                </div>
+                                        class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"
+                                    >
+                                        <span class="flex items-center gap-1 font-semibold">
+                                            <Clock size={13} />
+                                            {formatTime(current.startAt)} - {formatTime(current.endAt)}
+                                        </span>
+                                        <span
+                                            class="font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-950/40 px-2 py-0.5 rounded"
+                                        >
+                                            {formatTimeRemaining(current.endAt, currentTime)}
+                                        </span>
+                                    </div>
 
-                                {#if current.description}
-                                    <p class="program-summary line-clamp-2">
-                                        {current.description}
-                                    </p>
-                                {/if}
+                                    <!-- 番組名 -->
+                                    <div
+                                        class="program-title group-hover/current:text-blue-600 dark:group-hover/current:text-blue-400 text-left line-clamp-2 transition-colors w-full"
+                                    >
+                                        {current.name}
+                                    </div>
+
+                                    <!-- 進捗バー -->
+                                    <div
+                                        class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                                    >
+                                        <div
+                                            class="h-full bg-blue-500 transition-all duration-500"
+                                            style="width: {progress}%"
+                                        ></div>
+                                    </div>
+
+                                    {#if current.description}
+                                        <p class="program-summary line-clamp-2">
+                                            {current.description}
+                                        </p>
+                                    {/if}
+                                </button>
 
                                 <!-- 視聴・録画ボタン -->
                                 <div class="flex items-center gap-2 pt-1">
@@ -605,19 +611,21 @@
                             <div
                                 class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2"
                             >
-                                <div class="min-w-0 flex-1">
+                                <button
+                                    type="button"
+                                    onclick={() => openProgramDetail(next, item.channel, true)}
+                                    class="group min-w-0 flex-1 text-left cursor-pointer rounded-lg p-1.5 -m-1.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition"
+                                >
                                     <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-0.5">
                                         <span class="font-bold text-slate-500 dark:text-slate-400">次の番組</span>
                                         <span>{formatTime(next.startAt)} - {formatTime(next.endAt)}</span>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onclick={() => openProgramDetail(next, item.channel, true)}
-                                        class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1 hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer w-full"
+                                    <div
+                                        class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
                                     >
                                         {next.name}
-                                    </button>
-                                </div>
+                                    </div>
+                                </button>
                                 {#if !readOnlyStore.isReadOnly}
                                     <Button
                                         variant="secondary"
@@ -690,7 +698,14 @@
                                     </td>
 
                                     <!-- 2. 現在の番組カラム (主役: メタ情報 ➔ タイトル ＋ 視聴・録画ボタン ➔ 進捗バー ➔ 概要) -->
-                                    <td class="px-4 py-4 align-top min-w-0">
+                                    <td
+                                        class="px-4 py-4 align-top min-w-0 {current
+                                            ? 'cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/50 transition-colors group/current'
+                                            : ''}"
+                                        onclick={() => {
+                                            if (current) openProgramDetail(current, item.channel, false);
+                                        }}
+                                    >
                                         {#if current}
                                             <div class="space-y-2.5">
                                                 <!-- メタ情報: 時間、残り時間、ジャンルバッジ、録画中ステータス -->
@@ -732,7 +747,7 @@
                                                     <button
                                                         type="button"
                                                         onclick={() => openProgramDetail(current, item.channel, false)}
-                                                        class="program-title text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer flex-1 min-w-[200px]"
+                                                        class="program-title text-left group-hover/current:text-blue-600 dark:group-hover/current:text-blue-400 transition-colors flex-1 min-w-[200px] cursor-pointer"
                                                     >
                                                         {current.name}
                                                     </button>
@@ -744,8 +759,10 @@
                                                             <Button
                                                                 variant="primary"
                                                                 size="compact"
-                                                                onclick={() =>
-                                                                    openStreamModal(item.channel, current.name)}
+                                                                onclick={e => {
+                                                                    e.stopPropagation();
+                                                                    openStreamModal(item.channel, current.name);
+                                                                }}
                                                                 title="ライブ視聴を開始"
                                                             >
                                                                 <Play size={13} fill="currentColor" /> 視聴
@@ -759,7 +776,10 @@
                                                                 <Button
                                                                     variant="danger-outline"
                                                                     size="compact"
-                                                                    onclick={() => openRecordingAction(item)}
+                                                                    onclick={e => {
+                                                                        e.stopPropagation();
+                                                                        openRecordingAction(item);
+                                                                    }}
                                                                     title="録画を停止・破棄"
                                                                 >
                                                                     <Square size={13} fill="currentColor" /> 停止
@@ -769,7 +789,10 @@
                                                                     variant="danger-outline"
                                                                     size="compact"
                                                                     disabled={isReserving}
-                                                                    onclick={() => startRecordCurrentProgram(item)}
+                                                                    onclick={e => {
+                                                                        e.stopPropagation();
+                                                                        startRecordCurrentProgram(item);
+                                                                    }}
                                                                     class="border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60"
                                                                     title="この番組を今すぐ録画"
                                                                 >
@@ -790,15 +813,13 @@
                                                     ></div>
                                                 </div>
 
-                                                <!-- 番組概要 (2行クランプ、クリックでモーダル) -->
+                                                <!-- 番組概要 (2行クランプ) -->
                                                 {#if current.description}
-                                                    <button
-                                                        type="button"
-                                                        onclick={() => openProgramDetail(current, item.channel, false)}
-                                                        class="text-left line-clamp-2 text-xs leading-relaxed text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer w-full"
+                                                    <div
+                                                        class="text-left line-clamp-2 text-xs leading-relaxed text-slate-500 group-hover/current:text-slate-700 dark:text-slate-400 dark:group-hover/current:text-slate-200 transition-colors w-full"
                                                     >
                                                         {current.description}
-                                                    </button>
+                                                    </div>
                                                 {/if}
                                             </div>
                                         {:else}
@@ -808,7 +829,12 @@
 
                                     <!-- 3. 次の番組カラム (開始時刻、ジャンル、タイトル、予約ボタン/予約中バッジ) -->
                                     <td
-                                        class="px-4 py-4 align-top border-l border-slate-100 dark:border-slate-800 bg-slate-50/25 dark:bg-slate-900/20"
+                                        class="px-4 py-4 align-top border-l border-slate-100 dark:border-slate-800 bg-slate-50/25 dark:bg-slate-900/20 {next
+                                            ? 'cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/50 transition-colors group/next'
+                                            : ''}"
+                                        onclick={() => {
+                                            if (next) openProgramDetail(next, item.channel, true);
+                                        }}
                                     >
                                         {#if next}
                                             <div class="space-y-2">
@@ -836,7 +862,10 @@
                                                         {#if next.isReserved}
                                                             <button
                                                                 type="button"
-                                                                onclick={() => router.push('/reserves')}
+                                                                onclick={e => {
+                                                                    e.stopPropagation();
+                                                                    router.push('/reserves');
+                                                                }}
                                                                 class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer"
                                                                 title="予約一覧で確認"
                                                             >
@@ -846,7 +875,10 @@
                                                             <button
                                                                 type="button"
                                                                 disabled={isReserving}
-                                                                onclick={() => toggleReserveProgram(next)}
+                                                                onclick={e => {
+                                                                    e.stopPropagation();
+                                                                    toggleReserveProgram(next);
+                                                                }}
                                                                 class="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 px-3.5 py-1.5 text-sm font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
                                                                 title="ワンクリック予約"
                                                             >
@@ -860,7 +892,7 @@
                                                 <button
                                                     type="button"
                                                     onclick={() => openProgramDetail(next, item.channel, true)}
-                                                    class="program-title-dense text-left line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer w-full"
+                                                    class="program-title-dense text-left line-clamp-2 text-slate-800 dark:text-slate-200 group-hover/next:text-blue-600 dark:group-hover/next:text-blue-400 transition-colors w-full cursor-pointer"
                                                 >
                                                     {next.name}
                                                 </button>
@@ -1017,17 +1049,16 @@
                 class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4 dark:border-slate-800"
             >
                 {#if !readOnlyStore.isReadOnly}
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        size="compact"
                         onclick={() => {
                             isDetailModalOpen = false;
-                            const kw = extractFirstSearchWord(p.name);
-                            router.push(`/search?keyword=${encodeURIComponent(kw)}`);
+                            router.push(buildRuleEditUrl(p.name, ch?.id ?? p.channelId));
                         }}
-                        class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer"
                     >
                         <Search size={14} /> この番組でルール作成
-                    </button>
+                    </Button>
                 {:else}
                     <div></div>
                 {/if}

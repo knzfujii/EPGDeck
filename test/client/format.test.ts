@@ -8,6 +8,7 @@ import {
     formatTimeRemaining,
     formatPlayerTime,
     parsePlayerTime,
+    buildRuleEditUrl,
 } from '../../client/src/lib/utils/format.js';
 
 describe('format utils', () => {
@@ -103,6 +104,26 @@ describe('format utils', () => {
             expect(parsePlayerTime('01:65')).toBe(null); // 秒が60以上
             expect(parsePlayerTime('')).toBe(null);
             expect(parsePlayerTime(null)).toBe(null);
+        });
+    });
+
+    describe('buildRuleEditUrl', () => {
+        it('should generate rule edit URL with keyword and channelId', () => {
+            expect(buildRuleEditUrl('【字】お昼のワイドニュース', 1)).toBe(
+                '/rule/edit?keyword=%E3%81%8A%E6%98%BC%E3%81%AE%E3%83%AF%E3%82%A4%E3%83%89%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9&channelId=1',
+            );
+        });
+
+        it('should handle missing channelId', () => {
+            expect(buildRuleEditUrl('【新】テストアニメ第1話')).toBe(
+                '/rule/edit?keyword=%E3%83%86%E3%82%B9%E3%83%88%E3%82%A2%E3%83%8B%E3%83%A1%E7%AC%AC1%E8%A9%B1',
+            );
+        });
+
+        it('should handle empty or null values gracefully', () => {
+            expect(buildRuleEditUrl(null, null)).toBe('/rule/edit');
+            expect(buildRuleEditUrl('', undefined)).toBe('/rule/edit');
+            expect(buildRuleEditUrl(undefined, 101)).toBe('/rule/edit?channelId=101');
         });
     });
 });

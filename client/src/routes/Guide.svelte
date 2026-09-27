@@ -8,7 +8,7 @@
     import { configStore } from '../lib/stores/config.svelte';
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
-    import { extractFirstSearchWord, getChannelTypeBadgeClass } from '../lib/utils/format';
+    import { buildRuleEditUrl, getChannelTypeBadgeClass } from '../lib/utils/format';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
     import FilterTabs from '../lib/components/common/FilterTabs.svelte';
@@ -1096,26 +1096,19 @@
             <div
                 class="flex shrink-0 items-center justify-between border-t border-slate-100 p-3 sm:p-4 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70"
             >
-                <button
-                    type="button"
+                <Button
+                    variant="secondary"
+                    size="compact"
                     onclick={() => {
                         isModalOpen = false;
-                        const kw = extractFirstSearchWord(selectedProgram!.name);
-                        router.push(`/search?keyword=${encodeURIComponent(kw)}`);
+                        router.push(buildRuleEditUrl(selectedProgram!.name, selectedProgram!.channelId));
                     }}
-                    class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer whitespace-nowrap shrink-0"
                 >
-                    <Search size={14} /> ルール検索へ
-                </button>
+                    <Search size={14} /> ルール作成へ
+                </Button>
 
                 <div class="flex items-center gap-2 overflow-x-auto">
-                    <button
-                        type="button"
-                        onclick={() => (isModalOpen = false)}
-                        class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 cursor-pointer whitespace-nowrap shrink-0"
-                    >
-                        閉じる
-                    </button>
+                    <Button variant="secondary" size="compact" onclick={() => (isModalOpen = false)}>閉じる</Button>
 
                     {#if !readOnlyStore.isReadOnly}
                         {#if selectedProgram.reserve}

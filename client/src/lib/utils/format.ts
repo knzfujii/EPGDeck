@@ -158,6 +158,22 @@ export function extractFirstSearchWord(title: string | undefined | null): string
 }
 
 /**
+ * 番組タイトルと放送局IDからルール作成・編集画面 (/rule/edit) への遷移URLを生成
+ */
+export function buildRuleEditUrl(title: string | undefined | null, channelId?: number | string | null): string {
+    const kw = extractFirstSearchWord(title);
+    const params = new URLSearchParams();
+    if (kw) {
+        params.set('keyword', kw);
+    }
+    if (channelId != null && channelId !== '') {
+        params.set('channelId', String(channelId));
+    }
+    const qs = params.toString();
+    return qs ? `/rule/edit?${qs}` : '/rule/edit';
+}
+
+/**
  * 主要ジャンル番号から日本語名称を取得
  */
 export function getGenreName(genre1?: number): string {

@@ -7,13 +7,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore } from '../lib/stores/config.svelte';
-    import {
-        formatDate,
-        formatTime,
-        formatTimeRange,
-        formatDuration,
-        extractFirstSearchWord,
-    } from '../lib/utils/format';
+    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
@@ -35,7 +29,6 @@
         CheckCircle2,
         X,
         Info,
-        Search,
         SlidersHorizontal,
         Ban,
         RotateCcw,
@@ -309,9 +302,9 @@
             <FilterTabs
                 tabs={[
                     { id: 'all', label: 'すべて', count: total },
-                    { id: 'conflicts', label: '競合', count: conflictCount, icon: AlertTriangle },
-                    { id: 'skips', label: 'スキップ', count: skipCount },
                     { id: 'overlaps', label: '重複', count: overlapCount },
+                    { id: 'skips', label: 'スキップ', count: skipCount },
+                    { id: 'conflicts', label: '競合', count: conflictCount, icon: AlertTriangle },
                 ]}
                 activeTab={filterMode}
                 onselect={id => (filterMode = id)}
@@ -358,13 +351,13 @@
                             openReserveDetail(item);
                         }
                     }}
-                    class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 cursor-pointer {item.isRecording
-                        ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
+                    class="rounded-2xl border p-3.5 shadow-xs transition cursor-pointer border-l-4 {item.isRecording
+                        ? 'border-l-rose-600 border-rose-300 bg-rose-100 hover:border-rose-400 dark:border-rose-800 dark:bg-rose-950/60'
                         : item.isConflict
-                          ? 'border-rose-200 bg-rose-50/20 dark:border-rose-900/40'
-                          : item.isSkip
-                            ? 'opacity-60 bg-slate-50/50'
-                            : ''}"
+                          ? 'border-l-red-600 border-red-300 bg-red-100 hover:border-red-400 dark:border-red-800 dark:bg-red-950/60'
+                          : item.isSkip || item.isOverlap
+                            ? 'border-l-slate-400 border-slate-300 bg-slate-200/80 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                            : 'border-l-transparent border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900'}"
                 >
                     <!-- 1行目: 日時・局・種別・状態 -->
                     <div class="flex items-center justify-between gap-2 flex-wrap text-xs">
@@ -391,6 +384,12 @@
                                 <Badge variant="skip" size="xs" />
                             {:else if item.isOverlap}
                                 <Badge variant="overlap" size="xs" />
+                            {:else}
+                                <span
+                                    class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
+                                >
+                                    予約完了
+                                </span>
                             {/if}
                         </div>
                     </div>
@@ -490,7 +489,7 @@
                     <thead
                         class="border-b border-slate-200 bg-slate-50 font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400"
                     >
-                        <tr>
+                        <tr class="border-l-4 border-l-transparent">
                             <th class="px-4 py-3.5 whitespace-nowrap min-w-[130px]">放送日時</th>
                             <th class="px-4 py-3.5 whitespace-nowrap min-w-[110px]">放送局</th>
                             <th class="px-4 py-3.5 whitespace-nowrap min-w-[70px]">種別</th>
@@ -506,13 +505,13 @@
                         {#each filteredReserves as item}
                             <tr
                                 onclick={() => openReserveDetail(item)}
-                                class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {item.isRecording
-                                    ? 'bg-rose-50/70 dark:bg-rose-950/30'
+                                class="transition cursor-pointer border-l-4 {item.isRecording
+                                    ? 'border-l-rose-600 bg-rose-100 hover:bg-rose-200/70 dark:border-l-rose-500 dark:bg-rose-950/60 dark:hover:bg-rose-950/80'
                                     : item.isConflict
-                                      ? 'bg-rose-50/40 dark:bg-rose-950/20'
-                                      : item.isSkip
-                                        ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
-                                        : ''}"
+                                      ? 'border-l-red-600 bg-red-100 hover:bg-red-200/70 dark:border-l-red-500 dark:bg-red-950/60 dark:hover:bg-red-950/80'
+                                      : item.isSkip || item.isOverlap
+                                        ? 'border-l-slate-400 bg-slate-200/80 hover:bg-slate-200 dark:border-l-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300'
+                                        : 'border-l-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/40'}"
                             >
                                 <!-- 放送日時 (2行スタック化) -->
                                 <td class="whitespace-nowrap px-4 py-3 font-medium text-slate-600 dark:text-slate-400">
@@ -862,17 +861,6 @@
                             <Play size={14} fill="currentColor" /> ライブ視聴
                         </Button>
                     {/if}
-                    <Button
-                        variant="secondary"
-                        size="compact"
-                        onclick={() => {
-                            isDetailModalOpen = false;
-                            const kw = extractFirstSearchWord(item.name);
-                            router.push(`/search?keyword=${encodeURIComponent(kw)}`);
-                        }}
-                    >
-                        <Search size={14} /> 類似番組を検索
-                    </Button>
                 </div>
 
                 <div class="flex items-center gap-2">

@@ -62,13 +62,22 @@ flowchart TD
   2. 2 回目のシグナル受信時は即時強制終了（`process.exit(1)`）する二重安全機構を配備。
   3. `recEndPromise` による並行終了処理の重複実行防止機構を実装。
 
-#### 1.2 動画・ライブストリーミングにおけるバックプレッシャー制御の導入
-- **対象ファイル**: `src/model/service/hono/routes/streams.ts`
+#### 1.2 動画・ライブストリーミングにおけるバックプレッシャー制御の導入（実装完了）
+- **対象ファイル**: `src/model/service/hono/routes/streams.ts`, `test/unit/stream_routes.test.ts`
 - **課題**:
-  Node.js `Readable` から Web Streams `ReadableStream` への手動変換において、`nodeStream.on('data', chunk => controller.enqueue(chunk))` と無制限にエンキューしている。クライアント側のネットワーク遅延時や再生一時停止時にメモリが無限肥大化し、ヒープ枯渇（OOM クラッシュ）を引き起こす危険がある。
-- **改善方針**:
-  - Node.js 17+ 組み込みの `Readable.toWeb(nodeStream)` を使用する。
-  - これにより、ブラウザ（クライアント）の読み取り速度に応じた自動フロー制御（バックプレッシャー）が有効化され、メモリ消費を一定以下に抑制できる。
+  従来、`src/model/service/hono/routes/streams.ts` において Node.js `Readable` から Web Streams `ReadableStream` への手動変換時に `nodeStream.on('data', chunk => controller.enqueue(chunk))` と無制限にエンキューしていた。クライアント側のネットワーク遅延時や再生一時停止時にメモリが無限肥大化し、ヒープ枯渇（OOM クラッシュ）を引き起こす危険があった。
+- **実装内容**:
+  1. **Web Standards 準拠の自動バックプレッシャー制御**:
+     - Node.js 17+ 標準の `Readable.toWeb(nodeStream)` を導入。
+     - `@hono/node-server` のソケット書き込み・クライアント受信バッファの状態（drain）に応じて `nodeStream.pause()` / `resume()` が自動連動し、メモリ消費を一定の上限（数ブロック程度）に抑制。
+  2. **堅牢なストリームライフサイクル管理 & リソース即時解放**:
+     - `cleanup` 処理において、`keepTimer` の停止、`nodeStream.destroy()` の即時実行、`streamApiModel.stop(streamId, true)` の待機を体系化。
+     - クライアント切断イベント（`c.req.raw.signal` の `abort`、`c.env.incoming` / `c.env.outgoing` の `close` / `error`）、ストリーム自然終了（`end` / `close`）、およびストリームエラー（`error`）の全経路で `cleanup` を漏れなく発火。
+     - リクエスト開始時点で既に切断されている場合（`signal.aborted` やソケット `destroyed`）は即座に 400 を返し、不要なトランスコードやチューナー占有を防止。
+     - ストリーム生成非同期処理（`startFn`）待機中に切断が発生した場合のゾンビストリーム残留競合を解消し、生成直後の即時クリーンアップと 400 早期返却を保証。
+     - キープアライブタイマー（10 秒毎）でエラーが発生した際も自動的に `cleanup` を発火し、ゾンビストリームの残留を抑止。
+  3. **網羅的単体テスト（27 シナリオ）の配備**:
+     - `test/unit/stream_routes.test.ts` を新設し、バックプレッシャーによる読み取り停止、正常 EOF、`AbortSignal` 切断、`reader.cancel()` 切断、ストリームエラー時の安全終了、事前破棄ソケット即時 400 拒絶、生成待機中切断クリーンアップ、`incoming`/`outgoing` ソケットの `close`/`error` イベント連動、キープアライブ失敗時の自動停止、Tuner 503 エラー、各種メディア配信（M2TS, M2TS-LL, MP4, WebM）を検証。
 
 #### 1.3 Node.js 22 互換用 Symbol 削除ハック (`createAlreadySentResponse`) の正規ストリーム移行
 - **対象ファイル**: `src/model/service/hono/HonoApiUtil.ts`

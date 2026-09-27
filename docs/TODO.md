@@ -74,8 +74,10 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 ### Phase 1: 安定性ハックの解消 & 信頼性強化 (最優先)
 - [x] **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）**
   - SIGTERM / SIGINT 時に `serviceChild` だけでなく `RecordingManageModel.stopAll()` / `finish()` を実行し、TS 書き込みストリームの安全なフラッシュと DB 実尺確定・ファイルクローズを行ってから終了する
-- [ ] **動画・ライブストリーミングにおけるバックプレッシャー制御の導入（OOM クラッシュ防止）**
-  - `src/model/service/hono/routes/streams.ts` の手動 `ReadableStream` 変換を Node.js 17+ 標準の `Readable.toWeb(nodeStream)` または Hono `stream()` に置き換え、クライアント遅延時のメモリ無限肥大化（OOM）を防止
+- [x] **動画・ライブストリーミングにおけるバックプレッシャー制御の導入（OOM クラッシュ防止）**
+  - `src/model/service/hono/routes/streams.ts` の手動 `ReadableStream` 変換を Node.js 17+ 標準の `Readable.toWeb(nodeStream)` に移行し、ブラウザ読み取り速度に応じた自動バックプレッシャー制御を導入
+  - クライアント切断（`abort`, `close`, `error`）およびストリーム正常終了・エラー時に、`streamApiModel.stop(streamId, true)`、`nodeStream.destroy()`、キープアライブタイマーの即時停止・確実なクリーンアップ機構を配備
+  - 開始前ソケット破棄の早期400拒絶、起動中非同期切断時のゾンビストリーム競合解消、および単体テスト（`test/unit/stream_routes.test.ts`、計27テスト）による網羅検証完了
 - [ ] **Node.js 22 互換用 Symbol 削除ハック (`createAlreadySentResponse`) の正規ストリーム移行**
   - Node.js 22 の undici / Headers キャッシュ競合（`ERR_HTTP_HEADERS_SENT`）回避のために導入された `Response` 内部 Symbol（`cache`）削除ワークアラウンドを解消し、Hono 公式の `stream()` または Web Standard レスポンスへ安全に移行
 

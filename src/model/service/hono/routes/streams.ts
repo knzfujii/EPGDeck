@@ -1,6 +1,7 @@
-import { Hono } from 'hono';
+import { Readable } from 'stream';
+import { Context, Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IStreamApiModel from '../../../api/stream/IStreamApiModel.js';
+import IStreamApiModel, { StreamResponse } from '../../../api/stream/IStreamApiModel.js';
 import container from '../../../ModelContainer.js';
 import { ApiError } from '../../../error/ApiError.js';
 import * as api from '../HonoApiUtil.js';
@@ -20,97 +21,107 @@ const isTunerUnavailable = (err: any): boolean => {
     return msg.includes('503') || msg.includes('Tuner Resource Unavailable');
 };
 
-// Helper for live stream response
-const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType: string) => {
+// Helper for live/recorded media stream response with Web Streams backpressure control
+const handleLiveStream = async (c: Context, startFn: () => Promise<StreamResponse>, contentType: string) => {
     const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
     let keepTimer: NodeJS.Timeout | null = null;
     let streamId: number | null = null;
+    let nodeStream: Readable | null = null;
+    let isCleanedUp = false;
+    let isAborted = false;
+
+    const incoming = (c.env as any)?.incoming;
+    const outgoing = (c.env as any)?.outgoing;
+
+    // Check pre-aborted / destroyed conditions BEFORE acquiring resources
+    if (c.req.raw?.signal?.aborted || incoming?.destroyed || outgoing?.destroyed) {
+        return api.responseError(c, { code: 400, message: 'Request Aborted' });
+    }
+
+    const cleanup = async () => {
+        if (isCleanedUp) return;
+        if (streamId !== null || nodeStream !== null) {
+            isCleanedUp = true;
+        }
+        if (keepTimer) {
+            clearInterval(keepTimer);
+            keepTimer = null;
+        }
+        // Remove client disconnect listeners to prevent leaks on keep-alive sockets
+        try {
+            if (c.req.raw?.signal) {
+                c.req.raw.signal.removeEventListener('abort', onAbort);
+            }
+            if (incoming) {
+                incoming.removeListener('close', onAbort);
+                incoming.removeListener('error', onAbort);
+            }
+            if (outgoing) {
+                outgoing.removeListener('close', onAbort);
+                outgoing.removeListener('error', onAbort);
+            }
+        } catch {
+            // ignore
+        }
+        try {
+            if (nodeStream && !nodeStream.destroyed) {
+                nodeStream.destroy();
+            }
+        } catch {
+            // ignore
+        }
+        if (streamId !== null) {
+            const sId = streamId;
+            streamId = null;
+            await streamApiModel.stop(sId, true).catch(() => {});
+        }
+    };
+
+    const onAbort = () => {
+        isAborted = true;
+        void cleanup();
+    };
+
+    // Attach client disconnect listeners early so disconnect during startFn is captured
+    if (c.req.raw?.signal) {
+        c.req.raw.signal.addEventListener('abort', onAbort, { once: true });
+    }
+    if (incoming) {
+        incoming.once('close', onAbort);
+        incoming.once('error', onAbort);
+    }
+    if (outgoing) {
+        outgoing.once('close', onAbort);
+        outgoing.once('error', onAbort);
+    }
 
     try {
         const result = await startFn();
         streamId = result.streamId;
+        nodeStream = result.stream;
+
+        // If client aborted while startFn was resolving, immediately stop and return 400
+        if (isAborted || c.req.raw?.signal?.aborted || incoming?.destroyed || outgoing?.destroyed) {
+            await cleanup();
+            return api.responseError(c, { code: 400, message: 'Request Aborted' });
+        }
 
         keepTimer = setInterval(() => {
             try {
-                if (streamId !== null) streamApiModel.keep(streamId);
-            } catch {
-                if (keepTimer) {
-                    clearInterval(keepTimer);
-                    keepTimer = null;
+                if (streamId !== null) {
+                    streamApiModel.keep(streamId);
                 }
+            } catch {
+                void cleanup();
             }
         }, 10 * 1000);
+        keepTimer.unref?.();
 
-        let isCleanedUp = false;
-        const nodeStream = result.stream;
-        const cleanup = async () => {
-            if (isCleanedUp) return;
-            isCleanedUp = true;
-            if (keepTimer) {
-                clearInterval(keepTimer);
-                keepTimer = null;
-            }
-            if (streamId !== null) {
-                const sId = streamId;
-                streamId = null;
-                await streamApiModel.stop(sId, true).catch(() => {});
-            }
-            try {
-                if (!nodeStream.destroyed) {
-                    nodeStream.destroy();
-                }
-            } catch {
-                // ignore
-            }
-        };
+        nodeStream.once('end', () => void cleanup());
+        nodeStream.once('close', () => void cleanup());
+        nodeStream.on('error', () => void cleanup());
 
-        c.req.raw.signal?.addEventListener('abort', () => {
-            void cleanup();
-        });
-        if (c.env?.incoming) {
-            c.env.incoming.on('close', () => {
-                void cleanup();
-            });
-        }
-        if (c.env?.outgoing) {
-            c.env.outgoing.on('close', () => {
-                void cleanup();
-            });
-        }
-
-        const webStream = new ReadableStream({
-            start(controller) {
-                nodeStream.on('data', (chunk: Buffer | Uint8Array) => {
-                    try {
-                        controller.enqueue(chunk);
-                    } catch {
-                        void cleanup();
-                    }
-                });
-                nodeStream.on('end', () => {
-                    try {
-                        controller.close();
-                    } catch {
-                        // ignore
-                    }
-                    void cleanup();
-                });
-                nodeStream.on('error', (err: any) => {
-                    try {
-                        controller.error(err);
-                    } catch {
-                        // ignore
-                    }
-                    void cleanup();
-                });
-                nodeStream.on('close', () => {
-                    void cleanup();
-                });
-            },
-            cancel() {
-                void cleanup();
-            },
-        });
+        const webStream = Readable.toWeb(nodeStream);
 
         return new Response(webStream as any, {
             status: 200,
@@ -120,11 +131,7 @@ const handleLiveStream = async (c: any, startFn: () => Promise<any>, contentType
             },
         });
     } catch (err: any) {
-        if (keepTimer) {
-            clearInterval(keepTimer);
-            keepTimer = null;
-        }
-        if (streamId !== null) await streamApiModel.stop(streamId, true).catch(() => {});
+        await cleanup();
         if (isTunerUnavailable(err)) {
             return api.responseError(c, { code: 503, message: 'Tuner Resource Unavailable', errors: err.message });
         }

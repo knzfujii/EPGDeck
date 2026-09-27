@@ -110,6 +110,15 @@ test.describe('OnAir Page (/onair)', () => {
                         extended: 'キャスター: 山田花子',
                         genre1: 0,
                     },
+                    {
+                        id: 5003,
+                        channelId: 1,
+                        startAt: now + 45 * 60 * 1000,
+                        endAt: now + 105 * 60 * 1000,
+                        name: '午後のおすすめドラマ',
+                        description: '名作ドラマのアンコール放送',
+                        genre1: 1,
+                    },
                 ],
             },
             {
@@ -179,16 +188,17 @@ test.describe('OnAir Page (/onair)', () => {
         await expect(detailModal.getByText('番組概要')).toBeVisible();
         await expect(detailModal.getByText('全国の最新ニュースを詳しく解説')).toBeVisible();
 
-        // 4. モーダル内の「この番組でルール作成」をクリック -> /search?keyword=... に遷移
+        // 4. モーダル内の「この番組でルール作成」をクリック -> /rule/edit?keyword=...&channelId=1 に遷移
         const createRuleBtn = detailModal.getByRole('button', { name: 'この番組でルール作成' });
         await expect(createRuleBtn).toBeVisible();
         await createRuleBtn.click();
 
-        // 記号除去後の「お昼のワイドニュース」で /search に遷移すること
-        await page.waitForURL(/\/search\?keyword=/);
+        // 記号除去後の「お昼のワイドニュース」および channelId=1 で /rule/edit に遷移すること
+        await page.waitForURL(/\/rule\/edit\?/);
         expect(page.url()).toContain(
             'keyword=%E3%81%8A%E6%98%BC%E3%81%AE%E3%83%AF%E3%82%A4%E3%83%89%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9',
         );
+        expect(page.url()).toContain('channelId=1');
 
         // 5. 再度 /onair に戻り、カードの「視聴」ボタンから StreamSelectModal を開く
         await page.goto('/onair');
@@ -204,6 +214,21 @@ test.describe('OnAir Page (/onair)', () => {
         const cancelStreamBtn = page.getByRole('button', { name: 'キャンセル' });
         await cancelStreamBtn.click();
         await expect(page.getByText('ライブ配信設定')).not.toBeVisible();
+
+        // 6. 「次の番組」セルをクリックして詳細モーダルが開くこと
+        const nextProgramCell = table.getByRole('button', { name: /午後のおすすめドラマ/ });
+        await expect(nextProgramCell).toBeVisible();
+        await nextProgramCell.click();
+
+        const nextDetailModal = page.getByRole('dialog');
+        await expect(nextDetailModal).toBeVisible();
+        await expect(nextDetailModal.getByText('午後のおすすめドラマ')).toBeVisible();
+        await expect(nextDetailModal.getByText('次の番組')).toBeVisible();
+        await expect(nextDetailModal.getByRole('button', { name: 'この番組でルール作成' })).toBeVisible();
+
+        const closeNextBtn = nextDetailModal.getByRole('button', { name: 'モーダルを閉じる' });
+        await closeNextBtn.click();
+        await expect(nextDetailModal).not.toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

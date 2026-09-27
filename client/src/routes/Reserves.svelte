@@ -7,13 +7,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore } from '../lib/stores/config.svelte';
-    import {
-        formatDate,
-        formatTime,
-        formatTimeRange,
-        formatDuration,
-        extractFirstSearchWord,
-    } from '../lib/utils/format';
+    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
@@ -35,7 +29,6 @@
         CheckCircle2,
         X,
         Info,
-        Search,
         SlidersHorizontal,
         Ban,
         RotateCcw,
@@ -868,17 +861,6 @@
                             <Play size={14} fill="currentColor" /> ライブ視聴
                         </Button>
                     {/if}
-                    <Button
-                        variant="secondary"
-                        size="compact"
-                        onclick={() => {
-                            isDetailModalOpen = false;
-                            const kw = extractFirstSearchWord(item.name);
-                            router.push(`/search?keyword=${encodeURIComponent(kw)}`);
-                        }}
-                    >
-                        <Search size={14} /> 類似番組を検索
-                    </Button>
                 </div>
 
                 <div class="flex items-center gap-2">

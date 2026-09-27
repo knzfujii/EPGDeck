@@ -10,6 +10,7 @@ import IOperatorShutdownModel from './IOperatorShutdownModel.js';
 @injectable()
 export default class OperatorShutdownModel implements IOperatorShutdownModel {
     private log: ILogger;
+    private loggerModel: ILoggerModel;
     private storageManageModel: IStorageManageModel;
     private recordingManageModel: IRecordingManageModel;
     private drizzleOperator: IDrizzleOperator;
@@ -29,6 +30,7 @@ export default class OperatorShutdownModel implements IOperatorShutdownModel {
         @inject('IDrizzleOperator') drizzleOperator: IDrizzleOperator,
     ) {
         this.log = logger.getLogger();
+        this.loggerModel = logger;
         this.storageManageModel = storageManageModel;
         this.recordingManageModel = recordingManageModel;
         this.drizzleOperator = drizzleOperator;
@@ -165,6 +167,11 @@ export default class OperatorShutdownModel implements IOperatorShutdownModel {
         }
 
         this.log.system.info('graceful shutdown completed. Exiting.');
+        try {
+            await this.loggerModel.close();
+        } catch {
+            // ignore
+        }
         this.exitHandler(0);
     }
 }

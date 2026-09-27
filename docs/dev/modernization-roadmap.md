@@ -35,7 +35,8 @@ flowchart TD
 
     subgraph Phase3["Phase 3: アーキテクチャ近代化 & DX 向上"]
         T8["Inversify 6 からモダン DI / 軽量設計への移行<br>(TC39 Stage 3 デコレータ / Vite / tsx 完全対応)"]
-        T9["log4js から pino への刷新<br>(低遅延・省メモリロガー)"]
+        T9["log4js から軽量非同期ロガーへの刷新<br>(rotating-file-stream 移行)"]
+
         T10["巨大 Svelte コンポーネントの関心事分離<br>(Runes クラス抽出 & モジュール分割)"]
     end
 
@@ -164,12 +165,24 @@ flowchart TD
 - **改善方針**:
   - Inversify 最新版（7+ / 8+）への移行、またはクラスそのものをトークンとして解決する型安全な DI、あるいは Hono Context / ファクトリ関数パターンへのスリム化を検討・検証する。
 
-#### 3.2 `log4js` からモダン・高速ロガー（`pino` 等）への刷新
-- **対象ファイル**: `src/model/LoggerModel.ts`
+#### 3.2 `log4js` からモダン・高速ロガーへの刷新（完了）
+- **対象ファイル**: `src/model/LoggerModel.ts`, `src/model/ILoggerModel.ts`, `src/model/operator/shutdown/OperatorShutdownModel.ts`, `src/model/service/ServiceExecutor.ts`, `test/unit/logs.test.ts`, `test/unit/esm_interop.test.ts`, `test/smoke/esm_interop.js`
 - **課題**:
-  コンソール出力は自前 ANSI エスケープ、ファイル出力とローテーションのためだけに重厚な `log4js` を組み込んでいる。
-- **改善方針**:
-  - 低遅延・非同期ストリーム・省メモリな `pino`（+ `pino-roll`）に一本化し、ロギングによるイベントループのブロッキングや依存サイズを削減する。
+  コンソール出力（ANSI カラー）や Web UI リアルタイム配信（Socket.IO / `LogManageModel`）は自前で構築されているにもかかわらず、単にファイル出力とサイズローテーションのためだけに古い設計の重厚な `log4js`（および間接依存を含む 6 パッケージ）を抱え込んでいた。
+- **実施した改善**:
+  1. **`log4js` の完全削除と `rotating-file-stream` への置換**:
+     - 依存ゼロ（deps: none）かつ 95kB の超軽量デファクトライブラリ `rotating-file-stream` を導入し、`log4js` 関連 6 パッケージを完全排除。
+     - Node.js 標準の非同期ストリーム（`Writable`）ベースに刷新し、ファイル I/O によるイベントループの圧迫リスクを大幅に低減。
+  2. **既存フォーマット & Web UI パース完全互換の維持**:
+     - `YYYY-MM-DD HH:mm:ss.SSS [LEVEL] [Process][category] message` 形式のログ行フォーマットを完全維持。
+     - `LogManageModel` の起動時ファイル読み込み正規表現や `tail -f`、各種外部ツールとの 100% 互換性を担保。
+  3. **シャットダウン時の安全なフラッシュ機構（`close()`）の新設**:
+     - `ILoggerModel` および `LoggerModel` に `close(): Promise<void>` を追加。
+     - `OperatorShutdownModel`（親プロセス）および `ServiceExecutor`（子プロセス）のクリーン終了シーケンスに組み込み、プロセス終了直前の最後のログまで安全にファイルへフラッシュされる設計を確立。
+  4. **テスト網羅**:
+     - ファイル書き込み・ローテーションフォーマット・`LogManageModel` 読み込み連携を検証する単体テスト（`logs.test.ts`）を拡充。
+     - ESM インターロップ検証（`esm_interop.js`, `esm_interop.test.ts`）を `rotating-file-stream` へ同期。
+
 
 #### 3.3 フロントエンドの巨大コンポーネント（God Component）の関心事分離
 - **対象ファイル**:

@@ -103,8 +103,11 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 - [ ] **InversifyJS 6.x とレガシーデコレータからの脱却（モダン DI / 軽量設計への移行）**
   - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準デコレータ（TC39 Stage 3）および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
   - 400 行超の `ModelContainerSetter.ts` 手動文字列バインドを型安全な解決方式へスリム化
-- [ ] **`log4js` からモダン・高速ロガー（`pino` 等）への刷新**
-  - 重厚な `log4js` を廃止し、低レイテンシ・非同期ストリーム・省メモリな `pino`（+ `pino-roll`）に一本化
+- [x] **`log4js` から軽量・高速非同期ロガー（`rotating-file-stream`）への刷新**
+  - 単にファイルローテーションのためだけに抱え込んでいた重厚な `log4js`（依存6パッケージ）を完全削除し、ゼロ依存・非同期ストリームの `rotating-file-stream` に置換
+  - 既存のコンソール ANSI カラー出力および Web UI（`/logs`）パース正規表現と 100% 互換のファイルログフォーマット（`YYYY-MM-DD HH:mm:ss.SSS [LEVEL] [Process][category] message`）を維持
+  - `close()` による安全なストリームフラッシュ・クローズ機構を新設し、`OperatorShutdownModel` および `ServiceExecutor` の終了シーケンスに統合
+  - ディスクフルやファイルローテーション競合時にプロセスがクラッシュ・ログ嵐を起こさないよう、連続エラー検知時のサーキットブレーカー（自動一時サスペンド・クールダウン後自動回復機構）を配備。単体テスト（`logs.test.ts`, `esm_interop.test.ts`、計4テスト）完全 PASS
 - [ ] **フロントエンドの巨大コンポーネント（God Component）の関心事分離**
   - `RuleEdit.svelte` (2,149 行)、`RecordedDetail.svelte` (1,310 行) 等の巨大画面からモーダル・フォーム部品をサブコンポーネントへ分割し、ロジックを Svelte 5 Runes クラス（`*.svelte.ts`）に外出し
 
@@ -172,6 +175,8 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）** | SIGINT / SIGTERM 受信時のクリーンシャットダウンシーケンスを実装。OperatorShutdownModel 新設、StorageManageModel 停止、Service 子プロセス停止、RecordingManageModel.stopAll() による全録画ストリーム停止・TS 書き込みフラッシュ（finish/close/error 待機）・DB 実尺（duration/endAt）確定・tmp からの移動・ファイルサイズおよびドロップログ更新、IDrizzleOperator コネクション安全クローズ、2回目シグナル即時終了を網羅。単体テスト計16件新規拡充（全体748件 PASS） | [アーキテクチャ](dev/architecture.md#3-バックエンド設計パターン)、[近代化ロードマップ](dev/modernization-roadmap.md#11-operator-プロセスの-graceful-shutdown-実装) |
 | **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行** | `FileUtil.ts` / `ProcessUtil.ts` / `Util.ts` の `namespace` を ES Module named export および後方互換オブジェクトへ刷新、手動コールバックラップを全廃し `node:fs/promises` へ一本化、`rename` 失敗時 unlink の危険性撤廃、`move` のデファクトスタンダード化（rename優先 ➔ EXDEVフォールバック）、`ProcessUtil.isExited` のシグナル終了検知漏れ修正、単体テスト3件拡充 | [近代化ロードマップ](dev/modernization-roadmap.md#24-レガシー-namespace-構文の廃止と-nodefspromises-への完全移行完了) |
 | **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減** | 全7モデル・計33関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を網羅定義し、ジェネリクス型 RPC（`ClientMessageOption`, `SendMessage`, `ReplyMessage`）を確立。ユニオン型インデックス縮退を防ぐ条件付き型（Conditional Types）設計、`ParentMessage` の Discriminated Union 化による `<any>` キャスト完全撤廃、`IPCServer.getArgsValue` 引数検証（`IPCArgsError`）および戻り値ディスパッチの単体テスト拡充（計11件 PASS） | [近代化ロードマップ](dev/modernization-roadmap.md#23-プロセス間通信ipcの型安全化--コードベース全体の-any-削減完了) |
+| **`log4js` から軽量・高速非同期ロガー（`rotating-file-stream`）への刷新** | 重厚な `log4js`（依存6パッケージ）を完全削除し、ゼロ依存・非同期ストリームの `rotating-file-stream` に置換。既存コンソール ANSI カラー出力および Web UI（`/logs`）パース正規表現と 100% 互換のファイルログフォーマットを維持。シャットダウン時の `close()` 安全フラッシュ機構新設、単体テスト・ESM インターロップテスト完全網羅 | [近代化ロードマップ](dev/modernization-roadmap.md#32-log4js-からモダン高速ロガーへの刷新完了) |
+
 
 
 

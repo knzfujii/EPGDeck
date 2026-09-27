@@ -234,8 +234,9 @@ npm run build
 
 ### ログの確認
 
-EPGDeck は log4js 統合ロギングを採用しており、Web UI の **`/logs`（システムログ画面）** からリアルタイムにログを確認できます。
+EPGDeck は非同期ファイルローテーション（`rotating-file-stream`）とカラーコンソールによる統合ロギングを採用しており、Web UI の **`/logs`（システムログ画面）** からリアルタイムにログを確認できます。
 ファイルログは設定に応じて `logs/epgdeck.log` に集約出力されます。詳細は **[ロギングシステム仕様](docs/manual/logging.md)** を参照してください。
+
 
 ---
 

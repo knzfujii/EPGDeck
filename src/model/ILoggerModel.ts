@@ -6,4 +6,5 @@ export default interface ILoggerModel {
     getLogger(): ILogger;
     onLog(listener: (entry: LogEntry) => void): () => void;
     getLogConfig(): LogConfig;
+    close(): Promise<void>;
 }

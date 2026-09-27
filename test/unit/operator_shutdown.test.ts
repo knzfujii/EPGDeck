@@ -25,6 +25,7 @@ describe('Operator Graceful Shutdown Sequence Tests', () => {
 
         mockLoggerModel = {
             getLogger: () => mockLog,
+            close: vi.fn().mockResolvedValue(undefined),
         };
 
         mockStorageManage = {
@@ -100,6 +101,7 @@ describe('Operator Graceful Shutdown Sequence Tests', () => {
         expect(mockServiceChild.kill).toHaveBeenCalledWith('SIGTERM');
         expect(mockRecordingManage.stopAll).toHaveBeenCalled();
         expect(mockDrizzleOperator.closeConnection).toHaveBeenCalled();
+        expect(mockLoggerModel.close).toHaveBeenCalled();
         expect(exitHandler).toHaveBeenCalledWith(0);
 
         // Verify sequence order

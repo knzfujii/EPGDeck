@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
 import * as aribtsNamespace from 'aribts';
 import { Client as MirakurunClient } from 'mirakurun';
-import log4js from 'log4js';
+import * as rfs from 'rotating-file-stream';
 import * as SocketIO from 'socket.io';
 import * as yaml from 'js-yaml';
 import StreamBaseModel from '../../src/model/service/stream/base/StreamBaseModel.js';
@@ -89,10 +89,9 @@ describe('CJS / ESM Interop Regression Tests', () => {
         });
     });
 
-    describe('log4js', () => {
-        it('should expose configure function on default import', () => {
-            expect(typeof log4js.configure).toBe('function');
-            expect(typeof log4js.getLogger).toBe('function');
+    describe('rotating-file-stream', () => {
+        it('should expose createStream function on namespace import', () => {
+            expect(typeof rfs.createStream).toBe('function');
         });
     });
 

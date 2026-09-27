@@ -101,4 +101,5 @@
 | **テスト詳細・E2E規約** | [`docs/dev/testing.md`](docs/dev/testing.md) | 単体・結合・E2E テスト詳細、フィクスチャ、モック戦略、DB 分離手順 |
 | **REST API 仕様** | [`docs/dev/api.md`](docs/dev/api.md) | Hono API エンドポイント、リクエスト/レスポンススキーマ |
 | **データベース仕様** | [`docs/dev/database.md`](docs/dev/database.md) | Drizzle ORM スキーマ定義、マイグレーション運用 |
+| **近代化・安定化ロードマップ** | [`docs/dev/modernization-roadmap.md`](docs/dev/modernization-roadmap.md) | 安定稼働・アップデート容易性向上、DI・ストリーミング・型安全化の段階的改善計画 |
 | **進捗・残タスク** | [`docs/TODO.md`](docs/TODO.md) | 機能開発ロードマップ、未解決 Issue、完了済みタスク |

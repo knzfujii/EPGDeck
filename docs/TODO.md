@@ -63,13 +63,50 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 
 ---
 
-## 4. ドキュメント & ガイド (Documentation)
+## 4. アーキテクチャ近代化 & 安定稼働・保守性向上 (Architecture & Maintainability)
+
+長期的な安定稼働、依存ライブラリのアップデート容易性、および開発体験（DX）向上のためのタスクです。詳細な背景・技術検証・トレードオフは [アーキテクチャ近代化ロードマップ](dev/modernization-roadmap.md) を参照してください。
+
+### Phase 1: 安定性ハックの解消 & 信頼性強化 (最優先)
+- [ ] **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）**
+  - SIGTERM / SIGINT 時に `serviceChild` だけでなく `RecordingManageModel.stopAll()` / `finish()` を実行し、TS 書き込みストリームの安全なフラッシュと DB 実尺確定・ファイルクローズを行ってから終了する
+- [ ] **動画・ライブストリーミングにおけるバックプレッシャー制御の導入（OOM クラッシュ防止）**
+  - `src/model/service/hono/routes/streams.ts` の手動 `ReadableStream` 変換を Node.js 17+ 標準の `Readable.toWeb(nodeStream)` または Hono `stream()` に置き換え、クライアント遅延時のメモリ無限肥大化（OOM）を防止
+- [ ] **Node.js 22 互換用 Symbol 削除ハック (`createAlreadySentResponse`) の正規ストリーム移行**
+  - Node.js 22 の undici / Headers キャッシュ競合（`ERR_HTTP_HEADERS_SENT`）回避のために導入された `Response` 内部 Symbol（`cache`）削除ワークアラウンドを解消し、Hono 公式の `stream()` または Web Standard レスポンスへ安全に移行
+
+### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
+- [ ] **npm workspaces によるパッケージ管理の一元化**
+  - ルート `package.json` に `"workspaces": ["client"]` を設定し、`npm run all-install` の手動運用を撤廃、依存関係の重複排除・リンク・更新を一元化
+  - クライアントのレガシー `.eslintrc.cjs` をルートの Flat Config（`eslint.config.mjs`）へ統合
+- [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃**
+  - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
+  - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減
+- [ ] **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減**
+  - `IPCMessageDefine.ts` にジェネリクス型を導入し、プロセス間 RPC を型安全化
+  - 460 箇所以上存在する `any`（`: any` / `as any`）を順次 `unknown` + バリデーションまたは具体型へ置換し、`@typescript-eslint/no-explicit-any` を警告化
+- [ ] **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行**
+  - `FileUtil.ts` / `ProcessUtil.ts` の `namespace` を ES モジュール export に移行
+  - `FileUtil.ts` 内の手動 `new Promise` コールバックラップを撤廃し、Node.js 22 標準の `node:fs/promises` に一本化
+
+### Phase 3: アーキテクチャ近代化 & DX 向上 (長期的な保守性)
+- [ ] **InversifyJS 6.x とレガシーデコレータからの脱却（モダン DI / 軽量設計への移行）**
+  - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準デコレータ（TC39 Stage 3）および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
+  - 400 行超の `ModelContainerSetter.ts` 手動文字列バインドを型安全な解決方式へスリム化
+- [ ] **`log4js` からモダン・高速ロガー（`pino` 等）への刷新**
+  - 重厚な `log4js` を廃止し、低レイテンシ・非同期ストリーム・省メモリな `pino`（+ `pino-roll`）に一本化
+- [ ] **フロントエンドの巨大コンポーネント（God Component）の関心事分離**
+  - `RuleEdit.svelte` (2,149 行)、`RecordedDetail.svelte` (1,310 行) 等の巨大画面からモーダル・フォーム部品をサブコンポーネントへ分割し、ロジックを Svelte 5 Runes クラス（`*.svelte.ts`）に外出し
+
+---
+
+## 5. ドキュメント & ガイド (Documentation)
 
 - （現在進行中の未完了タスクはありません）
 
 ---
 
-## 5. 完了済み機能・改善実績（アーカイブ）
+## 6. 完了済み機能・改善実績（アーカイブ）
 
 実装および専門ドキュメントへの仕様記録が完了したタスクです。詳細な仕様・設計は各ドキュメントをご参照ください。
 

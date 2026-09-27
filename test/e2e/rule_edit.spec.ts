@@ -38,15 +38,37 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(page.getByPlaceholder(/葬送のフリーレン/)).toBeVisible();
         await expect(page.getByPlaceholder(/再放送/)).toBeVisible();
 
-        // 4. 予約設定のチェックボックス
-        await expect(page.getByText('ルールを有効にする')).toBeVisible();
-        await expect(page.getByText('同一番組の二重録画を防止')).toBeVisible();
+        // 4. 予約設定のチェックボックスが縦並び（改行）で表示されていること
+        const enableText = page.getByText('ルールを有効にする');
+        const avoidDupText = page.getByText('同一番組の二重録画を防止');
+        const freeText = page.getByText('無料放送（ノンスクランブル）のみ録画');
+        await expect(enableText).toBeVisible();
+        await expect(avoidDupText).toBeVisible();
+        await expect(freeText).toBeVisible();
+
+        const enableBox = await enableText.boundingBox();
+        const avoidDupBox = await avoidDupText.boundingBox();
+        const freeBox = await freeText.boundingBox();
+        expect(enableBox).not.toBeNull();
+        expect(avoidDupBox).not.toBeNull();
+        expect(freeBox).not.toBeNull();
+        expect(avoidDupBox!.y).toBeGreaterThan(enableBox!.y + enableBox!.height);
+        expect(freeBox!.y).toBeGreaterThan(avoidDupBox!.y + avoidDupBox!.height);
 
         // 5. 録画オプション (TS保存先・エンコード設定)
         await expect(page.getByText('TS保存先 (親)')).toBeVisible();
         await expect(page.getByText('TS保存先 (サブ)')).toBeVisible();
-        await expect(page.getByText('チューナー競合時の末尾切れを許可')).toBeVisible();
-        await expect(page.getByText('エンコード完了後に元TSファイルを自動削除')).toBeVisible();
+        const delOrigText = page.getByText('エンコード完了後に元TSファイルを自動削除');
+        const endLackText = page.getByText('チューナー競合時の末尾切れを許可');
+        await expect(delOrigText).toBeVisible();
+        await expect(endLackText).toBeVisible();
+
+        const delOrigBox = await delOrigText.boundingBox();
+        const endLackBox = await endLackText.boundingBox();
+        expect(delOrigBox).not.toBeNull();
+        expect(endLackBox).not.toBeNull();
+        expect(endLackBox!.y).toBeGreaterThan(delOrigBox!.y + delOrigBox!.height);
+
         await expect(page.getByText('エンコード設定')).toBeVisible();
         await expect(page.locator('#rule-recorded-format')).toBeVisible();
 

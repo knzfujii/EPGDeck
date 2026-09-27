@@ -157,7 +157,7 @@
     </div>
 
     <!-- TSファイル削除 & 末尾欠け許可 -->
-    <div class="mt-3.5 space-y-2.5">
+    <div class="mt-3.5 flex flex-col gap-2.5">
         <Checkbox
             bind:checked={isDeleteOriginal}
             label="エンコード完了後に元TSファイルを自動削除"

@@ -207,6 +207,7 @@
   - 垂直（`vertical` / 22px / 幅1px）および水平（`horizontal` / 幅100% / 高さ1px）の視覚的境界線。アクション群と破壊的操作の物理的分離を担う。
 - **`Input.svelte` / `Select.svelte` / `Textarea.svelte` / `Checkbox.svelte`**:
   - 高さ 40px（`h-10`）、フォーカスリング、ダークモード、`bind:value` / `bind:checked` に完全対応した標準フォームコントロール。
+  - `Checkbox.svelte` は内部で `<label class="inline-flex ...">` を構成するため、複数項目を縦並び（改行）で配置する際は、親コンテナに `flex flex-col`（例: `flex flex-col gap-3`）を適用して確実に縦スタックさせる設計規約とする。
 - **`Card.svelte`**:
   - パディング・枠線・背景・シャドウを統一したコンテナコンポーネント。
 - **`Badge.svelte`**:

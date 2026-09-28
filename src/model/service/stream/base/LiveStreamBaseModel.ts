@@ -123,6 +123,14 @@ export default abstract class LiveStreamBaseModel
 
             // パイプ処理
             if (this.streamProcess.stdin !== null) {
+                // 子プロセスの stdin での EPIPE / ERR_STREAM_DESTROYED エラーを無視する
+                this.streamProcess.stdin.on('error', (err: NodeJS.ErrnoException) => {
+                    if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
+                        return;
+                    }
+                    this.log.stream.error(`streamProcess stdin error: ${err.message}`);
+                });
+
                 // HLS 配信の場合は arib-subtitle-timedmetadater を通す
                 if (this.getStreamType() === 'LiveHLS') {
                     this.log.stream.info('use arib-subtitle-timedmetadater');

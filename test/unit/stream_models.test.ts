@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 import LiveHLSStreamModel from '../../src/model/service/stream/LiveHLSStreamModel.js';
 import LiveStreamModel from '../../src/model/service/stream/LiveStreamModel.js';
 import RecordedHLSStreamModel from '../../src/model/service/stream/RecordedHLSStreamModel.js';
@@ -27,6 +29,11 @@ describe('Stream Concrete Models Tests', () => {
             },
             streaming: {
                 tempDir: '/tmp/stream',
+            },
+            recording: {
+                priority: {
+                    streaming: 10,
+                },
             },
         };
         dummyConfiguration = {
@@ -121,6 +128,43 @@ describe('Stream Concrete Models Tests', () => {
             // 2回目の stop ではコールバックが再発火しないこと（removeAllListeners されているため）
             await model.stop();
             expect(exitCallback).toHaveBeenCalledTimes(1);
+        });
+
+        it('handles EPIPE on process stdin gracefully', async () => {
+            const model = createModel();
+            const mirakurunStream = new PassThrough();
+            dummyMirakurunClientModel.getClient = () => ({
+                getServiceStream: vi.fn().mockResolvedValue(mirakurunStream),
+            });
+
+            const stdinStream = new PassThrough();
+            const mockProcess: any = new EventEmitter();
+            mockProcess.exitCode = null;
+            mockProcess.signalCode = null;
+            mockProcess.stdin = stdinStream;
+            mockProcess.stderr = new PassThrough();
+            mockProcess.stdout = new PassThrough();
+            mockProcess.kill = vi.fn();
+            dummyProcessManager.create = vi.fn().mockResolvedValue(mockProcess);
+
+            model.setOption(
+                {
+                    channelId: 1,
+                    cmd: '%FFMPEG% -i pipe:0 -c:v copy pipe:1',
+                } as any,
+                0,
+            );
+
+            await model.start(100);
+
+            // stdin に EPIPE エラーが emit されても例外が発生せず安全に吸収されること
+            expect(() => {
+                const err: any = new Error('write EPIPE');
+                err.code = 'EPIPE';
+                stdinStream.emit('error', err);
+            }).not.toThrow();
+
+            await model.stop();
         });
     });
 

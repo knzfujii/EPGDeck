@@ -25,6 +25,7 @@
         type RecordingActionType,
         type RecordingActionTarget,
     } from '../lib/utils/recording';
+    import { findCurrentAndNextPrograms, getProgress } from '../lib/utils/onair';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -64,7 +65,7 @@
 
     interface OnAirItem {
         channel: apid.ScheduleChannleItem;
-        current: OnAirProgram;
+        current?: OnAirProgram;
         next?: OnAirProgram;
     }
 
@@ -166,39 +167,39 @@
             const list: OnAirItem[] = [];
 
             for (const item of schedules) {
-                const programs = (item.programs || []).slice().sort((a, b) => a.startAt - b.startAt);
-                if (programs.length === 0) continue;
+                const currentAndNext = findCurrentAndNextPrograms(item.programs || [], now);
+                if (!currentAndNext) continue;
 
-                // 現在放映中の番組を特定
-                const rawCurrent = programs.find(p => p.startAt <= now && p.endAt > now) || programs[0];
-                // 次の番組を特定
-                const rawNext = programs.find(p => p.startAt >= rawCurrent.endAt);
+                const { current: rawCurrent, next: rawNext } = currentAndNext;
 
-                // 現在番組の録画中判定
-                const matchedRec = recordingList.find(
-                    rec =>
-                        (rec.programId && rawCurrent.id && rec.programId === rawCurrent.id) ||
-                        (rec.channelId === item.channel.id &&
-                            Math.abs(rec.startAt - rawCurrent.startAt) < 60000 &&
-                            Math.abs(rec.endAt - rawCurrent.endAt) < 60000),
-                );
+                let current: OnAirProgram | undefined = undefined;
+                if (rawCurrent) {
+                    // 現在番組の録画中判定
+                    const matchedRec = recordingList.find(
+                        rec =>
+                            (rec.programId && rawCurrent.id && rec.programId === rawCurrent.id) ||
+                            (rec.channelId === item.channel.id &&
+                                Math.abs(rec.startAt - rawCurrent.startAt) < 60000 &&
+                                Math.abs(rec.endAt - rawCurrent.endAt) < 60000),
+                    );
 
-                // 録画中である場合、対応する予約 (ReserveItem) を特定
-                const matchedReserve = matchedRec
-                    ? reservesList.find(
-                          r =>
-                              (r.programId && rawCurrent.id && r.programId === rawCurrent.id) ||
-                              (r.channelId === item.channel.id &&
-                                  Math.abs(r.startAt - rawCurrent.startAt) < 60000 &&
-                                  Math.abs(r.endAt - rawCurrent.endAt) < 60000),
-                      )
-                    : undefined;
+                    // 録画中である場合、対応する予約 (ReserveItem) を特定
+                    const matchedReserve = matchedRec
+                        ? reservesList.find(
+                              r =>
+                                  (r.programId && rawCurrent.id && r.programId === rawCurrent.id) ||
+                                  (r.channelId === item.channel.id &&
+                                      Math.abs(r.startAt - rawCurrent.startAt) < 60000 &&
+                                      Math.abs(r.endAt - rawCurrent.endAt) < 60000),
+                          )
+                        : undefined;
 
-                const current: OnAirProgram = {
-                    ...rawCurrent,
-                    isRecording: !!matchedRec,
-                    recordingReserveId: matchedReserve ? matchedReserve.id : undefined,
-                };
+                    current = {
+                        ...rawCurrent,
+                        isRecording: !!matchedRec,
+                        recordingReserveId: matchedReserve ? matchedReserve.id : undefined,
+                    };
+                }
 
                 // 次番組の予約中判定
                 let next: OnAirProgram | undefined = undefined;
@@ -295,12 +296,6 @@
         });
     });
 
-    function getProgress(startAt: number, endAt: number, now: number): number {
-        if (now <= startAt) return 0;
-        if (now >= endAt) return 100;
-        return Math.min(100, Math.max(0, Math.round(((now - startAt) / (endAt - startAt)) * 100)));
-    }
-
     function openStreamModal(channel: OnAirChannel, programName?: string) {
         selectedChannel = channel;
         streamModalTitle = programName || `${channel.name} ライブ視聴`;
@@ -346,7 +341,7 @@
     function openRecordingAction(item: OnAirItem) {
         if (readOnlyStore.isReadOnly) return;
         const program = item.current;
-        if (!program.recordingReserveId) {
+        if (!program || !program.recordingReserveId) {
             snackbar.open({ text: '予約情報の取得に失敗したため、操作を実行できませんでした', color: 'error' });
             return;
         }
@@ -603,7 +598,7 @@
                                 </div>
                             </div>
                         {:else}
-                            <p class="text-xs text-slate-400">現在放送中の番組情報がありません</p>
+                            <div class="py-2 text-xs text-slate-400 dark:text-slate-500 italic">放送休止中</div>
                         {/if}
 
                         <!-- 次の番組 -->
@@ -823,7 +818,9 @@
                                                 {/if}
                                             </div>
                                         {:else}
-                                            <span class="text-slate-400 text-xs">番組情報なし</span>
+                                            <div class="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
+                                                放送休止中
+                                            </div>
                                         {/if}
                                     </td>
 

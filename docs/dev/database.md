@@ -16,7 +16,7 @@
    - [3.7 サムネイル画像 (thumbnail)](#37-サムネイル画像-thumbnail)
    - [3.8 ドロップ・エラー集計ログ (drop_log_file)](#38-ドロップエラー集計ログ-drop_log_file)
    - [3.9 録画履歴 (recorded_history)](#39-録画履歴-recorded_history)
-   - [3.10 タグマスター & 中間テーブル (recorded_tag, recorded_tags_recorded_tag)](#310-タグマスター--中間テーブル-recorded_tag-recorded_tags_recorded_tag)
+   - [3.10 タグマスター & 中間テーブル (recorded_tag, recorded_tags_recorded_tag)](#recorded-tags)
 4. [EPGStation 完全互換ポリシー](#4-epgstation-完全互換ポリシー)
 5. [スキーマ変更手順](#5-スキーマ変更手順)
 6. [破壊的変更に関するガイドライン](#6-破壊的変更に関するガイドライン)
@@ -369,7 +369,7 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 
 ---
 
-### 3.10 タグマスター & 中間テーブル (`recorded_tag`, `recorded_tags_recorded_tag`)
+### 3.10 タグマスター & 中間テーブル (`recorded_tag`, `recorded_tags_recorded_tag`) <a id="recorded-tags"></a>
 録画番組に付与するカテゴリタグを管理します。
 
 #### `recorded_tag`

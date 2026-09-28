@@ -4,7 +4,7 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 
 > [!NOTE]
 > 本リストは **未来の未完了タスク管理（State）** に特化しています。
-> - 完了した機能仕様・現行アーキテクチャ: [画面仕様書](dev/epgdeck_change_spec.md)、[システムアーキテクチャ](dev/architecture.md)、[設定マニュアル](manual/configuration.md)
+> - 完了した機能仕様・現行アーキテクチャ: [UI/UX 画面仕様書](dev/ui_spec.md)、[システムアーキテクチャ](dev/architecture.md)、[設定マニュアル](manual/configuration.md)
 > - 過去の設計決定・技術的検証（Why / ADR）: [近代化ロードマップ 兼 アーキテクチャ決定記録](dev/modernization-roadmap.md)
 > - リリースごとの変更差分: [CHANGELOG.md](../CHANGELOG.md)
 

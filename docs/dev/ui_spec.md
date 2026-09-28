@@ -1,6 +1,6 @@
-# EPGDeck (Svelte 5 版) 画面仕様書
+# EPGDeck UI/UX 画面仕様書 (UI Specification)
 
-本ドキュメントは、[EPGStation 画面仕様書 (オリジナル)](./epgstation_ui_spec.md) をベースとして、モダン Web 技術（Svelte 5 + Vite + Tailwind CSS v4）への刷新および **15,000 件以上の録画アーカイブ運用** を想定した UI/UX 設計・アーキテクチャ仕様をまとめた技術仕様書です。
+本ドキュメントは、モダン Web 技術（Svelte 5 + Vite + Tailwind CSS v4）を採用し、**15,000 件以上の録画アーカイブ運用** を想定した EPGDeck の UI/UX 設計・全画面構成・デザインシステム仕様をまとめた技術仕様書です。
 
 ---
 

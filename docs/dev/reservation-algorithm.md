@@ -7,7 +7,7 @@
 ## 目次
 
 1. [概要とモデル構成](#1-概要とモデル構成)
-2. [二重録画防止（録画済み重複排除 / isOverlap）](#2-二重録画防止録画済み重複排除--isoverlap)
+2. [二重録画防止（録画済み重複排除 / isOverlap）](#2-二重録画防止録画済み重複排除-isoverlap)
    - [判定のタイミングと全体フロー](#判定のタイミングと全体フロー)
    - [録画履歴（recorded_history）の保存条件](#録画履歴recorded_historyの保存条件)
    - [重複判定のキーと正規化ロジック（shortName）](#重複判定のキーと正規化ロジックshortname)
@@ -295,12 +295,12 @@ const rangeSec = startSec <= endSec
 
 ## 6. 関連ソースコード一覧
 
-| ファイルパス | 役割・該当処理 |
-|---|---|
-| [`src/model/db/ProgramDB.ts`](../../src/model/db/ProgramDB.ts#L531-L569) | `findRulePrograms`: `recorded_history` との照合による `overlap` 判定処理 |
-| [`src/util/StrUtil.ts`](../../src/util/StrUtil.ts#L106-L114) | `deleteBrackets`: 囲み文字・角括弧の除去による `shortName` 生成 |
-| [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts#L678-L698) | 録画完了時の `recorded_history` へのレコード記録 |
-| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts#L1539-L1674) | `createReserves`: 平面走査法によるチューナー競合判定（`isConflict`） |
-| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts#L1677-L1699) | `sortReserve`: 手動予約・ルールIDに基づく優先度ソート |
-| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts#L853-L860) | `updateRule`: 重複フラグの引き継ぎおよび `isIgnoreOverlap`（手動解除）の維持 |
+| ファイルパス | 対象シンボル | 役割・該当処理 |
+|---|---|---|
+| [`src/model/db/ProgramDB.ts`](../../src/model/db/ProgramDB.ts) | `ProgramDB.findRulePrograms` | `recorded_history` との照合による `overlap` 判定処理 |
+| [`src/util/StrUtil.ts`](../../src/util/StrUtil.ts) | `StrUtil.deleteBrackets` | 囲み文字・角括弧の除去による `shortName` 生成 |
+| [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts) | `RecorderModel.recEnd` | 録画完了時の `recorded_history` へのレコード記録 |
+| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.createReserves` | 平面走査法によるチューナー競合判定（`isConflict`） |
+| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.sortReserve` | 手動予約・優先度（Priority）・ルールIDに基づく優先度ソート |
+| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.updateRule` | 重複フラグの引き継ぎおよび `isIgnoreOverlap`（手動解除）の維持 |
 

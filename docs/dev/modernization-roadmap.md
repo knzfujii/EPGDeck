@@ -53,7 +53,9 @@ flowchart TD
 
 ### Phase 1: 安定性ハックの解消 & 信頼性強化 (最優先)
 
-#### 1.1 Operator プロセスの Graceful Shutdown 実装（実装完了）
+#### 1.1 Operator プロセスの Graceful Shutdown 実装
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/index.ts`, `src/model/operator/recording/RecordingManageModel.ts`, `src/model/operator/recording/RecorderModel.ts`, `src/model/operator/recording/IRecordingManageModel.ts`, `src/model/operator/recording/IRecorderModel.ts`
 - **課題**:
   従来、SIGINT / SIGTERM 受信時に `shutdown` 関数は `serviceChild`（ServiceExecutor）の停止のみを待機し、`process.exit(0)` で即座に終了していた。録画中のレコーダー（Mirakurun ストリーム、TS 書き込みパイプ、一時ファイル等）の終了処理が呼ばれず、OS シャットダウンやサービス再起動時に書きかけの TS ファイルが破損するリスクがあった。
@@ -68,7 +70,9 @@ flowchart TD
   2. 2 回目のシグナル受信時は即時強制終了（`process.exit(1)`）する二重安全機構を配備。
   3. `recEndPromise` による並行終了処理の重複実行防止機構を実装。
 
-#### 1.2 動画・ライブストリーミングにおけるバックプレッシャー制御の導入（実装完了）
+#### 1.2 動画・ライブストリーミングにおけるバックプレッシャー制御の導入
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/model/service/hono/routes/streams.ts`, `test/unit/stream_routes.test.ts`
 - **課題**:
   従来、`src/model/service/hono/routes/streams.ts` において Node.js `Readable` から Web Streams `ReadableStream` への手動変換時に `nodeStream.on('data', chunk => controller.enqueue(chunk))` と無制限にエンキューしていた。クライアント側のネットワーク遅延時や再生一時停止時にメモリが無限肥大化し、ヒープ枯渇（OOM クラッシュ）を引き起こす危険があった。
@@ -85,7 +89,9 @@ flowchart TD
   3. **網羅的単体テスト（27 シナリオ）の配備**:
      - `test/unit/stream_routes.test.ts` を新設し、バックプレッシャーによる読み取り停止、正常 EOF、`AbortSignal` 切断、`reader.cancel()` 切断、ストリームエラー時の安全終了、事前破棄ソケット即時 400 拒絶、生成待機中切断クリーンアップ、`incoming`/`outgoing` ソケットの `close`/`error` イベント連動、キープアライブ失敗時の自動停止、Tuner 503 エラー、各種メディア配信（M2TS, M2TS-LL, MP4, WebM）を検証。
 
-#### 1.3 静的ファイル配信における大容量ストール防止と Node 22 互換ガードの設計保護（完了）
+#### 1.3 静的ファイル配信における大容量ストール防止と Node 22 互換ガードの設計保護
+> **ステータス**: 恒久的設計保護 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/model/service/hono/HonoApiUtil.ts`, `docs/dev/streaming-and-captions.md`
 - **経緯・技術的検証**:
   Node.js 22 の undici / Headers キャッシュ機構導入に伴い、`c.env.outgoing` に対して直接 `writeHead` / `pipe` を行った後に Hono の Response を返すと、`ERR_HTTP_HEADERS_SENT` が発生した。そのため、Node.js 22 を動作させる対応として、`Response` オブジェクトの内部 Symbol（`sym.description === 'cache'`）を安全に削除する `createAlreadySentResponse()` が導入されていた。
@@ -103,7 +109,9 @@ flowchart TD
 
 ### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
 
-#### 2.1 npm workspaces によるパッケージ管理の一元化（完了）
+#### 2.1 npm workspaces によるパッケージ管理の一元化
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `package.json`, `client/package.json`, `Dockerfile`, `.github/workflows/ci.yml`
 - **課題**:
   ルートと `client/` で個別に `package.json` を持ち、`npm run all-install`（`--no-save`）で手動インストールしていた。また、CI や Dockerfile でも 2 段階の `npm ci` が必要で、重複パッケージによるディスク・キャッシュ浪費や lockfile 乖離のリスクがあった。
@@ -114,6 +122,8 @@ flowchart TD
   4. **依存パッケージ自動検知の基盤確立**: Renovate や Dependabot がリポジトリ全体の依存関係を単一の lockfile で安全に検知・自動更新できる状態を整備。
 
 #### 2.2 Drizzle ORM スキーマの一元化 & 生 DDL 文字列の撤廃
+> **ステータス**: 未着手 (Phase 2 残タスク)
+
 - **対象ファイル**: `src/db/schema/**/*.ts`, `src/model/db/DrizzleOperator.ts`, `src/model/db/*DB.ts`
 - **課題**:
   `src/db/schema/` にスキーマ定義がある一方で、`DrizzleOperator.ts` に 500 行以上の生 DDL 文字列（`CREATE TABLE IF NOT EXISTS`）がハードコードされており、カラム変更時の不整合リスクが高い。また、SQLite と MySQL のユニオン型を吸収できず、DAO 層全体で `(db as any)` のキャストと手動 `toEntity`（boolean 変換）が発生している。
@@ -121,7 +131,9 @@ flowchart TD
   1. 生 DDL ハードコードを全廃し、`drizzle-orm/migrator` によるスキーマ定義ベースの自動マイグレーションへ統一。
   2. Drizzle の推論型（`$inferSelect` / `$inferInsert`）を活用し、TypeORM 時代の旧エンティティクラスへの手動マッピング層を順次スリム化。
 
-#### 2.3 プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減（完了）
+#### 2.3 プロセス間通信（IPC）の型安全化 & コードベース全体の any 削減
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/model/ipc/IPCMessageDefine.ts`, `src/model/ipc/IPCClient.ts`, `src/model/ipc/IPCServer.ts`, `test/unit/ipc.test.ts`
 - **課題**:
   Service 子プロセスと Operator 親プロセス間のプロセス間通信（IPC）において、送受信メッセージ（`SendMessage`, `ReplyMessage`, `ClientMessageOption`）が `args?: any`, `result?: any` と型安全性を欠いており、引数ミスやレスポンス型不一致がコンパイル時に検知できなかった。また `IPCServer.ts` 内で `<any>` キャストが多用され、プッシュ通知の型付けも曖昧であった。
@@ -142,7 +154,9 @@ flowchart TD
      - レスポンス受信時の `clearTimeout` によるタイマー破棄を徹底し、高頻度通信時のタイマーハンドル蓄積を解消。`process.send` 未定義時の即時 reject ガードを配備。
 
 
-#### 2.4 レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行（完了）
+#### 2.4 レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts`
 - **課題**:
   TypeScript 独自仕様の `namespace` 構文が残存。また `FileUtil.ts` では Node 8 時代の手動 `new Promise` コールバックラップが多数残っており、コードの可読性や例外伝播の透明性が損なわれていた。
@@ -164,13 +178,17 @@ flowchart TD
 ### Phase 3: アーキテクチャ近代化 & DX 向上 (長期的な保守性)
 
 #### 3.1 InversifyJS 6.x とレガシーデコレータからの脱却
+> **ステータス**: 検討中 (Phase 3 残タスク)
+
 - **対象ファイル**: `src/model/ModelContainerSetter.ts`, `tsconfig.json`
 - **課題**:
   `experimentalDecorators` と `emitDecoratorMetadata` に依存しているため、TypeScript 5+ の標準デコレータ（TC39 Stage 3）への移行や、Vite / esbuild / SWC / tsx などの高速トランスパイラによるサーバー実行が阻害されている。また 1 クラス 1 インターフェースの文字列トークン手動バインドが保守コストになっている。
 - **改善方針**:
   - Inversify 最新版（7+ / 8+）への移行、またはクラスそのものをトークンとして解決する型安全な DI、あるいは Hono Context / ファクトリ関数パターンへのスリム化を検討・検証する。
 
-#### 3.2 `log4js` からモダン・高速ロガーへの刷新（完了）
+#### 3.2 `log4js` からモダン・高速ロガーへの刷新
+> **ステータス**: 実装完了 (`v0.1.0-beta.2`)
+
 - **対象ファイル**: `src/model/LoggerModel.ts`, `src/model/ILoggerModel.ts`, `src/model/operator/shutdown/OperatorShutdownModel.ts`, `src/model/service/ServiceExecutor.ts`, `test/unit/logs.test.ts`, `test/unit/esm_interop.test.ts`, `test/smoke/esm_interop.js`
 - **課題**:
   コンソール出力（ANSI カラー）や Web UI リアルタイム配信（Socket.IO / `LogManageModel`）は自前で構築されているにもかかわらず、単にファイル出力とサイズローテーションのためだけに古い設計の重厚な `log4js`（および間接依存を含む 6 パッケージ）を抱え込んでいた。
@@ -190,6 +208,8 @@ flowchart TD
 
 
 #### 3.3 フロントエンドの巨大コンポーネント（God Component）の関心事分離
+> **ステータス**: 検討中 (Phase 3 残タスク)
+
 - **対象ファイル**:
   - `client/src/routes/RuleEdit.svelte` (2,149 行)
   - `client/src/routes/RecordedDetail.svelte` (1,310 行)
@@ -200,3 +220,4 @@ flowchart TD
 - **改善方針**:
   - モーダルやフォーム部分を別コンポーネントへ分割。
   - ビジネスロジックや状態管理を Svelte 5 の Runes クラス（`*.svelte.ts`）に外出しし、保守性・可読性を向上させる。
+

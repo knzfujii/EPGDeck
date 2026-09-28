@@ -54,6 +54,12 @@ const cleanExit = async (reason: string) => {
         log.system.error(`failed to kill all encode processes: ${err?.message || err}`);
     }
 
+    try {
+        await loggerModel.close();
+    } catch {
+        // ignore
+    }
+
     process.exit(0);
 };
 

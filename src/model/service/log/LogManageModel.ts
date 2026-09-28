@@ -58,7 +58,7 @@ export default class LogManageModel implements ILogManageModel {
             const tailLines = lines.slice(Math.max(0, lines.length - this.maxBufferSize));
 
             const logRegex =
-                /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([A-Z]+)\]\s*(?:\[(Operator|Service|EPGUpdater)\])?(?:\[(system|access|stream|encode)\])?\s*(.*)$/;
+                /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{3})?)\s+\[([A-Z]+)\s*\]\s*(?:\[(Operator|Service|EPGUpdater)\])?(?:\[(system|access|stream|encode)\])?\s*(.*)$/;
 
             for (const line of tailLines) {
                 const match = line.match(logRegex);
@@ -66,7 +66,8 @@ export default class LogManageModel implements ILogManageModel {
                     const [, timeStr, levelStr, processStr, categoryStr, message] = match;
                     const date = new Date(timeStr.replace(' ', 'T'));
                     const timestamp = isNaN(date.getTime()) ? Date.now() : date.getTime();
-                    const level = (levelStr.toLowerCase() as LogEntryLevel) || 'info';
+                    const level = (levelStr.trim().toLowerCase() as LogEntryLevel) || 'info';
+
                     const process = (processStr as LogProcess) || 'Operator';
                     const category = (categoryStr as LogCategory) || 'system';
 

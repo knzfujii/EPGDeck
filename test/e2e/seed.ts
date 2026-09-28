@@ -34,7 +34,7 @@ export async function seedTestData(): Promise<void> {
     if (!fs.existsSync(clientIndexHtml)) {
         console.log('[E2E Seed] Client bundle not found. Building client for E2E tests...');
         const { execSync } = await import('child_process');
-        execSync('npm --prefix client run build', { stdio: 'inherit' });
+        execSync('npm run build:client', { stdio: 'inherit' });
     }
 
     // 3. テスト初期シードの投入

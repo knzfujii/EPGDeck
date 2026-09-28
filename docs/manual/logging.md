@@ -1,7 +1,8 @@
 # ログ出力設定マニュアル
-
-EPGDeck では、[log4js](https://github.com/log4js-node/log4js-node) による統合ロギングを採用しています。  
+ 
+EPGDeck では、Node.js 標準ストリームおよび [rotating-file-stream](https://github.com/iccicci/rotating-file-stream) による軽量・高速な非同期ローテーションロギングを採用しています。  
 ログ設定はすべて `config/config.yml` 内の `log` セクションで一元管理されます。
+
 
 ## 1. ログ設定の構成 (`config.yml`)
 

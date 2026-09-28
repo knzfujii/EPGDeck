@@ -50,7 +50,8 @@ export class SocketStore {
             transports: ['websocket', 'polling'],
             reconnectionAttempts: Infinity, // 長時間バックグラウンド後も諦めずに再接続
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionDelayMax: 10000,
+            randomizationFactor: 0.5,
         });
 
         this.socket.on('connect', () => {
@@ -72,6 +73,10 @@ export class SocketStore {
         this.socket.on('disconnect', () => {
             this.isConnected = false;
             this.emitEvent('disconnect');
+        });
+
+        this.socket.on('connect_error', () => {
+            this.isConnected = false;
         });
 
         this.socket.on('updateStatus', () => {
@@ -120,13 +125,13 @@ export class SocketStore {
     }
 
     public subscribeLogs() {
-        if (this.socket) {
+        if (this.socket && this.socket.connected) {
             this.socket.emit('subscribeLogs');
         }
     }
 
     public unsubscribeLogs() {
-        if (this.socket) {
+        if (this.socket && this.socket.connected) {
             this.socket.emit('unsubscribeLogs');
         }
     }

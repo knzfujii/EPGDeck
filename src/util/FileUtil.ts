@@ -1,308 +1,245 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
 
-namespace FileUtil {
-    /**
-     * unlink
-     * @param filePath: file path
-     */
-    export const unlink = (filePath: string): Promise<void> => {
-        return new Promise<void>((resolve: () => void, reject: (error: Error) => void) => {
-            fs.unlink(filePath, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+export interface FileList {
+    files: string[];
+    directories: string[];
+}
 
-    /**
-     * access
-     * @param filePath: file path
-     * @param mode: mode
-     */
-    export const access = (filePath: string, mode: number | undefined): Promise<void> => {
-        return new Promise<void>((resolve: () => void, reject: (error: Error) => void) => {
-            fs.access(filePath, mode, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+/**
+ * unlink
+ * @param filePath: file path
+ */
+export const unlink = async (filePath: string): Promise<void> => {
+    await fsp.unlink(filePath);
+};
 
-    /**
-     * mkdir
-     * @param dirPath: dir path
-     */
-    export const mkdir = async (dirPath: string): Promise<void> => {
-        await fs.promises.mkdir(dirPath, { recursive: true });
-    };
+/**
+ * access
+ * @param filePath: file path
+ * @param mode: mode
+ */
+export const access = async (filePath: string, mode?: number): Promise<void> => {
+    await fsp.access(filePath, mode);
+};
 
-    /**
-     * stat
-     * @param filePath: file path
-     * @return Promise<fs.Stats>
-     */
-    export const stat = (filePath: string): Promise<fs.Stats> => {
-        return new Promise<fs.Stats>((resolve: (result: fs.Stats) => void, reject: (error: Error) => void) => {
-            fs.stat(filePath, (err, stats) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(stats);
-                }
-            });
-        });
-    };
+/**
+ * mkdir
+ * @param dirPath: dir path
+ */
+export const mkdir = async (dirPath: string): Promise<void> => {
+    await fsp.mkdir(dirPath, { recursive: true });
+};
 
-    /**
-     * ファイルサイズ取得
-     * @param filePath: string
-     * @return Promise<number?
-     * @throws FileIsNotFound
-     */
-    export const getFileSize = async (filePath: string): Promise<number> => {
-        try {
-            return (await FileUtil.stat(filePath)).size;
-        } catch (err: any) {
-            throw new Error('FileIsNotFound');
-        }
-    };
+/**
+ * stat
+ * @param filePath: file path
+ * @return Promise<fs.Stats>
+ */
+export const stat = async (filePath: string): Promise<fs.Stats> => {
+    return await fsp.stat(filePath);
+};
 
-    /**
-     * 指定されたディレクトのファイル一覧を返す
-     * @param dirPath: string ディレクトパス
-     * @return Promise<string[]> ファイル一覧
-     */
-    export const readDir = async (dirPath: string): Promise<string[]> => {
-        return new Promise((resolve, reject) => {
-            fs.readdir(dirPath, (err, files) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(files);
-                }
-            });
-        });
-    };
+/**
+ * ファイルサイズ取得
+ * @param filePath: string
+ * @return Promise<number>
+ * @throws FileIsNotFound
+ */
+export const getFileSize = async (filePath: string): Promise<number> => {
+    try {
+        return (await FileUtil.stat(filePath)).size;
+    } catch {
+        throw new Error('FileIsNotFound');
+    }
+};
 
-    /**
-     * 指定したファイルを一括で読み取る
-     * @param filePath: string
-     * @return Promise<string>
-     */
-    export const readFile = async (filePath: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            fs.readFile(filePath, 'utf-8', (err, data) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(data);
-                }
-            });
-        });
-    };
+/**
+ * 指定されたディレクトリのファイル一覧を返す
+ * @param dirPath: string ディレクトリパス
+ * @return Promise<string[]> ファイル一覧
+ */
+export const readDir = async (dirPath: string): Promise<string[]> => {
+    return await fsp.readdir(dirPath);
+};
 
-    /**
-     * 指定したファイルに書き込む (新規作成 or 上書き)
-     * @param filePath: string
-     * @param data: string
-     * @return Promise<void>
-     */
-    export const writeFile = async (filePath: string, data: string): Promise<void> => {
-        return new Promise((resolve, reject) => {
-            fs.writeFile(filePath, data, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+/**
+ * 指定したファイルを一括で読み取る
+ * @param filePath: string
+ * @return Promise<string>
+ */
+export const readFile = async (filePath: string): Promise<string> => {
+    return await fsp.readFile(filePath, 'utf-8');
+};
 
-    /**
-     * Promise file rename
-     * @param src: source file path
-     * @param dest: dest file path
-     * @return Promise<void>
-     */
-    export const rename = (src: string, dest: string): Promise<void> => {
-        return new Promise<void>((resolve, reject) => {
-            fs.rename(src, dest, async err => {
-                if (err) {
-                    await FileUtil.unlink(dest).catch(() => {});
+/**
+ * 指定したファイルに書き込む (新規作成 or 上書き)
+ * @param filePath: string
+ * @param data: string
+ * @return Promise<void>
+ */
+export const writeFile = async (filePath: string, data: string): Promise<void> => {
+    await fsp.writeFile(filePath, data);
+};
 
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+/**
+ * Promise file rename
+ * @param src: source file path
+ * @param dest: dest file path
+ * @return Promise<void>
+ */
+export const rename = async (src: string, dest: string): Promise<void> => {
+    await fsp.rename(src, dest);
+};
 
-    /**
-     * Promise file copy
-     * @param src: source file path
-     * @param dest: dest file path
-     * @return Promise<void>
-     */
-    export const copyFile = (src: string, dest: string): Promise<void> => {
-        return new Promise<void>((resolve, reject) => {
-            fs.copyFile(src, dest, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+/**
+ * Promise file copy
+ * @param src: source file path
+ * @param dest: dest file path
+ * @return Promise<void>
+ */
+export const copyFile = async (src: string, dest: string): Promise<void> => {
+    await fsp.copyFile(src, dest);
+};
 
-    /**
-     * Promise file copy and delete
-     * @param src: source file path
-     * @param dest: dest file path
-     * @return Promise<void>
-     */
-    export const move = async (src: string, dest: string): Promise<void> => {
-        try {
-            await FileUtil.copyFile(src, dest);
-        } catch (err: any) {
-            await FileUtil.unlink(dest).catch(() => {});
-
+/**
+ * Promise file move (rename 優先、EXDEV 時 copy + unlink にフォールバック)
+ * @param src: source file path
+ * @param dest: dest file path
+ * @return Promise<void>
+ */
+export const move = async (src: string, dest: string): Promise<void> => {
+    try {
+        // 同一ファイルシステムであれば rename による高速・アトミック移動
+        await FileUtil.rename(src, dest);
+        return;
+    } catch (err: any) {
+        // クロスデバイス移動 (EXDEV / Windows cross-drive EPERM) 以外は即座にエラー送出
+        if (err.code !== 'EXDEV' && err.code !== 'EPERM') {
             throw err;
         }
-
-        // delete old file
-        await FileUtil.unlink(src);
-    };
-
-    /**
-     * touch file
-     * @param file: string
-     * @return Promise<void>
-     */
-    export const touchFile = (file: string): Promise<void> => {
-        return new Promise<void>((resolve: () => void, reject: (error: Error) => void) => {
-            fs.writeFile(file, '', err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
-
-    /**
-     * 指定したファイルに追加
-     * @param file: string file path
-     * @param str: string 追記内容
-     * @return Promise<void>
-     */
-    export const appendFile = (file: string, str: string): Promise<void> => {
-        return new Promise<void>((resolve, reject) => {
-            fs.appendFile(file, str, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
-
-    /**
-     * FileList 定義
-     */
-    export interface FileList {
-        files: string[];
-        directories: string[];
     }
 
-    /**
-     * 指定したディレクトリ以下の file と directory 一覧を返す
-     * @return Promise<FileUtil.FileList>
-     */
-    export const getFileList = (fileDir: string): Promise<FileUtil.FileList> => {
-        return new Promise<FileUtil.FileList>((resolve: (result: FileList) => void, reject: (err: Error) => void) => {
-            fs.readdir(fileDir, async (err, files) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const results: FileList = {
-                        files: [],
-                        directories: [],
-                    };
-                    for (const file of files) {
-                        // 隠しディレクトリはスキップ
-                        if (file.slice(0, 1) === '.') {
-                            continue;
-                        }
+    // 別デバイス・マウントポイント間の場合は copy + unlink にフォールバック
+    try {
+        await FileUtil.copyFile(src, dest);
+    } catch (err: any) {
+        // コピー失敗時は不完全な dest ファイルを掃除
+        await FileUtil.unlink(dest).catch(() => {});
+        throw err;
+    }
 
-                        // get full path
-                        const filePath = path.join(fileDir, file);
+    // コピー成功後に元ファイルを削除
+    await FileUtil.unlink(src);
+};
 
-                        if (fs.statSync(filePath).isDirectory()) {
-                            results.directories.push(filePath);
-                            try {
-                                // sub directory 探索
-                                const subFiles = await FileUtil.getFileList(filePath);
-                                Array.prototype.push.apply(results.files, subFiles.files);
-                                Array.prototype.push.apply(results.directories, subFiles.directories);
-                            } catch (err: any) {
-                                // error
-                            }
-                        } else {
-                            results.files.push(filePath);
-                        }
+/**
+ * touch file
+ * @param file: string
+ * @return Promise<void>
+ */
+export const touchFile = async (file: string): Promise<void> => {
+    await fsp.writeFile(file, '');
+};
+
+/**
+ * 指定したファイルに追加
+ * @param file: string file path
+ * @param str: string 追記内容
+ * @return Promise<void>
+ */
+export const appendFile = async (file: string, str: string): Promise<void> => {
+    await fsp.appendFile(file, str);
+};
+
+/**
+ * 指定したディレクトリ以下の file と directory 一覧を返す
+ * @return Promise<FileList>
+ */
+export const getFileList = async (fileDir: string): Promise<FileList> => {
+    const files = await fsp.readdir(fileDir);
+    const results: FileList = {
+        files: [],
+        directories: [],
+    };
+    for (const file of files) {
+        // 隠しディレクトリ・ファイルはスキップ
+        if (file.startsWith('.')) {
+            continue;
+        }
+
+        const filePath = path.join(fileDir, file);
+
+        try {
+            const fileStat = await fsp.stat(filePath);
+            if (fileStat.isDirectory()) {
+                results.directories.push(filePath);
+                try {
+                    // sub directory 探索
+                    const subFiles = await FileUtil.getFileList(filePath);
+                    for (const f of subFiles.files) {
+                        results.files.push(f);
                     }
-
-                    resolve(results);
+                    for (const d of subFiles.directories) {
+                        results.directories.push(d);
+                    }
+                } catch {
+                    // error
                 }
-            });
-        });
-    };
+            } else {
+                results.files.push(filePath);
+            }
+        } catch {
+            continue;
+        }
+    }
 
-    /**
-     * directory が空か
-     * @param dir: string
-     * @return Promise<boolean>
-     */
-    export const isEmptyDirectory = (dir: string): Promise<boolean> => {
-        return new Promise<boolean>((resolve, reject) => {
-            fs.readdir(dir, (err, files) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(files.length === 0);
-                }
-            });
-        });
-    };
+    return results;
+};
 
-    /**
-     * ディレクトリを削除
-     * @param dir: string
-     * @return Promise<void>
-     */
-    export const rmdir = (dir: string): Promise<void> => {
-        return new Promise<void>((resolve, reject) => {
-            fs.rmdir(dir, err => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
-    };
+/**
+ * directory が空か
+ * @param dir: string
+ * @return Promise<boolean>
+ */
+export const isEmptyDirectory = async (dir: string): Promise<boolean> => {
+    const files = await fsp.readdir(dir);
+    return files.length === 0;
+};
+
+/**
+ * ディレクトリを削除
+ * @param dir: string
+ * @return Promise<void>
+ */
+export const rmdir = async (dir: string): Promise<void> => {
+    await fsp.rmdir(dir);
+};
+
+export const FileUtil = {
+    unlink,
+    access,
+    mkdir,
+    stat,
+    getFileSize,
+    readDir,
+    readFile,
+    writeFile,
+    rename,
+    copyFile,
+    move,
+    touchFile,
+    appendFile,
+    getFileList,
+    isEmptyDirectory,
+    rmdir,
+};
+
+// 型参照の後方互換性（FileUtil.FileList）を担保
+export namespace FileUtil {
+    export type FileList = _FileList;
 }
+type _FileList = FileList;
 
 export default FileUtil;

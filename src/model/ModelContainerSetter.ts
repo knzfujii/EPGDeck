@@ -124,6 +124,8 @@ import IRuleManageModel from './operator/rule/IRuleManageModel.js';
 import RuleManageModel from './operator/rule/RuleManageModel.js';
 import IStorageManageModel from './operator/storage/IStorageManageModel.js';
 import StorageManageModel from './operator/storage/StorageManageModel.js';
+import IOperatorShutdownModel from './operator/shutdown/IOperatorShutdownModel.js';
+import OperatorShutdownModel from './operator/shutdown/OperatorShutdownModel.js';
 import IThumbnailManageModel from './operator/thumbnail/IThumbnailManageModel.js';
 import ThumbnailManageModel from './operator/thumbnail/ThumbnailManageModel.js';
 import PromiseQueue from './PromiseQueue.js';
@@ -268,6 +270,7 @@ export const set = (container: Container): void => {
     container.bind<IThumbnailManageModel>('IThumbnailManageModel').to(ThumbnailManageModel).inSingletonScope();
 
     container.bind<IStorageManageModel>('IStorageManageModel').to(StorageManageModel).inSingletonScope();
+    container.bind<IOperatorShutdownModel>('IOperatorShutdownModel').to(OperatorShutdownModel).inSingletonScope();
 
     container.bind<IEventSetter>('IEventSetter').to(EventSetter).inSingletonScope();
 

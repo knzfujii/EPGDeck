@@ -203,13 +203,23 @@ EPGDeck では、システム構成に合わせて設定ファイルを機能別
 
 ## インストール & アップデート方法
 
+### インストール
+
+```bash
+git clone https://github.com/knzfujii/EPGDeck.git
+cd EPGDeck
+npm install
+npm run build
+```
+
 ### アップデート
 
 ```bash
 git pull
-npm run all-install
+npm install
 npm run build
 ```
+*(互換性のため `npm run all-install` も引き続き利用可能です)*
 
 ---
 
@@ -224,8 +234,9 @@ npm run build
 
 ### ログの確認
 
-EPGDeck は log4js 統合ロギングを採用しており、Web UI の **`/logs`（システムログ画面）** からリアルタイムにログを確認できます。
+EPGDeck は非同期ファイルローテーション（`rotating-file-stream`）とカラーコンソールによる統合ロギングを採用しており、Web UI の **`/logs`（システムログ画面）** からリアルタイムにログを確認できます。
 ファイルログは設定に応じて `logs/epgdeck.log` に集約出力されます。詳細は **[ロギングシステム仕様](docs/manual/logging.md)** を参照してください。
+
 
 ---
 

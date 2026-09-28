@@ -114,6 +114,16 @@ describe('SocketStore unit tests', () => {
         expect(encodeCallback).toHaveBeenCalledTimes(1);
     });
 
+    it('does not emit subscribeLogs when socket is disconnected', () => {
+        mockSocket.connected = false;
+        store.subscribeLogs();
+        expect(mockSocket.emit).not.toHaveBeenCalled();
+
+        mockSocket.connected = true;
+        store.subscribeLogs();
+        expect(mockSocket.emit).toHaveBeenCalledWith('subscribeLogs');
+    });
+
     it('cleans up resources on destroy', () => {
         store.destroy();
 

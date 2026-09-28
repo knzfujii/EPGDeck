@@ -315,3 +315,26 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
 - **実装上の教訓**:
   - `for (const sym of Object.getOwnPropertySymbols(res)) delete res[sym]` のように無差別にすべての Symbol を削除すると、Node.js 22 環境では `res.headers` が `undefined` に破壊され、後続処理やテストコードで `TypeError: Cannot read properties of undefined (reading 'get')` クラッシュを引き起こします。
   - キャッシュ Symbol を剥奪する場合は、必ず `if (sym.description === 'cache')` のように対象 Symbol を限定して削除する必要があります。
+
+### 9.3 静的ファイル配信の設計保護方針（Readable.toWeb への安易なリファクタリング禁止）
+- **単体テストと実運用ストリーミングの乖離**:
+  - 数KB〜数MBの小規模ファイルを用いた単体テスト環境では `new Response(Readable.toWeb(stream))` でも正常にレスポンスが完了し、テストを通過します。
+  - しかし、実運用環境（ブラウザ動画プレーヤーから数GBの録画ファイルをプログレッシブ再生・シークする場合）では、`@hono/node-server` の Web Streams ループと Node.js TCP ソケットの drain 競合により、数十MB〜数百MB転送した時点でバックプレッシャーストール（デッドロック）が発生し、動画が完全停止します（コミット `34914f3f` にて実証・解決済み）。
+- **恒久的保護方針**:
+  - `responseFile` における `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）は、EPGDeck の安定稼働に不可欠な防御的アーキテクチャパターンです。
+  - 将来の AI エージェントや開発者が「モダン化」「Web Standard 化」を名目として安易に `Readable.toWeb` へ巻き戻すことを**厳禁**とします。
+
+---
+
+## 10. ライブ／録画トランスコード配信におけるパイプライン保護と EPIPE 回避
+
+### 10.1 クライアント切断時（再生離脱）の EPIPE 発生メカニズム
+- WebM や MP4、M2TS 等のリアルタイムトランスコード配信中（`LiveStreamBaseModel` / `RecordedStreamBaseModel`）にクライアントが再生画面から離脱した場合、HTTP レスポンスストリームが切断されます。
+- クライアント切断に伴い FFmpeg（`streamProcess`）が標準出力の切断を検知して先に終了すると、FFmpeg の `stdin` パイプが閉じられます。
+- このとき、Mirakurun やファイルストリーム（`fileStream`）から届いたデータが `stream.pipe(this.streamProcess.stdin)` 経由で書き込まれ続けると、書き込み先ソケットが既に破棄されているため `childProcess.stdin` が `Error: write EPIPE` または `ERR_STREAM_DESTROYED` イベントを発火します。
+- `stdin` に `error` リスナーが登録されていない場合、未処理エラーとして Node.js グローバルの `uncaughtException` に直行し、サービス全体で FATAL ログが出力される原因となります。
+
+### 10.2 FFmpeg stdin での EPIPE ハンドリング
+- `LiveStreamBaseModel` および `RecordedStreamBaseModel` において、`this.streamProcess.stdin` に対する `error` イベントリスナーを登録します。
+- 子プロセスの早期終了に伴う `EPIPE` や `ERR_STREAM_DESTROYED` を検知した場合は安全に無視（無害な切断としてスキップ）し、未処理エラーによる `uncaughtException` を防止します。
+

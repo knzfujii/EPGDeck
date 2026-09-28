@@ -18,6 +18,12 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 - [ ] **ディスク容量逼迫時のフェイルセーフ**
   - 録画保存先ディスクの空き容量が閾値（例: 10GB / 5% 以下）を下回った際の事前警告（WebSocket / Snackbar 通知）
   - 容量枯渇による録画ストリーム異常終了を防ぐ安全ポリシー（保護されていない古い録画の自動クリーンアップまたは新規録画抑制）の検討
+- [ ] **録画中断・不完全録画のステータス管理と UI 表示の実装**
+  - **背景・実機検証の知見**: 録画中のサーバー停止・再起動時、起動時クリーンアップ（`cleanRecordings`）によって `isRecording: 0` への復帰、ファイルサイズ反映、サムネイル生成は自動で行われるが、DB にステータスカラムが存在しないため「正常完了」と区別がつかず、`duration` / `endAt` も予定枠のまま残ってしまう。
+  - **DB スキーマ設計**: `recorded` テーブルに録画結果ステータスカラム（例: `status: 'completed' | 'interrupted' | 'error'` 等、EPGStation 既存 DB 移行時の互換性を維持するデフォルト `'completed'` / nullable 設計）を追加。
+  - **起動時クリーンアップ改善**: サーバー再起動時に `isRecording: 1` から救済されたレコードを `'interrupted'`（中断終了）として記録し、あわせて実ファイルから実測 duration / endAt を自動補正。
+  - **手動3択操作連携**: 録画中モーダルの「中断して保存」は `'interrupted'`、「完了として保存」は `'completed'` として明示的にステータスを付与。
+  - **Web UI 可視化**: 録画一覧（カード/テーブル）および録画詳細に「中断」「途中終了」等の明確なステータスバッジ（黄色・オレンジ系）を表示し、一目で判別可能にする。
 
 ---
 
@@ -31,6 +37,11 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
   - EPGDeck のブラウザ視聴画面ではそもそも内部字幕を使用せず、API から WebVTT をオンデマンド抽出して表示しているため、MP4 内部の字幕は不要である。
   - しかし、現状の API (`/api/videos/:id/vtt`) は「MP4 本体から字幕を抽出する」仕様のため、単にエンコード時の `-c:s mov_text` を削除 (`-sn`) すると字幕自体が表示できなくなる。
   - **根本対応案**: エンコード時に MP4 には字幕を含めず、同名の `.vtt` ファイルを別ファイルとして生成・保存するアーキテクチャへ改修する。ただし、これに伴うファイル削除ロジック (`VideoApiModel.deleteVideoFile` 等)、DB スキーマ、移行ツールの広範囲な改修影響を精査して進めること。
+- [x] **サーバー切断時のブラウザ CPU 高騰防止 & ログ画面リペイント最適化**
+  - サーバー切断時、ログ画面の自動スクロール追尾ボタン（`<Pause class="animate-pulse" />`）の点滅アニメーションが最大 2,000 行（数万ノード）の DOM ツリーに対して 60fps/120fps の常時リペイントループを誘発し、ブラウザの CPU 使用率が高騰・維持される問題を特定
+  - `socketStore.isConnected` に連動して切断時は即座にアニメーションを解除・静止化（「追尾待機中 (Offline)」表示）し、ブラウザを完全アイドル（CPU 0%）へ復帰
+  - `{#each filteredLogs as log (log.id)}` の key 最適化によりログ追加・破棄時の DOM 全行再生成を解消
+  - `socketStore` において切断時のログ購読 emit 抑止および再接続バックオフ緩和（最大10秒＋jitter）を配備
 - [x] **UI コンポーネントおよびボタンサイズの統一・デザインシステム標準化**
   - Tailwind CSS の局所性原則に基づき、`app.css` の独自 CSS クラス（`.btn-*`, `.form-*`, `.divider-v`, `.card-base` 等）を完全撤廃
   - Svelte 5 共通 UI コンポーネント群へ全面移行：`Button`, `IconButton`, `Divider`, `Input`, `Select`, `Textarea`, `Checkbox`, `Card`, `Badge`, `SearchInput`, `FilterTabs`, `PageHeader`, `ReadOnlyGuard`, `LoadingState`, `EmptyState`
@@ -63,13 +74,59 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 
 ---
 
-## 4. ドキュメント & ガイド (Documentation)
+## 4. アーキテクチャ近代化 & 安定稼働・保守性向上 (Architecture & Maintainability)
+
+長期的な安定稼働、依存ライブラリのアップデート容易性、および開発体験（DX）向上のためのタスクです。詳細な背景・技術検証・トレードオフは [アーキテクチャ近代化ロードマップ](dev/modernization-roadmap.md) を参照してください。
+
+### Phase 1: 安定性ハックの解消 & 信頼性強化 (最優先)
+- [x] **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）**
+  - SIGTERM / SIGINT 時に `serviceChild` だけでなく `RecordingManageModel.stopAll()` / `finish()` を実行し、TS 書き込みストリームの安全なフラッシュと DB 実尺確定・ファイルクローズを行ってから終了する
+- [x] **動画・ライブストリーミングにおけるバックプレッシャー制御の導入（OOM クラッシュ防止）**
+  - `src/model/service/hono/routes/streams.ts` の手動 `ReadableStream` 変換を Node.js 17+ 標準の `Readable.toWeb(nodeStream)` に移行し、ブラウザ読み取り速度に応じた自動バックプレッシャー制御を導入
+  - クライアント切断（`abort`, `close`, `error`）およびストリーム正常終了・エラー時に、`streamApiModel.stop(streamId, true)`、`nodeStream.destroy()`、キープアライブタイマーの即時停止・確実なクリーンアップ機構を配備
+  - 開始前ソケット破棄の早期400拒絶、起動中非同期切断時のゾンビストリーム競合解消、および単体テスト（`test/unit/stream_routes.test.ts`、計27テスト）による網羅検証完了
+- [x] **静的ファイル配信における大容量ストール（デッドロック）防止と Node 22 互換ガードの設計保護・ドキュメント化**
+  - 当初は Web Streams（`Readable.toWeb`）への一本化を検討したが、実運用における GB 級大容量動画のブラウザシーク・再生時に `@hono/node-server` でバックプレッシャーストール（数十MBで停止）が発生する既知の問題があることを再確認
+  - Node.js ネイティブの `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）が実運用上の最善の防御策であることを確認し、安易な巻き戻しを防止するためコードコメントおよび `streaming-and-captions.md` に設計保護規約を明記・保護
+
+### Phase 2: 型安全化 & 依存構造の整理 (アップデート容易性の向上)
+- [x] **npm workspaces によるパッケージ管理の一元化**
+  - ルート `package.json` に `"workspaces": ["client"]` を設定し、ルート `package-lock.json` で全体を一元ロック・重複排除（76パッケージ削減）
+  - `Dockerfile`、GitHub Actions CI（`.github/workflows/ci.yml`）のインストールパイプラインを `npm ci` 一発に最適化
+  - クライアントの不要なレガシー設定（`.eslintrc.cjs`、`.eslintignore`）および個別 `package-lock.json` を整理・撤廃
+- [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃**
+  - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
+  - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減
+- [x] **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減**
+  - `src/model/ipc/IPCMessageDefine.ts` に全 7 モデル・計 33 関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を網羅定義し、ジェネリクス型 RPC（`ClientMessageOption<M, F>`, `SendMessage<M, F>`, `ReplyMessage<T>`）を確立
+  - `ParentMessage` を Discriminated Union（`notifyClient`, `pushEncode`, `pushLog`）に再定義し、`IPCServer` / `IPCClient` 内の `<any>` キャストを完全撤廃
+  - `IPCServer.getArgsValue` による実行時引数検証（欠落時の `IPCArgsError` 応答）および戻り値ディスパッチの単体テスト（`test/unit/ipc.test.ts`、計11テスト）を拡充・完全 PASS
+- [x] **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行**
+  - `src/util/FileUtil.ts`, `src/util/ProcessUtil.ts`, `src/util/Util.ts` の `namespace` 構文を撤廃し、標準の ES Module named export および後方互換オブジェクト（`export const FileUtil = { ... }`）に刷新
+  - `FileUtil.ts` 内の Node 8 時代の手動 `new Promise` コールバックラップを全廃し、Node.js 22 標準の `node:fs/promises` による直接非同期処理へ一本化
+  - エッジケースの批判的検証と不要コード撤廃: `rename` 失敗時の危険な `dest` unlink（既存ファイル誤削除リスク）を完全撤廃、`move` を業界標準の `rename` 優先 ➔ `EXDEV` 時 copy + unlink フォールバックに刷新、`ProcessUtil.isExited` のシグナル終了（`signalCode`）検知漏れバグを解消、型参照（`FileUtil.FileList`, `ProcessUtil.Cmds`）の完全互換を担保
+
+### Phase 3: アーキテクチャ近代化 & DX 向上 (長期的な保守性)
+- [ ] **InversifyJS 6.x とレガシーデコレータからの脱却（モダン DI / 軽量設計への移行）**
+  - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準デコレータ（TC39 Stage 3）および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
+  - 400 行超の `ModelContainerSetter.ts` 手動文字列バインドを型安全な解決方式へスリム化
+- [x] **`log4js` から軽量・高速非同期ロガー（`rotating-file-stream`）への刷新**
+  - 単にファイルローテーションのためだけに抱え込んでいた重厚な `log4js`（依存6パッケージ）を完全削除し、ゼロ依存・非同期ストリームの `rotating-file-stream` に置換
+  - 既存のコンソール ANSI カラー出力および Web UI（`/logs`）パース正規表現と 100% 互換のファイルログフォーマット（`YYYY-MM-DD HH:mm:ss.SSS [LEVEL] [Process][category] message`）を維持
+  - `close()` による安全なストリームフラッシュ・クローズ機構を新設し、`OperatorShutdownModel` および `ServiceExecutor` の終了シーケンスに統合
+  - ディスクフルやファイルローテーション競合時にプロセスがクラッシュ・ログ嵐を起こさないよう、連続エラー検知時のサーキットブレーカー（自動一時サスペンド・クールダウン後自動回復機構）を配備。単体テスト（`logs.test.ts`, `esm_interop.test.ts`、計4テスト）完全 PASS
+- [ ] **フロントエンドの巨大コンポーネント（God Component）の関心事分離**
+  - `RuleEdit.svelte` (2,149 行)、`RecordedDetail.svelte` (1,310 行) 等の巨大画面からモーダル・フォーム部品をサブコンポーネントへ分割し、ロジックを Svelte 5 Runes クラス（`*.svelte.ts`）に外出し
+
+---
+
+## 5. ドキュメント & ガイド (Documentation)
 
 - （現在進行中の未完了タスクはありません）
 
 ---
 
-## 5. 完了済み機能・改善実績（アーカイブ）
+## 6. 完了済み機能・改善実績（アーカイブ）
 
 実装および専門ドキュメントへの仕様記録が完了したタスクです。詳細な仕様・設計は各ドキュメントをご参照ください。
 
@@ -122,6 +179,13 @@ DB 内に保存されながら UI で活用されていないメタデータを�
 | **Playwright E2E テスト強化 第3弾（エンコード管理・録画詳細保護/削除・ルール一覧/作成）** | エンコード一覧（実行中ジョブ進捗表示・待機キューキャンセル）、録画詳細（番組保護トグル・単体録画削除・確認モーダル・録画一覧リダイレクト）、ルール一覧（有効/無効トグル・ルール削除・確認モーダル）、ルール編集（新規ルールフォーム入力・二重録画防止オプション・POST送信・一覧遷移）の包括的 E2E シナリオを配備（計53件全件 100% PASS） | [テスト仕様書](dev/testing.md#3-playwright-e2e-テスト基盤)、[画面変更仕様書](dev/epgdeck_change_spec.md#35-ルール一覧-rule) |
 | **予約一覧のフィルタタブ並び順改善 ＆ ステータス別背景色分け（左端アクセントボーダー付）による正常視認性向上** | 予約一覧のタブ並び順を「すべて・重複・スキップ・競合」に変更。左端アクセントボーダー（`border-l-4`）と明確な背景色分けを導入（重複・スキップは濃いめのグレー `bg-slate-200/80`＋`border-l-slate-400`、競合は警告赤 `bg-red-100`＋`border-l-red-600`、録画中は濃い赤 `bg-rose-100`＋`border-l-rose-600`）し、正常な録画予定（白背景＋緑の「予約完了」バッジ）の視認性を劇的に向上。モバイルカードにも「予約完了」バッジを表示 | [画面変更仕様書](dev/epgdeck_change_spec.md#34-予約一覧-reserves) |
 | **ダッシュボードヘッダー操作フォントサイズ統一（ストレージ容量・注意警告アコーディオン）** | ダッシュボードのストレージ容量カードにおけるドライブ数表示（`N ドライブ`）および「詳細 / 閉じる」トグルボタンを `text-xs` から `text-sm` へ1段階引き上げ。あわせて同型部品である「予約の注意・警告」カードの開閉トグルも `text-sm` に統一し、録画一覧・予約一覧カード（`text-sm`）を含めたダッシュボード全4カードのヘッダー右端アクションの視覚階層・可読性を統一 | [画面変更仕様書](dev/epgdeck_change_spec.md#31-ダッシュボード-) |
+| **Operator プロセスの Graceful Shutdown 実装（録画中ストリーム・ファイル保護）** | SIGINT / SIGTERM 受信時のクリーンシャットダウンシーケンスを実装。OperatorShutdownModel 新設、StorageManageModel 停止、Service 子プロセス停止、RecordingManageModel.stopAll() による全録画ストリーム停止・TS 書き込みフラッシュ（finish/close/error 待機）・DB 実尺（duration/endAt）確定・tmp からの移動・ファイルサイズおよびドロップログ更新、IDrizzleOperator コネクション安全クローズ、2回目シグナル即時終了を網羅。単体テスト計16件新規拡充（全体748件 PASS） | [アーキテクチャ](dev/architecture.md#3-バックエンド設計パターン)、[近代化ロードマップ](dev/modernization-roadmap.md#11-operator-プロセスの-graceful-shutdown-実装) |
+| **レガシー `namespace` 構文の廃止と `node:fs/promises` への完全移行** | `FileUtil.ts` / `ProcessUtil.ts` / `Util.ts` の `namespace` を ES Module named export および後方互換オブジェクトへ刷新、手動コールバックラップを全廃し `node:fs/promises` へ一本化、`rename` 失敗時 unlink の危険性撤廃、`move` のデファクトスタンダード化（rename優先 ➔ EXDEVフォールバック）、`ProcessUtil.isExited` のシグナル終了検知漏れ修正、単体テスト3件拡充 | [近代化ロードマップ](dev/modernization-roadmap.md#24-レガシー-namespace-構文の廃止と-nodefspromises-への完全移行完了) |
+| **プロセス間通信（IPC）の型安全化 & コードベース全体の `any` 削減** | 全7モデル・計33関数の引数型 `IPCArgsMap` および戻り値型 `IPCResponseMap` を網羅定義し、ジェネリクス型 RPC（`ClientMessageOption`, `SendMessage`, `ReplyMessage`）を確立。ユニオン型インデックス縮退を防ぐ条件付き型（Conditional Types）設計、`ParentMessage` の Discriminated Union 化による `<any>` キャスト完全撤廃、`IPCServer.getArgsValue` 引数検証（`IPCArgsError`）および戻り値ディスパッチの単体テスト拡充（計11件 PASS） | [近代化ロードマップ](dev/modernization-roadmap.md#23-プロセス間通信ipcの型安全化--コードベース全体の-any-削減完了) |
+| **放送中画面における非放送チャンネルの現在番組空欄表示と次番組適正化** | 放送中画面（`/onair`）で現在放送枠がないチャンネル（BS 182ch や休止チャンネル）において、未来番組が「現在放映中」として誤表示される不具合を修正。`findCurrentAndNextPrograms` の境界値厳格化、現在番組枠の「放送休止中」表示（空欄扱い・視聴/録画ボタン非表示）、直近次番組の表示と予約アクションを整備 | [画面変更仕様書](dev/epgdeck_change_spec.md#32-放送中-onair) |
+| **トランスコード配信切断時の ffmpeg stdin EPIPE エラーハンドリング** | WebM 等のリアルタイム配信中にクライアント離脱・画面遷移した際、子プロセス（ffmpeg）終了に伴う stdin 破棄で `uncaughtException: Error: write EPIPE` が発生する問題を特定・解消。`LiveStreamBaseModel` / `RecordedStreamBaseModel` の `streamProcess.stdin` に `error` リスナーを配備し、`EPIPE` / `ERR_STREAM_DESTROYED` 切断エラーを安全に吸収 | [配信・字幕仕様書](dev/streaming-and-captions.md#10-ライブ録画トランスコード配信におけるパイプライン保護と-epipe-回避) |
+
+
 
 
 

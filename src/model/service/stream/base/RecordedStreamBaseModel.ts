@@ -128,6 +128,14 @@ export default abstract class RecordedStreamBaseModel
 
         // パイプ処理
         if (this.streamProcess.stdin !== null && this.fileStream !== null) {
+            // 子プロセスの stdin での EPIPE / ERR_STREAM_DESTROYED エラーを無視する
+            this.streamProcess.stdin.on('error', (err: NodeJS.ErrnoException) => {
+                if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') {
+                    return;
+                }
+                this.log.stream.error(`streamProcess stdin error: ${err.message}`);
+            });
+
             // ts が入力かつ、HLS 配信の場合は arib-subtitle-timedmetadater を通す
             if (this.videoFileType === 'ts' && this.getStreamType() === 'RecordedHLS') {
                 this.log.stream.info('use arib-subtitle-timedmetadater');

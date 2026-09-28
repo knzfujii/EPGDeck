@@ -7,19 +7,19 @@ WORKDIR /app
 
 # パッケージインストール用のファイル
 COPY package.json package-lock.json ./
-COPY client/package.json client/package-lock.json ./client/
+COPY client/package.json ./client/
 
-# 全依存関係インストール（devDependencies含む）
-RUN npm ci && cd client && npm ci
+# 全依存関係インストール（devDependencies含む、workspaces対応）
+RUN npm ci
 
 # ソースコードのコピー
 COPY . .
 
 # サーバーおよびクライアントのビルド
-RUN npm run compile && cd client && npm run build
+RUN npm run compile && npm run build:client
 
-# 本番用依存関係のみを残す
-RUN npm prune --production && cd client && npm prune --production
+# 本番用依存関係のみを残す（workspacesも含め開発依存関係を除外）
+RUN npm prune --omit=dev
 
 
 # ==========================================

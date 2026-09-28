@@ -6,8 +6,11 @@
   "engines": {
     "node": ">=22.3.0"
   },
+  "workspaces": [
+    "client"
+  ],
   "scripts": {
-    "all-install": "npm i --no-save && npm --prefix client i --no-save",
+    "all-install": "npm i --no-save",
     "start": "node --enable-source-maps dist/index.js",
     "build": "run-p build:server build:client",
     "build:server": "npm run compile",
@@ -68,11 +71,11 @@
     "hono": "4.13.9",
     "inversify": "6.0.2",
     "js-yaml": "5.4.2",
-    "log4js": "6.9.1",
     "mirakurun": "4.1.3",
     "mysql2": "3.24.4",
     "openapi-types": "12.1.3",
     "reflect-metadata": "0.2.2",
+    "rotating-file-stream": "3.2.10",
     "socket.io": "4.8.4",
     "zod": "4.6.5"
   },

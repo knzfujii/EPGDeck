@@ -113,9 +113,16 @@ export const responseFile = async (c: Context, filePath: string, mime: string, d
 
 /**
  * クライアント切断（シーク・タブ離脱等）時に fs.ReadStream を即座に破棄する Response 生成ヘルパー
+ *
+ * 【重要・設計保護 / DO NOT REFACTOR TO Readable.toWeb】:
  * Node.js 環境（c.env.outgoing が存在する場合）は、@hono/node-server の Web Streams ループによる
- * drain / バックプレッシャーストール（数十MBで転送が止まるデッドロック）を回避するため、
- * Express 時代と同様に Node.js ネイティブの stream.pipe(outgoing) で直接ソケットに流し込む。
+ * drain / バックプレッシャーストール（数十MB〜数GBの動画ストリーミング時に転送が途中で停止する既知のデッドロック問題、
+ * コミット 34914f3f 参照）を回避するため、Express 時代と同様に Node.js ネイティブの
+ * `stream.pipe(outgoing)` で直接ソケットに流し込む方式を意図して採用・維持しています。
+ *
+ * 単体テスト（数十KB〜数MB）では Readable.toWeb() が動作するように見えても、
+ * 実ブラウザでのGB級動画再生・シーク時にデッドロックが再発するため、安易に Web Standard の
+ * `new Response(Readable.toWeb(stream))` へ巻き戻さないでください。
  */
 const createFileStreamResponse = (
     c: Context,
@@ -176,11 +183,14 @@ const createFileStreamResponse = (
 
 /**
  * @hono/node-server の内部キャッシュシンボルを剥奪した「送信済みダミーレスポンス」を生成する。
- * CORS ミドルウェア等で c.res が先行初期化されている環境において、
+ *
+ * 【重要・設計保護 / DO NOT REMOVE】:
+ * `stream.pipe(outgoing)` による手動送信後、CORS ミドルウェア等で c.res が先行初期化されている環境において、
  * @hono/node-server の responseViaCache() による writeHead 二重呼出（ERR_HTTP_HEADERS_SENT）を防止する。
+ *
  * 注意: Node.js 22 等の undici 実装では内部スロット/Headers 参照が Symbol で管理されているため、
  * 無差別に Symbol を削除すると res.headers が undefined となりクラッシュする。
- * そのため、'cache' シンボルのみを対象に削除する。
+ * そのため、'cache' シンボル（sym.description === 'cache'）のみを厳密に対象として削除する。
  */
 const createAlreadySentResponse = (): Response => {
     const res = new Response(null, {

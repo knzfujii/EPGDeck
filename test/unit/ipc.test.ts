@@ -139,6 +139,44 @@ describe('IPC Subsystem Unit Tests', () => {
             });
         });
 
+        it('handles return value from RPC call (e.g. reservation.add)', async () => {
+            dummyReservationManage.add = vi.fn().mockResolvedValue(999);
+
+            const req = {
+                id: 12348,
+                model: ModelName.reservation,
+                func: ReservationFunctions.add,
+                args: { option: { programId: 10 } },
+            };
+
+            mockChild.emit('message', req);
+            await new Promise(r => setTimeout(r, 10));
+
+            expect(dummyReservationManage.add).toHaveBeenCalledWith({ programId: 10 });
+            expect(mockChild.send).toHaveBeenCalledWith({
+                id: 12348,
+                result: 999,
+            });
+        });
+
+        it('returns IPCArgsError reply when required argument is missing', async () => {
+            const req = {
+                id: 12349,
+                model: ModelName.reservation,
+                func: ReservationFunctions.update,
+                // reserveId is intentionally missing
+                args: {},
+            };
+
+            mockChild.emit('message', req);
+            await new Promise(r => setTimeout(r, 10));
+
+            expect(mockChild.send).toHaveBeenCalledWith({
+                id: 12349,
+                error: 'IPCArgsError',
+            });
+        });
+
         it('sends push messages to registered child process', () => {
             server.notifyClient();
             expect(mockChild.send).toHaveBeenCalledWith({ type: 'notifyClient' });
@@ -273,6 +311,42 @@ describe('IPC Subsystem Unit Tests', () => {
             );
 
             await expect(sendPromise).rejects.toThrow('IPCTimeout');
+        });
+
+        it('assigns unique monotonically increasing sequence IDs to concurrent calls', async () => {
+            const p1 = client.recording.resetTimer();
+            const p2 = client.recording.resetTimer();
+            const p3 = client.recording.resetTimer();
+
+            await new Promise(r => setTimeout(r, 10));
+
+            const callCount = (process.send as any).mock.calls.length;
+            expect(callCount).toBeGreaterThanOrEqual(3);
+
+            const id1 = (process.send as any).mock.calls[callCount - 3][0].id;
+            const id2 = (process.send as any).mock.calls[callCount - 2][0].id;
+            const id3 = (process.send as any).mock.calls[callCount - 1][0].id;
+
+            expect(typeof id1).toBe('number');
+            expect(typeof id2).toBe('number');
+            expect(typeof id3).toBe('number');
+            expect(id2).toBe(id1 + 1);
+            expect(id3).toBe(id2 + 1);
+
+            // Respond to avoid unhandled timeouts
+            (process as any).emit('message', { id: id1, result: undefined });
+            (process as any).emit('message', { id: id2, result: undefined });
+            (process as any).emit('message', { id: id3, result: undefined });
+
+            await Promise.all([p1, p2, p3]);
+        });
+
+        it('immediately rejects when process.send is undefined', async () => {
+            process.send = undefined as any;
+
+            await expect(
+                (client as any).send({ model: ModelName.recording, func: RecordingFunctions.resetTimer }),
+            ).rejects.toThrow('ProcessSendIsUndefined');
         });
     });
 });

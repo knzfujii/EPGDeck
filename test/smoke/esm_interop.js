@@ -29,10 +29,11 @@ const miraClient = new MirakurunClient();
 assert.strictEqual(typeof miraClient.getChannels, 'function', 'MirakurunClient.getChannels must be a function');
 console.log('  ✔ mirakurun Client constructor verified');
 
-// 4. log4js
-import log4js from 'log4js';
-assert.strictEqual(typeof log4js.configure, 'function', 'log4js.configure must be a function');
-console.log('  ✔ log4js.configure verified');
+// 4. rotating-file-stream
+import * as rfs from 'rotating-file-stream';
+assert.strictEqual(typeof rfs.createStream, 'function', 'rfs.createStream must be a function');
+console.log('  ✔ rotating-file-stream createStream verified');
+
 
 // 5. socket.io
 import * as SocketIO from 'socket.io';

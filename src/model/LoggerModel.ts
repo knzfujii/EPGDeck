@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { injectable } from 'inversify';
-import log4js from 'log4js';
 import * as path from 'path';
+import * as rfs from 'rotating-file-stream';
 import * as util from 'util';
 import { LogConfig } from './IConfigFile.js';
 import ILogger, { ILoggerCategory, LogCategory, LogEntry, LogEntryLevel, LogProcess } from './ILogger.js';
@@ -57,7 +57,11 @@ export default class LoggerModel implements ILoggerModel {
         },
         bufferSize: 1000,
     };
-    private fileLogger: log4js.Logger | null = null;
+    private fileStream: rfs.RotatingFileStream | null = null;
+    private consecutiveFileErrors: number = 0;
+    private circuitBreakerOpenUntil: number = 0;
+    public maxConsecutiveErrors: number = 3;
+    public circuitBreakerTimeoutMs: number = 30000;
 
     /**
      * 初期設定
@@ -80,39 +84,7 @@ export default class LoggerModel implements ILoggerModel {
             };
         }
 
-        // ファイル出力設定 (log4js)
-        if (this.config.file?.enabled && this.config.file.path) {
-            try {
-                const logDir = path.dirname(this.config.file.path);
-                if (!fs.existsSync(logDir)) {
-                    fs.mkdirSync(logDir, { recursive: true });
-                }
-
-                log4js.configure({
-                    appenders: {
-                        file: {
-                            type: 'file',
-                            filename: this.config.file.path,
-                            maxLogSize: this.config.file.maxSize || 10 * 1024 * 1024,
-                            backups: this.config.file.backups || 5,
-                            layout: {
-                                type: 'pattern',
-                                pattern: '%d{yyyy-MM-dd hh:mm:ss.SSS} [%p] %m',
-                            },
-                        },
-                    },
-                    categories: {
-                        default: {
-                            appenders: ['file'],
-                            level: this.config.level || 'info',
-                        },
-                    },
-                });
-                this.fileLogger = log4js.getLogger();
-            } catch (err) {
-                console.error('Failed to configure file logging:', err);
-            }
-        }
+        this.setupFileStream();
 
         this.logger = {
             system: this.createCategory('system'),
@@ -120,6 +92,85 @@ export default class LoggerModel implements ILoggerModel {
             stream: this.createCategory('stream'),
             encode: this.createCategory('encode'),
         };
+    }
+
+    /**
+     * ファイルストリームの安全な初期化
+     */
+    private setupFileStream(): void {
+        this.safeDestroyFileStream();
+
+        if (!this.config.file?.enabled || !this.config.file.path) {
+            return;
+        }
+
+        try {
+            const logDir = path.dirname(this.config.file.path);
+            const logFileName = path.basename(this.config.file.path);
+            if (!fs.existsSync(logDir)) {
+                fs.mkdirSync(logDir, { recursive: true });
+            }
+
+            const maxSize = this.config.file.maxSize || 10 * 1024 * 1024;
+            const backups = this.config.file.backups || 5;
+
+            const stream = rfs.createStream(logFileName, {
+                path: logDir,
+                size: `${maxSize}B` as rfs.FileSize,
+                rotate: backups,
+            });
+
+            stream.on('error', err => {
+                this.handleFileError(err);
+            });
+
+            this.fileStream = stream;
+        } catch (err) {
+            this.handleFileError(err);
+        }
+    }
+
+    /**
+     * ファイルストリームの安全な破棄
+     */
+    private safeDestroyFileStream(): void {
+        if (this.fileStream) {
+            const stream = this.fileStream;
+            this.fileStream = null;
+            try {
+                stream.removeAllListeners('error');
+                stream.on('error', () => {});
+                stream.destroy();
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * ファイルエラー発生時のサーキットブレーカー処理
+     */
+    private handleFileError(err: any): void {
+        this.consecutiveFileErrors++;
+        console.error(
+            `[LoggerModel] File logging error (${this.consecutiveFileErrors}/${this.maxConsecutiveErrors}):`,
+            err?.message || err,
+        );
+
+        if (this.consecutiveFileErrors >= this.maxConsecutiveErrors) {
+            this.circuitBreakerOpenUntil = Date.now() + this.circuitBreakerTimeoutMs;
+            console.error(
+                `[LoggerModel] File logging suspended for ${this.circuitBreakerTimeoutMs / 1000}s due to consecutive write errors`,
+            );
+            this.safeDestroyFileStream();
+        }
+    }
+
+    /**
+     * サーキットブレーカー開放状態の確認
+     */
+    public isCircuitBreakerOpen(): boolean {
+        return this.circuitBreakerOpenUntil > 0 && Date.now() < this.circuitBreakerOpenUntil;
     }
 
     /**
@@ -178,6 +229,8 @@ export default class LoggerModel implements ILoggerModel {
         }
 
         const now = new Date();
+        const timeStr = this.formatDate(now);
+        const levelUpper = level.toUpperCase();
         const formattedMsg = typeof message === 'string' && args.length === 0 ? message : util.format(message, ...args);
 
         const entry: LogEntry = {
@@ -191,10 +244,8 @@ export default class LoggerModel implements ILoggerModel {
 
         // 1. コンソール出力
         if (this.config.console !== false) {
-            const timeStr = this.formatDate(now);
             const pColor = PROCESS_COLORS[this.currentProcess] || '';
             const lColor = LEVEL_COLORS[level] || '';
-            const levelUpper = level.toUpperCase().padEnd(5, ' ');
             const tag = `${pColor}[${this.currentProcess}]${RESET}${lColor}[${levelUpper}]${RESET} [${category}]`;
 
             const output = `${GRAY}${timeStr}${RESET} ${tag} ${formattedMsg}`;
@@ -207,19 +258,32 @@ export default class LoggerModel implements ILoggerModel {
             }
         }
 
-        // 2. ファイル出力 (log4js)
-        if (this.fileLogger) {
-            const logMsg = `[${this.currentProcess}][${category}] ${formattedMsg}`;
-            if (level === 'debug') {
-                this.fileLogger.debug(logMsg);
-            } else if (level === 'info') {
-                this.fileLogger.info(logMsg);
-            } else if (level === 'warn') {
-                this.fileLogger.warn(logMsg);
-            } else if (level === 'error') {
-                this.fileLogger.error(logMsg);
-            } else if (level === 'fatal') {
-                this.fileLogger.fatal(logMsg);
+        // 2. ファイル出力 (rotating-file-stream)
+        if (this.config.file?.enabled && this.config.file.path) {
+            if (this.circuitBreakerOpenUntil > 0) {
+                if (Date.now() < this.circuitBreakerOpenUntil) {
+                    // サーキットブレーカー開放中（ファイル出力をスキップ）
+                } else {
+                    // 遮断期間終了：再試行
+                    this.circuitBreakerOpenUntil = 0;
+                    this.consecutiveFileErrors = 0;
+                    this.setupFileStream();
+                }
+            }
+
+            if (this.fileStream && !this.fileStream.destroyed) {
+                const logLine = `${timeStr} [${levelUpper}] [${this.currentProcess}][${category}] ${formattedMsg}\n`;
+                try {
+                    this.fileStream.write(logLine, err => {
+                        if (err) {
+                            this.handleFileError(err);
+                        } else {
+                            this.consecutiveFileErrors = 0;
+                        }
+                    });
+                } catch (err) {
+                    this.handleFileError(err);
+                }
             }
         }
 
@@ -230,6 +294,27 @@ export default class LoggerModel implements ILoggerModel {
             } catch {
                 // ignore
             }
+        }
+    }
+
+    /**
+     * ファイルストリームを安全に終了・フラッシュ
+     */
+    public async close(): Promise<void> {
+        this.circuitBreakerOpenUntil = 0;
+        this.consecutiveFileErrors = 0;
+        if (this.fileStream) {
+            const stream = this.fileStream;
+            this.fileStream = null;
+            await new Promise<void>(resolve => {
+                try {
+                    stream.removeAllListeners('error');
+                    stream.on('error', () => resolve());
+                    stream.end(() => resolve());
+                } catch {
+                    resolve();
+                }
+            });
         }
     }
 

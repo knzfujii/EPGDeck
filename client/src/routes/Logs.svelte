@@ -321,8 +321,8 @@
                         title={autoScroll ? '自動スクロールON (最新ログに追尾中)' : '自動スクロールOFF'}
                     >
                         {#if autoScroll}
-                            <Pause class="w-4 h-4 text-emerald-500 animate-pulse" />
-                            <span>リアルタイム追尾中</span>
+                            <Pause class="w-4 h-4 text-emerald-500 {socketStore.isConnected ? 'animate-pulse' : ''}" />
+                            <span>{socketStore.isConnected ? 'リアルタイム追尾中' : '追尾待機中 (Offline)'}</span>
                         {:else}
                             <Play class="w-4 h-4" />
                             <span>追尾停止中</span>
@@ -471,7 +471,7 @@
                         <span>表示するログがありません</span>
                     </div>
                 {:else}
-                    {#each filteredLogs as log, i (`${log.process}-${log.id}-${log.timestamp}-${i}`)}
+                    {#each filteredLogs as log (log.id)}
                         <div
                             class="group flex items-start gap-1.5 py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900/80 transition-colors leading-snug break-all font-mono {log.level ===
                                 'error' || log.level === 'fatal'

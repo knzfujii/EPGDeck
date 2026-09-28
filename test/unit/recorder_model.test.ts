@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { EventEmitter } from 'events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Reserve from '../../src/db/entities/Reserve.js';
 import RecorderModel from '../../src/model/operator/recording/RecorderModel.js';
@@ -6,6 +7,7 @@ import RecordingUtilModel from '../../src/model/operator/recording/RecordingUtil
 
 describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
     let dummyLogger: any;
+    let dummySystemLog: any;
     let dummyConfig: any;
     let dummyProgramDB: any;
     let dummyChannelDB: any;
@@ -13,9 +15,17 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
 
+        dummySystemLog = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+            fatal: vi.fn(),
+        };
+
         dummyLogger = {
             getLogger: () => ({
-                system: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+                system: dummySystemLog,
                 stream: { fatal: vi.fn() },
             }),
         };
@@ -167,6 +177,293 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
 
             const formatted = await util.formatFilePathString('%YEAR%_%TITLE%', reserve);
             expect(formatted).toBe('2026_実際の番組名');
+        });
+    });
+
+    describe('RecorderModel Lifecycle & Graceful Shutdown (stop, finish, cancel)', () => {
+        let dummyReserveDB: any;
+        let dummyRecordedDB: any;
+        let dummyRecordedHistoryDB: any;
+        let dummyRecordingUtil: any;
+        let dummyRecordingEvent: any;
+        let dummyDropChecker: any;
+        let dummyDropLogFileDB: any;
+
+        beforeEach(() => {
+            dummyReserveDB = { findId: vi.fn() };
+            dummyRecordedDB = {
+                removeRecording: vi.fn().mockResolvedValue(undefined),
+                findId: vi.fn().mockResolvedValue({
+                    id: 10,
+                    channelId: 1,
+                    endAt: 2000,
+                    halfWidthName: 'テスト番組 [二]',
+                }),
+            };
+            dummyRecordedHistoryDB = {
+                insertOnce: vi.fn().mockResolvedValue(undefined),
+            };
+            dummyRecordingUtil = {
+                movingFromTmp: vi.fn().mockResolvedValue('/final/path.ts'),
+                updateVideoFileSize: vi.fn().mockResolvedValue(undefined),
+            };
+            dummyRecordingEvent = {
+                emitCancelPrepRecording: vi.fn(),
+                emitFinishRecording: vi.fn(),
+                emitRecordingFailed: vi.fn(),
+            };
+            dummyDropChecker = {
+                stop: vi.fn().mockResolvedValue(undefined),
+                getResult: vi.fn().mockResolvedValue({}),
+                getFilePath: vi.fn().mockReturnValue(null),
+            };
+            dummyDropLogFileDB = {
+                updateCnt: vi.fn().mockResolvedValue(undefined),
+            };
+        });
+
+        const createFullRecorder = (reserve: Reserve) => {
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                dummyRecordedHistoryDB,
+                {} as any, // videoFileDB
+                dummyDropLogFileDB,
+                {} as any, // streamCreator
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                {} as any, // mirakurunClientModel
+            );
+
+            (recorder as any).reserve = reserve;
+            return recorder;
+        };
+
+        const createMockStreamAndFile = () => {
+            const mockStream = {
+                unpipe: vi.fn(),
+                destroy: vi.fn(),
+                push: vi.fn(),
+                removeAllListeners: vi.fn(),
+                destroyed: false,
+            };
+            const mockRecFile = Object.assign(new EventEmitter(), {
+                end: vi.fn(function (this: any) {
+                    setImmediate(() => {
+                        this.emit('finish');
+                        this.emit('close');
+                    });
+                }),
+                closed: false,
+                destroyed: false,
+            });
+            return { mockStream, mockRecFile };
+        };
+
+        it('stops active recording cleanly on stop() without deleting reservation or emitting failed event', async () => {
+            const reserve = new Reserve();
+            reserve.id = 100;
+            reserve.startAt = Date.now() - 30000;
+            reserve.endAt = Date.now() + 60000;
+
+            const recorder = createFullRecorder(reserve);
+            const { mockStream, mockRecFile } = createMockStreamAndFile();
+
+            (recorder as any).isRecording = true;
+            (recorder as any).actualStartAt = Date.now() - 20000;
+            (recorder as any).recordedId = 10;
+            (recorder as any).videoFileId = 100;
+            (recorder as any).videoFileFulPath = '/path/test.ts';
+            (recorder as any).stream = mockStream;
+            (recorder as any).recFile = mockRecFile;
+
+            await recorder.stop();
+
+            // Stream and file should be cleanly ended & flushed
+            expect(mockStream.unpipe).toHaveBeenCalled();
+            expect(mockStream.destroy).toHaveBeenCalled();
+            expect(mockRecFile.end).toHaveBeenCalled();
+
+            // DB should be updated with actual duration
+            expect(dummyRecordedDB.removeRecording).toHaveBeenCalledWith(
+                10,
+                expect.any(Number),
+                expect.any(Number),
+                undefined,
+            );
+            expect(recorder.isRecording).toBe(false);
+            expect(dummyRecordingUtil.updateVideoFileSize).toHaveBeenCalledWith(100);
+
+            // Shutdown/stop must not record history, must not emit failure, and must not trigger finish recording jobs
+            expect(dummyRecordedHistoryDB.insertOnce).not.toHaveBeenCalled();
+            expect(dummyRecordingEvent.emitRecordingFailed).not.toHaveBeenCalled();
+            expect(dummyRecordingEvent.emitFinishRecording).not.toHaveBeenCalled();
+        });
+
+        it('saves and marks completed on finish() with history and reservation deletion', async () => {
+            const reserve = new Reserve();
+            reserve.id = 200;
+            reserve.isTimeSpecified = false;
+            reserve.isEventRelay = false;
+            reserve.startAt = Date.now() - 30000;
+            reserve.endAt = Date.now() + 60000;
+
+            const recorder = createFullRecorder(reserve);
+            const { mockStream, mockRecFile } = createMockStreamAndFile();
+
+            (recorder as any).isRecording = true;
+            (recorder as any).actualStartAt = Date.now() - 20000;
+            (recorder as any).recordedId = 20;
+            (recorder as any).videoFileId = 200;
+            (recorder as any).videoFileFulPath = '/path/test2.ts';
+            (recorder as any).stream = mockStream;
+            (recorder as any).recFile = mockRecFile;
+
+            await recorder.finish();
+
+            expect(mockStream.unpipe).toHaveBeenCalled();
+            expect(mockRecFile.end).toHaveBeenCalled();
+            expect(dummyRecordedDB.removeRecording).toHaveBeenCalledWith(
+                20,
+                expect.any(Number),
+                expect.any(Number),
+                undefined,
+            );
+            expect(dummyRecordedHistoryDB.insertOnce).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'テスト番組',
+                    channelId: 1,
+                    endAt: 2000,
+                }),
+            );
+            expect(dummyRecordingEvent.emitFinishRecording).toHaveBeenCalledWith(
+                reserve,
+                expect.objectContaining({ id: 10 }),
+                true,
+            );
+        });
+
+        it('instantly cancels retry timer on stop() without hanging', async () => {
+            const reserve = new Reserve();
+            reserve.id = 250;
+            const recorder = createFullRecorder(reserve);
+
+            (recorder as any).isPrepRecording = true;
+            (recorder as any).prepRetryTimerId = setTimeout(() => {}, 5000);
+
+            await recorder.stop();
+
+            expect((recorder as any).prepRetryTimerId).toBeNull();
+            expect((recorder as any).isPrepRecording).toBe(false);
+            expect(dummyRecordingEvent.emitCancelPrepRecording).not.toHaveBeenCalled();
+        });
+
+        it('cancels prep recording cleanly on stop() without triggering external hooks', async () => {
+            const reserve = new Reserve();
+            reserve.id = 300;
+            const recorder = createFullRecorder(reserve);
+
+            (recorder as any).isPrepRecording = true;
+            const abortMock = vi.fn();
+            (recorder as any).abortController = { abort: abortMock };
+
+            const stopPromise = recorder.stop();
+
+            // Simulate cancel event emitted by prepRecord catch/finally
+            (recorder as any).eventEmitter.emit(RecorderModel.CANCEL_EVENT);
+
+            await stopPromise;
+
+            expect(abortMock).toHaveBeenCalled();
+            expect(dummyRecordingEvent.emitCancelPrepRecording).not.toHaveBeenCalled();
+        });
+
+        it('clears timer on stop() when waiting for scheduled time', async () => {
+            const reserve = new Reserve();
+            reserve.id = 400;
+            const recorder = createFullRecorder(reserve);
+
+            (recorder as any).isRecording = false;
+            (recorder as any).isPrepRecording = false;
+            (recorder as any).timerId = setTimeout(() => {}, 100000);
+
+            await recorder.stop();
+
+            expect((recorder as any).timerId).toBeNull();
+        });
+
+        it('deduplicates concurrent stop calls via recEndPromise', async () => {
+            const reserve = new Reserve();
+            reserve.id = 500;
+            reserve.startAt = Date.now() - 30000;
+            reserve.endAt = Date.now() + 60000;
+
+            const recorder = createFullRecorder(reserve);
+            const { mockStream, mockRecFile } = createMockStreamAndFile();
+
+            (recorder as any).isRecording = true;
+            (recorder as any).actualStartAt = Date.now() - 20000;
+            (recorder as any).recordedId = 50;
+            (recorder as any).videoFileId = 500;
+            (recorder as any).videoFileFulPath = '/path/test5.ts';
+            (recorder as any).stream = mockStream;
+            (recorder as any).recFile = mockRecFile;
+
+            // Two concurrent stop() calls
+            await Promise.all([recorder.stop(), recorder.stop()]);
+
+            // DB removeRecording should be called only once
+            expect(dummyRecordedDB.removeRecording).toHaveBeenCalledTimes(1);
+        });
+
+        it('handles recFile error during closeRecFile without crashing', async () => {
+            const reserve = new Reserve();
+            reserve.id = 600;
+            const recorder = createFullRecorder(reserve);
+
+            const mockRecFile = Object.assign(new EventEmitter(), {
+                end: vi.fn(function (this: any) {
+                    setImmediate(() => {
+                        this.emit('error', new Error('EIO: write error'));
+                    });
+                }),
+                closed: false,
+                destroyed: false,
+            });
+
+            (recorder as any).isRecording = true;
+            (recorder as any).recFile = mockRecFile;
+            (recorder as any).recordedId = 60;
+            (recorder as any).stream = {
+                unpipe: vi.fn(),
+                destroy: vi.fn(),
+                push: vi.fn(),
+                removeAllListeners: vi.fn(),
+                destroyed: false,
+            };
+
+            await expect(recorder.stop()).resolves.not.toThrow();
+            expect(dummySystemLog.error).toHaveBeenCalledWith(
+                expect.stringContaining('recFile error during close/flush'),
+            );
+        });
+
+        it('clears prepRetryTimerId and recordingStartTimeoutId on stop', async () => {
+            const reserve = new Reserve();
+            reserve.id = 700;
+            const recorder = createFullRecorder(reserve);
+
+            (recorder as any).prepRetryTimerId = setTimeout(() => {}, 10000);
+            (recorder as any).recordingStartTimeoutId = setTimeout(() => {}, 10000);
+
+            await recorder.stop();
+
+            expect((recorder as any).prepRetryTimerId).toBeNull();
+            expect((recorder as any).recordingStartTimeoutId).toBeNull();
         });
     });
 });

@@ -107,16 +107,20 @@ EPGDeck は、長年親しまれてきた EPGStation のデータ互換性を保
 ## 4. 詳細設計・ドメイン仕様リファレンス (Documentation Index)
 
 コンテキスト最適化のため、ドメイン固有の詳細仕様・実装規約は `docs/dev/` 配下の専門ドキュメントに責務を委ねている。
-**エージェントは各機能の実装・改修・調査を行う際、必ず以下の対応ドキュメントをオンデマンドで参照すること。**
+**エージェントは機能の実装・改修・調査を行う際、目的に応じて以下の対応ドキュメントをオンデマンドで参照すること。**
 
-| 対象領域 | 参照ドキュメント | 主な掲載内容 |
-| :--- | :--- | :--- |
-| **全体設計・構造** | [`docs/dev/architecture.md`](docs/dev/architecture.md) | システム全体アーキテクチャ、ディレクトリ構成、レイヤー分離、状態管理 |
-| **機能仕様・EPGStation差分** | [`docs/dev/epgdeck_change_spec.md`](docs/dev/epgdeck_change_spec.md) | 番組表（朝4時起点境界・局名ヘッダー48px）、録画中3択操作、未受信波非表示、検索キーワード抽出、UI改善点 |
-| **予約・重複調停ロジック** | [`docs/dev/reservation-algorithm.md`](docs/dev/reservation-algorithm.md) | 予約重複判定、プライオリティ制御、二重録画防止（`recorded_history`）仕様 |
-| **動画配信・字幕・Svelte** | [`docs/dev/streaming-and-captions.md`](docs/dev/streaming-and-captions.md) | HLS/MP4 配信、ARIB B24 字幕（ID3/WebVTT）、FFmpeg オプション（`-fix_sub_duration`）、Svelte 5 リアクティビティ規約 |
-| **テスト詳細・E2E規約** | [`docs/dev/testing.md`](docs/dev/testing.md) | 単体・結合・E2E テスト詳細、フィクスチャ、モック戦略、DB 分離手順 |
-| **REST API 仕様** | [`docs/dev/api.md`](docs/dev/api.md) | Hono API エンドポイント、リクエスト/レスポンススキーマ |
-| **データベース仕様** | [`docs/dev/database.md`](docs/dev/database.md) | Drizzle ORM スキーマ定義、マイグレーション運用 |
-| **近代化・安定化ロードマップ** | [`docs/dev/modernization-roadmap.md`](docs/dev/modernization-roadmap.md) | 安定稼働・アップデート容易性向上、DI・ストリーミング・型安全化の段階的改善計画 |
-| **進捗・残タスク** | [`docs/TODO.md`](docs/TODO.md) | 機能開発ロードマップ、未解決 Issue、完了済みタスク |
+- **機能実装・バグ修正時**: まず【現行仕様 (State)】を参照し、現在のアーキテクチャ・コード構造を最速でキャッチアップする。
+- **アーキテクチャ変更・リファクタ検討時**: 必ず【意思決定記録 (Why / ADR)】を参照し、過去の技術的検証結果や不採用理由、地雷回避の防護線を確認して安易な巻き戻しを防止する。
+
+| 区分 | 対象領域 | 参照ドキュメント | 主な掲載内容 |
+| :--- | :--- | :--- | :--- |
+| **State** (現行仕様) | **全体設計・構造** | [`docs/dev/architecture.md`](docs/dev/architecture.md) | システム全体アーキテクチャ、プロセス分離モデル、バックエンド設計パターン、フロントエンド構造 |
+| **State** (現行仕様) | **画面仕様・UI設計** | [`docs/dev/epgdeck_change_spec.md`](docs/dev/epgdeck_change_spec.md) | 全画面構成、朝4時起点番組表、録画中3択操作、年月ジャンプ、レスポンシブ設計 |
+| **State** (現行仕様) | **予約・重複調停** | [`docs/dev/reservation-algorithm.md`](docs/dev/reservation-algorithm.md) | 予約重複判定、プライオリティ制御、二重録画防止（`recorded_history`）仕様 |
+| **State** (現行仕様) | **動画配信・字幕** | [`docs/dev/streaming-and-captions.md`](docs/dev/streaming-and-captions.md) | M2TS-LL/HLS 配信、ARIB B24 字幕（ID3/WebVTT）、EPIPE 回避、Svelte 5 リアクティビティ規約 |
+| **State** (現行仕様) | **REST API 仕様** | [`docs/dev/api.md`](docs/dev/api.md) | Hono API エンドポイント、型安全 RPC クライアント、リクエスト/レスポンススキーマ |
+| **State** (現行仕様) | **データベース仕様** | [`docs/dev/database.md`](docs/dev/database.md) | Drizzle ORM スキーマ定義、Entity 構造、EPGStation 完全互換ポリシー |
+| **State** (現行仕様) | **テスト詳細・E2E規約** | [`docs/dev/testing.md`](docs/dev/testing.md) | 単体・結合・E2E テスト詳細、フィクスチャ、モック戦略、DB 分離手順 |
+| **Why** (決定記録) | **近代化・ADR** | [`docs/dev/modernization-roadmap.md`](docs/dev/modernization-roadmap.md) | **意思決定記録 (ADR)**: Graceful Shutdown、Web Streams バックプレッシャー、大容量配信デッドロック回避設計保護、IPC型安全化、軽量ロガー刷新の背景・Why |
+| **Active** (タスク) | **残タスク・課題** | [`docs/TODO.md`](docs/TODO.md) | 未来の未完了タスク・検討課題のみを管理するアクティブボード |
+| **History** (履歴) | **リリース変更履歴** | [`CHANGELOG.md`](CHANGELOG.md) | バージョンごとのリリース差分・変更点サマリー |

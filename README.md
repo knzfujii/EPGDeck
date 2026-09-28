@@ -187,9 +187,9 @@ EPGDeck では、システム構成に合わせて設定ファイルを機能別
     └── unit/            # Vitest 単体テスト
 ```
 
-## ドキュメント
+## ドキュメント & 変更履歴
 
-詳細なマニュアルおよび開発者向けガイドは **[docs/](docs/README.md)** を参照してください。
+詳細なマニュアルおよび開発者向けガイドは **[ドキュメントポータル (docs/)](docs/README.md)**、リリースごとの詳細な変更履歴は **[CHANGELOG.md](CHANGELOG.md)** を参照してください。
 
 - **[Linux / macOS 用セットアップマニュアル](docs/manual/setup.md)**
 - **[設定ファイル詳細マニュアル](docs/manual/configuration.md)**
@@ -197,6 +197,7 @@ EPGDeck では、システム構成に合わせて設定ファイルを機能別
 - **[エンコードシステム仕様書 & 設定マニュアル](docs/manual/encoding.md)**
 - **[リバースプロキシ設定ガイド (Nginx)](docs/manual/reverse-proxy.md)**
 - **[開発環境スタートガイド](docs/dev/getting-started.md)**
+- **[アーキテクチャ近代化ロードマップ 兼 意思決定記録 (ADR)](docs/dev/modernization-roadmap.md)**
 - **[トラブルシューティング / FAQ](docs/manual/troubleshooting.md)**
 
 ---

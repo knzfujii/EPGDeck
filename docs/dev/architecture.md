@@ -121,7 +121,7 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 
 ### プロセス停止と Graceful Shutdown 設計 (録画中ストリーム・ファイル保護)
 
-OS のシャットダウンやサービス再起動（`systemctl stop` / `docker stop` / SIGINT / SIGTERM）時に、進行中の録画ファイルやデータベースの整合性を確実に保護するための多層防御シーケンスを実装しています。
+OS のシャットダウンやサービス再起動（`systemctl stop` / `docker stop` / SIGINT / SIGTERM）時に、進行中の録画ファイルやデータベースの整合性を確実に保護するための多層防御シーケンスを実装しています（※設計背景および技術検証の詳細は [近代化ロードマップ 兼 ADR (modernization-roadmap.md#11-operator-プロセスの-graceful-shutdown-実装)](modernization-roadmap.md#11-operator-プロセスの-graceful-shutdown-実装) を参照）。
 
 1. **二重シグナル即時保護**:
    - 初回の `SIGINT` / `SIGTERM` で Graceful Shutdown シーケンスを開始。
@@ -193,9 +193,9 @@ CI パイプラインの詳細については、以下の専門ドキュメン�
 
 ---
 
-## 6. 近代化・改善ロードマップ
+## 6. 近代化ロードマップ 兼 アーキテクチャ決定記録 (ADR)
 
-長期的な安定稼働、依存ライブラリのアップデート容易性、および開発体験（DX）向上のための段階的改善計画については、以下をご参照ください。
+長期的な安定稼働、依存ライブラリのアップデート容易性、開発体験（DX）向上のための段階的改善計画、および将来の判断ミス・巻き戻しを防止するための設計決定記録（Why / ADR）については、以下をご参照ください。
 
-👉 **[アーキテクチャ近代化・安定化ロードマップ](modernization-roadmap.md)**
+👉 **[アーキテクチャ近代化ロードマップ 兼 意思決定記録 (ADR)](modernization-roadmap.md)**
 

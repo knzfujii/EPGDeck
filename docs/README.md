@@ -48,24 +48,35 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
 
 EPGDeck の機能開発、コードベースの変更、API 利用、および UI 設計に関する技術ドキュメントです。
 
-- **[開発環境セットアップガイド](dev/getting-started.md)**
-  - mise による環境構築、本番環境との競合回避（ポート・DB分離）、ビルド・ホットリロード開発手順。
+### 📐 現行仕様・アーキテクチャ (State - 素早いキャッチアップ)
+現在のシステム構成、データ構造、API、UI 設計を迅速に把握するための単一情報源（SSOT）です。
+
 - **[システムアーキテクチャ解説](dev/architecture.md)**
   - プロセス設計（Operator / Service / EPGUpdater）、Hono REST API、Drizzle ORM、Svelte 5 フロントエンド構成。
-- **[テスト & CI/CD アーキテクチャ仕様書](dev/testing.md)**
-  - Vitest 単体テスト、MariaDB/MySQL 実機結合テスト、Playwright E2E（先行シード・スタンドアロンサーバー）、GitHub Actions 最適化。
+- **[画面仕様書 (Svelte 5 刷新)](dev/epgdeck_change_spec.md)**
+  - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、UI/UX 設計・アーキテクチャ仕様書。
 - **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation-algorithm.md)**
   - 予約生成ライフサイクル、録画済み重複排除（二重録画防止 / `isOverlap`）の正規化ロジック、平面走査法によるチューナー競合解決（`isConflict`）。
 - **[ストリーミング配信・ARIB 字幕アーキテクチャ](dev/streaming-and-captions.md)**
   - M2TS-LL / HLS / WebM 配信パイプライン、aribb24.js v2 / ID3 Timed Metadata による字幕処理の技術仕様。
-- **[WebAPI 仕様・利用ガイド](dev/api.md)**
-  - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
 - **[データベース & マイグレーション運用ガイド](dev/database.md)**
   - Drizzle ORM の Schema 設計、Entity 構造、EPGStation 完全互換ポリシー。
-- **[画面仕様書 (Svelte 5 刷新)](dev/epgdeck_change_spec.md)**
-  - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、UI/UX 設計・アーキテクチャ仕様書。
+- **[WebAPI 仕様・利用ガイド](dev/api.md)**
+  - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
+- **[テスト & CI/CD アーキテクチャ仕様書](dev/testing.md)**
+  - Vitest 単体テスト、MariaDB/MySQL 実機結合テスト、Playwright E2E（先行シード・スタンドアロンサーバー）、GitHub Actions 最適化。
+- **[開発環境セットアップガイド](dev/getting-started.md)**
+  - mise による環境構築、本番環境との競合回避（ポート・DB分離）、ビルド・ホットリロード開発手順。
 - **[オリジナル EPGStation 画面仕様リファレンス](dev/epgstation_ui_spec.md)**
   - フォーク元である EPGStation (v2.x) の全画面構成・提供機能・API 連携の参考資料。
+
+### 🧠 意思決定記録・ロードマップ・変更履歴 (Why & History - 判断ミス・巻き戻し防止)
+過去の技術検証結果、設計判断の根拠、地雷回避の防護線、およびバージョン変更履歴です。
+
+- **[アーキテクチャ近代化ロードマップ 兼 意思決定記録 (ADR)](dev/modernization-roadmap.md)**
+  - 安定稼働・アップデート容易性向上、Graceful Shutdown、バックプレッシャー制御、大容量配信デッドロック回避設計保護、IPC型安全化、軽量ロガー刷新等の背景・Why。
 - **[改善 TODO リスト（タスク管理ボード）](TODO.md)**
-  - 機能改善ロードマップ、未解決 Issue、完了済みタスク一覧。
+  - 今後の機能改善ロードマップ、未解決 Issue、未完了タスク一覧。
+- **[変更履歴 (Changelog)](../CHANGELOG.md)**
+  - バージョンごとのリリース差分・変更点サマリー。
 

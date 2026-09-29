@@ -142,7 +142,7 @@ recording:
 | :--- | :--- | :--- |
 | **WebP エンコード** | `libwebp` | **サムネイル画像の容量を JPEG 比で 30〜50% 削減** |
 | **ARIB STD-B24 字幕デコード** | `libaribb24` | 録画番組の MP4 エンコード時に字幕（`mov_text`）を欠落させず保存可能（`subtitle: true`） |
-| **VAAPI ハードウェア支援** | `--enable-vaapi` | Intel iGPU / AMD Radeon による超低負荷・高速ハードウェアエンコード（`enc_vaapi.js`） |
+| **VAAPI ハードウェア支援** | `--enable-vaapi` | Intel iGPU / AMD Radeon による低負荷・高速ハードウェアエンコード（`enc_vaapi.js`） |
 | **Intel QSV (oneVPL)** | `libvpl` | Intel 第11世代以降 CPU / Arc GPU 向け高速エンコード |
 | **高品質 GPU レンダリング** | `libplacebo` | **HDR (HLG/HDR10) → SDR トーンマッピング**、次世代高品質スケーリング |
 | **H.264 エンコード** | `libx264` | 標準動画エンコード（最高画質・高圧縮） |
@@ -155,7 +155,7 @@ recording:
 | **高音質リサンプリング** | `libsoxr` | SoX ベースの高品質オーディオサンプリングレート変換 |
 | **放送用 MP2 音声** | `libtwolame` | 日本の放送 TS 音声ストリーム互換 |
 | **字幕スタイリング** | `libass` / `libfontconfig` / `libharfbuzz` | ASS / SRT 字幕の高度なフォント整形・配置 |
-| **SRT / RIST ストリーミング** | `libsrt` / `librist` | 超低遅延・高信頼映像伝送プロトコル対応 |
+| **SRT / RIST ストリーミング** | `libsrt` / `librist` | 低遅延・高信頼映像伝送プロトコル対応 |
 
 ---
 

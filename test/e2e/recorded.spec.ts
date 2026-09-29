@@ -1306,4 +1306,186 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should navigate with controllable pagination (direct page input, first/last/prev/next buttons)', async ({
+        page,
+    }) => {
+        const pageErrors: Error[] = [];
+        const consoleErrors: string[] = [];
+        page.on('pageerror', err => pageErrors.push(err));
+        page.on('console', msg => {
+            if (msg.type() === 'error') consoleErrors.push(msg.text());
+        });
+
+        // モックデータ (total: 120, limit: 50 -> 全3ページ)
+        const mockItem = {
+            id: 8888,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now(),
+            name: 'ページネーションテスト番組',
+            description: 'ページネーション動作検証用',
+            isRecording: false,
+            isEncoding: false,
+            isProtected: false,
+            videoFiles: [],
+        };
+
+        await page.route(/\/api\/recorded(\?.*)?$/, async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        records: [mockItem],
+                        total: 120,
+                    }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.goto('/recorded');
+        await page.waitForLoadState('networkidle');
+
+        // 1. 初期状態（1ページ目）の確認（上部ページャーを検証）
+        const nav = page.getByRole('navigation', { name: 'ページネーション' }).first();
+        await expect(nav).toBeVisible();
+
+        const firstBtn = nav.getByRole('button', { name: '最初のページへ' });
+        const prevBtn = nav.getByRole('button', { name: '前のページへ' });
+        const nextBtn = nav.getByRole('button', { name: '次のページへ' });
+        const lastBtn = nav.getByRole('button', { name: '最後のページへ' });
+
+        const pageInput = nav.getByRole('spinbutton', { name: 'ページ番号を入力' });
+        await expect(firstBtn).toBeDisabled();
+        await expect(prevBtn).toBeDisabled();
+        await expect(nextBtn).toBeEnabled();
+        await expect(lastBtn).toBeEnabled();
+        await expect(pageInput).toHaveValue('1');
+        await expect(nav.getByText(/\/ 3/)).toBeVisible();
+
+        // 2. 「最後」ボタンをクリックして最終ページへジャンプ
+        await lastBtn.click();
+        await page.waitForURL(url => url.searchParams.has('page') && url.searchParams.get('page') !== '1');
+        await expect(firstBtn).toBeEnabled();
+        await expect(prevBtn).toBeEnabled();
+        await expect(nextBtn).toBeDisabled();
+        await expect(lastBtn).toBeDisabled();
+        await expect(pageInput).toHaveValue('3');
+
+        // 3. 「最初」ボタンをクリックして 1 ページ目へジャンプ
+        await firstBtn.click();
+        await page.waitForURL(url => !url.searchParams.has('page') || url.searchParams.get('page') === '1');
+        await expect(firstBtn).toBeDisabled();
+        await expect(prevBtn).toBeDisabled();
+        await expect(nextBtn).toBeEnabled();
+        await expect(lastBtn).toBeEnabled();
+        await expect(pageInput).toHaveValue('1');
+
+        // 4. 常時表示の入力欄から直接ページ番号を指定してジャンプ
+        await expect(pageInput).toBeVisible();
+        await expect(pageInput).toHaveValue('1');
+
+        // 2 を入力して Go ボタン押下
+        await pageInput.fill('2');
+        const jumpBtn = nav.getByRole('button', { name: 'Go' });
+        await jumpBtn.click();
+
+        // 2ページ目にジャンプしたことを検証
+        await page.waitForURL(/\/recorded\?page=2/);
+        await expect(firstBtn).toBeEnabled();
+        await expect(prevBtn).toBeEnabled();
+        await expect(nextBtn).toBeEnabled();
+        await expect(lastBtn).toBeEnabled();
+        await expect(pageInput).toHaveValue('2');
+
+        // 5. Enter キーによる直接入力ジャンプの検証
+        await pageInput.fill('1');
+        await pageInput.press('Enter');
+        await page.waitForURL(url => !url.searchParams.has('page') || url.searchParams.get('page') === '1');
+        await expect(firstBtn).toBeDisabled();
+        await expect(pageInput).toHaveValue('1');
+
+        // 6. PC 表示（幅 1280px）ではページング後に強制スクロールされないことを検証
+        const bottomNav = page.getByRole('navigation', { name: 'ページネーション' }).nth(1);
+        await bottomNav.scrollIntoViewIfNeeded();
+        const initialScrollTop = await page.evaluate(() => document.querySelector('main')?.scrollTop || 0);
+        const bottomNextBtn = bottomNav.getByRole('button', { name: '次のページへ' });
+        await bottomNextBtn.click();
+        await page.waitForURL(/\/recorded\?page=2/);
+
+        // PC では上部へ強制スクロールされず位置が維持されることを検証
+        const pcScrollTop = await page.evaluate(() => document.querySelector('main')?.scrollTop || 0);
+        expect(pcScrollTop).toBeGreaterThanOrEqual(initialScrollTop - 50);
+
+        // 7. スマホ表示（幅 390px）では、ページング時に画面上端の上部ページャー位置へスクロールすることを検証
+        await page.setViewportSize({ width: 390, height: 844 });
+        await bottomNav.scrollIntoViewIfNeeded();
+        const bottomPrevBtn = bottomNav.getByRole('button', { name: '前のページへ' });
+        await bottomPrevBtn.click();
+        await page.waitForURL(url => !url.searchParams.has('page') || url.searchParams.get('page') === '1');
+
+        // スマホでは上部ページャーがビューポート最上部付近（0〜30px以内）に吸着していることを検証
+        const topNav = page.getByRole('navigation', { name: 'ページネーション' }).first();
+        await expect(topNav).toBeInViewport();
+        const topNavBox = await topNav.boundingBox();
+        const mainBox = await page.locator('main').boundingBox();
+        expect(topNavBox).not.toBeNull();
+        expect(mainBox).not.toBeNull();
+        const distance = topNavBox!.y - mainBox!.y;
+        expect(distance).toBeGreaterThanOrEqual(0);
+        expect(distance).toBeLessThanOrEqual(30);
+
+        // 8. 表示件数セレクター（10/25/50/100）の切り替え動作検証
+        const limitSelect = page.getByRole('combobox', { name: '1ページの表示件数' });
+        await expect(limitSelect).toBeVisible();
+        await expect(limitSelect).toHaveValue('50');
+
+        // 25 件 / 頁 に変更 -> 全 5 ページに再計算され、URLに limit=25 が反映
+        await limitSelect.selectOption('25');
+        await page.waitForURL(url => url.searchParams.get('limit') === '25');
+        await expect(nav.getByText(/\/ 5/)).toBeVisible();
+        await expect(pageInput).toHaveValue('1');
+
+        // 10 件 / 頁 に変更 -> 全 12 ページに再計算され、URLに limit=10 が反映
+        await limitSelect.selectOption('10');
+        await page.waitForURL(url => url.searchParams.get('limit') === '10');
+        await expect(nav.getByText(/\/ 12/)).toBeVisible();
+        await expect(pageInput).toHaveValue('1');
+
+        // 100 件 / 頁 に変更 -> 全 2 ページに再計算され、URLに limit=100 が反映
+        await limitSelect.selectOption('100');
+        await page.waitForURL(url => url.searchParams.get('limit') === '100');
+        await expect(nav.getByText(/\/ 2/)).toBeVisible();
+        await expect(pageInput).toHaveValue('1');
+
+        // 100 件の状態から直接 10 件 / 頁 に変更（100 -> 10 遷移の検証）
+        await limitSelect.selectOption('10');
+        await page.waitForURL(url => url.searchParams.get('limit') === '10');
+        await expect(nav.getByText(/\/ 12/)).toBeVisible();
+        await expect(pageInput).toHaveValue('1');
+
+        // 50 件 / 頁（デフォルト）に戻す -> クエリから limit が除去され全 3 ページに再計算
+        await limitSelect.selectOption('50');
+        await page.waitForURL(url => !url.searchParams.has('limit'));
+        await expect(nav.getByText(/\/ 3/)).toBeVisible();
+
+        // 9. limit=100 のクエリ付きで新規アクセスした状態から 10 件へ変更する検証
+        await page.goto('/recorded?limit=100');
+        await page.waitForLoadState('networkidle');
+        const newNav = page.getByRole('navigation', { name: 'ページネーション' }).first();
+        const newLimitSelect = page.getByRole('combobox', { name: '1ページの表示件数' });
+        await expect(newLimitSelect).toHaveValue('100');
+        await expect(newNav.getByText(/\/ 2/)).toBeVisible();
+
+        // 100 から 10 に切り替え -> 正しく 10 件 / 全 12 ページに即座に反映されることを検証
+        await newLimitSelect.selectOption('10');
+        await page.waitForURL(url => url.searchParams.get('limit') === '10');
+        await expect(newNav.getByText(/\/ 12/)).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

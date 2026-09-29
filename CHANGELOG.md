@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ダッシュボード (`/`) のヘッダー操作フォント統一**: ストレージ容量・予約警告アコーディオン等のヘッダー操作ボタンを `text-sm` に統一。直近予約一覧を最新 10 件に制限。
 - **録画中 3 択操作ハンドラーの一元化**: 4 画面（Dashboard, Guide, Reserves, OnAir）で重複していた 3 択停止（完了保存・中断保存・取り消し破棄）処理を共通モジュール（`recording.ts`）に集約。
 - **Tailwind CSS Utility-First 原則の徹底**: `app.css` の独自クラス（`.btn-*`, `.form-*`, `.divider-v`, `.card-base` 等）を完全撤廃。
+- **ドキュメント仕様体系の実装実態完全同期**:
+  - `docs/dev/api.md`: 未記載だった録画中 3 択制御 API (`/api/recording`) の仕様を追記（Swagger や他文書と重複する一覧等は排して簡潔化）。
+  - `docs/dev/database.md`: `rule` / `reserve` の優先度カラム `priority`（デフォルト: 5）の ER 図・スキーマ定義への反映、および既存 EPGStation DB からの非破壊自動マイグレーション機構の明記。
+  - `docs/dev/reservation-algorithm.md`: 手動予約ソート順序（手動時刻指定予約 ＞ 手動個別番組予約 ＞ ルール予約）の実装実態との整合・修正。
+  - `docs/dev/ui_spec.md`: アクションボタン仕様の記述を Svelte 5 共通コンポーネント規格（`Button size="compact"`, `IconButton`, `Divider`）へ完全統一。
+  - `docs/dev/architecture.md`: データベース互換性と `priority` カラム自動追加機構の記述同期。
+- **ドキュメント全体の表現適正化**: 「超高速」「圧倒的」などの過度な誇張表現を全廃し、客観的で落ち着いた技術的表現へ統一。
+- **録画アーカイブ管理件数の想定スケール引き上げ**: ドキュメント全体（README, ui_spec, database, architecture, configuration 等）における録画管理規模の表記を「15,000 件」から「**10万件規模**」へ更新。
 
 ### Fixed
 - **大容量動画配信時のデッドロック回避設計の恒久保護**: `@hono/node-server` の Web Streams バックプレッシャーストールを防止するため、Node.js ネイティブ `stream.pipe(outgoing)` と `createAlreadySentResponse()` による Symbol 削除ガードを保護・文書化。
@@ -42,5 +50,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Node.js 22 (ESM)、Hono (RPC)、Svelte 5 (Runes)、Tailwind CSS v4、Drizzle ORM を採用した録画・放送視聴プラットフォーム。
 - EPGStation (SQLite / MySQL) との 100% データ互換性。
 - ARIB STD-B24 字幕表示（ID3 Timed Metadata / WebVTT）、M2TS-LL 低遅延ストリーミング。
-- 15,000 件以上の大規模録画アーカイブ対応（サムネイル階層化シャーディング、年月ジャンプ）。
+- 10万件規模の大規模録画アーカイブ対応（サムネイル階層化シャーディング、年月ジャンプ）。
 - リードオンリーモード（閲覧専用モード）。

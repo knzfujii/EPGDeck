@@ -209,5 +209,21 @@ const createRes = await api.reserves.$post({
 | `DELETE` | `/api/recorded/:recordedId/history` | 指定録画番組を重複判定履歴から削除し、予約を即座に再評価 | `{ "code": 200 }` |
 | `POST` | `/api/recorded/:recordedId/history` | 指定録画番組を重複判定履歴に登録し、予約を即座に再評価 | `{ "code": 200 }` |
 
+---
+
+## 録画中制御 API (`/api/recording`)
+
+録画進行中の番組に対して、完了・中断・破棄などの制御を行う API です。
+
+| メソッド | パス | 説明 | レスポンス |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/recording` | 現在録画中の番組一覧を取得 | `RecordingProgramItem[]` |
+| `POST` | `/api/recording/resettimer` | 録画タイマーを再設定 | `{ "code": 200 }` |
+| `POST` | `/api/recording/:reserveId/finish` | **完了として保存**: 録画を正常終了扱いとし、実時間確定・サムネイル作成・エンコード投入・録画履歴登録シーケンスを実行 | `{ "code": 200 }` |
+| `POST` | `/api/recording/:reserveId/stop` | **中断して保存**: 録画を途中停止し、途中ファイルは保持するが未完了扱い（録画履歴未登録）として再放送救済を維持 | `{ "code": 200 }` |
+| `POST` | `/api/recording/:reserveId/discard` | **録画を取り消し**: 録画ストリームを停止し、書きかけファイルや DB レコードを物理削除して安全に破棄 | `{ "code": 200 }` |
+| `DELETE` | `/api/recording/:reserveId` | 録画を取り消し（`discard` と同等の互換エンドポイント） | `{ "code": 200 }` |
+
+
 
 

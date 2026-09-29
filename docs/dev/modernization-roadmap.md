@@ -194,7 +194,7 @@ flowchart TD
   コンソール出力（ANSI カラー）や Web UI リアルタイム配信（Socket.IO / `LogManageModel`）は自前で構築されているにもかかわらず、単にファイル出力とサイズローテーションのためだけに古い設計の重厚な `log4js`（および間接依存を含む 6 パッケージ）を抱え込んでいた。
 - **実施した改善**:
   1. **`log4js` の完全削除と `rotating-file-stream` への置換**:
-     - 依存ゼロ（deps: none）かつ 95kB の超軽量デファクトライブラリ `rotating-file-stream` を導入し、`log4js` 関連 6 パッケージを完全排除。
+     - 依存ゼロ（deps: none）かつ 95kB の軽量デファクトライブラリ `rotating-file-stream` を導入し、`log4js` 関連 6 パッケージを完全排除。
      - Node.js 標準の非同期ストリーム（`Writable`）ベースに刷新し、ファイル I/O によるイベントループの圧迫リスクを大幅に低減。
   2. **既存フォーマット & Web UI パース完全互換の維持**:
      - `YYYY-MM-DD HH:mm:ss.SSS [LEVEL] [Process][category] message` 形式のログ行フォーマットを完全維持。

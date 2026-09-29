@@ -54,7 +54,7 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
 - **[システムアーキテクチャ解説](dev/architecture.md)**
   - プロセス設計（Operator / Service / EPGUpdater）、Hono REST API、Drizzle ORM、Svelte 5 フロントエンド構成。
 - **[UI/UX 画面仕様書 (Svelte 5 刷新)](dev/ui_spec.md)**
-  - Svelte 5 + Tailwind CSS v4 への完全移行、15,000件最適化、UI/UX 設計・デザインシステム仕様書。
+  - Svelte 5 + Tailwind CSS v4 への完全移行、10万件アーカイブ最適化、UI/UX 設計・デザインシステム仕様書。
 - **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation-algorithm.md)**
   - 予約生成ライフサイクル、録画済み重複排除（二重録画防止 / `isOverlap`）の正規化ロジック、平面走査法によるチューナー競合解決（`isConflict`）。
 - **[ストリーミング配信・ARIB 字幕アーキテクチャ](dev/streaming-and-captions.md)**

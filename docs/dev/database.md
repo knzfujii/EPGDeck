@@ -89,6 +89,7 @@ erDiagram
         text times "対象曜日・時間帯"
         boolean avoidDuplicate "二重録画防止"
         int periodToAvoidDuplicate "重複回避日数"
+        int priority "優先度 (1〜10, デフォルト5)"
         boolean allowEndLack "末尾欠け許可"
     }
 
@@ -99,6 +100,7 @@ erDiagram
         int channelId FK "channel.id"
         int startAt "開始日時 (Unixtime ms)"
         int endAt "終了日時 (Unixtime ms)"
+        int priority "優先度 (1〜10, デフォルト5)"
         boolean isSkip "手動/重複スキップ中"
         boolean isConflict "チューナー競合中"
         boolean isOverlap "録画済み重複判定"
@@ -243,6 +245,7 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `times` | `TEXT` / `TEXT` | YES | NULL | 対象曜日および時間帯範囲 |
 | `durationMin` / `durationMax` | `INTEGER` / `INT` | YES | NULL | 番組尺の最小・最大長 (秒) |
 | `enable` | `INTEGER` / `BOOLEAN` | NO | `false` | ルール有効/無効フラグ |
+| `priority` | `INTEGER` / `INT` | NO | `5` | **ルール優先度 (1〜10、チューナー競合時の調停用)** |
 | `avoidDuplicate` | `INTEGER` / `BOOLEAN` | NO | `false` | **二重録画防止フラグ** |
 | `periodToAvoidDuplicate` | `INTEGER` / `INT` | YES | NULL | 二重録画防止の対象日数 (未指定/0で無期限) |
 | `allowEndLack` | `INTEGER` / `BOOLEAN` | NO | `false` | チューナー競合時の末尾欠け許可 |
@@ -267,6 +270,7 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `channelId` | `INTEGER` / `BIGINT` | NO | (FK) | 放送局ID (`channel.id` 参照) |
 | `startAt` | `INTEGER` / `BIGINT` | NO | - | 録画開始予定日時 (Unixtime ms) |
 | `endAt` | `INTEGER` / `BIGINT` | NO | - | 録画終了予定日時 (Unixtime ms) |
+| `priority` | `INTEGER` / `INT` | NO | `5` | **予約優先度 (1〜10、ルール優先度を引き継ぎ)** |
 | `isSkip` | `INTEGER` / `BOOLEAN` | NO | `false` | スキップ中フラグ（手動または重複） |
 | `isConflict` | `INTEGER` / `BOOLEAN` | NO | `false` | **チューナー競合中フラグ** |
 | `isOverlap` | `INTEGER` / `BOOLEAN` | NO | `false` | **録画済み重複判定フラグ** |
@@ -395,7 +399,10 @@ EPGDeck は **EPGStation v2.10.0 との 100% データベース互換性** を�
 1. **新規セットアップ時の自動テーブル生成**:
    - 初回起動時、`DrizzleOperator.checkConnection()` により EPGStation v2.10.0 と同一構造のテーブル群が自動生成されます。
 2. **既存環境からのシームレス移行**:
-   - 既存の EPGStation で使用していた SQLite DB ファイル（`data/database.db`）または MySQL データベースをそのまま指定するだけで、データ移行作業なしですぐに動作します。
+   - 既存の EPGStation で使用していた SQLite DB ファイル（`data/database.db`）または MySQL データベースをそのまま指定するだけで、手動データ移行作業なしですぐに動作します。
+3. **非破壊スキーマ拡張と自動マイグレーション (`priority`)**:
+   - EPGDeck 独自機能である予約・ルールの優先度制御用カラム `priority`（デフォルト: `5`）は、既存の EPGStation DB 接続時に `DrizzleOperator` がカラムの存在を自動検知し、未存在の場合のみ非破壊で `ALTER TABLE ... ADD COLUMN priority ... DEFAULT 5` を自動実行します。
+   - 既存の予約・ルールデータや ID は一切損なわれることなく、すべてのルール・予約がデフォルト優先度「5」として自動的に互換移行されます。
 
 ---
 
@@ -420,5 +427,5 @@ EPGDeck は **EPGStation v2.10.0 との 100% データベース互換性** を�
 ## 6. 破壊的変更に関するガイドライン
 
 - 既存のカラム削除やデータ型の互換性破壊など、過去の録画データや予約ルールに影響を及ぼす変更は避けてください。
-- 既存ユーザーの録画アーカイブ（15,000 件超の運用など）を安全に維持するため、破壊的変更が必要な場合は必ず事前に合意を得てください。
+- 既存ユーザーの録画アーカイブ（10万件規模の運用など）を安全に維持するため、破壊的変更が必要な場合は必ず事前に合意を得てください。
 

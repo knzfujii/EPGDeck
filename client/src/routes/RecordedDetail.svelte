@@ -511,7 +511,7 @@
     }
 </script>
 
-<div class="w-full max-w-5xl min-w-0 space-y-5">
+<div class="w-full max-w-5xl min-w-0 flex flex-col gap-5">
     <!-- ヘッダー & ナビゲーション -->
     <div class="flex items-center justify-between gap-2">
         <Button
@@ -657,7 +657,7 @@
                 </div>
 
                 <!-- 右側: 番組メタデータ -->
-                <div class="p-6 md:col-span-2 space-y-4">
+                <div class="p-6 md:col-span-2 flex flex-col gap-4">
                     <div>
                         <div class="flex items-center gap-2 flex-wrap mb-2">
                             <Badge variant="channel" text={channelStore.getChannelName(recorded.channelId)} size="md" />
@@ -735,7 +735,7 @@
             </div>
 
             <!-- 番組概要 & 詳細テキスト -->
-            <div class="border-t border-slate-100 p-6 dark:border-slate-800 space-y-4">
+            <div class="border-t border-slate-100 p-6 dark:border-slate-800 flex flex-col gap-4">
                 {#if recorded.description}
                     <div>
                         <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1.5">番組概要</h2>
@@ -922,7 +922,7 @@
             {#if (recorded.videoFiles || []).length === 0}
                 <p class="py-8 text-center text-sm text-slate-400">生成された動画ファイルはありません</p>
             {:else}
-                <div class="space-y-3">
+                <div class="flex flex-col gap-3">
                     {#each recorded.videoFiles || [] as file}
                         <div
                             class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 sm:p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40"

@@ -94,7 +94,7 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="space-y-5 w-full max-w-full min-w-0">
+    <div class="flex flex-col gap-5 w-full max-w-full min-w-0">
         <div
             class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
@@ -128,10 +128,10 @@
             {#if running.length === 0}
                 <p class="py-6 text-center text-xs sm:text-sm text-slate-400">現在実行中のエンコードはありません</p>
             {:else}
-                <div class="mt-3 space-y-3">
+                <div class="mt-3 flex flex-col gap-3">
                     {#each running as item}
                         <div
-                            class="rounded-xl border border-slate-100 bg-slate-50/50 p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-2.5"
+                            class="rounded-xl border border-slate-100 bg-slate-50/50 p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-800/40 flex flex-col gap-2.5"
                         >
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0 flex-1">
@@ -197,7 +197,7 @@
             {#if waitList.length === 0}
                 <p class="py-6 text-center text-xs sm:text-sm text-slate-400">待機中のエンコードはありません</p>
             {:else}
-                <div class="mt-3 space-y-2">
+                <div class="mt-3 flex flex-col gap-2">
                     {#each waitList as item}
                         <div
                             class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs sm:text-sm dark:border-slate-800 dark:bg-slate-800/40"

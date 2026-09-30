@@ -86,7 +86,7 @@
         <div class="mb-3 px-3 py-1.5">
             <span class="text-xs font-black tracking-widest text-slate-400 uppercase">Menu</span>
         </div>
-        <nav class="space-y-1">
+        <nav class="flex flex-col gap-1">
             {#each navGroups as group, groupIndex}
                 {#if groupIndex > 0}
                     <!-- セクション区切り線 -->
@@ -125,7 +125,7 @@
 
         <!-- ドロワーコンテンツ (幅を w-56 にスリム化) -->
         <div
-            class="relative flex w-56 max-w-[75vw] flex-1 flex-col bg-white p-3.5 pt-safe pb-safe shadow-2xl dark:bg-slate-900"
+            class="relative flex w-56 max-w-[75vw] flex-1 flex-col bg-white p-3.5 pt-safe pb-safe-4 shadow-2xl dark:bg-slate-900"
         >
             <div class="flex items-center justify-between px-1.5 py-1">
                 <span class="text-lg font-black tracking-wider text-blue-600 dark:text-blue-400">EPGDeck</span>
@@ -138,7 +138,7 @@
                     <X size={20} />
                 </button>
             </div>
-            <nav class="mt-3 space-y-1 overflow-y-auto">
+            <nav class="mt-3 flex flex-col gap-1 overflow-y-auto">
                 {#each navGroups as group, groupIndex}
                     {#if groupIndex > 0}
                         <!-- セクション区切り線 -->

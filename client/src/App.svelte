@@ -100,7 +100,9 @@
     <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
         <Header onToggleDrawer={toggleDrawer} />
 
-        <main class="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-safe">
+        <main
+            class="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-safe-8 sm:pb-6 lg:pb-8 flex flex-col"
+        >
             {#if !readOnlyStore.isInitialized || (isPageLoading && !CurrentComponent)}
                 <div class="flex h-64 items-center justify-center">
                     <Loader2 size={32} class="animate-spin text-blue-600 dark:text-blue-400" />

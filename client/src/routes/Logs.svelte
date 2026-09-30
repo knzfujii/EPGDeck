@@ -274,10 +274,10 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="space-y-4">
+    <div class="flex flex-col gap-4 w-full max-w-full min-w-0 flex-1 min-h-0">
         <!-- ヘッダー & ツールバー コンテナ -->
         <div
-            class="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="shrink-0 flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -435,11 +435,11 @@
 
         <!-- ログコンソールエリア -->
         <div
-            class="relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-xl overflow-hidden font-mono text-xs text-slate-800 dark:text-slate-200"
+            class="relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-xl overflow-hidden font-mono text-xs text-slate-800 dark:text-slate-200 flex-1 min-h-0 flex flex-col"
         >
             <!-- 上部ステータスバー -->
             <div
-                class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 dark:bg-slate-900/90 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400"
+                class="shrink-0 flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 dark:bg-slate-900/90 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400"
             >
                 <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
@@ -458,7 +458,7 @@
             <div
                 bind:this={logContainer}
                 onscroll={handleScroll}
-                class="h-[calc(100dvh-280px)] min-h-[360px] overflow-y-auto p-1.5 sm:p-2 space-y-0.5 select-text scroll-smooth"
+                class="flex-1 min-h-0 overflow-y-auto p-1.5 sm:p-2 select-text scroll-smooth flex flex-col gap-0.5"
             >
                 {#if isLoading}
                     <div class="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">

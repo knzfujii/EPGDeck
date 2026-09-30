@@ -229,6 +229,18 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@utility pb-safe-4 {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@utility pb-safe-6 {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@utility pb-safe-8 {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+
 @utility pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
 }

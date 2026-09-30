@@ -1009,7 +1009,7 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="w-full max-w-full min-w-0 space-y-5">
+<div class="w-full max-w-full min-w-0 flex flex-col gap-5">
     <!-- ヘッダー -->
     <div class="flex items-center gap-3">
         <button
@@ -1045,7 +1045,7 @@
                 e.preventDefault();
                 handleSave();
             }}
-            class="space-y-5"
+            class="flex flex-col gap-5"
         >
             <!-- ルール種別の切り替え -->
             <div

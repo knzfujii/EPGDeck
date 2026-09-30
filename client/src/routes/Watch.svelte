@@ -424,7 +424,7 @@
     });
 </script>
 
-<div class="w-full max-w-5xl min-w-0 space-y-4">
+<div class="w-full max-w-5xl min-w-0 flex flex-col gap-4">
     <!-- ヘッダー & 戻るボタン -->
     <div class="flex items-center justify-between">
         <Button

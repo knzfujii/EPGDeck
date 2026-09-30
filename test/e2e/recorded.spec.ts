@@ -1337,7 +1337,7 @@ test.describe('Recorded List Page (/recorded)', () => {
                     status: 200,
                     contentType: 'application/json',
                     body: JSON.stringify({
-                        records: [mockItem],
+                        records: Array.from({ length: 10 }, (_, i) => ({ ...mockItem, id: 8888 + i })),
                         total: 120,
                     }),
                 });

@@ -605,7 +605,7 @@
     }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+<div class="flex flex-col gap-5 w-full max-w-full min-w-0">
     <!-- ヘッダーツールバー -->
     <div
         class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
@@ -861,13 +861,13 @@
         </div>
     </div>
 
-    <!-- 録画一覧セクション（上部ページャー・コンテンツ・下部ページャー）: ページング時に上部ページャーが確実に画面上端までスクロールできるよう min-height を確保 -->
-    <div class="min-h-[calc(100dvh-4rem)] flex flex-col">
+    <!-- 録画一覧セクション（上部ページャー・コンテンツ・下部ページャー） -->
+    <div class="flex flex-col gap-4 sm:gap-5 w-full">
         <!-- 上部ページネーションコントロール（複数ページ存在時: 下部と統一して中央配置） -->
         {#if total > limit}
             <div
                 bind:this={topPaginationEl}
-                class="flex items-center justify-center pt-1 pb-1 scroll-mt-2 sm:scroll-mt-3 shrink-0"
+                class="flex items-center justify-center py-1 scroll-mt-2 sm:scroll-mt-3 shrink-0"
             >
                 <Pagination {currentPage} {total} {limit} onPageChange={changePage} />
             </div>
@@ -1271,8 +1271,12 @@
             {/if}
         </div>
 
-        <!-- ページネーションコントロール -->
-        <Pagination {currentPage} {total} {limit} onPageChange={changePage} />
+        <!-- 下部ページネーションコントロール -->
+        {#if total > limit}
+            <div class="flex items-center justify-center pt-2 pb-1 shrink-0">
+                <Pagination {currentPage} {total} {limit} onPageChange={changePage} />
+            </div>
+        {/if}
     </div>
 
     <!-- フローティング一括操作バー (画面下部固定) -->

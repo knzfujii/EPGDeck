@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `FilterTabs.svelte` のパディング・ギャップ最適化（`px-2`, `gap-1`）、ピル型バッジの丸括弧排除、およびセグメンテッド配置（`flex-1 sm:flex-initial justify-center`）により、予約一覧の4タブ（すべて/重複/スキップ/競合）が幅 360px 端末でも1行に美しく完全収容されるよう修正。
   - `Button.svelte` において `className` に `hidden` 等の display ユーティリティが渡された際にベーススタイルの `inline-flex` と競合してスマホで非表示にならない不具合を解消。
   - `RuleEdit.svelte` の検索対象期間（`datetime-local` ピッカー）をスマホ時に縦並び（`flex-col sm:flex-row`）へレスポンシブ化し、全11画面における不要な横スクロール・はみ出しをゼロ化。
+- **録画一覧（テーブル表示）の操作ボタン押下時における詳細画面誤遷移の解消**: テーブル行（`<tr>`）のクリック遷移イベントが再生・保護・削除ボタンに伝播（バブリング）していた問題を解消し、削除等の操作時に不要な詳細画面遷移が発生しないよう修正。
 
 ---
 

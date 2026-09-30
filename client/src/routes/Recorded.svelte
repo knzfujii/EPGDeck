@@ -1026,7 +1026,10 @@
                                                     <Button
                                                         variant="primary"
                                                         size="compact"
-                                                        onclick={() => handlePlayClick(item)}
+                                                        onclick={e => {
+                                                            e.stopPropagation();
+                                                            handlePlayClick(item);
+                                                        }}
                                                         class="whitespace-nowrap"
                                                         title="今すぐ再生"
                                                     >
@@ -1039,7 +1042,10 @@
                                                     <IconButton
                                                         variant="secondary"
                                                         size="compact"
-                                                        onclick={() => toggleProtect(item)}
+                                                        onclick={e => {
+                                                            e.stopPropagation();
+                                                            toggleProtect(item);
+                                                        }}
                                                         class={item.isProtected
                                                             ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60 border-amber-200 dark:border-amber-800'
                                                             : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
@@ -1059,7 +1065,10 @@
                                                         <IconButton
                                                             variant="danger-outline"
                                                             size="compact"
-                                                            onclick={() => deleteRecorded(item.id, item.name)}
+                                                            onclick={e => {
+                                                                e.stopPropagation();
+                                                                deleteRecorded(item.id, item.name);
+                                                            }}
                                                             title="番組を削除"
                                                             aria-label="番組を削除"
                                                         >

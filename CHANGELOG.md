@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.1.0-beta.3] - 2026-09-30
 
 ### Added
 - **録画一覧のコントローラブルページネーション**: ページ番号直接入力フォーム＋「Go」ボタン、最初・最後ジャンプを備えたコントローラブルページャーを導入。

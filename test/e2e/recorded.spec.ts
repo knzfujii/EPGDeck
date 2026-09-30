@@ -1488,4 +1488,101 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should trigger delete confirmation modal without navigating to detail page when delete button is clicked in table view', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+        page.on('console', msg => {
+            if (msg.type() === 'error') consoleErrors.push(msg.text());
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockItem = {
+            id: 8801,
+            ruleId: null,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800,
+            name: 'テーブル削除テスト番組',
+            description: 'テーブル行からの直接削除検証',
+            genre1: 0,
+            isProtected: false,
+            videoFiles: [{ id: 8001, name: 'TS', filename: 'table_delete.ts', type: 'ts', size: 1000 }],
+        };
+
+        let deleted = false;
+        let deleteApiCalled = false;
+
+        await page.route(/\/api\/recorded/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+
+            if (url.includes('/8801') && method === 'DELETE') {
+                deleteApiCalled = true;
+                deleted = true;
+                await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+                return;
+            }
+
+            if (method === 'GET' && !url.includes('/8801/')) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        records: deleted ? [] : [mockItem],
+                        total: deleted ? 0 : 1,
+                    }),
+                });
+                return;
+            }
+
+            await route.continue();
+        });
+
+        // 1. テーブル表示モードで録画一覧を開く
+        await page.goto('/recorded?isTable=true');
+        await page.waitForLoadState('networkidle');
+
+        // テーブル行が表示されていること
+        const tableRow = page.locator('#recorded-item-8801');
+        await expect(tableRow).toBeVisible();
+
+        // 2. 行内の削除ボタンをクリック
+        const deleteBtn = tableRow.getByRole('button', { name: '番組を削除' });
+        await expect(deleteBtn).toBeVisible();
+        await deleteBtn.click();
+
+        // 3. 削除確認モーダルが表示され、詳細画面 (/recorded/detail) へ遷移していないことを検証
+        const confirmModal = page.getByRole('dialog');
+        await expect(confirmModal).toBeVisible();
+        await expect(confirmModal.getByRole('heading', { name: '録画番組の削除' })).toBeVisible();
+        expect(page.url()).not.toContain('/recorded/detail');
+        expect(page.url()).toContain('/recorded');
+
+        // 4. キャンセルをクリック -> モーダルが閉じ、依然として詳細画面に遷移していないこと
+        const cancelBtn = confirmModal.getByRole('button', { name: 'キャンセル' }).last();
+        await cancelBtn.click();
+        await expect(confirmModal).not.toBeVisible();
+        expect(page.url()).not.toContain('/recorded/detail');
+        expect(deleteApiCalled).toBe(false);
+
+        // 5. 再度削除ボタンをクリック -> モーダルで「削除」をクリック
+        await deleteBtn.click();
+        await expect(confirmModal).toBeVisible();
+        const confirmDeleteBtn = confirmModal.getByRole('button', { name: '削除' });
+        await confirmDeleteBtn.click();
+
+        // 6. 削除APIが呼び出され、詳細画面へ飛ばずにトースト通知が表示されること
+        await expect(page.getByText('録画を削除しました')).toBeVisible();
+        expect(deleteApiCalled).toBe(true);
+        expect(page.url()).not.toContain('/recorded/detail');
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

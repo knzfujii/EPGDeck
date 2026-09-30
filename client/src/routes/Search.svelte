@@ -306,7 +306,7 @@
 
                     {#if (keyword.trim() || selectedGenre !== null) && !readOnlyStore.isReadOnly}
                         <Button variant="secondary" onclick={openCreateRuleModal} class="whitespace-nowrap shrink-0">
-                            <Plus size={16} /> この条件でルール作成
+                            <Plus size={16} /> ルール追加
                         </Button>
                     {/if}
                 </div>
@@ -373,9 +373,9 @@
                                             variant="secondary"
                                             size="compact"
                                             onclick={() => openCreateRuleWithProgram(p)}
-                                            title="この番組名でルール作成"
+                                            title="この番組名でルール追加"
                                         >
-                                            <Plus size={14} /> ルール作成
+                                            <Plus size={14} /> ルール追加
                                         </Button>
                                         {#if p.endAt >= Date.now() && !reservedProgramIds.has(p.id)}
                                             <Button
@@ -390,7 +390,7 @@
                                                     <span>予約中...</span>
                                                 {:else}
                                                     <CalendarPlus size={14} />
-                                                    <span>予約</span>
+                                                    <span>録画予約</span>
                                                 {/if}
                                             </Button>
                                         {/if}

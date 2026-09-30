@@ -188,8 +188,8 @@ test.describe('OnAir Page (/onair)', () => {
         await expect(detailModal.getByText('番組概要')).toBeVisible();
         await expect(detailModal.getByText('全国の最新ニュースを詳しく解説')).toBeVisible();
 
-        // 4. モーダル内の「この番組でルール作成」をクリック -> /rule/edit?keyword=...&channelId=1 に遷移
-        const createRuleBtn = detailModal.getByRole('button', { name: 'この番組でルール作成' });
+        // 4. モーダル内の「ルール追加」をクリック -> /rule/edit?keyword=...&channelId=1 に遷移
+        const createRuleBtn = detailModal.getByRole('button', { name: 'ルール追加' });
         await expect(createRuleBtn).toBeVisible();
         await createRuleBtn.click();
 
@@ -224,7 +224,7 @@ test.describe('OnAir Page (/onair)', () => {
         await expect(nextDetailModal).toBeVisible();
         await expect(nextDetailModal.getByText('午後のおすすめドラマ')).toBeVisible();
         await expect(nextDetailModal.getByText('次の番組')).toBeVisible();
-        await expect(nextDetailModal.getByRole('button', { name: 'この番組でルール作成' })).toBeVisible();
+        await expect(nextDetailModal.getByRole('button', { name: 'ルール追加' })).toBeVisible();
 
         const closeNextBtn = nextDetailModal.getByRole('button', { name: 'モーダルを閉じる' });
         await closeNextBtn.click();

@@ -292,14 +292,15 @@
                     onclick={() => router.push('/reserves/manual')}
                     class="sm:hidden whitespace-nowrap shrink-0"
                 >
-                    <Plus size={14} /> 手動予約
+                    <Plus size={14} /> 予約追加
                 </Button>
             {/if}
         </div>
 
-        <div class="flex items-center gap-2.5 min-w-0 max-w-full">
+        <div class="flex items-center gap-2.5 min-w-0 max-w-full w-full sm:w-auto">
             <!-- フィルタータブ -->
             <FilterTabs
+                class="w-full sm:w-auto"
                 tabs={[
                     { id: 'all', label: 'すべて', count: total },
                     { id: 'overlaps', label: '重複', count: overlapCount },
@@ -312,13 +313,15 @@
 
             <!-- 手動予約ボタン (PC用) -->
             {#if !readOnlyStore.isReadOnly}
-                <Button
-                    variant="primary"
-                    onclick={() => router.push('/reserves/manual')}
-                    class="hidden sm:inline-flex whitespace-nowrap shrink-0"
-                >
-                    <Plus size={16} /> 手動予約を追加
-                </Button>
+                <div class="hidden sm:inline-flex shrink-0">
+                    <Button
+                        variant="primary"
+                        onclick={() => router.push('/reserves/manual')}
+                        class="whitespace-nowrap shrink-0"
+                    >
+                        <Plus size={16} /> 予約追加
+                    </Button>
+                </div>
             {/if}
         </div>
     </div>
@@ -824,7 +827,7 @@
                                 onclick={() => goToRuleEdit(item)}
                                 class="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-purple-700 cursor-pointer"
                             >
-                                <SlidersHorizontal size={14} /> ルールを編集する
+                                <SlidersHorizontal size={14} /> ルール編集
                             </button>
                         {/if}
                     </div>
@@ -872,14 +875,12 @@
                                 disabled={isUpdating}
                                 onclick={() => updateReserve(item)}
                             >
-                                <CheckCircle2 size={14} /> 設定を更新
+                                設定更新
                             </Button>
                             <Divider orientation="vertical" />
                         {/if}
                         {#if item.isSkip}
-                            <Button variant="primary" size="compact" onclick={() => restoreSkip(item)}>
-                                <RotateCcw size={14} /> 予約を復活する
-                            </Button>
+                            <Button variant="primary" size="compact" onclick={() => restoreSkip(item)}>予約復活</Button>
                         {:else}
                             <Button
                                 variant="danger-outline"
@@ -890,8 +891,7 @@
                                 {#if item.isRecording}
                                     <Square size={14} fill="currentColor" /> 停止
                                 {:else}
-                                    <Trash2 size={14} />
-                                    {item.ruleId ? 'この回をスキップ (キャンセル)' : '予約をキャンセル'}
+                                    {item.ruleId ? 'この回をスキップ' : '予約キャンセル'}
                                 {/if}
                             </Button>
                         {/if}

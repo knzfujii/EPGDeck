@@ -614,12 +614,12 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.goto('/recorded/detail?recordedId=601');
         await page.waitForLoadState('networkidle');
 
-        // 初期表示: 重複判定履歴が存在するため「重複判定から除外」ボタンと「重複判定対象」バッジが表示される
-        const excludeBtn = page.getByRole('button', { name: /重複判定から除外/ });
+        // 初期表示: 重複判定履歴が存在するため「重複判定除外」ボタンと「重複判定対象」バッジが表示される
+        const excludeBtn = page.getByRole('button', { name: /重複判定除外/ });
         await expect(excludeBtn).toBeVisible();
         await expect(page.getByText('重複判定対象')).toBeVisible();
 
-        // 「重複判定から除外」をクリック -> 確認ダイアログが表示される
+        // 「重複判定除外」をクリック -> 確認ダイアログが表示される
         await excludeBtn.click();
         await expect(page.getByRole('heading', { name: '重複判定からの除外' })).toBeVisible();
         await expect(page.getByText('二重録画防止（重複判定）の対象から除外しますか？')).toBeVisible();
@@ -628,21 +628,21 @@ test.describe('Recorded List Page (/recorded)', () => {
         const confirmBtn = page.getByRole('button', { name: '除外する' });
         await confirmBtn.click();
 
-        // DELETE API が呼ばれ、トーストが表示され、ボタンが「重複判定に追加」に切り替わり、バッジは非表示になる
+        // DELETE API が呼ばれ、トーストが表示され、ボタンが「重複判定追加」に切り替わり、バッジは非表示になる
         await expect(page.getByText('重複判定から除外しました')).toBeVisible();
         expect(historyDeleteCalled).toBe(true);
 
-        const addBtn = page.getByRole('button', { name: /重複判定に追加/ });
+        const addBtn = page.getByRole('button', { name: /重複判定追加/ });
         await expect(addBtn).toBeVisible();
         await expect(page.getByText('重複判定対象')).toHaveCount(0);
 
-        // 「重複判定に追加」をクリック
+        // 「重複判定追加」をクリック
         await addBtn.click();
 
         // POST API が呼ばれ、トーストが表示され、ボタンが元に戻り、バッジが再表示される
         await expect(page.getByText('重複判定の対象に追加しました')).toBeVisible();
         expect(historyPostCalled).toBe(true);
-        await expect(page.getByRole('button', { name: /重複判定から除外/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /重複判定除外/ })).toBeVisible();
         await expect(page.getByText('重複判定対象')).toBeVisible();
 
         expect(pageErrors).toEqual([]);
@@ -858,7 +858,7 @@ test.describe('Recorded List Page (/recorded)', () => {
 
         // 1. 初期状態: 未保護、タイトル表示確認
         await expect(page.locator('h1')).toContainText('テスト特番「保護と削除の検証」');
-        const protectBtn = page.getByRole('button', { name: '保護する' });
+        const protectBtn = page.getByRole('button', { name: '保護', exact: true });
         await expect(protectBtn).toBeVisible();
 
         // 削除ボタンが表示されていること

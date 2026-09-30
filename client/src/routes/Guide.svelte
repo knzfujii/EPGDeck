@@ -1060,7 +1060,7 @@
                                     }}
                                     class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
                                 >
-                                    <SlidersHorizontal size={11} /> ルールを編集
+                                    <SlidersHorizontal size={11} /> ルール編集
                                 </button>
                             {/if}
                         </div>
@@ -1104,7 +1104,7 @@
                         router.push(buildRuleEditUrl(selectedProgram!.name, selectedProgram!.channelId));
                     }}
                 >
-                    <Search size={14} /> ルール作成へ
+                    <Plus size={14} /> ルール追加
                 </Button>
 
                 <div class="flex items-center gap-2 overflow-x-auto">
@@ -1150,7 +1150,7 @@
                                     disabled={isReserving}
                                     onclick={() => updateReserve(selectedProgram!.reserve!.id, selectedProgram!)}
                                 >
-                                    <CheckCircle2 size={14} /> 設定を更新
+                                    設定更新
                                 </Button>
                                 <Button
                                     variant="danger-outline"
@@ -1178,7 +1178,7 @@
                                 disabled={isReserving}
                                 onclick={() => addReserve(selectedProgram!)}
                             >
-                                <Plus size={14} /> 録画予約する
+                                録画予約
                             </Button>
                         {/if}
                     {/if}

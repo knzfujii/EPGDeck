@@ -407,9 +407,7 @@
 
                 {#if !readOnlyStore.isReadOnly}
                     <Button variant="primary" onclick={goCreateRule} class="whitespace-nowrap shrink-0">
-                        <Plus size={16} />
-                        <span class="hidden sm:inline">新規ルール作成</span>
-                        <span class="sm:hidden">新規作成</span>
+                        <Plus size={16} /> ルール追加
                     </Button>
                 {/if}
             </div>
@@ -445,7 +443,9 @@
                                 すべてのルールを表示
                             </Button>
                         {:else}
-                            <Button variant="primary" onclick={goCreateRule}>最初のルールを作成する</Button>
+                            <Button variant="primary" onclick={goCreateRule}>
+                                <Plus size={16} /> ルール追加
+                            </Button>
                         {/if}
                     {/snippet}
                 </EmptyState>
@@ -460,7 +460,9 @@
             {:else}
                 <EmptyState icon={SlidersHorizontal} title="登録されたルールはありません">
                     {#snippet action()}
-                        <Button variant="primary" onclick={goCreateRule}>最初のルールを作成する</Button>
+                        <Button variant="primary" onclick={goCreateRule}>
+                            <Plus size={16} /> ルール追加
+                        </Button>
                     {/snippet}
                 </EmptyState>
             {/if}

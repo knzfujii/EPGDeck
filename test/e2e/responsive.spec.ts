@@ -188,17 +188,15 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             await expect(backBtn.locator('.sm\\:hidden')).toHaveText('戻る');
             await expect(backBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
 
-            // 2. 重複除外ボタンが「重複除外」に短縮されていることを確認
-            const duplicateBtn = page.getByRole('button', { name: /重複除外/ });
+            // 2. 重複除外ボタンが「重複判定除外」と表示されていることを確認
+            const duplicateBtn = page.getByRole('button', { name: /重複判定除外/ });
             await expect(duplicateBtn).toBeVisible();
-            await expect(duplicateBtn.locator('.sm\\:hidden')).toHaveText('重複除外');
-            await expect(duplicateBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+            await expect(duplicateBtn).toContainText('重複判定除外');
 
-            // 3. 保護ボタンが「保護」に短縮されていることを確認
+            // 3. 保護ボタンが「保護」と表示されていることを確認
             const protectBtn = page.getByRole('button', { name: /保護/ });
             await expect(protectBtn).toBeVisible();
-            await expect(protectBtn.locator('.sm\\:hidden')).toHaveText('保護');
-            await expect(protectBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+            await expect(protectBtn).toContainText('保護');
 
             // 4. 削除ボタンが表示され、各ボタンの高さ（h-9: 36px）が揃っていることを確認
             const deleteBtn = page.getByRole('button', { name: '削除', exact: true });
@@ -219,6 +217,61 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             expect(Math.round(protectBox!.height)).toBe(36);
             expect(Math.round(deleteBox!.height)).toBe(36);
             expect(Math.round(backBox!.height)).toBe(36);
+        });
+
+        test('should fit all filter tabs on /reserves without horizontal overflow on mobile viewports', async ({
+            page,
+        }) => {
+            for (const width of [390, 360]) {
+                await page.setViewportSize({ width, height: 844 });
+                await page.goto('/reserves');
+                await page.waitForLoadState('networkidle');
+
+                // FilterTabs コンテナと各タブボタンの幅・オーバーフロー検証
+                const tabsOverflow = await page.evaluate(() => {
+                    const tabsContainer = document.querySelector('main div.overflow-x-auto');
+                    if (!tabsContainer) return null;
+                    return {
+                        scrollWidth: tabsContainer.scrollWidth,
+                        clientWidth: tabsContainer.clientWidth,
+                        hasScroll: tabsContainer.scrollWidth > tabsContainer.clientWidth,
+                    };
+                });
+
+                expect(tabsOverflow).not.toBeNull();
+                expect(tabsOverflow?.hasScroll, `FilterTabs should not horizontally scroll at ${width}px`).toBe(false);
+
+                // 「競合」タブが画面内に完全に収まっているか
+                const conflictTab = page.getByRole('button', { name: /競合/ });
+                await expect(conflictTab).toBeVisible();
+                const conflictBox = await conflictTab.boundingBox();
+                expect(conflictBox).not.toBeNull();
+                expect(conflictBox!.x + conflictBox!.width).toBeLessThanOrEqual(width);
+            }
+        });
+
+        test('should not cause page horizontal scroll on core routes at mobile viewport widths', async ({ page }) => {
+            const routes = ['/reserves', '/rule/edit', '/recorded', '/guide', '/onair', '/logs'];
+            for (const width of [390, 360]) {
+                await page.setViewportSize({ width, height: 844 });
+                for (const route of routes) {
+                    await page.goto(route);
+                    await page.waitForLoadState('domcontentloaded');
+                    await page.waitForTimeout(300);
+
+                    const overflowInfo = await page.evaluate(() => {
+                        const doc = document.documentElement;
+                        const main = document.querySelector('main');
+                        return {
+                            hasDocScroll: doc.scrollWidth > window.innerWidth,
+                            hasMainScroll: main ? main.scrollWidth > main.clientWidth : false,
+                        };
+                    });
+
+                    expect(overflowInfo.hasDocScroll, `Doc horizontal scroll on ${route} at ${width}px`).toBe(false);
+                    expect(overflowInfo.hasMainScroll, `Main horizontal scroll on ${route} at ${width}px`).toBe(false);
+                }
+            }
         });
     });
 

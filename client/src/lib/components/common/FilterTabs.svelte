@@ -29,7 +29,7 @@
             type="button"
             onclick={() => onselect(tab.id)}
             aria-label={typeof tab.count === 'number' ? `${tab.label} (${tab.count})` : tab.label}
-            class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {isActive
+            class="flex flex-1 sm:flex-initial items-center justify-center gap-1 sm:gap-1.5 rounded-lg px-2 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 {isActive
                 ? 'bg-white text-slate-900 shadow-xs ring-1 ring-slate-950/5 dark:bg-slate-700 dark:text-slate-100 dark:ring-white/10 font-bold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700/50'}"
         >
@@ -42,11 +42,11 @@
             <span>{tab.label}</span>
             {#if typeof tab.count === 'number'}
                 <span
-                    class="rounded-full px-1.5 py-0.2 text-[10px] sm:text-xs font-bold {isActive
+                    class="rounded-full px-1.5 py-0.5 text-[10px] sm:text-xs font-bold leading-none {isActive
                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                         : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}"
                 >
-                    ({tab.count})
+                    {tab.count}
                 </span>
             {/if}
         </button>

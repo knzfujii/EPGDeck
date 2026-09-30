@@ -538,8 +538,7 @@
                             title="重複判定履歴に登録し、二重録画防止の対象に戻します"
                         >
                             <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" />
-                            <span class="hidden sm:inline">重複判定に追加</span>
-                            <span class="sm:hidden">+重複</span>
+                            <span>重複判定追加</span>
                         </Button>
                     {:else}
                         <Button
@@ -550,8 +549,7 @@
                             title="二重録画防止（重複判定）の履歴から削除し、次回放送を録画できるようにします"
                         >
                             <CopyX size={15} class="text-slate-400 dark:text-slate-400" />
-                            <span class="hidden sm:inline">重複判定から除外</span>
-                            <span class="sm:hidden">重複除外</span>
+                            <span>重複判定除外</span>
                         </Button>
                     {/if}
 
@@ -570,8 +568,7 @@
                             <span>保護中</span>
                         {:else}
                             <Unlock size={15} />
-                            <span class="hidden sm:inline">保護する</span>
-                            <span class="sm:hidden">保護</span>
+                            <span>保護</span>
                         {/if}
                     </Button>
 
@@ -786,7 +783,7 @@
                         onclick={() => router.push(`/recorded?ruleId=${recorded?.ruleId}`)}
                         class="flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-400 dark:hover:bg-blue-900 transition-colors cursor-pointer shrink-0"
                     >
-                        <span>すべて見る</span>
+                        <span>すべて</span>
                         <ChevronRight size={14} />
                     </button>
                 </div>
@@ -1226,7 +1223,7 @@
 
             <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
                 <Button variant="secondary" onclick={() => (isEncodeModalOpen = false)}>キャンセル</Button>
-                <Button variant="primary" onclick={addEncode}>追加する</Button>
+                <Button variant="primary" onclick={addEncode}>登録</Button>
             </div>
         </div>
     </div>

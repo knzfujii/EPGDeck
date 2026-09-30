@@ -1463,10 +1463,20 @@
                                         </button>
                                     {/if}
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <Input type="datetime-local" bind:value={periodStart} title="開始日時" />
-                                    <span class="text-slate-400 font-bold">~</span>
-                                    <Input type="datetime-local" bind:value={periodEnd} title="終了日時" />
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <Input
+                                        type="datetime-local"
+                                        bind:value={periodStart}
+                                        title="開始日時"
+                                        class="w-full sm:w-auto"
+                                    />
+                                    <span class="text-slate-400 font-bold text-center sm:text-left">~</span>
+                                    <Input
+                                        type="datetime-local"
+                                        bind:value={periodEnd}
+                                        title="終了日時"
+                                        class="w-full sm:w-auto"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -2134,9 +2144,8 @@
             >
                 <Button variant="secondary" onclick={goBackToRuleList}>キャンセル</Button>
                 {#if !readOnlyStore.isReadOnly}
-                    <Button type="submit" variant="primary" disabled={isSaving} class="flex items-center gap-1.5">
-                        <Save size={16} />
-                        {ruleId ? 'ルールを更新する' : '新規ルールを作成する'}
+                    <Button type="submit" variant="primary" disabled={isSaving}>
+                        {ruleId ? '更新' : '登録'}
                     </Button>
                 {:else}
                     <p class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">

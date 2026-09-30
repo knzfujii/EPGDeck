@@ -26,8 +26,8 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         // 2. フィルタタブ（すべて、重複、競合など）
         await expect(page.getByRole('button', { name: /すべて/ })).toBeVisible();
 
-        // 3. 手動予約追加ボタンをクリックして手動予約ページへ遷移
-        const manualReserveBtn = page.getByRole('button', { name: /手動予約/ });
+        // 3. 予約追加ボタンをクリックして手動予約ページへ遷移
+        const manualReserveBtn = page.getByRole('button', { name: /予約追加/ });
         await expect(manualReserveBtn).toBeVisible();
         await manualReserveBtn.click();
         await page.waitForURL(/\/reserves\/manual/);
@@ -277,8 +277,8 @@ test.describe('Reserves and Manual Reserve Pages', () => {
             }
         });
 
-        // 5. 予約追加ボタンをクリック
-        const submitBtn = page.getByRole('button', { name: /予約を追加/ });
+        // 5. 登録ボタンをクリック
+        const submitBtn = page.getByRole('button', { name: '登録', exact: true });
         await expect(submitBtn).toBeEnabled();
         await submitBtn.click();
 
@@ -508,7 +508,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
 
         await expect(page.locator('h1')).toContainText('時間指定手動予約');
 
-        const submitBtn = page.getByRole('button', { name: /予約を追加/ });
+        const submitBtn = page.getByRole('button', { name: '登録', exact: true });
         const nameInput = page.getByPlaceholder(/深夜アニメ/);
         const startTimeInput = page.locator('#manual-start-time');
         const endTimeInput = page.locator('#manual-end-time');

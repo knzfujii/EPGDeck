@@ -1585,4 +1585,61 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should preserve search keyword and filters when returning from 404 non-existent recorded detail', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('404')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        await page.route(/\/api\/recorded/, async route => {
+            const url = route.request().url();
+            if (url.includes('/99999')) {
+                await route.fulfill({
+                    status: 404,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ error: 'Not Found' }),
+                });
+                return;
+            }
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ records: [], total: 0 }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. 検索キーワードとジャンル付きで一覧画面へアクセス
+        await page.goto('/recorded?keyword=%E6%9C%80%E6%96%B0%E3%82%A2%E3%83%8B%E3%83%A1&genre=7');
+        await page.waitForLoadState('networkidle');
+        const searchInput = page.getByPlaceholder('録画を検索...');
+        await expect(searchInput).toHaveValue('最新アニメ');
+
+        // 2. 存在しない番組詳細画面へ遷移
+        await page.goto('/recorded/detail?recordedId=99999');
+
+        // 3. トーストが表示され、元の検索状態付き一覧画面へ自動復帰することを検証
+        await expect(page.getByText('番組情報が存在しないため、録画一覧に戻ります')).toBeVisible();
+        await page.waitForURL(url => url.pathname === '/recorded' && url.searchParams.get('keyword') === '最新アニメ');
+        expect(page.url()).toContain('genre=7');
+        await expect(searchInput).toHaveValue('最新アニメ');
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

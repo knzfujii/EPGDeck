@@ -156,7 +156,7 @@
             if (!res.ok) {
                 if (res.status === 404) {
                     snackbar.open({ text: '番組情報が存在しないため、録画一覧に戻ります', color: 'warning' });
-                    router.push('/recorded');
+                    goBackToRecordedList();
                     return;
                 }
                 throw new Error(`Failed to fetch recorded detail: ${res.status}`);

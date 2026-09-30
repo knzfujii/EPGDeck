@@ -73,7 +73,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         await expect(page.locator('#rule-recorded-format')).toBeVisible();
 
         // 7. 操作ボタン
-        await expect(page.getByRole('button', { name: '新規ルールを作成する' })).toBeVisible();
+        await expect(page.getByRole('button', { name: '登録', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'キャンセル' })).toBeVisible();
 
         expect(pageErrors).toEqual([]);
@@ -352,7 +352,7 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
         }
 
         // 3. 送信ボタンをクリック
-        const submitBtn = page.getByRole('button', { name: '新規ルールを作成する' });
+        const submitBtn = page.getByRole('button', { name: '登録', exact: true });
         await expect(submitBtn).toBeVisible();
         await submitBtn.click();
 
@@ -561,8 +561,8 @@ test.describe('Rule Edit Page (/rule/edit)', () => {
 
         await page.waitForURL(/\/rule\/edit\?ruleId=20/);
 
-        // 2. 「ルールを更新する」ボタンをクリックして保存
-        const saveBtn = page.getByRole('button', { name: 'ルールを更新する' });
+        // 2. 「更新」ボタンをクリックして保存
+        const saveBtn = page.getByRole('button', { name: '更新', exact: true });
         await expect(saveBtn).toBeVisible();
         await saveBtn.click();
 

@@ -491,7 +491,7 @@
                         onclick={() => router.push('/recorded')}
                         class="flex items-center gap-1 text-sm font-bold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
                     >
-                        すべて見る <ArrowRight size={15} />
+                        すべて <ArrowRight size={15} />
                     </button>
                 </div>
                 {#if isLoading}
@@ -572,7 +572,7 @@
                         onclick={() => router.push('/reserves')}
                         class="flex items-center gap-1 text-sm font-bold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
                     >
-                        すべて見る <ArrowRight size={15} />
+                        すべて <ArrowRight size={15} />
                     </button>
                 </div>
 

@@ -426,18 +426,18 @@ test.describe('Guide Page (/guide)', () => {
         await expect(page.getByRole('dialog')).toBeVisible();
         await expect(page.getByRole('dialog').getByText('【新】テストアニメ第1話')).toBeVisible();
 
-        // 「録画予約する」ボタンをクリック
-        const addReserveBtn = page.getByRole('button', { name: '録画予約する' });
+        // 「録画予約」ボタンをクリック
+        const addReserveBtn = page.getByRole('button', { name: '録画予約' });
         await expect(addReserveBtn).toBeVisible();
         await addReserveBtn.click();
 
         // スナックバー成功通知の確認
         await expect(page.getByText('「【新】テストアニメ第1話」を録画予約しました')).toBeVisible();
 
-        // 2. 「ルール作成へ」ボタンの遷移検証
+        // 2. 「ルール追加」ボタンの遷移検証
         // 番組を再度クリックしてモーダルを開く
         await unreservedBtn.click();
-        const createRuleBtn = page.getByRole('button', { name: 'ルール作成へ' });
+        const createRuleBtn = page.getByRole('button', { name: 'ルール追加' });
         await expect(createRuleBtn).toBeVisible();
         await createRuleBtn.click();
 
@@ -463,12 +463,12 @@ test.describe('Guide Page (/guide)', () => {
         await expect(page.getByText('「手動予約テスト番組」の予約を解除しました')).toBeVisible();
         await expect(page.getByRole('dialog')).not.toBeVisible();
 
-        // 4. ルール予約番組をクリックし、「ルールを編集」ボタンの遷移検証
+        // 4. ルール予約番組をクリックし、「ルール編集」ボタンの遷移検証
         const ruleReservedBtn = page.getByRole('button', { name: /ルール予約テスト番組/ });
         await expect(ruleReservedBtn).toBeVisible({ timeout: 10000 });
         await ruleReservedBtn.click();
 
-        const editRuleBtn = page.getByRole('button', { name: 'ルールを編集' });
+        const editRuleBtn = page.getByRole('button', { name: 'ルール編集' });
         await expect(editRuleBtn).toBeVisible();
         await editRuleBtn.click();
 

@@ -209,9 +209,7 @@
             <div class="flex justify-end gap-3 pt-4">
                 <Button variant="secondary" onclick={() => router.push('/reserves')}>キャンセル</Button>
                 {#if !readOnlyStore.isReadOnly}
-                    <Button type="submit" variant="primary" disabled={isSubmitting}>
-                        <Plus size={16} /> 予約を追加
-                    </Button>
+                    <Button type="submit" variant="primary" disabled={isSubmitting}>登録</Button>
                 {:else}
                     <p class="text-xs text-amber-600 dark:text-amber-400 font-bold self-center">
                         ※閲覧専用モードのため予約は作成できません

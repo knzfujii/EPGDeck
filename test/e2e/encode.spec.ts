@@ -84,8 +84,8 @@ test.describe('Encode Feature & Recorded Detail Encode Modal', () => {
                 res => res.url().includes('/api/encode') && res.request().method() === 'POST',
             );
 
-            // 「追加する」ボタンをクリック
-            const submitBtn = page.getByRole('button', { name: '追加する' });
+            // 「登録」ボタンをクリック
+            const submitBtn = page.getByRole('button', { name: '登録', exact: true });
             await submitBtn.click();
 
             const encodeRequest = await encodeRequestPromise;

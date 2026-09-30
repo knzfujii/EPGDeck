@@ -72,6 +72,7 @@ EPGDeck は、長年親しまれてきた EPGStation のデータ互換性を保
 2. **ボーイスカウトルール（自律的リファクタ） (Proactive Refactoring)**: 変更箇所の周辺にある重複ロジック、型定義（`any` 等）、不適切な命名、不要なコメントを整える（大幅な変更は提案にとどめる）。
 3. **客観的自己レビュー（Diff 精査） (Self-Review)**: `git diff` を自ら精査し、不要なコードやデバッグログの混入、境界値考慮、設計パターン合致を確認。
 4. **ドキュメント & 変更履歴の即時同期 (Documentation & Changelog Sync)**:
+   - **ドキュメントの簡潔性原則 (Concise & Generalized Documentation)**: ドキュメント（`docs/**`、`CHANGELOG.md`、PR 説明等）は基本的に簡潔に記述すること。個別事例や細部の言い訳を冗長に書き連ねず、要点・一般化された設計原則・決定事項を端的にまとめる。
    - **現行仕様 (State) の更新**: 機能変更や UI 改修時は、対応する `docs/dev/*.md`（`ui_spec.md`, `architecture.md` 等）や `docs/manual/*.md` を最新の単一情報源（SSOT）として即座に上書き更新する。
    - **意思決定記録 (Why / ADR) の保護**: 設計判断の根拠、技術的検証結果、地雷回避の防護線（巻き戻し禁止理由）が生じた場合は、必ず `docs/dev/modernization-roadmap.md` に理由を体系的に記録する。
    - **変更履歴の更新**: ユーザー影響のある機能追加・変更・修正は、同一コミット対象として `CHANGELOG.md`（Keep a Changelog 形式）に即時追記する。

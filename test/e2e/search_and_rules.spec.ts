@@ -34,8 +34,8 @@ test.describe('Search and Rules Management Pages', () => {
         // クエリパラメータの同期検証
         await expect(page).toHaveURL(/keyword=%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9/);
 
-        // 3. ルール作成ボタンの存在確認
-        await expect(page.getByRole('button', { name: 'この条件でルール作成' })).toBeVisible();
+        // 3. ルール追加ボタンの存在確認
+        await expect(page.locator('form').getByRole('button', { name: 'ルール追加' })).toBeVisible();
 
         // 4. クリアボタンの表示確認とクリックによるクリア動作
         const clearBtn = page.getByTitle('検索をクリア');
@@ -52,7 +52,7 @@ test.describe('Search and Rules Management Pages', () => {
         await searchInput.clear();
         await searchInput.press('Enter');
         await page.waitForURL(url => !url.searchParams.has('keyword'));
-        await expect(page.getByRole('button', { name: 'この条件でルール作成' })).not.toBeVisible();
+        await expect(page.getByRole('button', { name: 'ルール追加' })).not.toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
@@ -81,7 +81,7 @@ test.describe('Search and Rules Management Pages', () => {
         // 検索ボックスに値がセットされ、検索が自動実行されていることを検証
         const searchInput = page.getByPlaceholder(/番組名やキーワード/);
         await expect(searchInput).toHaveValue('ニュース');
-        await expect(page.getByRole('button', { name: 'この条件でルール作成' })).toBeVisible();
+        await expect(page.locator('form').getByRole('button', { name: 'ルール追加' })).toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
@@ -481,8 +481,8 @@ test.describe('Search and Rules Management Pages', () => {
         // 検索結果カードが表示されることを確認
         await expect(page.getByText('【字】スペシャル探偵物語 第1話')).toBeVisible();
 
-        // 2. 「この条件でルール作成」ボタンをクリック
-        const createRuleFromConditionBtn = page.getByRole('button', { name: 'この条件でルール作成' });
+        // 2. 「ルール追加」ボタンをクリック
+        const createRuleFromConditionBtn = page.locator('form').getByRole('button', { name: 'ルール追加' });
         await expect(createRuleFromConditionBtn).toBeVisible();
         await createRuleFromConditionBtn.click();
 
@@ -492,13 +492,13 @@ test.describe('Search and Rules Management Pages', () => {
         const ruleKeywordInput = page.getByPlaceholder('例: 葬送のフリーレン');
         await expect(ruleKeywordInput).toHaveValue('探偵物語');
 
-        // 3. 再度 /search に戻り、番組カードの「ルール作成」ボタンをクリック
+        // 3. 再度 /search に戻り、番組カードの「ルール追加」ボタンをクリック
         await page.goto('/search?keyword=%E6%8E%A2%E5%81%B5%E7%89%A9%E8%AA%9E');
         await page.waitForLoadState('networkidle');
         await expect(page.getByText('【字】スペシャル探偵物語 第1話')).toBeVisible();
 
-        // 番組カード内の「ルール作成」ボタンをクリック
-        const cardRuleBtn = page.getByRole('button', { name: 'ルール作成', exact: true });
+        // 番組カード内の「ルール追加」ボタンをクリック
+        const cardRuleBtn = page.getByTitle('この番組名でルール追加');
         await expect(cardRuleBtn).toBeVisible();
         await cardRuleBtn.click();
 

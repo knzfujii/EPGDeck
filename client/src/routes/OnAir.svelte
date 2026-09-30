@@ -631,7 +631,7 @@
                                             ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                                             : ''}"
                                     >
-                                        {next.isReserved ? '予約中' : '予約'}
+                                        {next.isReserved ? '予約中' : '録画予約'}
                                     </Button>
                                 {/if}
                             </div>
@@ -879,7 +879,7 @@
                                                                 class="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 px-3.5 py-1.5 text-sm font-bold text-rose-600 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer disabled:opacity-50"
                                                                 title="ワンクリック予約"
                                                             >
-                                                                <Plus size={15} /> 予約
+                                                                録画予約
                                                             </button>
                                                         {/if}
                                                     {/if}
@@ -1054,7 +1054,7 @@
                             router.push(buildRuleEditUrl(p.name, ch?.id ?? p.channelId));
                         }}
                     >
-                        <Search size={14} /> この番組でルール作成
+                        <Plus size={14} /> ルール追加
                     </Button>
                 {:else}
                     <div></div>
@@ -1101,8 +1101,11 @@
                                     }
                                 }}
                             >
-                                <Bookmark size={14} />
-                                {isNext ? 'この番組を予約' : '今すぐ録画'}
+                                {#if isNext}
+                                    録画予約
+                                {:else}
+                                    <Bookmark size={14} /> 今すぐ録画
+                                {/if}
                             </Button>
                         {/if}
                     {/if}

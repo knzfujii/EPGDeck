@@ -252,7 +252,7 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="space-y-5 w-full max-w-full min-w-0">
+    <div class="flex flex-col gap-5 w-full max-w-full min-w-0">
         <!-- 検索バー & 条件フォーム -->
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <h1 class="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -265,7 +265,7 @@
                     e.preventDefault();
                     executeSearch();
                 }}
-                class="mt-4 space-y-4"
+                class="mt-4 flex flex-col gap-4"
             >
                 <div class="flex gap-2">
                     <SearchInput
@@ -324,7 +324,7 @@
                     検索結果: <span class="text-blue-600 dark:text-blue-400 font-black">{searchResults.length}</span>
                     件
                 </div>
-                <div class="space-y-3">
+                <div class="flex flex-col gap-3">
                     {#each searchResults as p}
                         {@const ch = channelStore.getChannel(p.channelId)}
                         <div

@@ -106,4 +106,24 @@ test.describe('System Logs Page (/logs)', () => {
         // 3. ログ画面に '/api/version' のログ行がリアルタイムに表示されることを検証
         await expect(page.getByText('/api/version').first()).toBeVisible({ timeout: 5000 });
     });
+
+    test('should ensure only internal log container is scrollable and main page does not scroll', async ({ page }) => {
+        await page.goto('/logs');
+        await page.waitForSelector('.rounded-2xl.border');
+
+        const metrics = await page.evaluate(() => {
+            const main = document.querySelector('main')!;
+            const consoleEl = document.querySelector('.relative.rounded-2xl.font-mono') as HTMLElement;
+            const logContainer = consoleEl?.querySelector('.overflow-y-auto') as HTMLElement;
+
+            return {
+                isMainScrollable: main.scrollHeight > main.clientHeight,
+                isLogContainerScrollable: logContainer ? logContainer.scrollHeight > logContainer.clientHeight : false,
+            };
+        });
+
+        // ページ全体（main）はスクロールせず、内部のログコンテナのみがスクロール可能であることを検証
+        expect(metrics.isMainScrollable).toBe(false);
+        expect(metrics.isLogContainerScrollable).toBe(true);
+    });
 });

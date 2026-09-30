@@ -262,7 +262,7 @@
     }
 </script>
 
-<div class="space-y-5 w-full max-w-full min-w-0">
+<div class="flex flex-col gap-5 w-full max-w-full min-w-0">
     <!-- ヘッダー & アクション -->
     <div
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
@@ -339,7 +339,7 @@
     {:else}
         <!-- テーブル表示 -->
         <!-- モバイル表示: カード型予約リスト (md:hidden) -->
-        <div class="space-y-3 md:hidden">
+        <div class="flex flex-col gap-3 md:hidden">
             {#each filteredReserves as item}
                 <div
                     role="button"
@@ -707,7 +707,7 @@
             </div>
 
             <!-- モーダルコンテンツ -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
                 <!-- 放送日時・状態 -->
                 <div
                     class="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40 space-y-2 text-xs sm:text-sm"

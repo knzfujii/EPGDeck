@@ -242,7 +242,7 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="space-y-5 w-full max-w-full min-w-0">
+    <div class="flex flex-col gap-5 w-full max-w-full min-w-0">
         <!-- ストレージ使用状況カード (デフォルト折りたたみ) -->
         {#if storages.length > 0}
             <div
@@ -403,7 +403,7 @@
                     <div
                         class="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40"
                     >
-                        <div class="space-y-2">
+                        <div class="flex flex-col gap-2">
                             <div
                                 class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-800"
                             >
@@ -420,7 +420,7 @@
                                     予約一覧へ
                                 </button>
                             </div>
-                            <div class="space-y-2">
+                            <div class="flex flex-col gap-2">
                                 {#each conflictReserves as item}
                                     <div
                                         class="flex items-center justify-between gap-2.5 rounded-xl border border-rose-100 bg-white p-3 shadow-2xs dark:border-rose-950/50 dark:bg-slate-800/60"
@@ -499,7 +499,7 @@
                 {:else if latestRecorded.length === 0}
                     <p class="py-8 text-center text-sm text-slate-400">録画データがありません</p>
                 {:else}
-                    <div class="space-y-3">
+                    <div class="flex flex-col gap-3">
                         {#each latestRecorded as item}
                             <div
                                 class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40"
@@ -581,7 +581,7 @@
                 {:else if upcomingReserves.length === 0}
                     <p class="py-8 text-center text-sm text-slate-400">直近の予約はありません</p>
                 {:else}
-                    <div class="space-y-3">
+                    <div class="flex flex-col gap-3">
                         {#each upcomingReserves as item}
                             <div
                                 class="flex flex-col gap-2 rounded-xl border p-3.5 transition {item.isRecording

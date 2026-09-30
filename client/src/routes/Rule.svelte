@@ -330,7 +330,7 @@
         <Button variant="secondary" onclick={() => router.replace('/recorded')} class="mt-4">録画一覧へ</Button>
     </div>
 {:else}
-    <div class="space-y-5 w-full max-w-full min-w-0">
+    <div class="flex flex-col gap-5 w-full max-w-full min-w-0">
         <!-- ヘッダーツールバー -->
         <div
             class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
@@ -466,7 +466,7 @@
             {/if}
         {:else}
             <!-- モバイル表示: カード型ルールリスト (md:hidden) -->
-            <div class="space-y-3 md:hidden">
+            <div class="flex flex-col gap-3 md:hidden">
                 {#each filteredRules as r}
                     {@const isEnabled = r.reserveOption?.enable !== false}
                     {@const opt = r.searchOption || {}}

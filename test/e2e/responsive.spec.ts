@@ -55,6 +55,22 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             expect(consoleErrors).toEqual([]);
         });
 
+        test('should ensure proper bottom padding (at least 32px) on main container in mobile viewport', async ({
+            page,
+        }) => {
+            await page.goto('/');
+            await page.waitForLoadState('networkidle');
+
+            const mainPaddingBottom = await page.evaluate(() => {
+                const mainEl = document.querySelector('main');
+                if (!mainEl) return 0;
+                return parseFloat(window.getComputedStyle(mainEl).paddingBottom);
+            });
+
+            // pb-safe-8 により、スマホ表示時にも最低 32px (2rem) の下部余白が確保される
+            expect(mainPaddingBottom).toBeGreaterThanOrEqual(32);
+        });
+
         test('should display mobile card list instead of table on /reserves', async ({ page }) => {
             const mockReserves = [
                 {

@@ -106,7 +106,7 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="w-full max-w-3xl min-w-0 space-y-5">
+    <div class="w-full max-w-3xl min-w-0 flex flex-col gap-5">
         <div class="flex items-center gap-3">
             <button
                 type="button"
@@ -132,7 +132,7 @@
                 e.preventDefault();
                 submitManualReserve();
             }}
-            class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div>
                 <label

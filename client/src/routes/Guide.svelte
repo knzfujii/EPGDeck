@@ -572,7 +572,7 @@
     }
 </script>
 
-<div class="flex flex-col w-full max-w-full gap-2 sm:gap-2.5">
+<div class="flex flex-col w-full max-w-full gap-2 sm:gap-2.5 flex-1 min-h-0">
     <!-- 日付 & 放送波ツールバー -->
     <div
         class="sticky top-0 z-30 shrink-0 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-2.5 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur p-2.5 sm:p-3 lg:py-2 lg:px-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/95"
@@ -714,7 +714,7 @@
     {:else}
         <div
             bind:this={scrollContainer}
-            class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 h-[calc(100dvh-180px)] sm:h-[calc(100dvh-190px)] lg:h-[calc(100dvh-200px)]"
+            class="relative w-full max-w-full min-w-0 overflow-auto rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 flex-1 min-h-0"
         >
             <!-- データ再読み込み時のスピナーオーバーレイ (DOM再生成・ちらつき防止) -->
             {#if isLoading}
@@ -1013,7 +1013,7 @@
             </div>
 
             <!-- モーダルボディ (スクロール可能領域) -->
-            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 min-h-0">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-4 min-h-0">
                 <!-- 番組内容・詳細テキスト -->
                 {#if selectedProgram.description}
                     <div>

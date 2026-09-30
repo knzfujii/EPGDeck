@@ -409,10 +409,10 @@
         returnText="録画一覧へ"
     />
 {:else}
-    <div class="space-y-5 w-full max-w-full min-w-0">
+    <div class="flex flex-col gap-5 w-full max-w-full min-w-0">
         <!-- ツールバー & フィルター -->
         <div
-            class="space-y-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            class="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -479,7 +479,7 @@
             />
         {:else}
             <!-- モバイル向けカードリスト (md:hidden) -->
-            <div class="space-y-3 md:hidden">
+            <div class="flex flex-col gap-3 md:hidden">
                 {#each filteredList as item}
                     {@const current = item.current}
                     {@const next = item.next}
@@ -487,7 +487,7 @@
                     {@const isRec = current?.isRecording}
 
                     <div
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3 {isRec
+                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 {isRec
                             ? 'border-l-4 border-l-rose-500 bg-rose-50/20 dark:bg-rose-950/10'
                             : ''}"
                     >
@@ -979,7 +979,7 @@
             </div>
 
             <!-- モーダルコンテンツ -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
                 <!-- 時間・進行状況 -->
                 <div
                     class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40 space-y-2 text-xs sm:text-sm"

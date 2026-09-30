@@ -21,12 +21,27 @@
 
     let { variant = 'secondary', size = 'md', href, class: className = '', children, ...restProps }: Props = $props();
 
-    // 共通ベーススタイル（display クラスが明示されている場合は重複・競合を防ぐため inline-flex を付与しない）
+    // 共通ベーススタイル（プレフィックスなしの display クラスが明示されている場合のみ重複・競合を防ぐため inline-flex を付与しない）
+    const DISPLAY_CLASSES = new Set([
+        'hidden',
+        'flex',
+        'inline-flex',
+        'block',
+        'inline-block',
+        'contents',
+        'grid',
+        'inline-grid',
+    ]);
     const displayClass = $derived(
-        /\b(hidden|flex|inline-flex|block|inline-block|contents)\b/.test(String(className ?? '')) ? '' : 'inline-flex',
+        String(className ?? '')
+            .trim()
+            .split(/\s+/)
+            .some((token: string) => DISPLAY_CLASSES.has(token))
+            ? ''
+            : 'inline-flex',
     );
     const baseClasses =
-        'items-center justify-center gap-1.5 font-bold transition-all duration-150 cursor-pointer select-none disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-blue-500 shrink-0';
+        'items-center justify-center gap-1.5 font-bold whitespace-nowrap transition-all duration-150 cursor-pointer select-none disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-blue-500 shrink-0';
 
     // バリアント別スタイル
     const variantClasses: Record<ButtonVariant, string> = {

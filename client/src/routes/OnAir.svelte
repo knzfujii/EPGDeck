@@ -570,7 +570,7 @@
                                             onclick={() => openStreamModal(item.channel, current.name)}
                                             class="flex-1"
                                         >
-                                            <Play size={15} fill="currentColor" /> 視聴する
+                                            <Play size={15} fill="currentColor" /> 視聴
                                         </Button>
                                     {/if}
                                     {#if !readOnlyStore.isReadOnly}
@@ -1119,7 +1119,7 @@
                                 openStreamModal(ch, p.name);
                             }}
                         >
-                            <Play size={14} fill="currentColor" /> 今すぐ視聴
+                            <Play size={14} fill="currentColor" /> 視聴
                         </Button>
                     {/if}
                 </div>

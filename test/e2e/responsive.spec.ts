@@ -97,6 +97,15 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             await page.goto('/reserves');
             await page.waitForLoadState('networkidle');
 
+            // スマホ用「＋ 予約追加」ボタンが inline-flex かつ1行（2行に折り返さない）で表示されることを確認
+            const addReserveBtn = page.getByRole('button', { name: '予約追加' }).first();
+            await expect(addReserveBtn).toBeVisible();
+            const displayStyle = await addReserveBtn.evaluate(el => window.getComputedStyle(el).display);
+            expect(['inline-flex', 'flex']).toContain(displayStyle);
+            const addBtnBox = await addReserveBtn.boundingBox();
+            expect(addBtnBox).not.toBeNull();
+            expect(addBtnBox!.height).toBeLessThanOrEqual(40);
+
             // モバイル用カードタイトルが表示されることを確認
             const mobileCard = page.locator('.program-title-dense', { hasText: 'モバイル予約アニメ番組' });
             await expect(mobileCard).toBeVisible();

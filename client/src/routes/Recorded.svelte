@@ -1291,21 +1291,22 @@
     <!-- フローティング一括操作バー (画面下部固定) -->
     {#if isSelectionMode}
         <div
-            class="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2.5 sm:gap-4 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-md text-white animate-in fade-in slide-in-from-bottom-4 duration-200"
+            class="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 sm:gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-3 py-2 sm:px-4 sm:py-2.5 shadow-2xl backdrop-blur-md text-white max-w-[calc(100vw-1.5rem)] w-max animate-in fade-in slide-in-from-bottom-4 duration-200"
         >
-            <div class="flex items-center gap-2 border-r border-slate-700 pr-3 sm:pr-4">
-                <CheckSquare size={18} class="text-blue-400" />
-                <span class="text-xs font-bold whitespace-nowrap">
-                    <span class="text-sm text-blue-400 font-extrabold">{selectedIds.length}</span>
-                    件選択中
+            <div class="flex items-center gap-1.5 sm:gap-2 border-r border-slate-700 pr-2.5 sm:pr-3.5 shrink-0">
+                <CheckSquare size={18} class="text-blue-400 shrink-0" />
+                <span class="text-xs sm:text-sm font-bold whitespace-nowrap">
+                    <span class="text-sm sm:text-base text-blue-400 font-extrabold">{selectedIds.length}</span>
+                    <span class="hidden sm:inline">件選択中</span>
+                    <span class="sm:hidden">件</span>
                 </span>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                     type="button"
                     onclick={toggleSelectAll}
-                    class="rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition cursor-pointer"
+                    class="h-9 sm:h-10 shrink-0 whitespace-nowrap rounded-xl bg-slate-800 hover:bg-slate-700 px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-slate-200 transition cursor-pointer flex items-center justify-center"
                 >
                     {isAllSelected ? '選択全解除' : 'すべて選択'}
                 </button>
@@ -1313,27 +1314,30 @@
                     <button
                         type="button"
                         onclick={clearSelection}
-                        class="hidden sm:inline-block rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition cursor-pointer"
+                        class="hidden sm:inline-flex h-9 sm:h-10 shrink-0 whitespace-nowrap rounded-xl bg-slate-800 hover:bg-slate-700 px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-slate-300 transition cursor-pointer items-center justify-center"
                     >
                         解除
                     </button>
+                    <div class="h-5 sm:h-6 w-px bg-slate-700 shrink-0"></div>
                     <button
                         type="button"
                         disabled={isDeletingMultiple}
                         onclick={deleteSelectedRecorded}
-                        class="flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
+                        class="h-9 sm:h-10 shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 rounded-xl bg-rose-600 hover:bg-rose-500 px-3.5 sm:px-4 text-xs sm:text-sm font-bold text-white shadow-md transition disabled:opacity-50 cursor-pointer"
                     >
-                        <Trash2 size={14} />
-                        <span>{isDeletingMultiple ? '削除中...' : '一括削除'}</span>
+                        <Trash2 size={16} class="shrink-0" />
+                        <span>{isDeletingMultiple ? '削除中...' : '削除'}</span>
                     </button>
+                    <div class="h-5 sm:h-6 w-px bg-slate-700 shrink-0"></div>
                 {/if}
                 <button
                     type="button"
                     onclick={toggleSelectionMode}
-                    class="rounded-xl bg-slate-800/80 hover:bg-slate-700 p-1.5 text-slate-400 hover:text-white transition cursor-pointer"
+                    class="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
                     title="選択モードを終了"
+                    aria-label="選択モードを終了"
                 >
-                    <X size={16} />
+                    <X size={18} class="shrink-0" />
                 </button>
             </div>
         </div>

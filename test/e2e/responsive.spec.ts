@@ -134,13 +134,24 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
                     isProtected: false,
                     videoFiles: [],
                 },
+                {
+                    id: 802,
+                    channelId: 1,
+                    name: 'スマホ用録画番組2',
+                    startAt: Date.now() - 7200000,
+                    endAt: Date.now() - 3600000,
+                    isRecording: false,
+                    isEncoding: false,
+                    isProtected: false,
+                    videoFiles: [],
+                },
             ];
 
             await page.route('**/api/recorded*', async route => {
                 await route.fulfill({
                     status: 200,
                     contentType: 'application/json',
-                    body: JSON.stringify({ records: mockRecords, total: 1 }),
+                    body: JSON.stringify({ records: mockRecords, total: 2 }),
                 });
             });
 
@@ -156,11 +167,34 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             const floatingBar = page.locator('text=/0\\s*件選択中/');
             await expect(floatingBar).toBeVisible();
 
+            // 1件選択して一括削除ボタンを表示させる
+            const firstCheckbox = page.locator('input[type="checkbox"]').first();
+            await expect(firstCheckbox).toBeVisible();
+            await firstCheckbox.click();
+
+            // 1件選択中の表示およびボタン群（すべて選択、削除）が1行で崩れず表示されることを確認
+            const selectedText = page.locator('text=/1\\s*件/');
+            await expect(selectedText).toBeVisible();
+            const selectAllBtn = page.getByRole('button', { name: 'すべて選択' });
+            await expect(selectAllBtn).toBeVisible();
+            const deleteBatchBtn = page.getByRole('button', { name: '削除', exact: true });
+            await expect(deleteBatchBtn).toBeVisible();
+
+            // 各ボタンの高さが一回り大きい標準スケール（h-9: 36px 前後、34px〜44px）であり、テキストが縦折れしていないことを確認
+            const selectAllBox = await selectAllBtn.boundingBox();
+            expect(selectAllBox).not.toBeNull();
+            expect(selectAllBox!.height).toBeGreaterThanOrEqual(34);
+            expect(selectAllBox!.height).toBeLessThanOrEqual(44);
+            const deleteBatchBox = await deleteBatchBtn.boundingBox();
+            expect(deleteBatchBox).not.toBeNull();
+            expect(deleteBatchBox!.height).toBeGreaterThanOrEqual(34);
+            expect(deleteBatchBox!.height).toBeLessThanOrEqual(44);
+
             // 選択終了
             const exitModeBtn = page.getByTitle('選択モードを終了').first();
             await expect(exitModeBtn).toBeVisible();
             await exitModeBtn.click();
-            await expect(floatingBar).not.toBeVisible();
+            await expect(selectedText).not.toBeVisible();
         });
 
         test('should render responsive shortened button labels with unified height on /recorded/detail', async ({

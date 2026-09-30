@@ -181,7 +181,7 @@ test.describe('Recorded List Page (/recorded)', () => {
         }
 
         // 6. 削除ボタンをクリックして確認モーダルを表示
-        const bulkDeleteBtn = page.getByRole('button', { name: /一括削除/ });
+        const bulkDeleteBtn = page.getByRole('button', { name: '削除', exact: true });
         await expect(bulkDeleteBtn).toBeVisible();
         await bulkDeleteBtn.click();
 
@@ -304,8 +304,8 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.getByRole('button', { name: 'すべて選択' }).click();
         await expect(page.locator('text=/2\\s*件選択中/')).toBeVisible();
 
-        // 一括削除ボタンをクリック
-        await page.getByRole('button', { name: '一括削除', exact: true }).click();
+        // 削除ボタンをクリック
+        await page.getByRole('button', { name: '削除', exact: true }).click();
 
         // 確認モーダルで「2件を削除」をクリック
         const confirmDeleteBtn = page.getByRole('button', { name: '2件を削除' });

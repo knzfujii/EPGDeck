@@ -53,14 +53,14 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
 
 - **[システムアーキテクチャ解説](dev/architecture.md)**
   - プロセス設計（Operator / Service / EPGUpdater）、Hono REST API、Drizzle ORM、Svelte 5 フロントエンド構成。
-- **[UI/UX 画面仕様書 (Svelte 5 刷新)](dev/ui_spec.md)**
-  - Svelte 5 + Tailwind CSS v4 への完全移行、10万件アーカイブ最適化、UI/UX 設計・デザインシステム仕様書。
+- **[UI/UX 画面仕様書 (Deck UX ＆ デザインシステム)](dev/ui_spec.md)**
+  - 自己説明的な操作性、3大アクション語彙と体言止め原則、10万件アーカイブ最適化、全画面構成・デザインシステム仕様。
 - **[録画予約・重複排除・競合解決アルゴリズム仕様書](dev/reservation-algorithm.md)**
   - 予約生成ライフサイクル、録画済み重複排除（二重録画防止 / `isOverlap`）の正規化ロジック、平面走査法によるチューナー競合解決（`isConflict`）。
 - **[ストリーミング配信・ARIB 字幕アーキテクチャ](dev/streaming-and-captions.md)**
   - M2TS-LL / HLS / WebM 配信パイプライン、aribb24.js v2 / ID3 Timed Metadata による字幕処理の技術仕様。
 - **[データベース & マイグレーション運用ガイド](dev/database.md)**
-  - Drizzle ORM の Schema 設計、Entity 構造、EPGStation 完全互換ポリシー。
+  - Drizzle ORM の Schema 設計、Entity 構造、EPGStation データベース互換仕様。
 - **[WebAPI 仕様・利用ガイド](dev/api.md)**
   - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
 - **[テスト & CI/CD アーキテクチャ仕様書](dev/testing.md)**

@@ -70,9 +70,9 @@
 
 <!-- コントロールバー (下部オーバーレイ) -->
 <div
-    class="pointer-events-auto absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
-        ? 'opacity-100'
-        : 'opacity-0'}"
+    class="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 transition-opacity duration-300 {showControls
+        ? 'opacity-100 pointer-events-auto'
+        : 'opacity-0 pointer-events-none'}"
     inert={!showControls || undefined}
     aria-hidden={!showControls}
 >

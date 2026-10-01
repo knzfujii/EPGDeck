@@ -638,7 +638,10 @@
     bind:this={containerElement}
     onpointermove={handlePointerMove}
     onpointerleave={handlePointerLeave}
-    class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none"
+    class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none {!showControls &&
+    isPlaying
+        ? 'cursor-none'
+        : ''}"
     role="region"
     aria-label="動画プレーヤー"
 >
@@ -726,7 +729,10 @@
     <button
         type="button"
         onclick={handleOverlayClick}
-        class="absolute inset-0 z-10 h-full w-full cursor-pointer border-none bg-transparent p-0 focus:outline-hidden touch-manipulation"
+        class="absolute inset-0 z-10 h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation {!showControls &&
+        isPlaying
+            ? 'cursor-none'
+            : 'cursor-pointer'}"
         tabindex="-1"
         aria-label={showControls ? 'コントロールを非表示' : 'コントロールを表示'}
     ></button>

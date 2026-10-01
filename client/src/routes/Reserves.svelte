@@ -52,6 +52,8 @@
     let isDetailModalOpen = $state(false);
     let selectedReserve = $state<ReserveWithRecording | null>(null);
     let isCanceling = $state(false);
+    let cancelingReserveId = $state<number | null>(null);
+    let restoringReserveId = $state<number | null>(null);
 
     // 録画中番組の操作モーダル状態
     let isRecordingActionModalOpen = $state(false);
@@ -85,7 +87,7 @@
                 },
             });
             snackbar.open({ text: `「${item.name}」の予約設定を更新しました`, color: 'success' });
-            fetchReserves();
+            await fetchReserves(true);
         } catch (e) {
             console.error('Failed to update reserve', e);
             snackbar.open({ text: '予約設定の更新に失敗しました', color: 'error' });
@@ -210,16 +212,18 @@
         if (!ok) return;
 
         isCanceling = true;
+        cancelingReserveId = item.id;
         try {
             await api.reserves[':reserveId'].$delete({ param: { reserveId: String(item.id) } });
             snackbar.open({ text: `${actionLabel}しました`, color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
-            fetchReserves();
+            await fetchReserves(true);
         } catch (e) {
             console.error('Failed to cancel reserve', e);
             snackbar.open({ text: '予約の取り消しに失敗しました', color: 'error' });
         } finally {
             isCanceling = false;
+            cancelingReserveId = null;
         }
     }
 
@@ -234,7 +238,7 @@
                 isRecordingActionModalOpen = false;
                 recordingActionItem = null;
                 if (isDetailModalOpen) isDetailModalOpen = false;
-                fetchReserves();
+                await fetchReserves(true);
             }
         } finally {
             isRecordingActionProcessing = false;
@@ -244,14 +248,17 @@
     // スキップ解除 (予約復活)
     async function restoreSkip(item: apid.ReserveItem, e?: MouseEvent) {
         if (e) e.stopPropagation();
+        restoringReserveId = item.id;
         try {
             await api.reserves[':reserveId'].skip.$delete({ param: { reserveId: String(item.id) } });
             snackbar.open({ text: '予約を復活しました', color: 'success' });
             if (isDetailModalOpen) isDetailModalOpen = false;
-            fetchReserves();
+            await fetchReserves(true);
         } catch (e) {
             console.error('Failed to restore skip', e);
             snackbar.open({ text: '予約の復活に失敗しました', color: 'error' });
+        } finally {
+            restoringReserveId = null;
         }
     }
 
@@ -343,7 +350,7 @@
         <!-- テーブル表示 -->
         <!-- モバイル表示: カード型予約リスト (md:hidden) -->
         <div class="flex flex-col gap-3 md:hidden">
-            {#each filteredReserves as item}
+            {#each filteredReserves as item (item.id)}
                 <div
                     role="button"
                     tabindex="0"
@@ -450,6 +457,7 @@
                                     <Button
                                         variant="secondary"
                                         size="compact"
+                                        disabled={restoringReserveId === item.id}
                                         onclick={e => restoreSkip(item, e)}
                                         class="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900/60"
                                     >
@@ -462,6 +470,7 @@
                                     <Button
                                         variant="danger-outline"
                                         size="compact"
+                                        disabled={cancelingReserveId === item.id}
                                         onclick={e => cancelReserve(item, e)}
                                         title={item.isRecording
                                             ? '録画を停止・破棄'
@@ -505,7 +514,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                        {#each filteredReserves as item}
+                        {#each filteredReserves as item (item.id)}
                             <tr
                                 onclick={() => openReserveDetail(item)}
                                 class="transition cursor-pointer border-l-4 {item.isRecording
@@ -615,6 +624,7 @@
                                                 <Button
                                                     variant="secondary"
                                                     size="compact"
+                                                    disabled={restoringReserveId === item.id}
                                                     onclick={e => restoreSkip(item, e)}
                                                     class="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900/60"
                                                     title="スキップを解除して予約を復活"
@@ -628,6 +638,7 @@
                                                 <Button
                                                     variant="danger-outline"
                                                     size="compact"
+                                                    disabled={cancelingReserveId === item.id}
                                                     onclick={e => cancelReserve(item, e)}
                                                     title={item.isRecording
                                                         ? '録画を停止・破棄'
@@ -880,12 +891,19 @@
                             <Divider orientation="vertical" />
                         {/if}
                         {#if item.isSkip}
-                            <Button variant="primary" size="compact" onclick={() => restoreSkip(item)}>予約復活</Button>
+                            <Button
+                                variant="primary"
+                                size="compact"
+                                disabled={restoringReserveId === item.id}
+                                onclick={() => restoreSkip(item)}
+                            >
+                                予約復活
+                            </Button>
                         {:else}
                             <Button
                                 variant="danger-outline"
                                 size="compact"
-                                disabled={isCanceling}
+                                disabled={isCanceling || cancelingReserveId === item.id}
                                 onclick={() => cancelReserve(item)}
                             >
                                 {#if item.isRecording}

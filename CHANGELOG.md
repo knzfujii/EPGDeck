@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **予約一覧でのキャンセル・各種操作時における画面リロード（先頭スクロール）の解消**: 全タブ（すべて/重複/スキップ/競合）において予約キャンセル・予約復活・録画停止・設定更新を実行した際、全画面ローディング（`<LoadingState>`）による DOM 破棄・再構築が発生してスクロール位置がページ先頭にリセットされる不具合を修正。サイレント再取得（`fetchReserves(true)`）への移行、Keyed each ブロック（`item.id`）による確実な差分適用、および操作中アイテム単位でのボタン disabled 制御を適用し、スクロール位置を完全に維持。
+
 ## [0.1.0-beta.3] - 2026-09-30
 
 ### Added

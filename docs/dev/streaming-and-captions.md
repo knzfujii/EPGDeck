@@ -40,33 +40,33 @@ EPGDeck は以下のストリーミング配信方式をサポートしていま
 
 #### (2) HLS の場合
 - HLS では、TS 内の字幕ストリームをそのまま多重化（`-c:s copy`）すると、FFmpeg の HLS muxer が WebVTT（.vtt）を出力しようとしてクラッシュします（後述）。
-- サーバー側（`LiveStreamBaseModel` / `RecordedStreamBaseModel`）では、FFmpeg に流し込む前のパイプラインに **`arib-subtitle-timedmetadater`** を挿入します。
-- `arib-subtitle-timedmetadater` は TS 内の字幕パケットを解析し、**ID3 Timed Metadata (`timed_id3` / stream_type: `0x15`)** パケットとして TS ストリーム内に再多重化します。
+- サーバー側（`LiveStreamBaseModel` / `RecordedStreamBaseModel`）では、FFmpeg に流し込む前のパイプラインに **`packages/arib-probe` の `TsSubtitleTimedMetadater`**（内製ゼロ依存モジュール）を挿入します。
+- `TsSubtitleTimedMetadater` は TS 内の字幕パケット（PES）を解析し、**ID3 Timed Metadata (`timed_id3` / stream_type: `0x15`)** パケットとして TS ストリーム内に再多重化します。同時に PMT に `metadata_pointer_descriptor` と 0x15 ストリーム情報を自動挿入します。
 - FFmpeg は字幕ストリームを無効化（`-sn`）しつつ、データストリームをコピー（`-map 0 -c:d copy`）して TS セグメントを出力します。
 - クライアント側（`hls.js`）は、セグメントから ID3 メタデータを抽出し、`Hls.Events.FRAG_PARSING_METADATA` イベントを発火します。
 - クライアントの `SubtitleManager.ts` が ID3 ペイロードを受け取り、`feeder.feedID3()` に渡して描画します。
-- ※ **Node.js ESM 相互運用**: `arib-subtitle-timedmetadater` は CJS 形式で `exports.default` にクラスが格納されるため、`StreamBaseModel.createID3MetadataTransform()` ファクトリ経由で防衛的にアンラップしてインスタンス化します。
+- ※ 過去に使用していた外部パッケージ `arib-subtitle-timedmetadater`（CJS形式・外部依存あり）は完全に廃止され、Pure TypeScript / ゼロ依存の `packages/arib-probe` に統合されました。
 
 ---
 
-## 3. aribb24.js v2 と node-arib-subtitle-timedmetadater の仕様差・解決策
+## 3. aribb24.js v2 と字幕データグループ仕様の解決策
 
 ### 3.1 発生した問題
 EPGDeck において、M2TS-LL では字幕が表示できる一方、HLS 配信では動画再生が成功しても字幕が一切表示されない問題が発生しました。
 
 ### 3.2 根本原因の特定
-1. **`node-arib-subtitle-timedmetadater` の挙動**:
-   - このライブラリの内部実装（`src/index.ts`）では以下のように記述されています：
+1. **上流ライブラリ `node-arib-subtitle-timedmetadater` の FIXME バグ**:
+   - 以前利用していた外部ライブラリの内部実装（`src/index.ts`）では以下のように記述されていました：
      ```typescript
      if ((data_group_id & 0x0F) != 1) { // FIXME!
        continue;
      }
      ```
    - ARIB STD-B24 の規格上、`data_group_id & 0x0F` が `0` は **CaptionManagement（字幕管理データ：言語・文字コード定義）**、`1` は **CaptionStatement（字幕本文データ）** です。
-   - ライブラリが `data_group_id != 1` を破棄しているため、**HLS の ID3 メタデータには CaptionStatement（本文）しか含まれず、CaptionManagement（管理データ）が一切含まれません**。
+   - ライブラリが `data_group_id != 1` を破棄していたため、**HLS の ID3 メタデータには CaptionStatement（本文）しか含まれず、CaptionManagement（管理データ）が一切含まれませんでした**。
 2. **`aribb24.js` v1 と v2 の仕様差**:
    - 本家 EPGStation が使用している `aribb24.js` **v1** (1.11.2) は、CaptionManagement が届かなくてもデフォルトの文字コード体系（JIS8）で直接本文をレンダリングする設計（`CanvasProvider`）でした。
-   - しかし、今回アップデートした `aribb24.js` **v2** (2.0.25) は規格に厳密に従って再設計されており、Feeder（`decoding-feeder.ts`）内部で：
+   - しかし、EPGDeck で採用している `aribb24.js` **v2** (2.0.25) は規格に厳密に従って再設計されており、Feeder（`decoding-feeder.ts`）内部で：
      ```typescript
      // Caption
      if (this.priviousManagementData == null) { continue; }
@@ -74,7 +74,13 @@ EPGDeck において、M2TS-LL では字幕が表示できる一方、HLS 配信
      **CaptionManagement を受信していない場合、すべての CaptionStatement をスキップ（破棄）する** 仕様になっています。
    - このため、HLS から ID3 メタデータを受信しても、管理データが存在しないため `aribb24.js` v2 が全て読み飛ばしてしまっていました。
 
-### 3.3 解決策（`SubtitleManager.ts` での動的補完とシーク保護）
+### 3.3 二重防衛による解決策（内製 `TsSubtitleTimedMetadater` ＋ `SubtitleManager.ts` 動的補完）
+この問題に対し、EPGDeck では以下の二重防衛アーキテクチャを確立しています：
+
+1. **サーバー側での完全な ID3 変換 (`TsSubtitleTimedMetadater`)**:
+   - 内製化した `packages/arib-probe` の `TsSubtitleTimedMetadater` では、`data_group_id != 1` の破棄コードを排除し、CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方を漏れなく ID3 PRIV パケットにカプセル化して再多重化します。
+2. **クライアント側での動的補完とシーク保護 (`SubtitleManager.ts`)**:
+   - 放送波の途中で CaptionManagement が間引かれた場合や、プレイヤーのシークによって `aribb24.js` 内部の管理状態がリセット（`disappearance()`）された場合に備え、`SubtitleManager.ts` でも標準的な CaptionManagement パケットを動的先行注入するフォールバックを備えています。
 日本の地上波・BS・CS デジタル放送における字幕規格は一意に定まっています（第1言語: `jpn`, 文字コード体系: `JIS8`）。
 そこで、`SubtitleManager.ts` において標準的な CaptionManagement パケット（Group 0: Aプロファイル、Group 1: Bプロファイル）を合成し、`feeder.feedB24()` で注入する設計を採用しています。
 
@@ -214,7 +220,7 @@ private injectDefaultCaptionManagement(timeSec = 0): void {
 
 ### 6.4 FFmpeg の `--enable-libaribb24` 依存性
 - **ストリーミング（HLS / M2TS-LL）との決定的な違い**:
-  - HLS 配信はサーバー側 Node.js（`arib-subtitle-timedmetadater`）が ID3 化し、ブラウザ側（`aribb24.js`）がデコードします。
+  - HLS 配信はサーバー側 Node.js（`arib-probe` の `TsSubtitleTimedMetadater`）が ID3 化し、ブラウザ側（`aribb24.js`）がデコードします。
   - M2TS-LL は FFmpeg が `-c:s copy` でパススルーし、ブラウザ側（`aribb24.js`）がデコードします。
   - したがって、**ストリーミング視聴機能には FFmpeg の libaribb24 は一切不要（libaribb24 非対応の通常 FFmpeg であっても完全動作）** です。
 - **MP4 字幕保持時の必須性**:

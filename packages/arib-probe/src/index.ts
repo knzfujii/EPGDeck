@@ -11,4 +11,12 @@ export {
     getStreamTypeName,
     resolvePidName,
 } from './constants.js';
+export { TsPesParser, type PesPacket, type PesCallback } from './pes/TsPesParser.js';
+export { packetizeToTs, type PacketizeOptions, type PacketizeResult } from './section/TsPacketizer.js';
+export { ID3 } from './id3/id3.js';
+export {
+    TsSubtitleTimedMetadater,
+    type TsSubtitleTimedMetadaterOptions,
+} from './TsSubtitleTimedMetadater.js';
+
 

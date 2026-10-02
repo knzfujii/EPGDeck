@@ -7,13 +7,15 @@
     "node": ">=22.3.0"
   },
   "workspaces": [
-    "client"
+    "client",
+    "packages/*"
   ],
   "scripts": {
     "all-install": "npm i --no-save",
     "start": "node --enable-source-maps dist/index.js",
     "build": "run-p build:server build:client",
-    "build:server": "npm run compile",
+    "build:packages": "npm --prefix packages/arib-probe run build",
+    "build:server": "npm run build:packages && npm run compile",
     "build:client": "npm --prefix client run build",
     "dev": "run-p dev:server dev:client",
     "dev:server": "run-p watch:server start:dev",
@@ -65,8 +67,8 @@
     "@hono/swagger-ui": "0.6.1",
     "@hono/zod-validator": "0.9.1",
     "@libsql/client": "0.18.0",
+    "arib-probe": "*",
     "arib-subtitle-timedmetadater": "4.0.10",
-    "aribts": "2.1.12",
     "drizzle-orm": "0.45.3",
     "hono": "4.13.12",
     "inversify": "6.0.2",

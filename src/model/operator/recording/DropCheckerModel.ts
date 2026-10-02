@@ -1,4 +1,4 @@
-import * as aribts from 'aribts';
+import { DropResult, TsProbe } from 'arib-probe';
 import * as events from 'events';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
@@ -10,28 +10,19 @@ import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import IDropCheckerModel from './IDropCheckerModel.js';
 
-const aribtsCtor = ((aribts as any).default || aribts) as typeof aribts;
-
 @injectable()
 class DropCheckerModel implements IDropCheckerModel {
     private log: ILogger;
     private listener: events.EventEmitter = new events.EventEmitter();
     private dest: string | null = null;
-    private result: aribts.Result | null = null;
+    private result: DropResult | null = null;
     private pidIndex: { [key: number]: string } = {};
     private time: Date | null = null;
     private hasError: boolean = false; // パケットチェック中にエラーを検知したか？
     private isFinished: boolean = false; // 終了処理が終わっているか？
     private onFinishPromise: Promise<void> | null = null; // 終了処理の待機用 Promise
 
-    private transformStream: stream.Transform | null = null;
-    private tsReadableConnector: aribts.TsReadableConnector | null = null;
-    private tsPacketParser: aribts.TsPacketParser | null = null;
-    private tsPacketAnalyzer: aribts.TsPacketAnalyzer | null = null;
-    private tsSectionParser: aribts.TsSectionParser | null = null;
-    private tsSectionAnalyzer: aribts.TsSectionAnalyzer | null = null;
-    private tsSectionUpdater: aribts.TsSectionUpdater | null = null;
-    private tsPacketSelector: aribts.TsPacketSelector | null = null;
+    private tsProbe: TsProbe | null = null;
 
     constructor(@inject('ILoggerModel') logger: ILoggerModel) {
         this.log = logger.getLogger();
@@ -41,7 +32,7 @@ class DropCheckerModel implements IDropCheckerModel {
      * チェック開始
      * @param logDirPath: string ログファイル保存先ディレクトリパス
      * @param srcFilePath: string ソースファイル ログファイル名生成に使用する
-     * @param stream: stream.Readable drop をチェックするストリーム
+     * @param readableStream: stream.Readable drop をチェックするストリーム
      * @return Promise<void>
      */
     public async start(logDirPath: string, srcFilePath: string, readableStream: stream.Readable): Promise<void> {
@@ -50,76 +41,40 @@ class DropCheckerModel implements IDropCheckerModel {
         // 空ファイル生成
         await FileUtil.touchFile(this.dest);
 
-        this.transformStream = new stream.Transform({
-            transform: function (chunk: any, _encoding: string, done: () => void): void {
-                this.push(chunk);
-                done();
-            },
-            flush: function (done: () => void): void {
-                done();
-            },
-        });
+        this.tsProbe = new TsProbe();
 
-        this.tsReadableConnector = new aribtsCtor.TsReadableConnector();
-        this.tsPacketParser = new aribtsCtor.TsPacketParser();
-        this.tsPacketAnalyzer = new aribtsCtor.TsPacketAnalyzer();
-        this.tsSectionParser = new aribtsCtor.TsSectionParser();
-        this.tsSectionAnalyzer = new aribtsCtor.TsSectionAnalyzer();
-        this.tsSectionUpdater = new aribtsCtor.TsSectionUpdater();
-        this.tsPacketSelector = new aribtsCtor.TsPacketSelector({
-            pids: new Array(0x30).fill(0).map((_, index) => index),
-            programNumbers: [],
-        });
-
-        this.tsSectionUpdater.on('pmt', tsSection => {
-            const streams = tsSection.decode().streams;
-            for (const s of streams) {
+        this.tsProbe.on('pmt', pmtInfo => {
+            for (const s of pmtInfo.streams) {
                 this.setIndex(s.stream_type, s.elementary_PID);
             }
         });
 
-        this.tsPacketAnalyzer.on('packetError', (pid, counter, expected) => {
+        this.tsProbe.on('packetError', pid => {
+            void this.appendFile(`error: (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
+            this.hasError = true;
+        });
+
+        this.tsProbe.on('packetDrop', (pid, counter, expected) => {
             void this.appendFile(
-                `error: (pid: ${this.pidToString(pid)}, counter: ${counter || '-'}, expected: ${
-                    expected || '-'
-                }, time: ${this.getTime()})\n`,
+                `drop (pid: ${this.pidToString(pid)}, counter: ${counter}, expected: ${expected}, time: ${this.getTime()})\n`,
             );
             this.hasError = true;
         });
 
-        this.tsPacketAnalyzer.on('packetDrop', (pid, counter, expected) => {
-            void this.appendFile(
-                `drop (pid: ${this.pidToString(pid)}, counter: ${counter || '-'}, expected: ${
-                    expected || '-'
-                }, time: ${this.getTime()})\n`,
-            );
-            this.hasError = true;
-        });
-
-        this.tsPacketAnalyzer.on('packetScrambling', pid => {
+        this.tsProbe.on('packetScrambling', pid => {
             void this.appendFile(`scrambling (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
             this.hasError = true;
         });
 
-        this.tsPacketAnalyzer.on('finish', () => {
-            void this.onFinish();
-        });
-
-        this.tsSectionAnalyzer.on('time', time => {
+        this.tsProbe.on('time', time => {
             this.time = time;
         });
 
-        this.tsSectionParser.on('pmt', this.tsPacketSelector.onPmt.bind(this.tsPacketSelector));
+        this.tsProbe.on('finish', () => {
+            void this.onFinish();
+        });
 
-        readableStream.pipe(this.transformStream);
-        this.transformStream.pipe(this.tsReadableConnector);
-
-        this.tsReadableConnector.pipe(this.tsPacketParser as any);
-        this.tsPacketParser.pipe(this.tsPacketAnalyzer);
-        this.tsPacketParser.pipe(this.tsSectionParser);
-        this.tsPacketParser.pipe(this.tsPacketSelector);
-        this.tsSectionParser.pipe(this.tsSectionAnalyzer);
-        this.tsSectionParser.pipe(this.tsSectionUpdater);
+        readableStream.pipe(this.tsProbe);
 
         // readableStream がエラーで終了したら停止
         stream.finished(readableStream, {}, async err => {
@@ -145,12 +100,12 @@ class DropCheckerModel implements IDropCheckerModel {
             }
             this.isFinished = true;
 
-            if (this.tsPacketAnalyzer === null) {
+            if (this.tsProbe === null) {
                 return;
             }
-            this.tsPacketAnalyzer.removeAllListeners('finish');
+            this.tsProbe.removeAllListeners('finish');
 
-            const result = this.tsPacketAnalyzer.getResult();
+            const result = this.tsProbe.getResult();
 
             if (this.hasError) {
                 await this.appendFile('\n').catch(err => {
@@ -378,30 +333,10 @@ class DropCheckerModel implements IDropCheckerModel {
             this.log.system.error(err);
         });
 
-        if (this.tsSectionParser !== null) {
-            this.tsSectionParser.removeAllListeners();
+        if (this.tsProbe !== null) {
+            this.tsProbe.removeAllListeners();
+            this.tsProbe = null;
         }
-
-        if (this.transformStream !== null) {
-            this.transformStream.unpipe();
-        }
-
-        if (this.tsReadableConnector !== null) {
-            this.tsReadableConnector.removeAllListeners();
-        }
-
-        if (this.tsPacketParser !== null) {
-            this.tsPacketParser.removeAllListeners();
-        }
-
-        this.transformStream = null;
-        this.tsReadableConnector = null;
-        this.tsPacketParser = null;
-        this.tsPacketAnalyzer = null;
-        this.tsSectionParser = null;
-        this.tsSectionAnalyzer = null;
-        this.tsSectionUpdater = null;
-        this.tsPacketSelector = null;
     }
 
     /**
@@ -414,9 +349,9 @@ class DropCheckerModel implements IDropCheckerModel {
 
     /**
      * 結果の取得
-     * @return Promise<aribts.Result>
+     * @return Promise<DropResult>
      */
-    public async getResult(): Promise<aribts.Result> {
+    public async getResult(): Promise<DropResult> {
         if (this.dest === null) {
             throw new Error('DestIsNull');
         }

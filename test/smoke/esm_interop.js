@@ -14,14 +14,12 @@ assert.strictEqual(typeof id3Instance.pipe, 'function', 'ID3MetadataTransform.pi
 assert.strictEqual(typeof id3Instance.destroy, 'function', 'ID3MetadataTransform.destroy must be a function');
 console.log('  ✔ arib-subtitle-timedmetadater constructor verified');
 
-// 2. aribts
-import * as aribtsNamespace from 'aribts';
-const aribts = aribtsNamespace.default || aribtsNamespace;
-const parser = new aribts.TsPacketParser();
-const connector = new aribts.TsReadableConnector();
-assert.ok(parser, 'TsPacketParser instance must be created');
-assert.ok(connector, 'TsReadableConnector instance must be created');
-console.log('  ✔ aribts parser & connector constructors verified');
+// 2. arib-probe
+import { TsProbe } from 'arib-probe';
+const probe = new TsProbe();
+assert.strictEqual(typeof probe.pipe, 'function', 'TsProbe.pipe must be a function');
+assert.strictEqual(typeof probe.getResult, 'function', 'TsProbe.getResult must be a function');
+console.log('  ✔ arib-probe TsProbe constructor & methods verified');
 
 // 3. mirakurun
 import { Client as MirakurunClient } from 'mirakurun';

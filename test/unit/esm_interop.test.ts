@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
 import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
-import * as aribtsNamespace from 'aribts';
+import { TsProbe } from 'arib-probe';
 import { Client as MirakurunClient } from 'mirakurun';
 import * as rfs from 'rotating-file-stream';
 import * as SocketIO from 'socket.io';
@@ -49,33 +49,13 @@ describe('CJS / ESM Interop Regression Tests', () => {
         });
     });
 
-    describe('aribts', () => {
-        it('should safely unwrap aribts namespace and instantiate all parser components', () => {
-            const aribtsCtor = ((aribtsNamespace as any).default || aribtsNamespace) as typeof aribtsNamespace;
-
-            expect(typeof aribtsCtor.TsReadableConnector).toBe('function');
-            expect(typeof aribtsCtor.TsPacketParser).toBe('function');
-            expect(typeof aribtsCtor.TsPacketAnalyzer).toBe('function');
-            expect(typeof aribtsCtor.TsSectionParser).toBe('function');
-            expect(typeof aribtsCtor.TsSectionAnalyzer).toBe('function');
-            expect(typeof aribtsCtor.TsSectionUpdater).toBe('function');
-            expect(typeof aribtsCtor.TsPacketSelector).toBe('function');
-
-            const connector = new aribtsCtor.TsReadableConnector();
-            const parser = new aribtsCtor.TsPacketParser();
-            const analyzer = new aribtsCtor.TsPacketAnalyzer();
-            const sParser = new aribtsCtor.TsSectionParser();
-            const sAnalyzer = new aribtsCtor.TsSectionAnalyzer();
-            const sUpdater = new aribtsCtor.TsSectionUpdater();
-            const selector = new aribtsCtor.TsPacketSelector({ pids: [], programNumbers: [] });
-
-            expect(connector).toBeDefined();
-            expect(parser).toBeDefined();
-            expect(analyzer).toBeDefined();
-            expect(sParser).toBeDefined();
-            expect(sAnalyzer).toBeDefined();
-            expect(sUpdater).toBeDefined();
-            expect(selector).toBeDefined();
+    describe('arib-probe', () => {
+        it('should instantiate TsProbe stream and verify methods', () => {
+            const probe = new TsProbe();
+            expect(probe).toBeDefined();
+            expect(typeof probe.pipe).toBe('function');
+            expect(typeof probe.getResult).toBe('function');
+            expect(typeof probe.reset).toBe('function');
         });
     });
 

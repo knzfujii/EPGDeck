@@ -234,6 +234,9 @@ flowchart TD
   3. **責務の局所化とパイプラインの劇的な簡素化**:
      - EPGDeck が必要としていたのは「ドロップ・エラー・スクランブル監視」「PMT 音声/映像 PID 解析」「TOT 放送時刻取得」のごく一部の機能。
      - 7 つの中間クラスをパイプ接続する過剰設計を排し、単一の `TsProbe`（Transform stream）に集約することで、コード行数を大幅に削減し、ゼロ依存（Node.js 標準ライブラリのみ）かつ Pure TypeScript / ESM の高信頼・高速な内部パッケージとして確立した。
+  4. **規格準拠の PID 名称解決と PCR タイムコード解析の統合**:
+     - ARIB STD-B10 / ISO 13818-1 規格の Well-known PID および Stream Type 定義をパッケージ側へ集約し、`DropCheckerModel.ts` 内に散乱していた約 120 行の冗長な switch 文を完全撤廃。
+     - TS アダプテーションフィールドの PCR（Program Clock Reference）デコードにより、ドロップ発生時に放送時刻だけでなく動画プレイヤー基準の再生位置（`timecode: HH:MM:SS.mmm`）をドロップログへ記録可能とした。
 - **将来の巻き戻し禁止**:
   - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従や字幕 ID3 多重化など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
 

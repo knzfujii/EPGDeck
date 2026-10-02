@@ -16,7 +16,6 @@ class DropCheckerModel implements IDropCheckerModel {
     private listener: events.EventEmitter = new events.EventEmitter();
     private dest: string | null = null;
     private result: DropResult | null = null;
-    private pidIndex: { [key: number]: string } = {};
     private time: Date | null = null;
     private hasError: boolean = false; // パケットチェック中にエラーを検知したか？
     private isFinished: boolean = false; // 終了処理が終わっているか？
@@ -43,20 +42,15 @@ class DropCheckerModel implements IDropCheckerModel {
 
         this.tsProbe = new TsProbe();
 
-        this.tsProbe.on('pmt', pmtInfo => {
-            for (const s of pmtInfo.streams) {
-                this.setIndex(s.stream_type, s.elementary_PID);
-            }
-        });
-
         this.tsProbe.on('packetError', pid => {
             void this.appendFile(`error: (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
             this.hasError = true;
         });
 
-        this.tsProbe.on('packetDrop', (pid, counter, expected) => {
+        this.tsProbe.on('packetDrop', (pid, counter, expected, timecode) => {
+            const tcStr = timecode !== null ? `, timecode: ${timecode}` : '';
             void this.appendFile(
-                `drop (pid: ${this.pidToString(pid)}, counter: ${counter}, expected: ${expected}, time: ${this.getTime()})\n`,
+                `drop (pid: ${this.pidToString(pid)}, counter: ${counter}, expected: ${expected}, time: ${this.getTime()}${tcStr})\n`,
             );
             this.hasError = true;
         });
@@ -115,12 +109,11 @@ class DropCheckerModel implements IDropCheckerModel {
             }
             for (const pid of Object.keys(result)) {
                 const pidNum = parseInt(pid, 10);
+                const stat = result[pidNum];
                 await this.appendFile(
-                    `pid: ${this.pidToString(pidNum)}, error: ${result[pid as any].error}, drop: ${
-                        result[pid as any].drop
-                    }, scrambling: ${result[pid as any].scrambling}, packet: ${
-                        result[pid as any].packet
-                    }, name: ${this.getPIDName(pidNum)}\n`,
+                    `pid: ${this.pidToString(pidNum)}, error: ${stat.error}, drop: ${stat.drop}, scrambling: ${
+                        stat.scrambling
+                    }, packet: ${stat.packet}, name: ${stat.name}\n`,
                 ).catch(err => {
                     this.log.system.error(`append error: ${this.dest}`);
                     this.log.system.error(err);
@@ -175,47 +168,6 @@ class DropCheckerModel implements IDropCheckerModel {
     }
 
     /**
-     * set pid index
-     * @param streamType: stream_type
-     * @param pid: elementary_PID
-     */
-    private setIndex(streamType: number, pid: number): void {
-        let name: string;
-
-        switch (streamType) {
-            case 0x00:
-                name = 'ECM';
-                break;
-            case 0x02:
-                name = 'MPEG2 VIDEO';
-                break;
-            case 0x04:
-                name = 'MPEG2 AUDIO';
-                break;
-            case 0x06:
-                name = '字幕';
-                break;
-            case 0x0d:
-                name = 'データカルーセル';
-                break;
-            case 0x0f:
-                name = 'MPEG2 AAC';
-                break;
-            case 0x1b:
-                name = 'MPEG4 VIDEO';
-                break;
-            case 0x24:
-                name = 'HEVC VIDEO';
-                break;
-            default:
-                name = `stream_type 0x${('0000' + pid.toString(16)).slice(-4)}`;
-                break;
-        }
-
-        this.pidIndex[pid] = name;
-    }
-
-    /**
      * log 追記
      * @param str
      * @return Promise<void>
@@ -243,82 +195,6 @@ class DropCheckerModel implements IDropCheckerModel {
      */
     private getTime(): string {
         return this.time === null ? '-' : DateUtil.format(this.time, 'yyyy/MM/dd hh:mm:ss');
-    }
-
-    /**
-     * get pid name
-     * @param pid: number
-     * @return string
-     */
-    private getPIDName(pid: number): string {
-        let name: string;
-
-        switch (pid) {
-            case 0x0000:
-                name = 'PAT';
-                break;
-            case 0x0001:
-                name = 'CAT';
-                break;
-            case 0x0010:
-                name = 'NIT';
-                break;
-            case 0x0011:
-                name = 'SDT/BAT';
-                break;
-            case 0x0012:
-            case 0x0026:
-            case 0x0027:
-                name = 'EIT';
-                break;
-            case 0x0013:
-                name = 'RST';
-                break;
-            case 0x0014:
-                name = 'TDT/TOT';
-                break;
-            case 0x0017:
-                name = 'DCT';
-                break;
-            case 0x001e:
-                name = 'DIT';
-                break;
-            case 0x001f:
-                name = 'SIT';
-                break;
-            case 0x0020:
-                name = 'LIT';
-                break;
-            case 0x0021:
-                name = 'ERT';
-                break;
-            case 0x0022:
-                name = 'PCAT';
-                break;
-            case 0x0023:
-            case 0x0028:
-                name = 'SDTT';
-                break;
-            case 0x0024:
-                name = 'BIT';
-                break;
-            case 0x0025:
-                name = 'NBIT/LDT';
-                break;
-            case 0x0029:
-                name = 'CDT';
-                break;
-            case 0x1fff:
-                name = 'NULL';
-                break;
-            default:
-                // eslint-disable-next-line no-case-declarations
-                const n = this.pidIndex[pid];
-                name = typeof n === 'undefined' ? '-' : n;
-                break;
-        }
-
-        return name;
     }
 
     /**

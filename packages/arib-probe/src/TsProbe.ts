@@ -1,4 +1,5 @@
 import { Transform, TransformCallback } from 'stream';
+import { resolvePidName } from './constants.js';
 import { decodePmtSection, type PmtInfo } from './section/pmt.js';
 import { decodeTotSection } from './section/tot.js';
 import { TsSectionAssembler } from './section/TsSectionParser.js';
@@ -9,6 +10,7 @@ export interface PidStatistics {
     error: number;
     drop: number;
     scrambling: number;
+    name: string;
 }
 
 export interface DropResult {
@@ -31,7 +33,10 @@ export interface TsProbeOptions {
 
 export interface TsProbe {
     on(event: 'packetError', listener: (pid: number) => void): this;
-    on(event: 'packetDrop', listener: (pid: number, counter: number, expected: number) => void): this;
+    on(
+        event: 'packetDrop',
+        listener: (pid: number, counter: number, expected: number, timecode: string | null) => void,
+    ): this;
     on(event: 'packetScrambling', listener: (pid: number) => void): this;
     on(event: 'time', listener: (time: Date) => void): this;
     on(event: 'pmt', listener: (pmt: PmtInfo) => void): this;
@@ -47,6 +52,11 @@ export class TsProbe extends Transform {
     private readonly pidStates: Map<number, PidState> = new Map();
     private readonly pmtPids: Set<number> = new Set();
     private readonly sectionAssemblers: Map<number, TsSectionAssembler> = new Map();
+    private readonly streamTypes: Map<number, number> = new Map();
+
+    private pcrPid: number | null = null;
+    private firstPcrSeconds: number | null = null;
+    private lastPcrSeconds: number | null = null;
 
     private remainder: Uint8Array = new Uint8Array(0);
 
@@ -109,6 +119,12 @@ export class TsProbe extends Transform {
                 this.registerSectionAssembler(pmtPid, (_tableId, pmtSection) => {
                     const pmt = decodePmtSection(pmtSection);
                     if (pmt) {
+                        if (this.pcrPid === null && pmt.PCR_PID !== 0x1fff) {
+                            this.pcrPid = pmt.PCR_PID;
+                        }
+                        for (const s of pmt.streams) {
+                            this.streamTypes.set(s.elementary_PID, s.stream_type);
+                        }
                         this.emit('pmt', pmt);
                     }
                 });
@@ -175,6 +191,17 @@ export class TsProbe extends Transform {
 
         state.packet++;
 
+        // Track PCR if available on monitored PCR PID or any PID with PCR
+        if (packet.hasPcr && (this.pcrPid === null || packet.pid === this.pcrPid)) {
+            const pcrSec = packet.pcrSeconds;
+            if (pcrSec !== null) {
+                if (this.firstPcrSeconds === null) {
+                    this.firstPcrSeconds = pcrSec;
+                }
+                this.lastPcrSeconds = pcrSec;
+            }
+        }
+
         // 1. Error check
         if (packet.transportErrorIndicator) {
             state.error++;
@@ -211,7 +238,7 @@ export class TsProbe extends Transform {
 
                 if (isDrop) {
                     state.drop++;
-                    this.emit('packetDrop', pid, counter, expected);
+                    this.emit('packetDrop', pid, counter, expected, this.getTimecode());
                 }
             }
 
@@ -232,27 +259,78 @@ export class TsProbe extends Transform {
     }
 
     /**
-     * Returns drop/error/scramble statistics for all observed PIDs.
+     * Elapsed media playback duration in seconds calculated from stream PCR.
+     * Returns null if no valid PCR timestamps were observed.
+     */
+    public getElapsedSeconds(): number | null {
+        if (this.firstPcrSeconds === null || this.lastPcrSeconds === null) {
+            return null;
+        }
+        let diff = this.lastPcrSeconds - this.firstPcrSeconds;
+        // Handle 33-bit PCR wrap-around (~26.5 hours)
+        if (diff < 0) {
+            diff += (0x200000000 * 300) / 27_000_000;
+        }
+        return diff;
+    }
+
+    /**
+     * Formats current elapsed media stream time as "HH:MM:SS.mmm".
+     * Returns null if PCR is not yet available.
+     */
+    public getTimecode(): string | null {
+        const sec = this.getElapsedSeconds();
+        if (sec === null) {
+            return null;
+        }
+        const totalMs = Math.floor(sec * 1000);
+        const ms = totalMs % 1000;
+        const totalSec = Math.floor(totalMs / 1000);
+        const s = totalSec % 60;
+        const totalMin = Math.floor(totalSec / 60);
+        const m = totalMin % 60;
+        const h = Math.floor(totalMin / 60);
+
+        return (
+            ('00' + h).slice(-2) +
+            ':' +
+            ('00' + m).slice(-2) +
+            ':' +
+            ('00' + s).slice(-2) +
+            '.' +
+            ('000' + ms).slice(-3)
+        );
+    }
+
+    /**
+     * Returns drop/error/scramble statistics for all observed PIDs with standard names.
      */
     public getResult(): DropResult {
         const result: DropResult = {};
         for (const [pid, state] of this.pidStates.entries()) {
             if (state.packet === 0) continue;
+            const streamType = this.streamTypes.get(pid);
             result[pid] = {
                 packet: state.packet,
                 error: state.error,
                 drop: state.drop,
                 scrambling: state.scrambling,
+                name: resolvePidName(pid, streamType),
             };
         }
         return result;
     }
 
     /**
-     * Resets internal statistics.
+     * Resets internal statistics and states.
      */
     public reset(): void {
         this.pidStates.clear();
+        this.streamTypes.clear();
+        this.pmtPids.clear();
+        this.pcrPid = null;
+        this.firstPcrSeconds = null;
+        this.lastPcrSeconds = null;
         this.remainder = new Uint8Array(0);
     }
 }

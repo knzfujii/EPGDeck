@@ -4,6 +4,9 @@ import {
     decodeMjdBcdTime,
     decodePmtSection,
     decodeTotSection,
+    getStreamTypeName,
+    getWellKnownPidName,
+    resolvePidName,
     TsPacket,
     TsProbe,
 } from '../../packages/arib-probe/src/index.js';
@@ -65,6 +68,58 @@ describe('arib-probe', () => {
             expect(packet.adaptationFieldLength).toBe(7);
             expect(packet.discontinuityIndicator).toBe(true);
             expect(packet.getPayload()?.length).toBe(188 - 5 - 7);
+        });
+
+        it('should decode Program Clock Reference (PCR) correctly', () => {
+            const buf = new Uint8Array(188);
+            buf[0] = 0x47;
+            buf[1] = 0x01; // PID = 0x0100
+            buf[2] = 0x00;
+            buf[3] = 0x30; // AFC=11 (AF + payload)
+            buf[4] = 7; // AF length: 1 flag byte + 6 PCR bytes
+            buf[5] = 0x10; // PCR_flag = 1
+
+            // 1秒に相当する PCR:
+            // 90,000 base ticks (= 1秒), extension = 0
+            // base = 90,000 = 0x00015F90
+            // 33-bit base encoded across byte 6..10:
+            // base >> 1 = 45000 = 0x0000AFC8 -> b6=0, b7=0, b8=0xaf, b9=0xc8
+            // base & 1 = 0 -> b10 top bit = 0
+            // ext = 0 -> b10 bottom bit = 0, b11 = 0
+            const base = 90000;
+            buf[6] = (base >> 25) & 0xff;
+            buf[7] = (base >> 17) & 0xff;
+            buf[8] = (base >> 9) & 0xff;
+            buf[9] = (base >> 1) & 0xff;
+            buf[10] = ((base & 1) << 7) | 0x7e; // reserved bits 0x7E
+            buf[11] = 0x00;
+
+            const packet = new TsPacket(buf);
+            expect(packet.hasPcr).toBe(true);
+            expect(packet.pcrBase).toBe(90000);
+            expect(packet.pcrExtension).toBe(0);
+            expect(packet.pcr27MHz).toBe(27000000n);
+            expect(packet.pcrSeconds).toBe(1.0);
+        });
+    });
+
+    describe('PID & Stream Type Name Resolution', () => {
+        it('should resolve well-known PIDs and stream types', () => {
+            expect(getWellKnownPidName(0x0000)).toBe('PAT');
+            expect(getWellKnownPidName(0x0014)).toBe('TDT/TOT');
+            expect(getWellKnownPidName(0x0011)).toBe('SDT/BAT');
+            expect(getWellKnownPidName(0x1fff)).toBe('NULL');
+
+            expect(getStreamTypeName(0x02)).toBe('MPEG2 VIDEO');
+            expect(getStreamTypeName(0x0f)).toBe('MPEG2 AAC');
+            expect(getStreamTypeName(0x06)).toBe('字幕');
+            expect(getStreamTypeName(0x1b)).toBe('MPEG4 VIDEO');
+            expect(getStreamTypeName(0x24)).toBe('HEVC VIDEO');
+
+            expect(resolvePidName(0x0000)).toBe('PAT');
+            expect(resolvePidName(0x0111, 0x02)).toBe('MPEG2 VIDEO');
+            expect(resolvePidName(0x0112, 0x0f)).toBe('MPEG2 AAC');
+            expect(resolvePidName(0x0999)).toBe('-');
         });
     });
 
@@ -244,6 +299,50 @@ describe('arib-probe', () => {
             const result = probe.getResult();
             expect(result[0x0100].packet).toBe(2);
             expect(result[0x0100].drop).toBe(0);
+        });
+
+        it('should track PCR elapsed time and format timecode on packet drop', async () => {
+            const probe = new TsProbe();
+            let capturedTimecode: string | null = null;
+
+            probe.on('packetDrop', (_pid, _counter, _expected, timecode) => {
+                capturedTimecode = timecode;
+            });
+
+            function createPcrPacket(pid: number, cc: number, pcrSec: number): Uint8Array {
+                const buf = new Uint8Array(188);
+                buf[0] = 0x47;
+                buf[1] = (pid >> 8) & 0x1f;
+                buf[2] = pid & 0xff;
+                buf[3] = 0x30 | (cc & 0x0f); // AF + payload
+                buf[4] = 7;
+                buf[5] = 0x10; // PCR flag
+
+                const base = Math.floor(pcrSec * 90000);
+                buf[6] = (base >> 25) & 0xff;
+                buf[7] = (base >> 17) & 0xff;
+                buf[8] = (base >> 9) & 0xff;
+                buf[9] = (base >> 1) & 0xff;
+                buf[10] = ((base & 1) << 7) | 0x7e;
+                buf[11] = 0x00;
+                buf.fill(0x55, 12);
+                return buf;
+            }
+
+            // Packet 1: PCR = 100.0s (start)
+            probe.write(createPcrPacket(0x0100, 0, 100.0));
+            // Packet 2: PCR = 165.5s (+65.5s = 00:01:05.500), but CC gap (0 -> 2, drop 1!)
+            probe.write(createPcrPacket(0x0100, 2, 165.5));
+            probe.end();
+
+            await new Promise<void>(resolve => probe.on('finish', resolve));
+
+            expect(capturedTimecode).toBe('00:01:05.500');
+            expect(probe.getElapsedSeconds()).toBeCloseTo(65.5, 2);
+            expect(probe.getTimecode()).toBe('00:01:05.500');
+
+            const result = probe.getResult();
+            expect(result[0x0100].name).toBe('-'); // PMT not registered, falls back to '-'
         });
     });
 });

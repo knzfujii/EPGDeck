@@ -75,6 +75,68 @@ export class TsPacket {
         return (this.buffer[5] & 0x80) !== 0;
     }
 
+    /** Whether PCR (Program Clock Reference) is present in adaptation field */
+    public get hasPcr(): boolean {
+        if (!this.hasAdaptationField || this.adaptationFieldLength < 7) {
+            return false;
+        }
+        return (this.buffer[5] & 0x10) !== 0;
+    }
+
+    /**
+     * Program Clock Reference (PCR) 33-bit base (90kHz ticks).
+     * Returns null if PCR is not present.
+     */
+    public get pcrBase(): number | null {
+        if (!this.hasPcr) {
+            return null;
+        }
+        const b0 = this.buffer[6];
+        const b1 = this.buffer[7];
+        const b2 = this.buffer[8];
+        const b3 = this.buffer[9];
+        const b4 = this.buffer[10];
+
+        // 33-bit base = 32-bit (b0..b3) * 2 + top bit of b4
+        const high32 = (b0 * 0x1000000) + ((b1 << 16) | (b2 << 8) | b3);
+        return high32 * 2 + ((b4 & 0x80) ? 1 : 0);
+    }
+
+    /**
+     * Program Clock Reference (PCR) 9-bit extension (27MHz mod 300 ticks).
+     * Returns null if PCR is not present.
+     */
+    public get pcrExtension(): number | null {
+        if (!this.hasPcr) {
+            return null;
+        }
+        return ((this.buffer[10] & 0x01) << 8) | this.buffer[11];
+    }
+
+    /**
+     * Program Clock Reference in 27MHz clock ticks (BigInt).
+     * Returns null if PCR is not present.
+     */
+    public get pcr27MHz(): bigint | null {
+        if (!this.hasPcr) {
+            return null;
+        }
+        const base = BigInt(this.pcrBase!);
+        const ext = BigInt(this.pcrExtension!);
+        return base * 300n + ext;
+    }
+
+    /**
+     * Program Clock Reference in fractional seconds (27MHz clock rate).
+     * Returns null if PCR is not present.
+     */
+    public get pcrSeconds(): number | null {
+        if (!this.hasPcr) {
+            return null;
+        }
+        return Number(this.pcr27MHz!) / 27_000_000;
+    }
+
     /** Returns payload byte slice, or null if no payload */
     public getPayload(): Uint8Array | null {
         if (!this.hasPayload) {

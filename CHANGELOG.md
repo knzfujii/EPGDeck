@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 188 バイト TS パケット同期・ヘッダ解析（エラーフラグ、連続性カウンタ、スクランブル）
   - 高速 CRC32/MPEG-2 テーブル計算
   - PMT（Program Map Table）および TOT/TDT（放送時刻）の軽量デコード
-  - `DropCheckerModel` のパイプラインを `TsProbe` 単一ストリームへシンプルに集約し、型安全性と処理効率を向上。
+  - PCR（Program Clock Reference）デコードによるメディア経過時間（タイムコード `HH:MM:SS.mmm`）の追跡とドロップログへの付与
+  - 規格準拠の PID / StreamType 名称解決ヘルパー（`resolvePidName` 等）と `getResult()` へのストリーム名自動結合
+  - `DropCheckerModel` のパイプラインを `TsProbe` 単一ストリームへ集約し、重複していた約 120 行の switch 文を撤廃。型安全性と保守性を劇的に向上。
 
 ## [0.1.0-beta.4] - 2026-10-02
 

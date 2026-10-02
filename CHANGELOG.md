@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **自前 TS 解析・ドロップ監視パッケージ `arib-probe` の新設**: 外部の長期間未保守パッケージ `aribts`（2018年停止）およびその推移的依存（C++ バインディング残骸、古いイベントエミッタ等 9 パッケージ）を完全排除し、ゼロ依存・Pure TypeScript・ESM ネイティブの内部パッケージ `packages/arib-probe` を新設。
+  - 188 バイト TS パケット同期・ヘッダ解析（エラーフラグ、連続性カウンタ、スクランブル）
+  - 高速 CRC32/MPEG-2 テーブル計算
+  - PMT（Program Map Table）および TOT/TDT（放送時刻）の軽量デコード
+  - `DropCheckerModel` のパイプラインを `TsProbe` 単一ストリームへシンプルに集約し、型安全性と処理効率を向上。
+
 ## [0.1.0-beta.4] - 2026-10-02
 
 ### Changed

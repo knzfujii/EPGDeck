@@ -221,3 +221,20 @@ flowchart TD
   - モーダルやフォーム部分を別コンポーネントへ分割。
   - ビジネスロジックや状態管理を Svelte 5 の Runes クラス（`*.svelte.ts`）に外出しし、保守性・可読性を向上させる。
 
+#### 3.4 `aribts` からゼロ依存・内製パッケージ `arib-probe` への刷新
+> **ステータス**: 実装完了 (`v0.1.0-beta.4`)
+
+- **対象ファイル**: `packages/arib-probe/*`, `src/model/operator/recording/DropCheckerModel.ts`, `src/model/operator/recording/IDropCheckerModel.ts`, `test/unit/arib_probe.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **外部パッケージの更新停止とバージョンのねじれ**:
+     - 本家 `aribts` は 2018 年の `v2.1.12` を最後にメンテナンスが停止しており、npm の `latest` タグが旧系 `1.3.5` を指すなど semver 上のねじれが発生していた。
+     - Mirakurun 側が利用するフォーク版 `@chinachu/aribts` は `1.x` 系ベースの `TsStream` のみを提供しており、EPGStation / EPGDeck が依存する 2.x 系のパケットドロップ監視クラス群（`TsPacketAnalyzer`, `TsSectionParser` 等）が存在しないため移行不能だった。
+  2. **不要な間接依存・C++ 残骸の排除**:
+     - `aribts` の package.json には過去の試作残骸（`nan`, `bindings`, `eventemitter3@2.x`, `crc@3.x`）が含まれており、依存ツリーの健全性を損ねていた。
+  3. **責務の局所化とパイプラインの劇的な簡素化**:
+     - EPGDeck が必要としていたのは「ドロップ・エラー・スクランブル監視」「PMT 音声/映像 PID 解析」「TOT 放送時刻取得」のごく一部の機能。
+     - 7 つの中間クラスをパイプ接続する過剰設計を排し、単一の `TsProbe`（Transform stream）に集約することで、コード行数を大幅に削減し、ゼロ依存（Node.js 標準ライブラリのみ）かつ Pure TypeScript / ESM の高信頼・高速な内部パッケージとして確立した。
+- **将来の巻き戻し禁止**:
+  - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従や字幕 ID3 多重化など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
+
+

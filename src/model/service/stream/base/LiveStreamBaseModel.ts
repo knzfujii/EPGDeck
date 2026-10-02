@@ -2,7 +2,7 @@ import { ChildProcess } from 'child_process';
 import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import internal from 'stream';
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
+import { TsSubtitleTimedMetadater } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import ProcessUtil from '../../../../util/ProcessUtil.js';
 import IConfigFile from '../../../IConfigFile.js';
@@ -24,7 +24,7 @@ export default abstract class LiveStreamBaseModel
     private stream: http.IncomingMessage | null = null;
     private streamProcess: ChildProcess | null = null;
     private mirakurunClientModel: IMirakurunClientModel;
-    private id3MetadataTransoform: ID3MetadataTransform | null = null;
+    private id3MetadataTransoform: TsSubtitleTimedMetadater | null = null;
 
     constructor(
         @inject('IConfiguration') configure: IConfiguration,

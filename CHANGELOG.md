@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PCR（Program Clock Reference）デコードによるメディア経過時間（タイムコード `HH:MM:SS.mmm`）の追跡とドロップログへの付与
   - 規格準拠の PID / StreamType 名称解決ヘルパー（`resolvePidName` 等）と `getResult()` へのストリーム名自動結合
   - `DropCheckerModel` のパイプラインを `TsProbe` 単一ストリームへ集約し、重複していた約 120 行の switch 文を撤廃。型安全性と保守性を劇的に向上。
+- **字幕 PES 解析 & HLS ID3 Timed Metadata 生成の内製化 (`arib-subtitle-timedmetadater` の完全排除)**:
+  - 外部パッケージ `arib-subtitle-timedmetadater` および間接依存（`arib-mpeg2ts-parser`, `commander` 計 3 パッケージ）を完全アンインストール。
+  - `packages/arib-probe` に以下をゼロ依存・Pure TypeScript で新規実装：
+    - `TsPesParser`: TS パケット跨ぎの可変長 PES 組み立ておよび 33bit 90kHz PTS デコーダー
+    - `TsPacketizer`: セクションおよび PES データの 188 バイト TS パケット化（Adaptation Field スタッフィング対応）
+    - `ID3`: ID3v2 PRIV (`aribb24.js`) フレーム生成および PMT ディスクリプタ（`metadata_pointer_descriptor` / `metadata_elementary_stream` 0x15）生成
+    - `TsSubtitleTimedMetadater`: PMT 自動書き換えおよび ID3 Timed Metadata 再多重化 Transform ストリーム
+  - 上流ライブラリに存在していた `data_group_id != 1` 破棄バグ（FIXME）を解消し、CaptionManagement (Group 0) と CaptionStatement (Group 1) の双方を漏れなく ID3 化して `aribb24.js v2` との互換性を向上。
+  - `StreamBaseModel` から CJS/ESM 防衛アンラップハックを撤廃し、型安全な内部モジュールへ一本化。
 
 ## [0.1.0-beta.4] - 2026-10-02
 

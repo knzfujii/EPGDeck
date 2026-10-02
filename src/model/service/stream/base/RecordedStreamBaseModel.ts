@@ -2,7 +2,7 @@ import { ChildProcess, execFile } from 'child_process';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import internal, { Readable } from 'stream';
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
+import { TsSubtitleTimedMetadater } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import * as fst from '../../../../lib/TailStream.js';
 import ProcessUtil from '../../../../util/ProcessUtil.js';
@@ -28,7 +28,7 @@ export default abstract class RecordedStreamBaseModel
     private videoUtil: IVideoUtil;
 
     private fileStream: Readable | null = null;
-    private id3MetadataTransoform: ID3MetadataTransform | null = null;
+    private id3MetadataTransoform: TsSubtitleTimedMetadater | null = null;
     private streamProcess: ChildProcess | null = null;
     private videoFilePath: string | null = null;
     private videoFileInfo: VideoFileInfo | null = null;

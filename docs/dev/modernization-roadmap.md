@@ -238,6 +238,23 @@ flowchart TD
      - ARIB STD-B10 / ISO 13818-1 規格の Well-known PID および Stream Type 定義をパッケージ側へ集約し、`DropCheckerModel.ts` 内に散乱していた約 120 行の冗長な switch 文を完全撤廃。
      - TS アダプテーションフィールドの PCR（Program Clock Reference）デコードにより、ドロップ発生時に放送時刻だけでなく動画プレイヤー基準の再生位置（`timecode: HH:MM:SS.mmm`）をドロップログへ記録可能とした。
 - **将来の巻き戻し禁止**:
-  - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従や字幕 ID3 多重化など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
+  - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
+
+#### 3.5 字幕 PES パース & ID3 Timed Metadata 多重化の内製化 (`arib-subtitle-timedmetadater` の完全排除)
+> **ステータス**: 実装完了 (`v0.1.0-beta.4`)
+
+- **対象ファイル**: `packages/arib-probe/src/TsSubtitleTimedMetadater.ts`, `packages/arib-probe/src/pes/TsPesParser.ts`, `packages/arib-probe/src/section/TsPacketizer.ts`, `packages/arib-probe/src/id3/id3.ts`, `src/model/service/stream/base/StreamBaseModel.ts`, `test/unit/arib_probe.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **外部パッケージの CJS / ESM 相互運用性の負債解消**:
+     - `arib-subtitle-timedmetadater` は CJS でビルドされており、Node.js ネイティブ ESM 環境で `(module as any).default ?? module` という防衛的アンラップコードが必要であった。また、間接依存として `arib-mpeg2ts-parser` や `commander`（CLI ライブラリ）を含むなど不要な依存が混入していた。
+  2. **上流ライブラリの潜在的バグ（FIXME）の根本解消**:
+     - `node-arib-subtitle-timedmetadater` は内部で `if ((data_group_id & 0x0F) != 1) continue; // FIXME!` とハードコードしており、CaptionManagement（字幕管理データ：言語・文字コード定義）を破棄していた。
+     - これが原因で厳格な `aribb24.js v2` で字幕本文がスキップされる不具合を引き起こしていた。内製化により CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方が漏れなく ID3 化され、根本解決に至った。
+  3. **ゼロ依存・超軽量な ID3v2 PRIV & TS パケタイザーの実装**:
+     - ID3v2 PRIV フレーム生成、33bit 90kHz PTS デコーダー、可変長 PES アセンブラ、PMT 書換器（`metadata_pointer_descriptor` / `metadata_elementary_stream`）、188B TS パケタイザー（Adaptation Field スタッフィング対応）を完全ゼロ依存（Pure TS）で `arib-probe` 内に実装。
+     - 外部パッケージ 3 つ（`arib-subtitle-timedmetadater`, `arib-mpeg2ts-parser`, `commander`）をプロジェクトから完全アンインストールし、依存ツリーの極小化を達成した。
+- **将来の巻き戻し禁止**:
+  - `arib-subtitle-timedmetadater` や外部の PES パーサーライブラリへの再依存は厳禁。HLS 字幕処理は `packages/arib-probe` 内の `TsSubtitleTimedMetadater` を継続保守すること。
+
 
 

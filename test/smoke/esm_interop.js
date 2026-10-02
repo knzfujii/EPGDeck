@@ -6,20 +6,15 @@ import * as fs from 'node:fs';
 
 console.log('[Smoke] Starting Node.js native ESM interop checks...');
 
-// 1. arib-subtitle-timedmetadater
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
-const ID3Ctor = ID3MetadataTransform.default || ID3MetadataTransform;
-const id3Instance = new ID3Ctor();
-assert.strictEqual(typeof id3Instance.pipe, 'function', 'ID3MetadataTransform.pipe must be a function');
-assert.strictEqual(typeof id3Instance.destroy, 'function', 'ID3MetadataTransform.destroy must be a function');
-console.log('  ✔ arib-subtitle-timedmetadater constructor verified');
-
-// 2. arib-probe
-import { TsProbe } from 'arib-probe';
+// 1. arib-probe (TsProbe & TsSubtitleTimedMetadater)
+import { TsProbe, TsSubtitleTimedMetadater } from 'arib-probe';
 const probe = new TsProbe();
 assert.strictEqual(typeof probe.pipe, 'function', 'TsProbe.pipe must be a function');
 assert.strictEqual(typeof probe.getResult, 'function', 'TsProbe.getResult must be a function');
-console.log('  ✔ arib-probe TsProbe constructor & methods verified');
+const metadater = new TsSubtitleTimedMetadater();
+assert.strictEqual(typeof metadater.pipe, 'function', 'TsSubtitleTimedMetadater.pipe must be a function');
+assert.strictEqual(typeof metadater.destroy, 'function', 'TsSubtitleTimedMetadater.destroy must be a function');
+console.log('  ✔ arib-probe TsProbe & TsSubtitleTimedMetadater verified');
 
 // 3. mirakurun
 import { Client as MirakurunClient } from 'mirakurun';

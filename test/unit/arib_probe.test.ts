@@ -6,9 +6,13 @@ import {
     decodeTotSection,
     getStreamTypeName,
     getWellKnownPidName,
+    ID3,
+    packetizeToTs,
     resolvePidName,
     TsPacket,
+    TsPesParser,
     TsProbe,
+    TsSubtitleTimedMetadater,
 } from '../../packages/arib-probe/src/index.js';
 
 describe('arib-probe', () => {
@@ -343,6 +347,209 @@ describe('arib-probe', () => {
 
             const result = probe.getResult();
             expect(result[0x0100].name).toBe('-'); // PMT not registered, falls back to '-'
+        });
+    });
+
+    describe('TsPesParser', () => {
+        it('should assemble PES across TS packets and decode PTS', () => {
+            let receivedPes: any = null;
+            const parser = new TsPesParser(pes => {
+                receivedPes = pes;
+            });
+
+            // Synthesize PES packet:
+            // 00 00 01 bd (stream_id 0xbd, length 19)
+            // 84 80 (flags: PTS only)
+            // 05 (header data length: 5 bytes PTS)
+            // PTS: 90,000 (= 1.0s) -> 21 00 05 7e 01 (ptsHigh=0, ptsMid=2, ptsLow=3968)
+            // Construct PES packet with 200 bytes total (spans 2 TS packets: 184 + 16)
+            const payload = new Uint8Array(186); // 186 payload + 14 PES header = 200 bytes
+            for (let i = 0; i < payload.length; i++) payload[i] = i & 0xff;
+
+            const pesLength = 3 + 5 + payload.length; // 194 bytes (0x00c2)
+            const pts = 90000;
+            const ptsHigh = Math.floor(pts / 0x40000000) & 0x07;
+            const ptsMid = (pts >>> 15) & 0x7fff;
+            const ptsLow = pts & 0x7fff;
+
+            const pesData = new Uint8Array(6 + pesLength);
+            pesData[0] = 0x00;
+            pesData[1] = 0x00;
+            pesData[2] = 0x01;
+            pesData[3] = 0xbd;
+            pesData[4] = (pesLength >> 8) & 0xff;
+            pesData[5] = pesLength & 0xff;
+            pesData[6] = 0x84;
+            pesData[7] = 0x80;
+            pesData[8] = 0x05;
+            pesData[9] = 0x21 | (ptsHigh << 1);
+            pesData[10] = (ptsMid >> 7) & 0xff;
+            pesData[11] = 0x01 | ((ptsMid & 0x7f) << 1);
+            pesData[12] = (ptsLow >> 7) & 0xff;
+            pesData[13] = 0x01 | ((ptsLow & 0x7f) << 1);
+            pesData.set(payload, 14);
+
+            // Packetize into TS packets (will produce 2 packets)
+            const tsResult = packetizeToTs(pesData, { pid: 0x0115, continuityCounter: 0, isSection: false });
+            expect(tsResult.packets.length).toBe(2);
+
+            for (const pkt of tsResult.packets) {
+                parser.pushPacket(new TsPacket(pkt));
+            }
+
+            expect(receivedPes).not.toBeNull();
+            expect(receivedPes.streamId).toBe(0xbd);
+            expect(receivedPes.pts).toBe(90000);
+            expect(receivedPes.payload.length).toBe(186);
+            expect(receivedPes.payload[0]).toBe(0x00);
+            expect(receivedPes.payload[185]).toBe(185 & 0xff);
+        });
+    });
+
+    describe('ID3 Generator & Packetizer', () => {
+        it('should generate valid ID3v2 PRIV container', () => {
+            const data = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+            const id3 = ID3.ID3v2PRIV('aribb24.js', data);
+
+            // Verify header: 'ID3' (3B), version 2.4 (0x04 0x00), flags (0x00)
+            expect(id3[0]).toBe(0x49);
+            expect(id3[1]).toBe(0x44);
+            expect(id3[2]).toBe(0x33);
+            expect(id3[3]).toBe(0x04);
+
+            // Find 'PRIV' frame header
+            const privIdx = new TextDecoder().decode(id3).indexOf('PRIV');
+            expect(privIdx).toBeGreaterThan(0);
+        });
+
+        it('should packetize PES data into 188-byte TS packets with proper stuffing', () => {
+            const data = new Uint8Array(300);
+            data.fill(0x77);
+
+            const result = packetizeToTs(data, {
+                pid: 0x01ffe,
+                continuityCounter: 0,
+            });
+
+            // 300 bytes payload:
+            // Packet 1: 184 bytes payload
+            // Packet 2: 116 bytes payload + 68 bytes adaptation field stuffing
+            expect(result.packets.length).toBe(2);
+            expect(result.packets[0].length).toBe(188);
+            expect(result.packets[1].length).toBe(188);
+
+            // Packet 0 has PUSI=1, CC=0
+            const pkt0 = new TsPacket(result.packets[0]);
+            expect(pkt0.payloadUnitStartIndicator).toBe(true);
+            expect(pkt0.continuityCounter).toBe(0);
+            expect(pkt0.pid).toBe(0x01ffe);
+
+            // Packet 1 has PUSI=0, CC=1, hasAdaptationField=true
+            const pkt1 = new TsPacket(result.packets[1]);
+            expect(pkt1.payloadUnitStartIndicator).toBe(false);
+            expect(pkt1.continuityCounter).toBe(1);
+            expect(pkt1.hasAdaptationField).toBe(true);
+            expect(result.nextContinuityCounter).toBe(2);
+        });
+    });
+
+    describe('TsSubtitleTimedMetadater', () => {
+        it('should inject ID3 metadata stream into PMT and convert subtitle packets', async () => {
+            const metadater = new TsSubtitleTimedMetadater();
+            const outputPackets: TsPacket[] = [];
+
+            metadater.on('data', (chunk: Uint8Array) => {
+                for (let offset = 0; offset + 188 <= chunk.length; offset += 188) {
+                    outputPackets.push(new TsPacket(chunk.subarray(offset, offset + 188)));
+                }
+            });
+
+            // 1. Send PAT (PMT PID = 0x0100)
+            const patData = new Uint8Array([0x00, 0xb0, 0x0d, 0x00, 0x01, 0xc1, 0x00, 0x00, 0x00, 0x01, 0xe1, 0x00]);
+            const patCrc = calcCrc32Mpeg2(patData);
+            const patWithCrc = new Uint8Array(patData.length + 4);
+            patWithCrc.set(patData);
+            patWithCrc[patData.length] = (patCrc >> 24) & 0xff;
+            patWithCrc[patData.length + 1] = (patCrc >> 16) & 0xff;
+            patWithCrc[patData.length + 2] = (patCrc >> 8) & 0xff;
+            patWithCrc[patData.length + 3] = patCrc & 0xff;
+
+            const patTs = packetizeToTs(patWithCrc, { pid: 0x0000, continuityCounter: 0, isSection: true });
+            for (const pkt of patTs.packets) metadater.write(pkt);
+
+            // 2. Send PMT with subtitle stream (elementary_PID = 0x0115, stream_type = 0x06, component_tag = 0x30)
+            const pmtData = new Uint8Array([
+                0x02,
+                0xb0,
+                0x15, // table_id 0x02, len 21 (17 body + 4 CRC)
+                0x00,
+                0x01, // program_number = 1
+                0xc1,
+                0x00,
+                0x00,
+                0xe1,
+                0x00, // PCR_PID = 0x0100
+                0xf0,
+                0x00, // program_info_length = 0
+                // Stream: Subtitle (stream_type 0x06, PID 0x0115, descriptor: tag 0x52 len 1 comp_tag 0x30)
+                0x06,
+                0xe1,
+                0x15,
+                0xf0,
+                0x03,
+                0x52,
+                0x01,
+                0x30,
+            ]);
+            const pmtCrc = calcCrc32Mpeg2(pmtData);
+            const pmtWithCrc = new Uint8Array(pmtData.length + 4);
+            pmtWithCrc.set(pmtData);
+            pmtWithCrc[pmtData.length] = (pmtCrc >> 24) & 0xff;
+            pmtWithCrc[pmtData.length + 1] = (pmtCrc >> 16) & 0xff;
+            pmtWithCrc[pmtData.length + 2] = (pmtCrc >> 8) & 0xff;
+            pmtWithCrc[pmtData.length + 3] = pmtCrc & 0xff;
+
+            const pmtTs = packetizeToTs(pmtWithCrc, { pid: 0x0100, continuityCounter: 0, isSection: true });
+            for (const pkt of pmtTs.packets) metadater.write(pkt);
+
+            // 3. Send Subtitle PES packet on PID 0x0115 (Group 0: CaptionManagement - tests FIXME fix!)
+            const subPes = new Uint8Array([
+                0x00,
+                0x00,
+                0x01,
+                0xbd, // stream_id 0xbd
+                0x00,
+                0x0f, // len 15
+                0x84,
+                0x80, // flags
+                0x05, // header_data_len
+                0x21,
+                0x00,
+                0x01,
+                0x00,
+                0x01, // PTS
+                // data_group: group 0 (CaptionManagement)
+                0x00,
+                0x00,
+                0x00,
+                0x01,
+                0x02,
+                0x03,
+            ]);
+            const subTs = packetizeToTs(subPes, { pid: 0x0115, continuityCounter: 0, isSection: false });
+            for (const pkt of subTs.packets) metadater.write(pkt);
+
+            metadater.end();
+            await new Promise<void>(resolve => metadater.on('finish', resolve));
+
+            // Verify:
+            // 1. Output contains rewritten PMT (pid 0x0100)
+            const pmtPackets = outputPackets.filter(p => p.pid === 0x0100);
+            expect(pmtPackets.length).toBeGreaterThan(0);
+
+            // 2. Output contains ID3 Timed Metadata packets (PID 0x1FFE)
+            const id3Packets = outputPackets.filter(p => p.pid === 0x1ffe);
+            expect(id3Packets.length).toBeGreaterThan(0);
         });
     });
 });

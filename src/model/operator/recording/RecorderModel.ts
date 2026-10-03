@@ -513,7 +513,7 @@ class RecorderModel implements IRecorderModel {
                 if (this.reserve.programId !== null) {
                     const now = new Date().getTime();
 
-                    // 1. Mirakurun から最新の番組情報を取得
+                    // Mirakurun から最新の番組情報を取得
                     let latestProgram: any = null;
                     try {
                         const mirakurun = this.mirakurunClientModel.getClient();
@@ -1462,7 +1462,7 @@ class RecorderModel implements IRecorderModel {
             return;
         }
 
-        // 0. 音声メタデータ（2ヶ国語/ステレオ/5.1ch/サンプリング周波数）検知
+        // 音声メタデータ（2ヶ国語/ステレオ/5.1ch/サンプリング周波数）検知
         if (event.audio && (event.audio.main_component_flag || this.detectedAudio === null)) {
             const isChanged =
                 this.detectedAudio === null ||
@@ -1484,7 +1484,7 @@ class RecorderModel implements IRecorderModel {
             }
         }
 
-        // 1. 番組延長検知
+        // 番組延長（終了時刻変更）検知
         if (event.startTime !== null && event.duration > 0) {
             const streamEndAt = event.startTime.getTime() + event.duration * 1000;
             if (streamEndAt > this.reserve.endAt) {
@@ -1529,33 +1529,7 @@ class RecorderModel implements IRecorderModel {
             }
         }
 
-        // 2. 番組タイトル更新検知
-        if (event.name && event.name !== this.reserve.name) {
-            this.log.system.info(
-                `[EIT] Program title updated via TS for reserveId: ${this.reserve.id}: '${this.reserve.name}' -> '${event.name}'`,
-            );
-            this.reserve.name = event.name;
-            this.reserve.halfWidthName = StrUtil.toHalf(event.name);
-
-            void this.reserveDB.updateOnce(this.reserve).catch(err => {
-                this.log.system.error(`[EIT] failed to update reserve name: ${this.reserve.id}`);
-                this.log.system.error(err);
-            });
-
-            if (this.recordedId !== null) {
-                void this.recordedDB
-                    .updateProgramInfo(this.recordedId, {
-                        name: this.reserve.name,
-                        halfWidthName: this.reserve.halfWidthName,
-                    })
-                    .catch(err => {
-                        this.log.system.error(`[EIT] failed to update recorded name: ${this.recordedId}`);
-                        this.log.system.error(err);
-                    });
-            }
-        }
-
-        // 3. イベントリレー（他チャンネル・マルチ編成への移行）検知
+        // イベントリレー（他チャンネル・マルチ編成への移行）検知
         if (event.relatedItems && event.relatedItems.some(item => item.type === 'relay')) {
             if (this.hasHandledEitRelay !== true) {
                 this.hasHandledEitRelay = true;

@@ -682,6 +682,27 @@ describe('arib-probe', () => {
             expect(decoded).toBe('未解決事件 File.18「上智大生殺害放火事件」[字]');
         });
 
+        it('should correctly decode Detective Conan title with Kana brackets and gaiji (recordedId=66)', () => {
+            // YTV/NTV raw broadcast EIT: 名探偵コナン「茜色の千秋楽（前楽）」[字][デ]
+            // Includes 1b 7c (LS3R) and 0xfc (Katakana 0x7c = '」') and gaiji 0x7a56 ([字]), 0x7a58 ([デ])
+            const hex = '4c3e433544651b7cb3caf3fb302b3f27244e40693d29335a214a4130335a214bfc1b243b0f7a567a58';
+            const bytes = Uint8Array.from(Buffer.from(hex, 'hex'));
+
+            const decoded = decodeAribString(bytes);
+            expect(decoded).toBe('名探偵コナン「茜色の千秋楽（前楽）」[字][デ]');
+        });
+
+        it('should correctly decode BSJapanext title with ESC $ + ; and SS3 gaiji (reserveId=143)', () => {
+            // BSJapanext raw broadcast EIT: [字]つまみは紅しょうが 男子～！宅飲みするからウチ来ぃや～！ #53
+            // Starts with ESC $ + ; (1b 24 2b 3b) and SS3 (1d) followed by 0x7a56 ([字])
+            const hex =
+                '1b242b3b1d7a56c4dedfcf3948b7e7a6ac89208a434b3b5221410e210f4270307bdfb9ebabe91b2b311b7ca6c14d681b7da3e421410e218920233533';
+            const bytes = Uint8Array.from(Buffer.from(hex, 'hex'));
+
+            const decoded = decodeAribString(bytes);
+            expect(decoded).toBe('[字]つまみは紅しょうが 男子～!宅飲みするからウチ来ぃや～! #53');
+        });
+
         it('should decode BCD duration correctly into seconds', () => {
             // 0x01 0x30 0x15 -> 1h 30m 15s = 5415s
             const buf = new Uint8Array([0x01, 0x30, 0x15]);

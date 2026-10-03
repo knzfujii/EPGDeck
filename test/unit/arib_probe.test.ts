@@ -15,6 +15,7 @@ import {
     TsPacket,
     TsPesParser,
     TsProbe,
+    TsSectionAssembler,
     TsSubtitleId3Muxer,
 } from '../../packages/arib-probe/src/index.js';
 
@@ -746,6 +747,108 @@ describe('arib-probe', () => {
                 serviceId: 1032,
                 eventId: 124,
             });
+        });
+
+        it('should drop packets with transport_error_indicator and clear ongoing buffer', () => {
+            const sections: Uint8Array[] = [];
+            const assembler = new TsSectionAssembler((_tableId, section) => {
+                sections.push(section);
+            });
+
+            // Start assembling a multi-packet section
+            const p1 = new Uint8Array(188);
+            p1[0] = 0x47;
+            p1[1] = 0x40 | 0x00; // PUSI = 1, PID 0x0012
+            p1[2] = 0x12;
+            p1[3] = 0x10; // CC 0
+            p1[4] = 0x00; // pointer = 0
+            p1[5] = 0x4e; // table_id
+            p1[6] = 0xf0; // section_syntax=1, len high = 0
+            p1[7] = 200; // section_length = 200 (requires 203 bytes, spans packets)
+            p1.fill(0xaa, 8);
+
+            assembler.pushPacket(new TsPacket(p1));
+            expect(sections.length).toBe(0);
+
+            // Now send a corrupted packet with TEI = 1
+            const pError = new Uint8Array(188);
+            pError[0] = 0x47;
+            pError[1] = 0x80 | 0x00; // TEI = 1
+            pError[2] = 0x12;
+            pError[3] = 0x11;
+            pError.fill(0xff, 4);
+
+            assembler.pushPacket(new TsPacket(pError));
+            // Incomplete buffer should have been discarded
+            expect(sections.length).toBe(0);
+        });
+
+        it('should discard section when section_length exceeds 4096 bytes', () => {
+            const sections: Uint8Array[] = [];
+            const assembler = new TsSectionAssembler((_tableId, section) => {
+                sections.push(section);
+            });
+
+            const p1 = new Uint8Array(188);
+            p1[0] = 0x47;
+            p1[1] = 0x40 | 0x00; // PUSI = 1
+            p1[2] = 0x12;
+            p1[3] = 0x10;
+            p1[4] = 0x00; // pointer = 0
+            p1[5] = 0x4e;
+            p1[6] = 0xff; // length high = 0x0f (4095)
+            p1[7] = 0xff; // length low = 0xff -> 4095 + 3 = 4098 > 4096!
+            p1.fill(0x55, 8);
+
+            assembler.pushPacket(new TsPacket(p1));
+            expect(sections.length).toBe(0);
+        });
+
+        it('should cleanly handle pointerField > 0 when no prior buffer exists', () => {
+            const sections: Uint8Array[] = [];
+            const assembler = new TsSectionAssembler((_tableId, section) => {
+                sections.push(section);
+            });
+
+            // Single packet section starting at offset after pointer
+            const sectionData = new Uint8Array([
+                0x00, // PAT table_id
+                0xb0, // section_syntax=1, len high = 0
+                0x0d, // section_length = 13 (total 16 bytes)
+                0x00,
+                0x01,
+                0xc1,
+                0x00,
+                0x00,
+                0x00,
+                0x01,
+                0xe1,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00, // placeholder for CRC
+            ]);
+            const crc = calcCrc32Mpeg2(sectionData.subarray(0, 12));
+            sectionData[12] = (crc >> 24) & 0xff;
+            sectionData[13] = (crc >> 16) & 0xff;
+            sectionData[14] = (crc >> 8) & 0xff;
+            sectionData[15] = crc & 0xff;
+
+            const p1 = new Uint8Array(188);
+            p1[0] = 0x47;
+            p1[1] = 0x40; // PUSI = 1
+            p1[2] = 0x00;
+            p1[3] = 0x10;
+            p1[4] = 10; // pointer_field = 10 bytes prefix of abandoned prior section
+            p1.fill(0xaa, 5, 15); // abandoned 10 bytes
+            p1.set(sectionData, 15); // new section starts at 15
+            p1.fill(0xff, 15 + sectionData.length); // stuffing
+
+            assembler.pushPacket(new TsPacket(p1));
+            expect(sections.length).toBe(1);
+            expect(sections[0].length).toBe(16);
+            expect(sections[0][0]).toBe(0x00);
         });
     });
 });

@@ -307,8 +307,9 @@ const rangeSec = startSec <= endSec
    - イベントリレー確認タイマー（`eventRelayTimer`）を新たな終了時刻に合わせて再スケジュールします。
 4. **番組タイトル・メタ情報のリアルタイム追従**:
    - 放送局側でタイトルに「[延]」「試合終了まで中継」等の付記が行われた場合、`reserve.name` および `recordedDB` のタイトル情報を自動同期します。
-5. **イベントリレー（event_group_descriptor Tag 0xD6）の早期検知**:
-   - ARIB STD-B10 `event_group_descriptor`（group_type = 2: relay）が EIT に記載された場合、終了直前タイマーを待たずに即時 `checkEventRelay()` をトリガーして移行先チャンネルの自動予約を発行します。
+5. **イベントリレー（event_group_descriptor Tag 0xD6）の早期検知とTS直結連携**:
+   - ARIB STD-B10 `event_group_descriptor`（group_type = 2: relay）が EIT に記載された場合、終了直前タイマーを待たずに即時 `checkEventRelay()` をトリガーします。
+   - 移行先チャンネルの `networkId`、`serviceId`、`eventId` を放送波の記述子から直接引き渡すため、Mirakurun 側の REST API（`/api/programs/{id}`）の EPG 更新遅延に一切影響されず、即座に移行先番組の予約・録画準備が発行されます。
 
 ---
 

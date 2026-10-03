@@ -18,6 +18,13 @@ export class TsSectionAssembler {
      * Feeds a TS packet that matches this PID assembler
      */
     public pushPacket(packet: TsPacket): void {
+        if (packet.transportErrorIndicator) {
+            // Discard ongoing assembly if a packet has bit errors
+            this.buffer = new Uint8Array(0);
+            this.expectedLength = 0;
+            return;
+        }
+
         const payload = packet.getPayload();
         if (!payload || payload.length === 0) {
             return;
@@ -31,7 +38,7 @@ export class TsSectionAssembler {
 
             // If there was an ongoing section being assembled, finish it with the prefix before pointer
             if (this.buffer.length > 0 && pointerField > 0) {
-                const remaining = Math.min(pointerField, payload.length - offset);
+                const remaining = Math.min(pointerField, Math.max(0, payload.length - offset));
                 this.appendChunk(payload.subarray(offset, offset + remaining));
                 offset += remaining;
 
@@ -39,6 +46,9 @@ export class TsSectionAssembler {
                     const completeSection = this.buffer.slice(0, this.expectedLength);
                     this.processCompleteSection(completeSection);
                 }
+            } else if (pointerField > 0) {
+                // Discard pointer prefix if we were not actively assembling a section
+                offset += Math.min(pointerField, Math.max(0, payload.length - offset));
             }
 
             // Start assembling new section(s)
@@ -61,6 +71,11 @@ export class TsSectionAssembler {
 
                 const sectionLength = ((payload[offset + 1] & 0x0f) << 8) | payload[offset + 2];
                 const totalSectionLength = 3 + sectionLength;
+
+                // Max section length in MPEG-2 TS / DVB / ARIB is 4096 bytes (4093 + 3)
+                if (totalSectionLength > 4096) {
+                    break;
+                }
 
                 if (remainingBytes >= totalSectionLength) {
                     // Complete section fits in this packet
@@ -86,7 +101,13 @@ export class TsSectionAssembler {
                 temp.set(this.buffer.subarray(0, Math.min(3, this.buffer.length)));
                 temp.set(payload.subarray(0, 3 - this.buffer.length), this.buffer.length);
                 const sectionLength = ((temp[1] & 0x0f) << 8) | temp[2];
-                this.expectedLength = 3 + sectionLength;
+                const totalSectionLength = 3 + sectionLength;
+                if (totalSectionLength > 4096) {
+                    this.buffer = new Uint8Array(0);
+                    this.expectedLength = 0;
+                    return;
+                }
+                this.expectedLength = totalSectionLength;
             }
 
             const needed = this.expectedLength > 0 ? this.expectedLength - this.buffer.length : payload.length;

@@ -200,7 +200,7 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
         });
     });
 
-    it('should update title and halfWidthName when EIT event title changes', async () => {
+    it('should NOT update reserve title or recorded title when EIT event title changes', async () => {
         const reserve = createReserve();
         const recorder = new RecorderModel(
             dummyLogger,
@@ -240,17 +240,11 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
 
         eitHandler!(titleChangeEit);
 
-        expect(reserve.name).toBe('プロ野球中継「巨人×阪神」[延]');
-        expect(reserve.halfWidthName).toBe('プロ野球中継「巨人×阪神」[延]');
-        expect(dummyReserveDB.updateOnce).toHaveBeenCalledWith(
-            expect.objectContaining({
-                name: 'プロ野球中継「巨人×阪神」[延]',
-            }),
-        );
-        expect(dummyRecordedDB.updateProgramInfo).toHaveBeenCalledWith(42, {
-            name: 'プロ野球中継「巨人×阪神」[延]',
-            halfWidthName: 'プロ野球中継「巨人×阪神」[延]',
-        });
+        // Reserve title must remain intact (Mirakurun / user reservation is SSOT)
+        expect(reserve.name).toBe('プロ野球中継');
+        expect(reserve.halfWidthName).toBe('プロ野球中継');
+        expect(dummyReserveDB.updateOnce).not.toHaveBeenCalled();
+        expect(dummyRecordedDB.updateProgramInfo).not.toHaveBeenCalled();
     });
 
     it('should immediately trigger checkEventRelay when EIT descriptor announces relay', async () => {

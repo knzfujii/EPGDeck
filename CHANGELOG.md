@@ -27,17 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 上流ライブラリに存在していた `data_group_id != 1` 破棄バグ（FIXME）を解消し、CaptionManagement (Group 0) と CaptionStatement (Group 1) の双方を漏れなく ID3 化して `aribb24.js v2` との互換性を向上。
   - `StreamBaseModel` から CJS/ESM 防衛アンラップハックを撤廃し、型安全な内部モジュールへ一本化。
 - **EIT（番組情報テーブル）セクション解析 & ARIB STD-B24 文字列デコーダーの新設**:
-  - `packages/arib-probe` に `decodeAribString`（JIS X 0208 / 英数 / ひらがな / カタカナ / ARIB 外字マップ `[字]`, `[解]` 等のゼロ依存デコード）を実装。
-  - EIT present/following (Table ID 0x4E/0x4F, PID 0x0012) のセクションデコーダー `decodeEitSection` を実装し、`TsProbe` から番組名・開始時刻・尺・概要を放送波からリアルタイムに `eit` イベントで受信可能に。
+  - `packages/arib-probe` に `decodeAribString` を新設。ISO/IEC 2022 規格に完全準拠し、4 スロット（G0..G3）の独立管理、GL/GR ロッキングシフト、SS2/SS3（シングルシフト）、ひらがな・カタカナ特殊記号（`「`、`」`、`ー` 等）の Unicode 直接マッピング、および ARIB 囲み文字外字（`[字]`, `[デ]`, `[多]` 等）のゼロ依存高速デコードを実装。
+  - EIT present/following (Table ID 0x4E/0x4F, PID 0x0012) のセクションデコーダー `decodeEitSection` を実装し、`TsProbe` から番組情報やイベントリレー記述子を放送波からリアルタイムに `eit` イベントで受信可能に。
 - **動画プレイヤーおよび録画詳細でのドロップ発生タイムコード可視化 & シーク連携**:
   - `client/src/lib/utils/dropLog.ts`: ドロップログのタイムコード（PCR 経過時間）をパースし、密集ドロップをクラスタリングするユーティリティを新設。
   - `VideoControls.svelte` / `VideoPlayer.svelte`: シークバー上にドロップ発生ポイントをマーカー（ピン）として視覚化。ホバーで詳細ツールチップを表示し、クリックで該当箇所へ直接シーク可能に。
   - `Watch.svelte`: 録画再生時にドロップログを自動取得してプレイヤーに供給。
   - `RecordedDetail.svelte`: ドロップログモーダル内に「発生タイムライン」一覧を表示し、各発生位置とストリーム種別（映像・音声・字幕）を一目で把握可能に。
-- **放送波 TS ストリーム（EIT）直接監視による録画中リアルタイム番組延長・タイトル追従・イベントリレー即時検知**:
+- **放送波 TS ストリーム（EIT）直接監視による録画中リアルタイム番組延長・イベントリレー即時検知**:
   - `packages/arib-probe` の `decodeEitSection` に ARIB STD-B10 `event_group_descriptor` (Tag `0xD6`) の解析を追加し、イベントリレー情報（他チャンネル移行・マルチ編成）の取得に対応。
   - `DropCheckerModel` に `on('eit')` / `off('eit')` を新設し、録画ストリームの `TsProbe` から EIT イベントを購読可能に。
-  - `RecorderModel` で録画中にストリーム内の EIT present/following をリアルタイム監視。Mirakurun API への定期ポーリングを待つことなく、放送波からミリ秒単位で「番組延長（終了時刻の伸長）」「タイトル変更」「イベントリレー」を即座に検知し、予約情報（`reserve`）・録画中レコード（`recorded`）およびリレータイマーを自動更新。
+  - `RecorderModel` で録画中にストリーム内の EIT present/following をリアルタイム監視。Mirakurun API への定期ポーリングを待つことなく、放送波からミリ秒単位で「番組延長（終了時刻の伸長）」「イベントリレー」「音声記述子（ストリームメタデータ）」を即座に検知し、予約情報（`reserve`）・録画中レコード（`recorded`）およびリレータイマーを自動更新（番組タイトルは Mirakurun の正規化タイトルを SSOT として保持）。
+
+### Fixed
 - **前番組延長（野球等）に伴う後続番組の録画保護・開始繰り下げ（Delay）追従・放送波待機**:
   - `RecorderModel.prepRecord()`: 録画準備時に Mirakurun から最新の番組情報を取得し、前番組の延長により開始時刻が未来へ繰り下げられている場合、予約時刻（`reserve.startAt`, `reserve.endAt`）を更新してタイマーを新開始時刻へリスケジュール。無駄なチューナー専有を防止。
   - `RecorderModel.doRecord()`: Mirakurun の `getProgramStream` 接続後、レガシー EPGStation が持っていた 5 秒固定タイムアウト（前番組放送中に Mirakurun がデータ提供を待機している間に録画失敗と判定して予約を強制破棄していた問題）を抜本解決。番組指定予約において Mirakurun との接続が維持されている間、定期的に番組情報を確認しながら放送波上での番組開始（EIT present 一致）を安全に待機。待機中に繰り下げ確定を検知した場合はタイマーを新時刻へリスケジュールし、目的番組のパケットが到着した瞬間にクリーンに録画を開始。

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-beta.1] - 2026-10-04
+
 ### Added
 - **自前 TS 解析・ドロップ監視パッケージ `arib-probe` の新設**: 外部の長期間未保守パッケージ `aribts`（2018年停止）およびその推移的依存（C++ バインディング残骸、古いイベントエミッタ等 9 パッケージ）を完全排除し、ゼロ依存・Pure TypeScript・ESM ネイティブの内部パッケージ `packages/arib-probe` を新設。
   - 188 バイト TS パケット同期・ヘッダ解析（エラーフラグ、連続性カウンタ、スクランブル）

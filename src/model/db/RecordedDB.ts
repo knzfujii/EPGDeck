@@ -163,7 +163,16 @@ export default class RecordedDB implements IRecordedDB {
      * id を指定して録画番組情報取得
      */
     public async findId(recordedId: apid.RecordedId): Promise<Recorded | null> {
-        const results = await this.findIds([recordedId], undefined, false);
+        const results = await this.findIds(
+            [recordedId],
+            {
+                isNeedVideoFiles: true,
+                isNeedThumbnails: true,
+                isNeedsDropLog: true,
+                isNeedTags: true,
+            },
+            false,
+        );
         return results.length === 0 ? null : results[0];
     }
 
@@ -182,7 +191,7 @@ export default class RecordedDB implements IRecordedDB {
         return await this.promiseRetry.run(async () => {
             const isNeedVideoFiles = typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true;
             const isNeedThumbnails = typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true;
-            const isNeedsDropLog = typeof columnOption !== 'undefined' && columnOption.isNeedsDropLog === true;
+            const isNeedsDropLog = typeof columnOption === 'undefined' || columnOption.isNeedsDropLog === true;
             const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
 
             const { db, schema } = client;

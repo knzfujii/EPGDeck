@@ -20,6 +20,7 @@
         vttSrc?: string;
         playbackOffset?: number;
         statusMessage?: string;
+        dropMarkers?: import('../../utils/dropLog').DropMarker[];
         onStreamEnded?: () => void;
         onHlsSeekRestart?: (targetTime: number) => void | Promise<void>;
     }
@@ -874,6 +875,8 @@
         {isSubtitleOn}
         {isFullscreen}
         {canShowSubtitle}
+        dropMarkers={props.dropMarkers}
+        onDirectSeek={seekTo}
         onTogglePlay={togglePlay}
         onSeekChange={handleSeekChange}
         onSeekStart={pauseHideControlsTimer}

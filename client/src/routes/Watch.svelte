@@ -10,6 +10,7 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { ArrowLeft, Radio, Clock, FileVideo, Loader2 } from '@lucide/svelte';
+    import { parseDropLog, type DropMarker } from '../lib/utils/dropLog';
     import Button from '@/lib/components/common/Button.svelte';
 
     let videoSrc = $state<string>('');
@@ -18,6 +19,7 @@
     let isHls = $state(false);
     let isLive = $state(false);
     let playbackOffset = $state(0);
+    let dropMarkers = $state<DropMarker[]>([]);
     let currentStreamMode = $state(0);
     let streamId = $state<number | null>(null);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
@@ -65,6 +67,21 @@
             }
         } catch {
             // ignore error
+        }
+    }
+
+    async function fetchDropLog(dropLogFileId: number, startAtMs?: number) {
+        try {
+            const res = await api.dropLogs[':dropLogFileId'].$get({
+                param: { dropLogFileId: String(dropLogFileId) },
+                query: {},
+            });
+            if (res.ok) {
+                const text = await res.text();
+                dropMarkers = parseDropLog(text, startAtMs);
+            }
+        } catch {
+            dropMarkers = [];
         }
     }
 
@@ -253,6 +270,13 @@
                 const start = new Date(recordedData.startAt);
                 const end = new Date(recordedData.endAt);
                 timeRange = `${start.getMonth() + 1}/${start.getDate()} ${formatTime(start)} - ${formatTime(end)}`;
+
+                // ドロップログの取得とマーカー生成
+                if (recordedData.dropLogFile?.id) {
+                    void fetchDropLog(recordedData.dropLogFile.id, recordedData.startAt);
+                } else {
+                    dropMarkers = [];
+                }
             } catch (e) {
                 console.error('Failed to fetch recorded detail', e);
                 snackbar.open({ text: '録画情報の取得に失敗しました', color: 'error' });
@@ -478,6 +502,7 @@
                 recordedId={recordedData?.id}
                 {totalDuration}
                 {vttSrc}
+                {dropMarkers}
                 onStreamEnded={stopStream}
                 onHlsSeekRestart={restartHlsAtPosition}
             />

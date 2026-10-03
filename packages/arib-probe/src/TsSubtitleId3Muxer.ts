@@ -3,10 +3,10 @@ import { calcCrc32Mpeg2 } from './crc32.js';
 import { ID3 } from './id3/id3.js';
 import { TsPesParser } from './pes/TsPesParser.js';
 import { packetizeToTs } from './section/TsPacketizer.js';
-import { TsSectionAssembler } from './section/TsSectionParser.js';
+import { TsSectionAssembler } from './section/TsSectionAssembler.js';
 import { TsPacket } from './TsPacket.js';
 
-export interface TsSubtitleTimedMetadaterOptions {
+export interface TsSubtitleId3MuxerOptions {
     /** Target program number to inject ID3 metadata (defaults to first program found) */
     targetProgramNumber?: number;
 }
@@ -18,7 +18,7 @@ export interface TsSubtitleTimedMetadaterOptions {
  * Fixes the upstream node-arib-subtitle-timedmetadater bug where CaptionManagement (Group 0)
  * was dropped, ensuring both CaptionManagement and CaptionStatement are preserved.
  */
-export class TsSubtitleTimedMetadater extends Transform {
+export class TsSubtitleId3Muxer extends Transform {
     private readonly targetProgramNumber: number | null;
     private readonly pmtPids: Set<number> = new Set();
     private readonly pmtContinuityCounters: Map<number, number> = new Map();
@@ -35,7 +35,7 @@ export class TsSubtitleTimedMetadater extends Transform {
 
     private remainder: Uint8Array = new Uint8Array(0);
 
-    constructor(options: TsSubtitleTimedMetadaterOptions = {}) {
+    constructor(options: TsSubtitleId3MuxerOptions = {}) {
         super({ objectMode: false });
         this.targetProgramNumber = options.targetProgramNumber ?? null;
 
@@ -141,8 +141,8 @@ export class TsSubtitleTimedMetadater extends Transform {
         }
 
         // 4. Construct rewritten PMT with metadata_pointer_descriptor and metadata_elementary_stream (0x15)
-        const pointerDesc = ID3.metadata_pointer_descriptor(programNumber);
-        const metadataEs = ID3.metadata_elementary_stream(id3Pid);
+        const pointerDesc = ID3.createMetadataPointerDescriptor(programNumber);
+        const metadataEs = ID3.createMetadataElementaryStream(id3Pid);
 
         // Program info & ES info
         const origProgramInfo = pmt.subarray(12, 12 + programInfoLength);
@@ -212,8 +212,8 @@ export class TsSubtitleTimedMetadater extends Transform {
         if (payload.length === 0) return;
 
         // Package subtitle binary into ID3v2 PRIV ('aribb24.js') container
-        const id3 = ID3.ID3v2PRIV('aribb24.js', payload);
-        const timedMetadataPes = ID3.timedmetadata(pts, id3);
+        const id3 = ID3.createPrivFrame('aribb24.js', payload);
+        const timedMetadataPes = ID3.createTimedMetadataPes(pts, id3);
 
         const currentCc = this.metadataContinuityCounters.get(targetId3Pid) ?? 0;
         const packetized = packetizeToTs(timedMetadataPes, {

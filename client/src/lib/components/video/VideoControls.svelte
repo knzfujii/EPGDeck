@@ -16,6 +16,8 @@
         isSubtitleOn: boolean;
         isFullscreen: boolean;
         canShowSubtitle: boolean;
+        dropMarkers?: import('../../utils/dropLog').DropMarker[];
+        onDirectSeek?: (targetTime: number) => void;
         onTogglePlay: () => void;
         onSeekChange: (e: Event) => void;
         onSeekStart?: () => void;
@@ -41,6 +43,8 @@
         isSubtitleOn,
         isFullscreen,
         canShowSubtitle,
+        dropMarkers = [],
+        onDirectSeek,
         onTogglePlay,
         onSeekChange,
         onSeekStart,
@@ -92,6 +96,30 @@
                         ></div>
                     {/if}
                 </div>
+                <!-- ドロップ発生位置マーカー -->
+                {#if dropMarkers.length > 0 && displayDuration > 0}
+                    <div class="absolute inset-x-0 h-2 pointer-events-none z-10">
+                        {#each dropMarkers as marker}
+                            {@const leftPercent = Math.min(100, Math.max(0, (marker.time / displayDuration) * 100))}
+                            <button
+                                type="button"
+                                class="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 rounded-full {marker.type ===
+                                'drop'
+                                    ? 'bg-rose-500 shadow-rose-950/80'
+                                    : marker.type === 'error'
+                                      ? 'bg-amber-500 shadow-amber-950/80'
+                                      : 'bg-purple-500 shadow-purple-950/80'} shadow-sm pointer-events-auto cursor-pointer transition hover:w-2 hover:scale-y-125"
+                                style="left: {leftPercent}%;"
+                                onclick={e => {
+                                    e.stopPropagation();
+                                    onDirectSeek?.(marker.time);
+                                }}
+                                title={`${marker.timecode} ${marker.type === 'drop' ? 'ドロップ' : marker.type === 'error' ? 'エラー' : 'スクランブル'}: ${marker.description}`}
+                                aria-label={`${marker.timecode} ドロップマーカー`}
+                            ></button>
+                        {/each}
+                    </div>
+                {/if}
                 <input
                     type="range"
                     min="0"

@@ -2,7 +2,7 @@ import { ChildProcess, execFile } from 'child_process';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import internal, { Readable } from 'stream';
-import { TsSubtitleTimedMetadater } from 'arib-probe';
+import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import * as fst from '../../../../lib/TailStream.js';
 import ProcessUtil from '../../../../util/ProcessUtil.js';
@@ -28,7 +28,7 @@ export default abstract class RecordedStreamBaseModel
     private videoUtil: IVideoUtil;
 
     private fileStream: Readable | null = null;
-    private id3MetadataTransoform: TsSubtitleTimedMetadater | null = null;
+    private id3MetadataTransform: TsSubtitleId3Muxer | null = null;
     private streamProcess: ChildProcess | null = null;
     private videoFilePath: string | null = null;
     private videoFileInfo: VideoFileInfo | null = null;
@@ -136,12 +136,12 @@ export default abstract class RecordedStreamBaseModel
                 this.log.stream.error(`streamProcess stdin error: ${err.message}`);
             });
 
-            // ts が入力かつ、HLS 配信の場合は arib-subtitle-timedmetadater を通す
+            // ts が入力かつ、HLS 配信の場合は arib-subtitle-timedmetadater (TsSubtitleId3Muxer) を通す
             if (this.videoFileType === 'ts' && this.getStreamType() === 'RecordedHLS') {
-                this.log.stream.info('use arib-subtitle-timedmetadater');
-                this.id3MetadataTransoform = this.createID3MetadataTransform();
-                this.fileStream.pipe(this.id3MetadataTransoform);
-                this.id3MetadataTransoform.pipe(this.streamProcess.stdin);
+                this.log.stream.info('use TsSubtitleId3Muxer');
+                this.id3MetadataTransform = this.createID3MetadataTransform();
+                this.fileStream.pipe(this.id3MetadataTransform);
+                this.id3MetadataTransform.pipe(this.streamProcess.stdin);
             } else {
                 this.fileStream.pipe(this.streamProcess.stdin);
             }
@@ -299,9 +299,9 @@ export default abstract class RecordedStreamBaseModel
             this.fileStream.destroy();
         }
 
-        if (this.id3MetadataTransoform !== null) {
-            this.id3MetadataTransoform.unpipe();
-            this.id3MetadataTransoform.destroy();
+        if (this.id3MetadataTransform !== null) {
+            this.id3MetadataTransform.unpipe();
+            this.id3MetadataTransform.destroy();
         }
 
         if (this.streamProcess !== null) {

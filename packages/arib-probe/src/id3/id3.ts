@@ -7,7 +7,7 @@ export class ID3 {
     /**
      * Creates metadata_pointer_descriptor for PMT program_info.
      */
-    public static metadata_pointer_descriptor(program_number: number): Uint8Array {
+    public static createMetadataPointerDescriptor(program_number: number): Uint8Array {
         const payload = new Uint8Array([
             0xff,
             0xff, // application_format: 0xFFFF
@@ -36,7 +36,7 @@ export class ID3 {
     /**
      * Creates metadata_descriptor for PMT elementary stream ES_info.
      */
-    public static metadata_descriptor(): Uint8Array {
+    public static createMetadataDescriptor(): Uint8Array {
         const payload = new Uint8Array([
             0xff,
             0xff, // application_format
@@ -63,8 +63,8 @@ export class ID3 {
     /**
      * Creates PMT ES entry for ID3 timed metadata stream (stream_type: 0x15).
      */
-    public static metadata_elementary_stream(pid: number): Uint8Array {
-        const desc = this.metadata_descriptor();
+    public static createMetadataElementaryStream(pid: number): Uint8Array {
+        const desc = this.createMetadataDescriptor();
         const es = new Uint8Array(5 + desc.length);
         es[0] = 0x15; // stream_type: Synchronized metadata
         es[1] = 0xe0 | ((pid >> 8) & 0x1f);
@@ -90,7 +90,7 @@ export class ID3 {
     /**
      * Creates an ID3v2.4 container with a PRIV frame.
      */
-    public static ID3v2PRIV(owner: string, binary: Uint8Array): Uint8Array {
+    public static createPrivFrame(owner: string, binary: Uint8Array): Uint8Array {
         const ownerBytes = new TextEncoder().encode(owner);
         // PRIV payload: owner + '\0' + binary
         const privPayload = new Uint8Array(ownerBytes.length + 1 + binary.length);
@@ -127,7 +127,7 @@ export class ID3 {
      * Packages ID3 container into a PES packet with PTS.
      * Includes 5-byte padding for FFmpeg metadata (0x15) compatibility.
      */
-    public static timedmetadata(pts: number, id3: Uint8Array): Uint8Array {
+    public static createTimedMetadataPes(pts: number, id3: Uint8Array): Uint8Array {
         // PTS 33-bit encoding: '0010' prefix (PTS only)
         const ptsHigh = Math.floor(pts / 0x40000000) & 0x07;
         const ptsMid = (pts >>> 15) & 0x7fff;

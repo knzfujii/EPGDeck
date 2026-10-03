@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
-import { TsProbe, TsSubtitleTimedMetadater } from 'arib-probe';
+import { TsProbe, TsSubtitleId3Muxer } from 'arib-probe';
 import { Client as MirakurunClient } from 'mirakurun';
 import * as rfs from 'rotating-file-stream';
 import * as SocketIO from 'socket.io';
@@ -8,8 +8,8 @@ import * as yaml from 'js-yaml';
 import StreamBaseModel from '../../src/model/service/stream/base/StreamBaseModel.js';
 
 describe('CJS / ESM Interop Regression Tests', () => {
-    describe('TsSubtitleTimedMetadater', () => {
-        it('should instantiate TsSubtitleTimedMetadater stream via StreamBaseModel factory', () => {
+    describe('TsSubtitleId3Muxer', () => {
+        it('should instantiate TsSubtitleId3Muxer stream via StreamBaseModel factory', () => {
             // StreamBaseModel 実装ファクトリの挙動テスト
             class TestStreamModel extends StreamBaseModel<any> {
                 public start(): Promise<void> {
@@ -38,7 +38,7 @@ describe('CJS / ESM Interop Regression Tests', () => {
             expect(typeof transform.pipe).toBe('function');
             expect(typeof transform.unpipe).toBe('function');
             expect(typeof transform.destroy).toBe('function');
-            expect(transform).toBeInstanceOf(TsSubtitleTimedMetadater);
+            expect(transform).toBeInstanceOf(TsSubtitleId3Muxer);
         });
     });
 

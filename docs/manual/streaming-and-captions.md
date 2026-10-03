@@ -13,7 +13,7 @@ Web 視聴での字幕機能を有効にするため、`config.yml` で幾つか
 
 iOS Safari を含むフルプラットフォームに対応しています。
 
-サーバー側で内部モジュール（`packages/arib-probe` の `TsSubtitleTimedMetadater`）により字幕ストリームを ID3 Timed Metadata に変換して TS セグメント内に多重化するため、クライアント側（hls.js 等）で高品位な ARIB STD-B24 字幕が表示されます。
+サーバー側で内部モジュール（`packages/arib-probe` の `TsSubtitleId3Muxer`）により字幕ストリームを ID3 Timed Metadata に変換して TS セグメント内に多重化するため、クライアント側（hls.js 等）で高品位な ARIB STD-B24 字幕が表示されます。
 
 そのため、`config.yml` の `useSubtitleUnrecognizerCmd` オプションは不要です。
 

@@ -4,6 +4,9 @@ import {
     decodeMjdBcdTime,
     decodePmtSection,
     decodeTotSection,
+    decodeAribString,
+    decodeEitSection,
+    decodeBcdDuration,
     getStreamTypeName,
     getWellKnownPidName,
     ID3,
@@ -12,7 +15,7 @@ import {
     TsPacket,
     TsPesParser,
     TsProbe,
-    TsSubtitleTimedMetadater,
+    TsSubtitleId3Muxer,
 } from '../../packages/arib-probe/src/index.js';
 
 describe('arib-probe', () => {
@@ -409,7 +412,7 @@ describe('arib-probe', () => {
     describe('ID3 Generator & Packetizer', () => {
         it('should generate valid ID3v2 PRIV container', () => {
             const data = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
-            const id3 = ID3.ID3v2PRIV('aribb24.js', data);
+            const id3 = ID3.createPrivFrame('aribb24.js', data);
 
             // Verify header: 'ID3' (3B), version 2.4 (0x04 0x00), flags (0x00)
             expect(id3[0]).toBe(0x49);
@@ -420,6 +423,23 @@ describe('arib-probe', () => {
             // Find 'PRIV' frame header
             const privIdx = new TextDecoder().decode(id3).indexOf('PRIV');
             expect(privIdx).toBeGreaterThan(0);
+        });
+
+        it('should generate metadata descriptors and timed metadata PES', () => {
+            const pointerDesc = ID3.createMetadataPointerDescriptor(1);
+            expect(pointerDesc[0]).toBe(0x25); // metadata_pointer_descriptor tag
+            expect(pointerDesc[1]).toBe(15); // descriptor length
+            expect(pointerDesc.length).toBe(17); // 2 header + 15 payload
+
+            const es = ID3.createMetadataElementaryStream(0x1ffe);
+            expect(es[0]).toBe(0x15); // stream_type 0x15 (metadata PES)
+            expect(((es[1] & 0x1f) << 8) | es[2]).toBe(0x1ffe);
+
+            const pes = ID3.createTimedMetadataPes(90000, new Uint8Array([1, 2, 3]));
+            expect(pes[0]).toBe(0x00);
+            expect(pes[1]).toBe(0x00);
+            expect(pes[2]).toBe(0x01);
+            expect(pes[3]).toBe(0xbd); // private_stream_1
         });
 
         it('should packetize PES data into 188-byte TS packets with proper stuffing', () => {
@@ -453,12 +473,12 @@ describe('arib-probe', () => {
         });
     });
 
-    describe('TsSubtitleTimedMetadater', () => {
+    describe('TsSubtitleId3Muxer', () => {
         it('should inject ID3 metadata stream into PMT and convert subtitle packets', async () => {
-            const metadater = new TsSubtitleTimedMetadater();
+            const muxer = new TsSubtitleId3Muxer();
             const outputPackets: TsPacket[] = [];
 
-            metadater.on('data', (chunk: Uint8Array) => {
+            muxer.on('data', (chunk: Uint8Array) => {
                 for (let offset = 0; offset + 188 <= chunk.length; offset += 188) {
                     outputPackets.push(new TsPacket(chunk.subarray(offset, offset + 188)));
                 }
@@ -475,7 +495,7 @@ describe('arib-probe', () => {
             patWithCrc[patData.length + 3] = patCrc & 0xff;
 
             const patTs = packetizeToTs(patWithCrc, { pid: 0x0000, continuityCounter: 0, isSection: true });
-            for (const pkt of patTs.packets) metadater.write(pkt);
+            for (const pkt of patTs.packets) muxer.write(pkt);
 
             // 2. Send PMT with subtitle stream (elementary_PID = 0x0115, stream_type = 0x06, component_tag = 0x30)
             const pmtData = new Uint8Array([
@@ -510,7 +530,7 @@ describe('arib-probe', () => {
             pmtWithCrc[pmtData.length + 3] = pmtCrc & 0xff;
 
             const pmtTs = packetizeToTs(pmtWithCrc, { pid: 0x0100, continuityCounter: 0, isSection: true });
-            for (const pkt of pmtTs.packets) metadater.write(pkt);
+            for (const pkt of pmtTs.packets) muxer.write(pkt);
 
             // 3. Send Subtitle PES packet on PID 0x0115 (Group 0: CaptionManagement - tests FIXME fix!)
             const subPes = new Uint8Array([
@@ -537,10 +557,10 @@ describe('arib-probe', () => {
                 0x03,
             ]);
             const subTs = packetizeToTs(subPes, { pid: 0x0115, continuityCounter: 0, isSection: false });
-            for (const pkt of subTs.packets) metadater.write(pkt);
+            for (const pkt of subTs.packets) muxer.write(pkt);
 
-            metadater.end();
-            await new Promise<void>(resolve => metadater.on('finish', resolve));
+            muxer.end();
+            await new Promise<void>(resolve => muxer.on('finish', resolve));
 
             // Verify:
             // 1. Output contains rewritten PMT (pid 0x0100)
@@ -550,6 +570,115 @@ describe('arib-probe', () => {
             // 2. Output contains ID3 Timed Metadata packets (PID 0x1FFE)
             const id3Packets = outputPackets.filter(p => p.pid === 0x1ffe);
             expect(id3Packets.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('ARIB String & EIT Decoder', () => {
+        it('should decode ARIB STD-B24 8-unit character strings with Kanji, ASCII, and Gaiji', () => {
+            // Hex: '未解決事件 File.18「上智大生殺害放火事件」[字]'
+            const hex =
+                '4c24327237683b76376f201b7ec6e9ece5aeb1b821563e654352426740383b2633324a7c32503b76376f21571b243b0f7a56';
+            const bytes = Uint8Array.from(Buffer.from(hex, 'hex'));
+
+            const decoded = decodeAribString(bytes);
+            expect(decoded).toBe('未解決事件 File.18「上智大生殺害放火事件」[字]');
+        });
+
+        it('should decode BCD duration correctly into seconds', () => {
+            // 0x01 0x30 0x15 -> 1h 30m 15s = 5415s
+            const buf = new Uint8Array([0x01, 0x30, 0x15]);
+            expect(decodeBcdDuration(buf, 0)).toBe(5415);
+        });
+
+        it('should decode EIT present/following section and emit eit event from TsProbe', async () => {
+            const probe = new TsProbe();
+            let receivedEit: any = null;
+            probe.on('eit', eit => {
+                receivedEit = eit;
+            });
+
+            // Construct minimal valid EIT section for Table ID 0x4E (present)
+            // Service ID: 1024 (0x0400), Event ID: 123 (0x007B)
+            // Title: 'テスト[字]'
+            // Duration: 30m 00s (0x00 0x30 0x00 = 1800s)
+            // MJD: 2026-09-11 22:30:00 JST -> MJD 61294 (0xEF6E) + 22:30:00 (0x22 0x30 0x00)
+            const titleBytes = Uint8Array.from(Buffer.from('2546253925481b243b0f7a56', 'hex')); // 'テスト[字]'
+            const descTag = 0x4d;
+            const descPayloadLen = 4 + titleBytes.length + 1; // lang(3) + nameLen(1) + name + textLen(1)
+            const descLoopLen = 2 + descPayloadLen;
+
+            const eitBody = new Uint8Array([
+                0x4e, // table_id 0x4E
+                0xf0, // section_syntax_indicator & length high (filled later)
+                0x00, // length low (filled later)
+                0x04,
+                0x00, // service_id = 1024
+                0xc1, // version = 0, current_next = 1
+                0x00, // section_number = 0 (present)
+                0x01, // last_section_number = 1
+                0x7f,
+                0x00, // transport_stream_id = 0x7F00
+                0x7f,
+                0x00, // original_network_id = 0x7F00
+                0x01, // segment_last_section_number
+                0x4e, // last_table_id
+                // Event 1 (12 bytes + descLoopLen)
+                0x00,
+                0x7b, // event_id = 123
+                0xef,
+                0x6e,
+                0x22,
+                0x30,
+                0x00, // start_time: 2026-09-11 22:30:00 JST
+                0x00,
+                0x30,
+                0x00, // duration: 30m 00s (1800s)
+                0x80 | ((descLoopLen >> 8) & 0x0f),
+                descLoopLen & 0xff,
+                // short_event_descriptor (tag 0x4D)
+                descTag,
+                descPayloadLen,
+                0x6a,
+                0x70,
+                0x6e, // 'jpn'
+                titleBytes.length,
+                ...titleBytes,
+                0x00, // text_length = 0
+            ]);
+
+            // Set section length: (body.length - 3) + 4 (for CRC)
+            const sectionLen = eitBody.length - 3 + 4;
+            eitBody[1] = 0xf0 | ((sectionLen >> 8) & 0x0f);
+            eitBody[2] = sectionLen & 0xff;
+
+            // Calculate and append CRC32
+            const crc = calcCrc32Mpeg2(eitBody);
+            const eitWithCrc = new Uint8Array(eitBody.length + 4);
+            eitWithCrc.set(eitBody);
+            eitWithCrc[eitBody.length] = (crc >> 24) & 0xff;
+            eitWithCrc[eitBody.length + 1] = (crc >> 16) & 0xff;
+            eitWithCrc[eitBody.length + 2] = (crc >> 8) & 0xff;
+            eitWithCrc[eitBody.length + 3] = crc & 0xff;
+
+            // 1. Direct decoder test
+            const decoded = decodeEitSection(eitWithCrc);
+            expect(decoded).not.toBeNull();
+            expect(decoded!.serviceId).toBe(1024);
+            expect(decoded!.events.length).toBe(1);
+            expect(decoded!.events[0].eventId).toBe(123);
+            expect(decoded!.events[0].isCurrent).toBe(true);
+            expect(decoded!.events[0].duration).toBe(1800);
+            expect(decoded!.events[0].name).toBe('テスト[字]');
+
+            // 2. TsProbe stream emission test
+            const eitTs = packetizeToTs(eitWithCrc, { pid: 0x0012, continuityCounter: 0, isSection: true });
+            for (const pkt of eitTs.packets) {
+                probe.write(pkt);
+            }
+
+            expect(receivedEit).not.toBeNull();
+            expect(receivedEit.serviceId).toBe(1024);
+            expect(receivedEit.events[0].name).toBe('テスト[字]');
         });
     });
 });

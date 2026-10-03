@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import internal from 'stream';
-import { TsSubtitleTimedMetadater } from 'arib-probe';
+import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import FileUtil from '../../../../util/FileUtil.js';
 import IConfigFile from '../../../IConfigFile.js';
@@ -259,10 +259,10 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
     }
 
     /**
-     * ID3MetadataTransform (TsSubtitleTimedMetadater) インスタンスを安全に生成する
+     * ID3MetadataTransform (TsSubtitleId3Muxer) インスタンスを安全に生成する
      */
-    protected createID3MetadataTransform(): TsSubtitleTimedMetadater {
-        return new TsSubtitleTimedMetadater();
+    protected createID3MetadataTransform(): TsSubtitleId3Muxer {
+        return new TsSubtitleId3Muxer();
     }
 
     /**

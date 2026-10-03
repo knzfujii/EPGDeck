@@ -23,9 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TsPesParser`: TS パケット跨ぎの可変長 PES 組み立ておよび 33bit 90kHz PTS デコーダー
     - `TsPacketizer`: セクションおよび PES データの 188 バイト TS パケット化（Adaptation Field スタッフィング対応）
     - `ID3`: ID3v2 PRIV (`aribb24.js`) フレーム生成および PMT ディスクリプタ（`metadata_pointer_descriptor` / `metadata_elementary_stream` 0x15）生成
-    - `TsSubtitleTimedMetadater`: PMT 自動書き換えおよび ID3 Timed Metadata 再多重化 Transform ストリーム
+    - `TsSubtitleId3Muxer`: PMT 自動書き換えおよび ID3 Timed Metadata 再多重化 Transform ストリーム
   - 上流ライブラリに存在していた `data_group_id != 1` 破棄バグ（FIXME）を解消し、CaptionManagement (Group 0) と CaptionStatement (Group 1) の双方を漏れなく ID3 化して `aribb24.js v2` との互換性を向上。
   - `StreamBaseModel` から CJS/ESM 防衛アンラップハックを撤廃し、型安全な内部モジュールへ一本化。
+- **EIT（番組情報テーブル）セクション解析 & ARIB STD-B24 文字列デコーダーの新設**:
+  - `packages/arib-probe` に `decodeAribString`（JIS X 0208 / 英数 / ひらがな / カタカナ / ARIB 外字マップ `[字]`, `[解]` 等のゼロ依存デコード）を実装。
+  - EIT present/following (Table ID 0x4E/0x4F, PID 0x0012) のセクションデコーダー `decodeEitSection` を実装し、`TsProbe` から番組名・開始時刻・尺・概要を放送波からリアルタイムに `eit` イベントで受信可能に。
+- **動画プレイヤーおよび録画詳細でのドロップ発生タイムコード可視化 & シーク連携**:
+  - `client/src/lib/utils/dropLog.ts`: ドロップログのタイムコード（PCR 経過時間）をパースし、密集ドロップをクラスタリングするユーティリティを新設。
+  - `VideoControls.svelte` / `VideoPlayer.svelte`: シークバー上にドロップ発生ポイントをマーカー（ピン）として視覚化。ホバーで詳細ツールチップを表示し、クリックで該当箇所へ直接シーク可能に。
+  - `Watch.svelte`: 録画再生時にドロップログを自動取得してプレイヤーに供給。
+  - `RecordedDetail.svelte`: ドロップログモーダル内に「発生タイムライン」一覧を表示し、各発生位置から直接動画プレイヤーを再生開始できる「再生」導線を配備。
+
+### Changed
+- **`arib-probe` クラス・メソッド名のモダン化・規格準拠リファクタ**:
+  - `TsSubtitleTimedMetadater` ➔ `TsSubtitleId3Muxer`: 旧パッケージ名からの造語を排除し、字幕 ID3 多重化（mux）の実態に即したクラス名へリネーム。
+  - `TsSectionParser.ts` ➔ `TsSectionAssembler.ts`: クラス名とファイル名の完全一致。
+  - `ID3` クラスのメソッド名を規格書のスネークケース（`metadata_pointer_descriptor` 等）から TypeScript 慣例のキャメルケース（`createMetadataPointerDescriptor`, `createMetadataElementaryStream`, `createPrivFrame`, `createTimedMetadataPes`）に刷新。
+  - `StreamBaseModel` 等における長年のタイポプロパティ名 `id3MetadataTransoform` を `id3MetadataTransform` に修正。
 
 ## [0.1.0-beta.4] - 2026-10-02
 

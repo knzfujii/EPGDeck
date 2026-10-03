@@ -1,8 +1,9 @@
 import { Transform, TransformCallback } from 'stream';
 import { resolvePidName } from './constants.js';
+import { decodeEitSection, type EitInfo } from './section/eit.js';
 import { decodePmtSection, type PmtInfo } from './section/pmt.js';
 import { decodeTotSection } from './section/tot.js';
-import { TsSectionAssembler } from './section/TsSectionParser.js';
+import { TsSectionAssembler } from './section/TsSectionAssembler.js';
 import { TsPacket } from './TsPacket.js';
 
 export interface PidStatistics {
@@ -40,6 +41,7 @@ export interface TsProbe {
     on(event: 'packetScrambling', listener: (pid: number) => void): this;
     on(event: 'time', listener: (time: Date) => void): this;
     on(event: 'pmt', listener: (pmt: PmtInfo) => void): this;
+    on(event: 'eit', listener: (eit: EitInfo) => void): this;
     on(event: 'finish', listener: () => void): this;
     on(event: string | symbol, listener: (...args: any[]) => void): this;
 }
@@ -76,6 +78,16 @@ export class TsProbe extends Transform {
                 const date = decodeTotSection(section);
                 if (date) {
                     this.emit('time', date);
+                }
+            }
+        });
+
+        // 0x0012: EIT (Event Information Table - present/following)
+        this.registerSectionAssembler(0x0012, (tableId, section) => {
+            if (tableId === 0x4e || tableId === 0x4f) {
+                const eit = decodeEitSection(section);
+                if (eit) {
+                    this.emit('eit', eit);
                 }
             }
         });

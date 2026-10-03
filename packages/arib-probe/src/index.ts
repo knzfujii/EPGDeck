@@ -19,6 +19,12 @@ export {
     type TsSubtitleId3MuxerOptions,
 } from './TsSubtitleId3Muxer.js';
 export { decodeAribString } from './aribString.js';
-export { decodeEitSection, decodeBcdDuration, type EitEvent, type EitInfo } from './section/eit.js';
+export {
+    decodeEitSection,
+    decodeBcdDuration,
+    type EitEvent,
+    type EitInfo,
+    type EitRelatedItem,
+} from './section/eit.js';
 
 

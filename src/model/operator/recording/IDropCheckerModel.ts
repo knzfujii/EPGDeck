@@ -1,4 +1,4 @@
-import { DropResult } from 'arib-probe';
+import { DropResult, EitInfo } from 'arib-probe';
 import * as stream from 'stream';
 
 export default interface IDropCheckerModel {
@@ -6,4 +6,6 @@ export default interface IDropCheckerModel {
     stop(): Promise<void>;
     getFilePath(): string | null;
     getResult(): Promise<DropResult>;
+    on(event: 'eit', listener: (eit: EitInfo) => void): void;
+    off(event: 'eit', listener: (eit: EitInfo) => void): void;
 }

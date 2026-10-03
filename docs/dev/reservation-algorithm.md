@@ -293,13 +293,35 @@ const rangeSec = startSec <= endSec
 
 ---
 
-## 6. 関連ソースコード一覧
+## 6. 放送波（EIT）直接監視による録画中のリアルタイム番組追従・延長
+
+録画実行中（`RecorderModel`）における番組延長やイベントリレー（マルチ編成移行等）への対応は、従来の HTTP ポーリングに加えて、受信ストリーム自体から直接パースする **EIT (present/following, PID 0x0012) 直接監視** によってミリ秒単位でリアルタイム制御されます。
+
+### 6.1. 判定フローと即時更新
+1. **ストリーム直接購読**: `RecorderModel` は録画開始時に `DropCheckerModel`（`TsProbe`）の `on('eit')` を購読します。
+2. **対象イベント照合**: EIT 内の `serviceId` および `eventId`（`programId % 100000`）を予約中の対象番組と照合します。
+3. **番組延長（Extension）の検知**:
+   - `streamEndAt = startTime + duration` が現在の `reserve.endAt` を超えている場合、即座に番組延長と判定します。
+   - `reserve.endAt` を更新し、`reserveDB.updateOnce` および `recordedDB.updateProgramInfo` を実行して DB の `endAt` と `duration` を即時延伸します。
+   - チューナー共有判定（`RecordingStreamCreator`）の予約終了時刻も延伸されるため、後続番組によるチューナーの早期強制奪取を防止します。
+   - イベントリレー確認タイマー（`eventRelayTimer`）を新たな終了時刻に合わせて再スケジュールします。
+4. **番組タイトル・メタ情報のリアルタイム追従**:
+   - 放送局側でタイトルに「[延]」「試合終了まで中継」等の付記が行われた場合、`reserve.name` および `recordedDB` のタイトル情報を自動同期します。
+5. **イベントリレー（event_group_descriptor Tag 0xD6）の早期検知**:
+   - ARIB STD-B10 `event_group_descriptor`（group_type = 2: relay）が EIT に記載された場合、終了直前タイマーを待たずに即時 `checkEventRelay()` をトリガーして移行先チャンネルの自動予約を発行します。
+
+---
+
+## 7. 関連ソースコード一覧
 
 | ファイルパス | 対象シンボル | 役割・該当処理 |
 |---|---|---|
 | [`src/model/db/ProgramDB.ts`](../../src/model/db/ProgramDB.ts) | `ProgramDB.findRulePrograms` | `recorded_history` との照合による `overlap` 判定処理 |
 | [`src/util/StrUtil.ts`](../../src/util/StrUtil.ts) | `StrUtil.deleteBrackets` | 囲み文字・角括弧の除去による `shortName` 生成 |
+| [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts) | `RecorderModel.onEit` | 放送波 EIT からの番組延長・タイトル・リレーのリアルタイム追従 |
 | [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts) | `RecorderModel.recEnd` | 録画完了時の `recorded_history` へのレコード記録 |
+| [`src/model/operator/recording/DropCheckerModel.ts`](../../src/model/operator/recording/DropCheckerModel.ts) | `DropCheckerModel.on('eit')` | `TsProbe` からの EIT present/following イベントの中継 |
+| [`packages/arib-probe/src/section/eit.ts`](../../packages/arib-probe/src/section/eit.ts) | `decodeEitSection` | EIT present/following および event_group_descriptor (0xD6) のデコード |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.createReserves` | 平面走査法によるチューナー競合判定（`isConflict`） |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.sortReserve` | 手動予約・優先度（Priority）・ルールIDに基づく優先度ソート |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.updateRule` | 重複フラグの引き継ぎおよび `isIgnoreOverlap`（手動解除）の維持 |

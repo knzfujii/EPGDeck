@@ -16,6 +16,10 @@ export default interface IRecordedDB {
     restore(items: Recorded[]): Promise<void>;
     insertOnce(recorded: Recorded): Promise<apid.RecordedId>;
     updateOnce(recorded: Recorded): Promise<void>;
+    updateProgramInfo(
+        recordedId: apid.RecordedId,
+        values: { name?: string; halfWidthName?: string; endAt?: number; duration?: number },
+    ): Promise<void>;
     removeRecording(
         recordedId: apid.RecordedId,
         actualDuration?: number,

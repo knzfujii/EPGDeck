@@ -1,4 +1,4 @@
-import { DropResult, EitInfo, TsProbe } from 'arib-probe';
+import { DropResult, EitInfo, PmtInfo, TsProbe } from 'arib-probe';
 import * as events from 'events';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
@@ -42,21 +42,42 @@ class DropCheckerModel implements IDropCheckerModel {
 
         this.tsProbe = new TsProbe();
 
-        this.tsProbe.on('packetError', pid => {
-            void this.appendFile(`error: (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
+        this.tsProbe.on('packetError', (pid, timecode) => {
+            const streamName = this.tsProbe?.getPidName(pid);
+            const nameStr = streamName && streamName !== '-' ? `, name: ${streamName}` : '';
+            const tcStr = timecode !== null && typeof timecode !== 'undefined' ? `, timecode: ${timecode}` : '';
+            void this.appendFile(
+                `error: (pid: ${this.pidToString(pid)}${nameStr}, time: ${this.getTime()}${tcStr})\n`,
+            ).catch(err => {
+                this.log.system.error(`append error: ${this.dest}`);
+                this.log.system.error(err);
+            });
             this.hasError = true;
         });
 
         this.tsProbe.on('packetDrop', (pid, counter, expected, timecode) => {
+            const streamName = this.tsProbe?.getPidName(pid);
+            const nameStr = streamName && streamName !== '-' ? `, name: ${streamName}` : '';
             const tcStr = timecode !== null ? `, timecode: ${timecode}` : '';
             void this.appendFile(
-                `drop (pid: ${this.pidToString(pid)}, counter: ${counter}, expected: ${expected}, time: ${this.getTime()}${tcStr})\n`,
-            );
+                `drop (pid: ${this.pidToString(pid)}${nameStr}, counter: ${counter}, expected: ${expected}, time: ${this.getTime()}${tcStr})\n`,
+            ).catch(err => {
+                this.log.system.error(`append error: ${this.dest}`);
+                this.log.system.error(err);
+            });
             this.hasError = true;
         });
 
-        this.tsProbe.on('packetScrambling', pid => {
-            void this.appendFile(`scrambling (pid: ${this.pidToString(pid)}, time: ${this.getTime()})\n`);
+        this.tsProbe.on('packetScrambling', (pid, timecode) => {
+            const streamName = this.tsProbe?.getPidName(pid);
+            const nameStr = streamName && streamName !== '-' ? `, name: ${streamName}` : '';
+            const tcStr = timecode !== null && typeof timecode !== 'undefined' ? `, timecode: ${timecode}` : '';
+            void this.appendFile(
+                `scrambling (pid: ${this.pidToString(pid)}${nameStr}, time: ${this.getTime()}${tcStr})\n`,
+            ).catch(err => {
+                this.log.system.error(`append error: ${this.dest}`);
+                this.log.system.error(err);
+            });
             this.hasError = true;
         });
 
@@ -66,6 +87,10 @@ class DropCheckerModel implements IDropCheckerModel {
 
         this.tsProbe.on('eit', eit => {
             this.listener.emit('eit', eit);
+        });
+
+        this.tsProbe.on('pmt', pmt => {
+            this.listener.emit('pmt', pmt);
         });
 
         this.tsProbe.on('finish', () => {
@@ -245,16 +270,20 @@ class DropCheckerModel implements IDropCheckerModel {
     }
 
     /**
-     * EIT などのイベントリスナーを登録
+     * EIT / PMT などのイベントリスナーを登録
      */
-    public on(event: 'eit', listener: (eit: EitInfo) => void): void {
+    public on(event: 'eit', listener: (eit: EitInfo) => void): void;
+    public on(event: 'pmt', listener: (pmt: PmtInfo) => void): void;
+    public on(event: string, listener: (...args: any[]) => void): void {
         this.listener.on(event, listener);
     }
 
     /**
-     * EIT などのイベントリスナーを解除
+     * EIT / PMT などのイベントリスナーを解除
      */
-    public off(event: 'eit', listener: (eit: EitInfo) => void): void {
+    public off(event: 'eit', listener: (eit: EitInfo) => void): void;
+    public off(event: 'pmt', listener: (pmt: PmtInfo) => void): void;
+    public off(event: string, listener: (...args: any[]) => void): void {
         this.listener.off(event, listener);
     }
 

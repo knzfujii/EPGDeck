@@ -1,7 +1,7 @@
 import { Transform, TransformCallback } from 'stream';
-import { resolvePidName } from './constants.js';
+import { getStreamCategory, resolvePidName, type StreamCategory } from './constants.js';
 import { decodeEitSection, type EitInfo } from './section/eit.js';
-import { decodePmtSection, type PmtInfo } from './section/pmt.js';
+import { decodePmtSection, type AudioComponentInfo, type PmtInfo } from './section/pmt.js';
 import { decodeTotSection } from './section/tot.js';
 import { TsSectionAssembler } from './section/TsSectionAssembler.js';
 import { TsPacket } from './TsPacket.js';
@@ -12,6 +12,7 @@ export interface PidStatistics {
     drop: number;
     scrambling: number;
     name: string;
+    category: StreamCategory;
 }
 
 export interface DropResult {
@@ -33,12 +34,12 @@ export interface TsProbeOptions {
 }
 
 export interface TsProbe {
-    on(event: 'packetError', listener: (pid: number) => void): this;
+    on(event: 'packetError', listener: (pid: number, timecode?: string | null) => void): this;
     on(
         event: 'packetDrop',
         listener: (pid: number, counter: number, expected: number, timecode: string | null) => void,
     ): this;
-    on(event: 'packetScrambling', listener: (pid: number) => void): this;
+    on(event: 'packetScrambling', listener: (pid: number, timecode?: string | null) => void): this;
     on(event: 'time', listener: (time: Date) => void): this;
     on(event: 'pmt', listener: (pmt: PmtInfo) => void): this;
     on(event: 'eit', listener: (eit: EitInfo) => void): this;
@@ -55,6 +56,7 @@ export class TsProbe extends Transform {
     private readonly pmtPids: Set<number> = new Set();
     private readonly sectionAssemblers: Map<number, TsSectionAssembler> = new Map();
     private readonly streamTypes: Map<number, number> = new Map();
+    private readonly streamAudio: Map<number, AudioComponentInfo> = new Map();
 
     private pcrPid: number | null = null;
     private firstPcrSeconds: number | null = null;
@@ -136,6 +138,9 @@ export class TsProbe extends Transform {
                         }
                         for (const s of pmt.streams) {
                             this.streamTypes.set(s.elementary_PID, s.stream_type);
+                            if (s.audio) {
+                                this.streamAudio.set(s.elementary_PID, s.audio);
+                            }
                         }
                         this.emit('pmt', pmt);
                     }
@@ -217,7 +222,7 @@ export class TsProbe extends Transform {
         // 1. Error check
         if (packet.transportErrorIndicator) {
             state.error++;
-            this.emit('packetError', pid);
+            this.emit('packetError', pid, this.getTimecode());
             return;
         }
 
@@ -259,7 +264,7 @@ export class TsProbe extends Transform {
             // 3. Scrambling check
             if (packet.transportScramblingControl !== 0) {
                 state.scrambling++;
-                this.emit('packetScrambling', pid);
+                this.emit('packetScrambling', pid, this.getTimecode());
             }
         }
 
@@ -315,19 +320,38 @@ export class TsProbe extends Transform {
     }
 
     /**
-     * Returns drop/error/scramble statistics for all observed PIDs with standard names.
+     * Returns resolved standard name for a given PID.
+     */
+    public getPidName(pid: number): string {
+        const streamType = this.streamTypes.get(pid);
+        const audioInfo = this.streamAudio.get(pid);
+        return resolvePidName(pid, streamType, audioInfo);
+    }
+
+    /**
+     * Returns stream category (video, audio, subtitle, psi, other) for a given PID.
+     */
+    public getPidCategory(pid: number): StreamCategory {
+        const streamType = this.streamTypes.get(pid);
+        return getStreamCategory(streamType, pid);
+    }
+
+    /**
+     * Returns drop/error/scramble statistics for all observed PIDs with standard names and categories.
      */
     public getResult(): DropResult {
         const result: DropResult = {};
         for (const [pid, state] of this.pidStates.entries()) {
             if (state.packet === 0) continue;
             const streamType = this.streamTypes.get(pid);
+            const audioInfo = this.streamAudio.get(pid);
             result[pid] = {
                 packet: state.packet,
                 error: state.error,
                 drop: state.drop,
                 scrambling: state.scrambling,
-                name: resolvePidName(pid, streamType),
+                name: resolvePidName(pid, streamType, audioInfo),
+                category: getStreamCategory(streamType, pid),
             };
         }
         return result;
@@ -339,6 +363,7 @@ export class TsProbe extends Transform {
     public reset(): void {
         this.pidStates.clear();
         this.streamTypes.clear();
+        this.streamAudio.clear();
         this.pmtPids.clear();
         this.pcrPid = null;
         this.firstPcrSeconds = null;

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
+    import { getDropCategoryLabel } from '../../utils/dropLog';
     import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, PictureInPicture, Subtitles } from '@lucide/svelte';
 
     interface Props {
@@ -103,19 +104,23 @@
                             {@const leftPercent = Math.min(100, Math.max(0, (marker.time / displayDuration) * 100))}
                             <button
                                 type="button"
-                                class="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 rounded-full {marker.type ===
-                                'drop'
+                                class="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 rounded-full {marker.category ===
+                                'video'
                                     ? 'bg-rose-500 shadow-rose-950/80'
-                                    : marker.type === 'error'
+                                    : marker.category === 'audio'
                                       ? 'bg-amber-500 shadow-amber-950/80'
-                                      : 'bg-purple-500 shadow-purple-950/80'} shadow-sm pointer-events-auto cursor-pointer transition hover:w-2 hover:scale-y-125"
+                                      : marker.category === 'subtitle'
+                                        ? 'bg-sky-500 shadow-sky-950/80'
+                                        : marker.type === 'scramble'
+                                          ? 'bg-purple-500 shadow-purple-950/80'
+                                          : 'bg-slate-400 shadow-slate-950/80'} shadow-sm pointer-events-auto cursor-pointer transition hover:w-2 hover:scale-y-125"
                                 style="left: {leftPercent}%;"
                                 onclick={e => {
                                     e.stopPropagation();
                                     onDirectSeek?.(marker.time);
                                 }}
-                                title={`${marker.timecode} ${marker.type === 'drop' ? 'ドロップ' : marker.type === 'error' ? 'エラー' : 'スクランブル'}: ${marker.description}`}
-                                aria-label={`${marker.timecode} ドロップマーカー`}
+                                title={`${marker.timecode} [${getDropCategoryLabel(marker.category)}] ${marker.type === 'drop' ? 'ドロップ' : marker.type === 'error' ? 'エラー' : 'スクランブル'}: ${marker.description}`}
+                                aria-label={`${marker.timecode} [${getDropCategoryLabel(marker.category)}] ドロップマーカー`}
                             ></button>
                         {/each}
                     </div>

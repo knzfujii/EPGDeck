@@ -83,7 +83,14 @@ export default class RecordedDB implements IRecordedDB {
      */
     public async updateProgramInfo(
         recordedId: apid.RecordedId,
-        values: { name?: string; halfWidthName?: string; endAt?: number; duration?: number },
+        values: {
+            name?: string;
+            halfWidthName?: string;
+            endAt?: number;
+            duration?: number;
+            audioSamplingRate?: number;
+            audioComponentType?: number;
+        },
     ): Promise<void> {
         const client = this.drizzleOp.getDB();
         await this.promiseRetry.run(async () => {

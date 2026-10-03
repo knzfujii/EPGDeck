@@ -15,7 +15,7 @@
         getGenreBadgeClass,
     } from '../lib/utils/format';
     import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
-    import { parseDropLog, type DropMarker } from '../lib/utils/dropLog';
+    import { parseDropLog, getDropCategoryLabel, type DropMarker } from '../lib/utils/dropLog';
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import Badge from '../lib/components/common/Badge.svelte';
@@ -85,14 +85,6 @@
     let dropLogContent = $state<string | null>(null);
     let isLoadingDropLog = $state(false);
     let parsedDropMarkers = $derived(dropLogContent && recorded ? parseDropLog(dropLogContent, recorded.startAt) : []);
-
-    function playAtTimecode(seconds: number) {
-        if (!recorded) return;
-        const watchUrl = getSmartWatchUrl(recorded.id, recorded.videoFiles);
-        if (!watchUrl) return;
-        isDropLogModalOpen = false;
-        router.push(`${watchUrl}&t=${Math.floor(seconds)}`);
-    }
 
     let unsubscribeSocket: (() => void) | null = null;
 
@@ -1304,6 +1296,18 @@
                                                     {marker.timecode}
                                                 </span>
                                                 <span
+                                                    class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.category ===
+                                                    'video'
+                                                        ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                        : marker.category === 'audio'
+                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                                          : marker.category === 'subtitle'
+                                                            ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400'
+                                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}"
+                                                >
+                                                    {getDropCategoryLabel(marker.category)}
+                                                </span>
+                                                <span
                                                     class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.type ===
                                                     'drop'
                                                         ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
@@ -1321,15 +1325,6 @@
                                                     {marker.description}
                                                 </span>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onclick={() => playAtTimecode(marker.time)}
-                                                class="flex shrink-0 items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-600 transition hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-400 dark:hover:bg-blue-900/50 cursor-pointer"
-                                                title={`${marker.timecode} から再生`}
-                                            >
-                                                <Play size={11} fill="currentColor" />
-                                                再生
-                                            </button>
                                         </div>
                                     {/each}
                                 </div>

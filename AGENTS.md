@@ -111,6 +111,7 @@ EPGDeck は、EPGStation のデータ互換性を保ちながら再構築され�
 | **State** (現行仕様) | **動画配信・字幕** | [`docs/dev/streaming-and-captions.md`](docs/dev/streaming-and-captions.md) | M2TS-LL/HLS 配信、ARIB B24 字幕（ID3/WebVTT）、EPIPE 回避、Svelte 5 リアクティビティ規約 |
 | **State** (現行仕様) | **REST API 仕様** | [`docs/dev/api.md`](docs/dev/api.md) | Hono API エンドポイント、型安全 RPC クライアント、リクエスト/レスポンススキーマ |
 | **State** (現行仕様) | **データベース仕様** | [`docs/dev/database.md`](docs/dev/database.md) | Drizzle ORM スキーマ定義、Entity 構造、EPGStation データベース互換仕様 |
+| **State** (現行仕様) | **放送波・規格仕様** | [`packages/arib-probe/docs/arib-standards-reference.md`](packages/arib-probe/docs/arib-standards-reference.md) | ARIB TR-B14/TR-B15 運用規定、PSI/SIテーブル、記述子、NHK/民放運用差異、エンジニアリングノウハウ |
 | **State** (現行仕様) | **テスト詳細・E2E規約** | [`docs/dev/testing.md`](docs/dev/testing.md) | 単体・結合・E2E テスト詳細、フィクスチャ、モック戦略、DB 分離手順 |
 | **Why** (決定記録) | **近代化・ADR** | [`docs/dev/modernization-roadmap.md`](docs/dev/modernization-roadmap.md) | **意思決定記録 (ADR)**: Graceful Shutdown、Web Streams バックプレッシャー、大容量配信デッドロック回避設計保護、IPC型安全化、軽量ロガー刷新の背景・Why |
 | **Active** (タスク) | **残タスク・課題** | [`docs/TODO.md`](docs/TODO.md) | 未来の未完了タスク・検討課題のみを管理するアクティブボード |

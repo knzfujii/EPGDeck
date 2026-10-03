@@ -13,9 +13,15 @@ describe('Version Consistency', () => {
             fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'package.json'), 'utf-8'),
         );
 
+        const aribProbePkg = JSON.parse(
+            fs.readFileSync(path.join(__dirname, '..', '..', 'packages', 'arib-probe', 'package.json'), 'utf-8'),
+        );
+
         expect(rootPkg.version).toBe('0.1.0-beta.4');
         expect(clientPkg.version).toBe(rootPkg.version);
+        expect(aribProbePkg.version).toBe('0.1.0');
         expect(rootPkg.name).toBe('epgdeck');
         expect(clientPkg.name).toBe('epgdeck-client');
+        expect(aribProbePkg.name).toBe('arib-probe');
     });
 });

@@ -23,7 +23,6 @@
 ```bash
 $ npm install
 ```
-*(互換性のため `$ npm run all-install` も引き続き利用可能です)*
 
 > **Note**: VS Code 等のエディタで `tsconfig.json` に型エラー（赤波線）が表示される場合は、このパッケージインストールが完了すると自動的に解消されます。
 

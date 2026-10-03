@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `packages/arib-probe` の `decodeEitSection` に ARIB STD-B10 `event_group_descriptor` (Tag `0xD6`) の解析を追加し、イベントリレー情報（他チャンネル移行・マルチ編成）の取得に対応。
   - `DropCheckerModel` に `on('eit')` / `off('eit')` を新設し、録画ストリームの `TsProbe` から EIT イベントを購読可能に。
   - `RecorderModel` で録画中にストリーム内の EIT present/following をリアルタイム監視。Mirakurun API への定期ポーリングを待つことなく、放送波からミリ秒単位で「番組延長（終了時刻の伸長）」「タイトル変更」「イベントリレー」を即座に検知し、予約情報（`reserve`）・録画中レコード（`recorded`）およびリレータイマーを自動更新。
+- **前番組延長（野球等）に伴う後続番組の録画保護・開始繰り下げ（Delay）追従・放送波待機**:
+  - `RecorderModel.prepRecord()`: 録画準備時に Mirakurun から最新の番組情報を取得し、前番組の延長により開始時刻が未来へ繰り下げられている場合、予約時刻（`reserve.startAt`, `reserve.endAt`）を更新してタイマーを新開始時刻へリスケジュール。無駄なチューナー専有を防止。
+  - `RecorderModel.doRecord()`: Mirakurun の `getProgramStream` 接続後、レガシー EPGStation が持っていた 5 秒固定タイムアウト（前番組放送中に Mirakurun がデータ提供を待機している間に録画失敗と判定して予約を強制破棄していた問題）を抜本解決。番組指定予約において Mirakurun との接続が維持されている間、定期的に番組情報を確認しながら放送波上での番組開始（EIT present 一致）を安全に待機。待機中に繰り下げ確定を検知した場合はタイマーを新時刻へリスケジュールし、目的番組のパケットが到着した瞬間にクリーンに録画を開始。
   - イベントリレー検知時は Mirakurun REST API の EPG 更新遅延をバイパスし、TS 記述子から取得した `networkId` / `serviceId` / `eventId` を直接用いて即座に移行先番組の予約作成を発行。
   - `TsSectionAssembler` の耐障害性向上: ハードウェアビットエラーパケット（TEI=1）の即時破棄、未同期 `pointer_field` プレフィックスの安全なスキップ、4096バイト超過セクション長の境界値保護を追加。
   - `RecorderModel.setEventRelayTimer` における過去終了時刻ガード（`now >= reserve.endAt`）および 32-bit 最大タイマー値クランプによる Node.js `TimeoutOverflowWarning` の防止。

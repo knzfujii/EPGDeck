@@ -680,5 +680,72 @@ describe('arib-probe', () => {
             expect(receivedEit.serviceId).toBe(1024);
             expect(receivedEit.events[0].name).toBe('テスト[字]');
         });
+
+        it('should decode event_group_descriptor (tag 0xD6) and extract relay items', () => {
+            // EIT section with tag 0xD6 (event relay: group_type = 2, count = 1, serviceId = 1032, eventId = 124)
+            const d6Payload = new Uint8Array([
+                0xd6, // tag
+                0x05, // len: 1 + 4 = 5
+                0x21, // group_type 2 (relay), event_count 1
+                0x04,
+                0x08, // service_id = 1032
+                0x00,
+                0x7c, // event_id = 124
+            ]);
+
+            const descLoopLen = d6Payload.length;
+            const eitBody = new Uint8Array([
+                0x4e, // table_id 0x4E
+                0xf0, // section_syntax_indicator & length high
+                0x00, // length low
+                0x04,
+                0x00, // service_id = 1024
+                0xc1, // version = 0, current_next = 1
+                0x00, // section_number = 0 (present)
+                0x01, // last_section_number = 1
+                0x7f,
+                0x00, // transport_stream_id = 0x7F00
+                0x7f,
+                0x00, // original_network_id = 0x7F00
+                0x01, // segment_last_section_number
+                0x4e, // last_table_id
+                // Event 1 (12 bytes + descLoopLen)
+                0x00,
+                0x7b, // event_id = 123
+                0xef,
+                0x6e,
+                0x22,
+                0x30,
+                0x00, // start_time
+                0x00,
+                0x30,
+                0x00, // duration: 1800s
+                0x80 | ((descLoopLen >> 8) & 0x0f),
+                descLoopLen & 0xff,
+                ...d6Payload,
+            ]);
+
+            const sectionLen = eitBody.length - 3 + 4;
+            eitBody[1] = 0xf0 | ((sectionLen >> 8) & 0x0f);
+            eitBody[2] = sectionLen & 0xff;
+
+            const crc = calcCrc32Mpeg2(eitBody);
+            const eitWithCrc = new Uint8Array(eitBody.length + 4);
+            eitWithCrc.set(eitBody);
+            eitWithCrc[eitBody.length] = (crc >> 24) & 0xff;
+            eitWithCrc[eitBody.length + 1] = (crc >> 16) & 0xff;
+            eitWithCrc[eitBody.length + 2] = (crc >> 8) & 0xff;
+            eitWithCrc[eitBody.length + 3] = crc & 0xff;
+
+            const decoded = decodeEitSection(eitWithCrc);
+            expect(decoded).not.toBeNull();
+            expect(decoded!.events[0].relatedItems).toBeDefined();
+            expect(decoded!.events[0].relatedItems!.length).toBe(1);
+            expect(decoded!.events[0].relatedItems![0]).toEqual({
+                type: 'relay',
+                serviceId: 1032,
+                eventId: 124,
+            });
+        });
     });
 });

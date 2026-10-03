@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VideoControls.svelte` / `VideoPlayer.svelte`: シークバー上にドロップ発生ポイントをマーカー（ピン）として視覚化。ホバーで詳細ツールチップを表示し、クリックで該当箇所へ直接シーク可能に。
   - `Watch.svelte`: 録画再生時にドロップログを自動取得してプレイヤーに供給。
   - `RecordedDetail.svelte`: ドロップログモーダル内に「発生タイムライン」一覧を表示し、各発生位置から直接動画プレイヤーを再生開始できる「再生」導線を配備。
+- **放送波 TS ストリーム（EIT）直接監視による録画中リアルタイム番組延長・タイトル追従・イベントリレー即時検知**:
+  - `packages/arib-probe` の `decodeEitSection` に ARIB STD-B10 `event_group_descriptor` (Tag `0xD6`) の解析を追加し、イベントリレー情報（他チャンネル移行・マルチ編成）の取得に対応。
+  - `DropCheckerModel` に `on('eit')` / `off('eit')` を新設し、録画ストリームの `TsProbe` から EIT イベントを購読可能に。
+  - `RecorderModel` で録画中にストリーム内の EIT present/following をリアルタイム監視。Mirakurun API への定期ポーリングを待つことなく、放送波からミリ秒単位で「番組延長（終了時刻の伸長）」「タイトル変更」「イベントリレー」を即座に検知し、予約情報（`reserve`）・録画中レコード（`recorded`）およびリレータイマーを自動更新。
 
 ### Changed
 - **`arib-probe` クラス・メソッド名のモダン化・規格準拠リファクタ**:

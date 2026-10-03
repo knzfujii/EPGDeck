@@ -2,6 +2,13 @@ import { decodeAribString } from '../aribString.js';
 import { calcCrc32Mpeg2 } from '../crc32.js';
 import { decodeMjdBcdTime } from './tot.js';
 
+export interface EitRelatedItem {
+    type: 'shared' | 'relay' | 'movement';
+    networkId?: number;
+    serviceId: number;
+    eventId: number;
+}
+
 export interface EitEvent {
     eventId: number;
     startTime: Date | null;
@@ -9,6 +16,7 @@ export interface EitEvent {
     name: string;
     description: string;
     isCurrent: boolean; // true: present (section 0), false: following (section 1)
+    relatedItems?: EitRelatedItem[];
 }
 
 export interface EitInfo {
@@ -61,6 +69,7 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
 
         let name = '';
         let description = '';
+        let relatedItems: EitRelatedItem[] | undefined;
 
         let descOffset = offset + 12;
         const descEnd = descOffset + descLoopLen;
@@ -85,6 +94,43 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
                         description = decodeAribString(textBytes);
                     }
                 }
+            } else if (tag === 0xd6 && descPayload.length >= 1) {
+                // event_group_descriptor (ARIB STD-B10)
+                const groupTypeNibble = (descPayload[0] >> 4) & 0x0f;
+                const eventCount = descPayload[0] & 0x0f;
+                let relType: 'shared' | 'relay' | 'movement' | null = null;
+                if (groupTypeNibble === 1) relType = 'shared';
+                else if (groupTypeNibble === 2) relType = 'relay';
+                else if (groupTypeNibble === 4) relType = 'movement';
+
+                if (relType !== null) {
+                    relatedItems = relatedItems ?? [];
+                    let itemOffset = 1;
+                    for (let i = 0; i < eventCount && itemOffset + 4 <= descPayload.length; i++) {
+                        const relServiceId = (descPayload[itemOffset] << 8) | descPayload[itemOffset + 1];
+                        const relEventId = (descPayload[itemOffset + 2] << 8) | descPayload[itemOffset + 3];
+                        relatedItems.push({
+                            type: relType,
+                            serviceId: relServiceId,
+                            eventId: relEventId,
+                        });
+                        itemOffset += 4;
+                    }
+
+                    // Other network events (if present in remaining bytes)
+                    while (itemOffset + 8 <= descPayload.length) {
+                        const origNetId = (descPayload[itemOffset] << 8) | descPayload[itemOffset + 1];
+                        const relServiceId = (descPayload[itemOffset + 4] << 8) | descPayload[itemOffset + 5];
+                        const relEventId = (descPayload[itemOffset + 6] << 8) | descPayload[itemOffset + 7];
+                        relatedItems.push({
+                            type: relType,
+                            networkId: origNetId,
+                            serviceId: relServiceId,
+                            eventId: relEventId,
+                        });
+                        itemOffset += 8;
+                    }
+                }
             }
 
             descOffset += 2 + len;
@@ -97,6 +143,7 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
             name,
             description,
             isCurrent,
+            ...(relatedItems && relatedItems.length > 0 ? { relatedItems } : {}),
         });
 
         offset += 12 + descLoopLen;

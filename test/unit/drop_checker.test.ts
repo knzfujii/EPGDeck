@@ -142,4 +142,42 @@ describe('DropCheckerModel Unit Tests', () => {
         expect(logContent).toContain('drop (pid: 0x0100, counter: 4, expected: 3');
         expect(logContent).toContain('pid: 0x0100, error: 0, drop: 1, scrambling: 0, packet: 5');
     });
+
+    it('should forward eit events from TsProbe to registered on("eit") listeners', async () => {
+        const dropChecker = new DropCheckerModel(dummyLogger);
+        let emittedEit: any = null;
+        dropChecker.on('eit', eit => {
+            emittedEit = eit;
+        });
+
+        // Create TS stream with minimal EIT section
+        const dummyStream = new Readable({
+            read() {
+                this.push(null);
+            },
+        });
+
+        await dropChecker.start(testDir, 'test_eit.ts', dummyStream);
+
+        // Manually emit eit on the internal tsProbe to verify forwarding
+        const sampleEit = { serviceId: 1032, events: [] };
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+
+        expect(emittedEit).toEqual(sampleEit);
+
+        // Test off('eit')
+        let callCount = 0;
+        const listener = () => {
+            callCount++;
+        };
+        dropChecker.on('eit', listener);
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+        expect(callCount).toBe(1);
+
+        dropChecker.off('eit', listener);
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+        expect(callCount).toBe(1);
+
+        await dropChecker.stop();
+    });
 });

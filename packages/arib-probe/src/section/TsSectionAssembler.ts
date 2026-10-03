@@ -34,6 +34,11 @@ export class TsSectionAssembler {
                 const remaining = Math.min(pointerField, payload.length - offset);
                 this.appendChunk(payload.subarray(offset, offset + remaining));
                 offset += remaining;
+
+                if (this.expectedLength > 0 && this.buffer.length >= this.expectedLength) {
+                    const completeSection = this.buffer.slice(0, this.expectedLength);
+                    this.processCompleteSection(completeSection);
+                }
             }
 
             // Start assembling new section(s)

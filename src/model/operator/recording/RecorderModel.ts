@@ -4,6 +4,7 @@ import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
+import { EitInfo } from 'arib-probe';
 import * as mapid from 'mirakurun/api.js';
 import * as apid from '../../../../api.js';
 import DropLogFile from '../../../db/entities/DropLogFile.js';
@@ -83,6 +84,7 @@ class RecorderModel implements IRecorderModel {
 
     // イベントリレータイマー
     private eventRelayTimerId: NodeJS.Timeout | null = null;
+    private hasHandledEitRelay: boolean = false;
     private prepRetryTimerId: NodeJS.Timeout | null = null;
     private recordingStartTimeoutId: NodeJS.Timeout | null = null;
     private currentRecFilePath: string | null = null;
@@ -283,6 +285,9 @@ class RecorderModel implements IRecorderModel {
         }
 
         // stop drop check
+        if (typeof this.dropChecker.off === 'function') {
+            this.dropChecker.off('eit', this.onEit);
+        }
         if (this.dropLogFileId !== null) {
             this.dropChecker.stop().catch(err => {
                 this.log.system.error(`dropChecker stop error: ${this.reserve.id}`);
@@ -419,6 +424,9 @@ class RecorderModel implements IRecorderModel {
             try {
                 await this.dropChecker.start(this.config.recording.dropLog.path, recPath.fullPath, this.stream);
                 dropFilePath = this.dropChecker.getFilePath();
+                if (typeof this.dropChecker.on === 'function') {
+                    this.dropChecker.on('eit', this.onEit);
+                }
             } catch (err: any) {
                 this.log.system.error(`drop check error: ${recPath.fullPath}`);
                 this.log.system.error(err);
@@ -1240,6 +1248,101 @@ class RecorderModel implements IRecorderModel {
             this.recordingEvent.emitEventRelay(reserveProgramIds);
         }
     }
+
+    /**
+     * TS ストリーム内の EIT (present/following) 受信時のハンドラ
+     * 放送波からのリアルタイム番組延長・タイトル変更・イベントリレーの即時検知を行う
+     * @param eit: EitInfo
+     */
+    private onEit = (eit: EitInfo): void => {
+        if (this.isRecording === false || this.reserve.programId === null) {
+            return;
+        }
+
+        const targetServiceId = Math.floor(this.reserve.programId / 100000) % 100000;
+        const targetEventId = this.reserve.programId % 100000;
+
+        // 対象サービスの EIT かどうか確認
+        if (eit.serviceId !== targetServiceId) {
+            return;
+        }
+
+        const event = eit.events.find(e => e.eventId === targetEventId);
+        if (!event) {
+            return;
+        }
+
+        // 1. 番組延長検知
+        if (event.startTime !== null && event.duration > 0) {
+            const streamEndAt = event.startTime.getTime() + event.duration * 1000;
+            if (streamEndAt > this.reserve.endAt) {
+                const diffSec = Math.round((streamEndAt - this.reserve.endAt) / 1000);
+                this.log.system.info(
+                    `[EIT] Program extension detected via TS for reserveId: ${this.reserve.id} (${this.reserve.name}): ` +
+                        `endAt extended by +${diffSec}s (new endAt: ${new Date(streamEndAt).toISOString()})`,
+                );
+                this.reserve.endAt = streamEndAt;
+
+                // DB 上の予約情報を更新
+                void this.reserveDB.updateOnce(this.reserve).catch(err => {
+                    this.log.system.error(`[EIT] failed to update reserve endAt: ${this.reserve.id}`);
+                    this.log.system.error(err);
+                });
+
+                // 録画中レコードの endAt と duration を更新
+                if (this.recordedId !== null) {
+                    const newDuration = Math.max(0, streamEndAt - this.reserve.startAt);
+                    void this.recordedDB
+                        .updateProgramInfo(this.recordedId, {
+                            endAt: streamEndAt,
+                            duration: newDuration,
+                        })
+                        .catch(err => {
+                            this.log.system.error(`[EIT] failed to update recorded endAt: ${this.recordedId}`);
+                            this.log.system.error(err);
+                        });
+                }
+
+                // イベントリレー確認タイマーを新しい終了時刻に合わせて再設定
+                this.setEventRelayTimer(this.reserve);
+            }
+        }
+
+        // 2. 番組タイトル更新検知
+        if (event.name && event.name !== this.reserve.name) {
+            this.log.system.info(
+                `[EIT] Program title updated via TS for reserveId: ${this.reserve.id}: '${this.reserve.name}' -> '${event.name}'`,
+            );
+            this.reserve.name = event.name;
+            this.reserve.halfWidthName = StrUtil.toHalf(event.name);
+
+            void this.reserveDB.updateOnce(this.reserve).catch(err => {
+                this.log.system.error(`[EIT] failed to update reserve name: ${this.reserve.id}`);
+                this.log.system.error(err);
+            });
+
+            if (this.recordedId !== null) {
+                void this.recordedDB
+                    .updateProgramInfo(this.recordedId, {
+                        name: this.reserve.name,
+                        halfWidthName: this.reserve.halfWidthName,
+                    })
+                    .catch(err => {
+                        this.log.system.error(`[EIT] failed to update recorded name: ${this.recordedId}`);
+                        this.log.system.error(err);
+                    });
+            }
+        }
+
+        // 3. イベントリレー（他チャンネル・マルチ編成への移行）検知
+        if (event.relatedItems && event.relatedItems.some(item => item.type === 'relay')) {
+            if (this.hasHandledEitRelay !== true) {
+                this.hasHandledEitRelay = true;
+                this.log.system.info(`[EIT] Event relay descriptor detected via TS for reserveId: ${this.reserve.id}`);
+                void this.checkEventRelay();
+            }
+        }
+    };
 
     /**
      * タイマーを再設定する

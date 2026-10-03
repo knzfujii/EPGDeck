@@ -67,7 +67,14 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
             {} as any, // videoFileDB
             {} as any, // dropLogFileDB
             {} as any, // streamCreator
-            {} as any, // dropChecker
+            {
+                start: vi.fn().mockResolvedValue(undefined),
+                stop: vi.fn().mockResolvedValue(undefined),
+                getFilePath: vi.fn().mockReturnValue(null),
+                getResult: vi.fn().mockResolvedValue({}),
+                on: vi.fn(),
+                off: vi.fn(),
+            } as any, // dropChecker
             {} as any, // recordingUtil
             {} as any, // recordingEvent
             {} as any, // mirakurunClientModel

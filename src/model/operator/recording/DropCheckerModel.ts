@@ -1,4 +1,4 @@
-import { DropResult, TsProbe } from 'arib-probe';
+import { DropResult, EitInfo, TsProbe } from 'arib-probe';
 import * as events from 'events';
 import * as fs from 'fs';
 import { inject, injectable } from 'inversify';
@@ -62,6 +62,10 @@ class DropCheckerModel implements IDropCheckerModel {
 
         this.tsProbe.on('time', time => {
             this.time = time;
+        });
+
+        this.tsProbe.on('eit', eit => {
+            this.listener.emit('eit', eit);
         });
 
         this.tsProbe.on('finish', () => {
@@ -238,6 +242,20 @@ class DropCheckerModel implements IDropCheckerModel {
         }
 
         return this.result;
+    }
+
+    /**
+     * EIT などのイベントリスナーを登録
+     */
+    public on(event: 'eit', listener: (eit: EitInfo) => void): void {
+        this.listener.on(event, listener);
+    }
+
+    /**
+     * EIT などのイベントリスナーを解除
+     */
+    public off(event: 'eit', listener: (eit: EitInfo) => void): void {
+        this.listener.off(event, listener);
     }
 
     /**

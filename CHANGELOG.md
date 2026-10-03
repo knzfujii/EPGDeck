@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `packages/arib-probe` の `decodeEitSection` に ARIB STD-B10 `event_group_descriptor` (Tag `0xD6`) の解析を追加し、イベントリレー情報（他チャンネル移行・マルチ編成）の取得に対応。
   - `DropCheckerModel` に `on('eit')` / `off('eit')` を新設し、録画ストリームの `TsProbe` から EIT イベントを購読可能に。
   - `RecorderModel` で録画中にストリーム内の EIT present/following をリアルタイム監視。Mirakurun API への定期ポーリングを待つことなく、放送波からミリ秒単位で「番組延長（終了時刻の伸長）」「タイトル変更」「イベントリレー」を即座に検知し、予約情報（`reserve`）・録画中レコード（`recorded`）およびリレータイマーを自動更新。
+  - イベントリレー検知時は Mirakurun REST API の EPG 更新遅延をバイパスし、TS 記述子から取得した `networkId` / `serviceId` / `eventId` を直接用いて即座に移行先番組の予約作成を発行。
+  - `TsSectionAssembler` の耐障害性向上: ハードウェアビットエラーパケット（TEI=1）の即時破棄、未同期 `pointer_field` プレフィックスの安全なスキップ、4096バイト超過セクション長の境界値保護を追加。
+  - `RecorderModel.setEventRelayTimer` における過去終了時刻ガード（`now >= reserve.endAt`）および 32-bit 最大タイマー値クランプによる Node.js `TimeoutOverflowWarning` の防止。
 
 ### Changed
 - **`arib-probe` クラス・メソッド名のモダン化・規格準拠リファクタ**:

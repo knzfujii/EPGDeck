@@ -4,7 +4,7 @@ import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
-import { EitInfo } from 'arib-probe';
+import { EitInfo, type EitRelatedItem } from 'arib-probe';
 import * as mapid from 'mirakurun/api.js';
 import * as apid from '../../../../api.js';
 import DropLogFile from '../../../db/entities/DropLogFile.js';
@@ -1158,9 +1158,15 @@ class RecorderModel implements IRecorderModel {
 
         // 待機時間を計算
         const now = new Date().getTime();
+        if (now >= reserve.endAt) {
+            return;
+        }
         let time = reserve.endAt - RecorderModel.EVENT_RELAY_CHECK_TIME - now;
         if (time < 0) {
             time = 0;
+        }
+        if (time > 2147483647) {
+            time = 2147483647;
         }
 
         // タイマーをセットする
@@ -1174,8 +1180,9 @@ class RecorderModel implements IRecorderModel {
 
     /**
      * イベントリレーの対象となる予約情報の確認を行う
+     * @param relatedItemsFromEit: TS 放送波の EIT から直接取得した関連番組情報（指定時は Mirakurun REST API 問い合わせをバイパス）
      */
-    private async checkEventRelay(): Promise<void> {
+    private async checkEventRelay(relatedItemsFromEit?: EitRelatedItem[]): Promise<void> {
         // ProgramId の指定がない場合は何もしない
         if (this.reserve.programId === null) {
             return;
@@ -1184,53 +1191,70 @@ class RecorderModel implements IRecorderModel {
         this.log.system.debug(
             `check event relay program. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
         );
-        const mirakurun = this.mirakurunClientModel.getClient();
 
-        // program 情報の取得
-        let parentProgram: mapid.Program;
-        try {
-            parentProgram = await mirakurun.getProgram(this.reserve.programId);
-            this.log.system.debug(parentProgram);
-        } catch (err: any) {
-            this.log.system.error(
-                `failed to get event relay info. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
-            );
-            return;
-        }
+        const parentNetworkId = Math.floor(this.reserve.programId / 10000000000);
+        let relayItems: { networkId: number; serviceId: number; eventId: number }[] = [];
 
-        // event relay の設定の有無を調べる
-        if (typeof parentProgram.relatedItems === 'undefined') {
-            this.log.system.debug(
-                `event relay porgram does not exist. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
-            );
-            return;
+        if (relatedItemsFromEit && relatedItemsFromEit.length > 0) {
+            // 放送波 TS の EIT から直接得られたリレー情報を優先利用（Mirakurun REST API 遅延のバイパス）
+            relayItems = relatedItemsFromEit
+                .filter(item => item.type === 'relay')
+                .map(item => ({
+                    networkId: item.networkId ?? parentNetworkId,
+                    serviceId: item.serviceId,
+                    eventId: item.eventId,
+                }));
+        } else {
+            const mirakurun = this.mirakurunClientModel.getClient();
+
+            // program 情報の取得
+            let parentProgram: mapid.Program;
+            try {
+                parentProgram = await mirakurun.getProgram(this.reserve.programId);
+                this.log.system.debug(parentProgram);
+            } catch (err: any) {
+                this.log.system.error(
+                    `failed to get event relay info. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
+                );
+                return;
+            }
+
+            // event relay の設定の有無を調べる
+            if (typeof parentProgram.relatedItems === 'undefined') {
+                this.log.system.debug(
+                    `event relay porgram does not exist. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
+                );
+                return;
+            }
+
+            for (const relatedItem of parentProgram.relatedItems) {
+                if (relatedItem.type !== 'relay') {
+                    continue;
+                }
+                let networkId = relatedItem.networkId;
+                if (typeof networkId === 'undefined' || networkId === null) {
+                    networkId = parentProgram.networkId ?? parentNetworkId;
+                }
+                relayItems.push({
+                    networkId,
+                    serviceId: relatedItem.serviceId,
+                    eventId: relatedItem.eventId,
+                });
+            }
         }
 
         // event relay 対象の ProgramId のリストを作成する
         const reserveProgramIds: { programId: apid.ProgramId; parentReserve: Reserve }[] = [];
-        for (const relatedItem of parentProgram.relatedItems) {
-            // type が ralay 出ないなら skip
-            if (relatedItem.type !== 'relay') {
-                continue;
-            }
-
-            // 番組を予約するための networkId を生成する
-            let networkId = relatedItem.networkId;
-            if (typeof networkId === 'undefined' || networkId === null) {
-                // 本来 networkId は null を取らないはずだが、mirakc は null を返す
-                // networkId が存在しない場合は自ネットワークのイベントリレーと判断する
-                networkId = parentProgram.networkId;
-            }
-
+        for (const item of relayItems) {
             // networkId, serviceId, eventId から該当する番組情報を検索する
             const reserveProgram = await this.programDB.findEventRelayProgram(
-                networkId,
-                relatedItem.serviceId,
-                relatedItem.eventId,
+                item.networkId,
+                item.serviceId,
+                item.eventId,
             );
             if (reserveProgram === null) {
                 this.log.system.warn(
-                    `event relay program is not found. networkId: ${networkId}, serviceId: ${relatedItem.serviceId}, eventId: ${relatedItem.eventId}`,
+                    `event relay program is not found. networkId: ${item.networkId}, serviceId: ${item.serviceId}, eventId: ${item.eventId}`,
                 );
                 continue;
             }
@@ -1338,8 +1362,13 @@ class RecorderModel implements IRecorderModel {
         if (event.relatedItems && event.relatedItems.some(item => item.type === 'relay')) {
             if (this.hasHandledEitRelay !== true) {
                 this.hasHandledEitRelay = true;
+                if (this.eventRelayTimerId !== null) {
+                    clearTimeout(this.eventRelayTimerId);
+                    this.eventRelayTimerId = null;
+                }
                 this.log.system.info(`[EIT] Event relay descriptor detected via TS for reserveId: ${this.reserve.id}`);
-                void this.checkEventRelay();
+                const relayItems = event.relatedItems.filter(item => item.type === 'relay');
+                void this.checkEventRelay(relayItems);
             }
         }
     };

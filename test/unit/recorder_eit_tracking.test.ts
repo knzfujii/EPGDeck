@@ -15,6 +15,7 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
     let dummyRecordingUtil: any;
     let dummyRecordingEvent: any;
     let dummyMirakurun: any;
+    let mockGetProgram: any;
     let eitHandler: ((eit: EitInfo) => void) | null = null;
 
     beforeEach(() => {
@@ -94,17 +95,18 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
             emitEventRelay: vi.fn(),
         };
 
+        mockGetProgram = vi.fn().mockResolvedValue({
+            id: 327370103223696,
+            serviceId: 1032,
+            eventId: 23696,
+            startAt: 1000000,
+            duration: 3600000,
+            networkId: 32737,
+            relatedItems: [], // Deliberately empty in Mirakurun REST API to prove TS direct bypass
+        });
         dummyMirakurun = {
             getClient: () => ({
-                getProgram: vi.fn().mockResolvedValue({
-                    id: 327370103223696,
-                    serviceId: 1032,
-                    eventId: 23696,
-                    startAt: 1000000,
-                    duration: 3600000,
-                    networkId: 32737,
-                    relatedItems: [{ type: 'relay', serviceId: 1033, eventId: 23697 }],
-                }),
+                getProgram: mockGetProgram,
             }),
         };
     });
@@ -289,6 +291,7 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
 
         // checkEventRelay calls dummyRecordingEvent.emitEventRelay asynchronously
         await new Promise(resolve => setTimeout(resolve, 50));
+        expect(mockGetProgram).not.toHaveBeenCalled();
         expect(dummyRecordingEvent.emitEventRelay).toHaveBeenCalledWith([
             expect.objectContaining({
                 programId: 327370103323697,

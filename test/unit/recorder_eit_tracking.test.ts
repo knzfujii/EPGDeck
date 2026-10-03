@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { PassThrough } from 'stream';
 import { EitInfo } from 'arib-probe';
 import RecorderModel from '../../src/model/operator/recording/RecorderModel.js';
 import Reserve from '../../src/db/entities/Reserve.js';
@@ -89,6 +90,7 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
         };
 
         dummyRecordingEvent = {
+            emitStartPrepRecording: vi.fn(),
             emitStartRecording: vi.fn(),
             emitFinishRecording: vi.fn(),
             emitRecordingFailed: vi.fn(),
@@ -356,5 +358,238 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
         expect(reserve.endAt).toBe(4600000);
         expect(dummyReserveDB.updateOnce).not.toHaveBeenCalled();
         expect(dummyRecordedDB.updateProgramInfo).not.toHaveBeenCalled();
+    });
+
+    describe('Subsequent Program Protection (Post-Baseball Delay Handling)', () => {
+        it('should reschedule timer in prepRecord when subsequent program is delayed by baseball', async () => {
+            vi.useFakeTimers();
+            const now = 2000000;
+            vi.setSystemTime(now);
+
+            const animeReserve = new Reserve();
+            animeReserve.id = 2;
+            animeReserve.programId = 327370103223697; // anime after baseball
+            animeReserve.channelId = 10;
+            animeReserve.channelType = 'GR' as any;
+            animeReserve.channel = '27';
+            animeReserve.startAt = 2000000 + 10000; // scheduled start in 10s
+            animeReserve.endAt = animeReserve.startAt + 1800000; // 30min anime
+            animeReserve.name = '夜のアニメ';
+            animeReserve.halfWidthName = '夜のアニメ';
+            animeReserve.isTimeSpecified = false;
+
+            // Broadcaster delayed the anime by 30 minutes due to baseball extension
+            const delayedStartAt = animeReserve.startAt + 1800000; // +30min
+            const delayedDuration = 1800000;
+            mockGetProgram.mockResolvedValueOnce({
+                id: animeReserve.programId,
+                serviceId: 1032,
+                eventId: 23697,
+                startAt: delayedStartAt,
+                duration: delayedDuration,
+                networkId: 32737,
+                name: '夜のアニメ',
+            });
+
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                {} as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                dummyStreamCreator,
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                dummyMirakurun,
+            );
+
+            (recorder as any).reserve = animeReserve;
+            const setTimerSpy = vi.spyOn(recorder, 'setTimer').mockReturnValue(true);
+
+            // Call prepRecord
+            await (recorder as any).prepRecord();
+
+            // Reserve startAt and endAt should be updated to delayed time
+            expect(animeReserve.startAt).toBe(delayedStartAt);
+            expect(animeReserve.endAt).toBe(delayedStartAt + delayedDuration);
+            expect(dummyReserveDB.updateOnce).toHaveBeenCalledWith(animeReserve);
+            // Timer should be rescheduled cleanly without killing the reservation
+            expect(setTimerSpy).toHaveBeenCalledWith(animeReserve, false);
+
+            vi.useRealTimers();
+        });
+
+        it('should wait for broadcast stream without premature 5s timeout when preceding baseball extends', async () => {
+            vi.useFakeTimers();
+            const now = 1000000;
+            vi.setSystemTime(now);
+
+            const animeReserve = new Reserve();
+            animeReserve.id = 3;
+            animeReserve.programId = 327370103223697;
+            animeReserve.channelId = 10;
+            animeReserve.channelType = 'GR' as any;
+            animeReserve.channel = '27';
+            animeReserve.startAt = now;
+            animeReserve.endAt = now + 1800000; // 30min
+            animeReserve.name = '夜のアニメ';
+            animeReserve.halfWidthName = '夜のアニメ';
+            animeReserve.isTimeSpecified = false;
+
+            mockGetProgram.mockResolvedValue({
+                id: animeReserve.programId,
+                startAt: now,
+                duration: 1800000,
+            });
+
+            const tmpRecPath = '/tmp/test_rec_stream.m2ts';
+            dummyRecordingUtil.getRecPath = vi.fn().mockResolvedValue({
+                fullPath: tmpRecPath,
+                subDir: '',
+                fileName: 'test_rec_stream.m2ts',
+                parendDir: { name: 'main' },
+            });
+            dummyConfig.getConfig = () => ({
+                recording: {
+                    directories: [{ name: 'main', path: '/tmp' }],
+                    filenameFormat: '%TITLE%',
+                    fileExtension: '.m2ts',
+                    dropLog: { enabled: false },
+                },
+            });
+
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                {} as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                dummyStreamCreator,
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                dummyMirakurun,
+            );
+
+            const stream = new PassThrough();
+            (recorder as any).reserve = animeReserve;
+            (recorder as any).stream = stream;
+
+            const doRecordPromise = (recorder as any).doRecord();
+
+            // Advance 5 seconds - legacy EPGStation would have killed the recording here!
+            await vi.advanceTimersByTimeAsync(5000);
+
+            // Stream must still be intact and waiting
+            expect(stream.destroyed).toBe(false);
+            expect(dummyRecordingEvent.emitRecordingFailed).not.toHaveBeenCalled();
+
+            // Mirakurun finishes waiting for baseball and begins sending anime TS packets!
+            stream.write(Buffer.from([0x47, 0x00, 0x12, 0x10]));
+            await vi.advanceTimersByTimeAsync(100);
+
+            await doRecordPromise;
+
+            // Successfully started recording!
+            expect(dummyRecordingEvent.emitStartRecording).toHaveBeenCalled();
+            expect((recorder as any).isRecording).toBe(true);
+
+            stream.end();
+            try {
+                const fs = await import('fs');
+                if (fs.existsSync(tmpRecPath)) fs.unlinkSync(tmpRecPath);
+            } catch {
+                // ignore
+            }
+            vi.useRealTimers();
+        });
+
+        it('should reschedule timer when broadcast delay is updated while waiting for stream', async () => {
+            vi.useFakeTimers();
+            const now = 1000000;
+            vi.setSystemTime(now);
+
+            const animeReserve = new Reserve();
+            animeReserve.id = 4;
+            animeReserve.programId = 327370103223697;
+            animeReserve.channelId = 10;
+            animeReserve.channelType = 'GR' as any;
+            animeReserve.channel = '27';
+            animeReserve.startAt = now;
+            animeReserve.endAt = now + 1800000;
+            animeReserve.name = '夜のアニメ';
+            animeReserve.halfWidthName = '夜のアニメ';
+            animeReserve.isTimeSpecified = false;
+
+            // Delayed by 30 minutes in Mirakurun
+            const delayedStartAt = now + 1800000;
+            const delayedDuration = 1800000;
+            mockGetProgram.mockResolvedValue({
+                id: animeReserve.programId,
+                startAt: delayedStartAt,
+                duration: delayedDuration,
+            });
+
+            const tmpRecPath = '/tmp/test_rec_delay_stream.m2ts';
+            dummyRecordingUtil.getRecPath = vi.fn().mockResolvedValue({
+                fullPath: tmpRecPath,
+                subDir: '',
+                fileName: 'test_rec_delay_stream.m2ts',
+                parendDir: { name: 'main' },
+            });
+            dummyConfig.getConfig = () => ({
+                recording: {
+                    directories: [{ name: 'main', path: '/tmp' }],
+                    filenameFormat: '%TITLE%',
+                    fileExtension: '.m2ts',
+                    dropLog: { enabled: false },
+                },
+            });
+
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                {} as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                dummyStreamCreator,
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                dummyMirakurun,
+            );
+
+            const stream = new PassThrough();
+            (recorder as any).reserve = animeReserve;
+            (recorder as any).stream = stream;
+            const setTimerSpy = vi.spyOn(recorder, 'setTimer').mockReturnValue(true);
+
+            const doRecordPromise = (recorder as any).doRecord();
+
+            // Advance 5 seconds - trigger checkStreamTimeout
+            await vi.advanceTimersByTimeAsync(5000);
+            await doRecordPromise;
+
+            // Should cleanly update reserve times and reschedule timer to delayed time
+            expect(animeReserve.startAt).toBe(delayedStartAt);
+            expect(animeReserve.endAt).toBe(delayedStartAt + delayedDuration);
+            expect(dummyReserveDB.updateOnce).toHaveBeenCalledWith(animeReserve);
+            expect(setTimerSpy).toHaveBeenCalledWith(animeReserve, false);
+
+            // Stream and temporary file should be cleaned up
+            expect(stream.destroyed).toBe(true);
+
+            vi.useRealTimers();
+        });
     });
 });

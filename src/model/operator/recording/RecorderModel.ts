@@ -183,24 +183,56 @@ class RecorderModel implements IRecorderModel {
         this.isRecording = false;
         this.isPlanToDelete = false;
 
-        if (retry === 0) {
-            // 録画準備開始通知
-            this.recordingEvent.emitStartPrepRecording(this.reserve);
-        }
-
         // 番組ストリームを取得する
         try {
-            // 番組開始時刻が変更されたことに伴い番組間に重なりが生じ、当該番組が削除されている
-            // NOTE: mirakurunの不具合に対処
             if (this.reserve.programId) {
+                // Mirakurun から最新の番組情報を取得して開始繰り下げ（野球延長等）を確認
+                let latestProgram: any = null;
+                try {
+                    const mirakurun = this.mirakurunClientModel.getClient();
+                    latestProgram = await mirakurun.getProgram(this.reserve.programId);
+                } catch (err: any) {
+                    this.log.system.debug(
+                        `failed to get latest program info from mirakurun in prepRecord: ${this.reserve.programId}`,
+                    );
+                }
+
+                if (latestProgram !== null) {
+                    const latestStartAt = latestProgram.startAt;
+                    const latestEndAt = latestProgram.startAt + latestProgram.duration;
+                    const now = new Date().getTime();
+
+                    // 番組開始時刻が未来に繰り下げられている場合
+                    if (latestStartAt > this.reserve.startAt) {
+                        this.log.system.info(
+                            `program start delayed (prepRecord): reserveId: ${this.reserve.id}, original: ${new Date(this.reserve.startAt).toISOString()} -> delayed: ${new Date(latestStartAt).toISOString()}`,
+                        );
+                        this.reserve.startAt = latestStartAt;
+                        this.reserve.endAt = latestEndAt;
+                        await this.reserveDB.updateOnce(this.reserve);
+
+                        // 準備時間（15秒）以上先ならタイマーを再設定して待機し直す（外部コマンドや準備通知の発行を抑止）
+                        if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
+                            this.isPrepRecording = false;
+                            this.setTimer(this.reserve, false);
+                            return;
+                        }
+                    }
+                }
+
                 const program = await this.programDB.findId(this.reserve.programId);
-                if (program === null) {
+                if (program === null && latestProgram === null) {
                     this.log.system.warn(
-                        `the program data does not found in database. retry later, (reerveId: ${this.reserve.id}, programId: ${this.reserve.programId})`,
+                        `the program data does not found in database or mirakurun. retry later, (reserveId: ${this.reserve.id}, programId: ${this.reserve.programId})`,
                     );
                     this.emitCancelEvent();
                     return;
                 }
+            }
+
+            if (retry === 0) {
+                // 録画準備開始通知（繰り下げリスケジュールが発生しなかった場合のみ発行）
+                this.recordingEvent.emitStartPrepRecording(this.reserve);
             }
 
             this.abortController = new AbortController();
@@ -458,8 +490,76 @@ class RecorderModel implements IRecorderModel {
             }
 
             // stream データ受信のタイムアウト設定
+            let isDataReceived = false;
             let isStreamTimeout = false; // stream データ受信がタイムアウトした場合は true
-            this.recordingStartTimeoutId = setTimeout(async () => {
+
+            const checkStreamTimeout = async () => {
+                if (isDataReceived || this.stream === null) {
+                    return;
+                }
+
+                // 番組指定予約の場合、前番組延長（野球等）による放送待ちの可能性を検証
+                if (this.reserve.programId !== null) {
+                    const now = new Date().getTime();
+
+                    // 1. Mirakurun から最新の番組情報を取得
+                    let latestProgram: any = null;
+                    try {
+                        const mirakurun = this.mirakurunClientModel.getClient();
+                        latestProgram = await mirakurun.getProgram(this.reserve.programId);
+                    } catch (err: any) {
+                        this.log.system.debug(
+                            `failed to get latest program info while waiting stream: ${this.reserve.programId}`,
+                        );
+                    }
+
+                    if (latestProgram !== null) {
+                        const latestStartAt = latestProgram.startAt;
+                        const latestEndAt = latestProgram.startAt + latestProgram.duration;
+
+                        // 開始繰り下げを検知した場合
+                        if (latestStartAt > this.reserve.startAt) {
+                            this.reserve.startAt = latestStartAt;
+                            this.reserve.endAt = latestEndAt;
+                            await this.reserveDB.updateOnce(this.reserve);
+
+                            // 準備時間（15秒）以上先ならストリームを解放してタイマー再設定
+                            if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
+                                this.log.system.info(
+                                    `program start delayed while waiting stream: reserveId: ${this.reserve.id}, delaying timer to ${new Date(latestStartAt).toISOString()}`,
+                                );
+
+                                if (this.stream !== null) {
+                                    this.stream.removeListener('data', onData);
+                                    this.destroyStream();
+                                }
+                                await this.closeRecFile();
+                                await FileUtil.unlink(recPath.fullPath).catch(() => {});
+
+                                this.isRecording = false;
+                                this.isPrepRecording = false;
+                                this.setTimer(this.reserve, false);
+                                resolve();
+                                return;
+                            }
+                        }
+
+                        // 番組終了予定時刻前、かつストリーム接続が生きていれば番組開始を継続待機
+                        if (now < latestEndAt && !this.stream.destroyed) {
+                            this.log.system.info(
+                                `waiting for program broadcast to start (eventId: ${this.reserve.programId}, reserve: ${this.reserve.id})`,
+                            );
+                            this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 5000);
+                            return;
+                        }
+                    } else if (now < this.reserve.endAt && !this.stream.destroyed) {
+                        // Mirakurunから最新情報が取れなくても、予約終了時刻前かつストリームが生きていれば待機継続
+                        this.log.system.info(`waiting for program broadcast stream: reserveId: ${this.reserve.id}`);
+                        this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 5000);
+                        return;
+                    }
+                }
+
                 this.recordingStartTimeoutId = null;
                 isStreamTimeout = true;
                 this.log.system.error(`recording failed: ${this.reserve.id}`);
@@ -477,10 +577,13 @@ class RecorderModel implements IRecorderModel {
                 }
 
                 reject(new Error('recordingStartError'));
-            }, 1000 * 5);
+            };
+
+            this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 1000 * 5);
 
             // stream データ受診時のコールバック関数定義
             const onData = async () => {
+                isDataReceived = true;
                 if (this.recordingStartTimeoutId !== null) {
                     clearTimeout(this.recordingStartTimeoutId);
                     this.recordingStartTimeoutId = null;

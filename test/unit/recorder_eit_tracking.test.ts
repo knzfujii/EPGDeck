@@ -613,4 +613,136 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
             vi.useRealTimers();
         });
     });
+
+    describe('PMT Audio Component Tracking', () => {
+        it('should update recorded audioComponentType and audioSamplingRate from PMT audio descriptors', async () => {
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                {} as any,
+                {} as any,
+                {} as any,
+                dummyStreamCreator,
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                dummyMirakurun,
+            );
+
+            const reserve = new Reserve();
+            reserve.id = 1;
+            reserve.name = 'Test Dual Audio Anime';
+            reserve.halfWidthName = 'Test Dual Audio Anime';
+            reserve.channelId = 1;
+            reserve.startAt = 1000;
+            reserve.endAt = 2000;
+            reserve.audioSamplingRate = 44100;
+            reserve.audioComponentType = 1; // originally mono in EPG
+
+            (recorder as any).reserve = reserve;
+
+            // Trigger PMT event via onPmt
+            (recorder as any).onPmt({
+                program_number: 1,
+                version_number: 1,
+                PCR_PID: 0x0100,
+                program_info_length: 0,
+                streams: [
+                    { stream_type: 0x02, elementary_PID: 0x0100, ES_info_length: 0 },
+                    {
+                        stream_type: 0x0f,
+                        elementary_PID: 0x0110,
+                        ES_info_length: 14,
+                        audio: {
+                            stream_content: 0x02,
+                            component_type: 0x02, // dual-mono
+                            component_type_name: 'デュアルモノラル (主/副)',
+                            component_tag: 0x10,
+                            stream_type: 0x0f,
+                            simulcast_group_tag: 0,
+                            es_multi_lingual_flag: true,
+                            main_component_flag: true,
+                            quality_indicator: 0,
+                            sampling_rate: 7,
+                            sampling_rate_hz: 48000,
+                            languages: ['jpn', 'eng'],
+                            text: '',
+                            isDualMono: true,
+                            isSurround: false,
+                        },
+                    },
+                ],
+            });
+
+            const recorded = await (recorder as any).createRecorded(null);
+            expect(recorded.audioComponentType).toBe(0x02);
+            expect(recorded.audioSamplingRate).toBe(48000);
+        });
+
+        it('should update recorded audio metadata from EIT audio descriptor', async () => {
+            const recorder = new RecorderModel(
+                dummyLogger,
+                dummyConfig,
+                dummyProgramDB,
+                dummyReserveDB,
+                dummyRecordedDB,
+                {} as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                { insertOnce: vi.fn().mockResolvedValue(1) } as any,
+                dummyStreamCreator,
+                dummyDropChecker,
+                dummyRecordingUtil,
+                dummyRecordingEvent,
+                dummyMirakurun,
+            );
+
+            const reserve = createReserve();
+            (recorder as any).reserve = reserve;
+            (recorder as any).isRecording = true;
+            (recorder as any).recordedId = 42;
+
+            // Trigger EIT with audio descriptor
+            (recorder as any).onEit({
+                serviceId: 1032,
+                events: [
+                    {
+                        eventId: 23696,
+                        startTime: new Date(1000000),
+                        duration: 3600,
+                        name: 'プロ野球中継',
+                        description: '',
+                        isCurrent: true,
+                        audio: {
+                            stream_content: 0x02,
+                            component_type: 0x03, // stereo
+                            component_type_name: 'ステレオ (2/0)',
+                            component_tag: 0x10,
+                            stream_type: 0x0f,
+                            simulcast_group_tag: 0,
+                            es_multi_lingual_flag: false,
+                            main_component_flag: true,
+                            quality_indicator: 0,
+                            sampling_rate: 7,
+                            sampling_rate_hz: 48000,
+                            languages: ['jpn'],
+                            text: '',
+                            isDualMono: false,
+                            isSurround: false,
+                        },
+                    },
+                ],
+            });
+
+            expect((recorder as any).detectedAudio).not.toBeNull();
+            expect((recorder as any).detectedAudio.component_type).toBe(0x03);
+            expect((recorder as any).detectedAudio.sampling_rate_hz).toBe(48000);
+            expect(dummyRecordedDB.updateProgramInfo).toHaveBeenCalledWith(42, {
+                audioComponentType: 0x03,
+                audioSamplingRate: 48000,
+            });
+        });
+    });
 });

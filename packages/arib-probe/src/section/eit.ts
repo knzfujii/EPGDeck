@@ -1,6 +1,7 @@
 import { decodeAribString } from '../aribString.js';
 import { calcCrc32Mpeg2 } from '../crc32.js';
 import { decodeMjdBcdTime } from './tot.js';
+import { decodeAudioComponentDescriptor, type AudioComponentInfo } from './descriptor/audioComponent.js';
 
 export interface EitRelatedItem {
     type: 'shared' | 'relay' | 'movement';
@@ -17,6 +18,8 @@ export interface EitEvent {
     description: string;
     isCurrent: boolean; // true: present (section 0), false: following (section 1)
     relatedItems?: EitRelatedItem[];
+    audio?: AudioComponentInfo;
+    audios?: AudioComponentInfo[];
 }
 
 export interface EitInfo {
@@ -70,6 +73,7 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
         let name = '';
         let description = '';
         let relatedItems: EitRelatedItem[] | undefined;
+        const audios: AudioComponentInfo[] = [];
 
         let descOffset = offset + 12;
         const descEnd = descOffset + descLoopLen;
@@ -93,6 +97,12 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
                         const textBytes = descPayload.subarray(4 + eventNameLen + 1, 4 + eventNameLen + 1 + textLen);
                         description = decodeAribString(textBytes);
                     }
+                }
+            } else if (tag === 0xc4) {
+                // audio_component_descriptor (ARIB STD-B10)
+                const audio = decodeAudioComponentDescriptor(descPayload);
+                if (audio) {
+                    audios.push(audio);
                 }
             } else if (tag === 0xd6 && descPayload.length >= 1) {
                 // event_group_descriptor (ARIB STD-B10)
@@ -144,6 +154,7 @@ export function decodeEitSection(sectionPayload: Uint8Array): EitInfo | null {
             description,
             isCurrent,
             ...(relatedItems && relatedItems.length > 0 ? { relatedItems } : {}),
+            ...(audios.length > 0 ? { audio: audios[0], audios } : {}),
         });
 
         offset += 12 + descLoopLen;

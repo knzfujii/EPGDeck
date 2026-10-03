@@ -9,6 +9,9 @@ import {
     decodeBcdDuration,
     getStreamTypeName,
     getWellKnownPidName,
+    getStreamCategory,
+    getAudioComponentTypeName,
+    getAudioSamplingRateHz,
     ID3,
     packetizeToTs,
     resolvePidName,
@@ -210,6 +213,100 @@ describe('arib-probe', () => {
             expect(pmt?.streams[0].elementary_PID).toBe(0x0111);
             expect(pmt?.streams[1].stream_type).toBe(0x0f);
             expect(pmt?.streams[1].elementary_PID).toBe(0x0112);
+        });
+
+        it('should decode PMT with audio_component_descriptor (0xC4) for dual-mono and languages', () => {
+            const pmtBytes = new Uint8Array([
+                0x02,
+                0xb0,
+                0x25, // table_id 0x02, section_length 37
+                0x00,
+                0x01, // program_number 1
+                0xc3, // version 1
+                0x00,
+                0x00, // section 0, last 0
+                0xe1,
+                0x00, // PCR_PID 0x0100
+                0xf0,
+                0x00, // program_info_length 0
+                // Stream 1: Video (0x02, PID 0x0100)
+                0x02,
+                0xe1,
+                0x00,
+                0xf0,
+                0x00,
+                // Stream 2: Audio (0x0F, PID 0x0110, ES_info_length 14)
+                0x0f,
+                0xe1,
+                0x10,
+                0xf0,
+                0x0e,
+                // audio_component_descriptor: tag 0xC4, len 12
+                0xc4,
+                0x0c,
+                0x02, // stream_content 0x02 (audio)
+                0x02, // component_type 0x02 (dual-mono)
+                0x10, // component_tag
+                0x0f, // stream_type
+                0x00, // simulcast_group_tag
+                0xce, // es_multi_lingual(1) | main(1) | samplingRate=7 (48kHz)
+                0x6a,
+                0x70,
+                0x6e, // 'jpn'
+                0x65,
+                0x6e,
+                0x67, // 'eng'
+                // CRC32
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ]);
+
+            const pmt = decodePmtSection(pmtBytes);
+            expect(pmt).not.toBeNull();
+            expect(pmt?.streams.length).toBe(2);
+
+            const audioStream = pmt?.streams[1];
+            expect(audioStream?.elementary_PID).toBe(0x0110);
+            expect(audioStream?.audio).toBeDefined();
+            expect(audioStream?.audio?.isDualMono).toBe(true);
+            expect(audioStream?.audio?.isSurround).toBe(false);
+            expect(audioStream?.audio?.component_type).toBe(0x02);
+            expect(audioStream?.audio?.component_type_name).toBe('デュアルモノラル (主/副)');
+            expect(audioStream?.audio?.sampling_rate_hz).toBe(48000);
+            expect(audioStream?.audio?.languages).toEqual(['jpn', 'eng']);
+            expect(audioStream?.audio?.main_component_flag).toBe(true);
+        });
+    });
+
+    describe('Stream Category & Name Resolution', () => {
+        it('should classify stream categories correctly', () => {
+            expect(getStreamCategory(0x02)).toBe('video');
+            expect(getStreamCategory(0x1b)).toBe('video');
+            expect(getStreamCategory(0x24)).toBe('video');
+            expect(getStreamCategory(0x0f)).toBe('audio');
+            expect(getStreamCategory(0x11)).toBe('audio');
+            expect(getStreamCategory(0x06)).toBe('subtitle');
+            expect(getStreamCategory(undefined, 0x0000)).toBe('psi');
+            expect(getStreamCategory(undefined, 0x0012)).toBe('psi');
+            expect(getStreamCategory(0x0d)).toBe('other');
+        });
+
+        it('should format resolvePidName with audio information', () => {
+            const name = resolvePidName(0x0110, 0x0f, {
+                component_type_name: 'デュアルモノラル (主/副)',
+                languages: ['jpn', 'eng'],
+            });
+            expect(name).toBe('MPEG2 AAC (デュアルモノラル (主/副) [jpn/eng])');
+        });
+
+        it('should format audio component type names and sampling rates', () => {
+            expect(getAudioComponentTypeName(0x01)).toBe('モノラル (1/0)');
+            expect(getAudioComponentTypeName(0x03)).toBe('ステレオ (2/0)');
+            expect(getAudioComponentTypeName(0x09)).toBe('5.1chサラウンド (3/2+LFE)');
+            expect(getAudioSamplingRateHz(7)).toBe(48000);
+            expect(getAudioSamplingRateHz(5)).toBe(32000);
         });
     });
 
@@ -747,6 +844,77 @@ describe('arib-probe', () => {
                 serviceId: 1032,
                 eventId: 124,
             });
+        });
+
+        it('should decode audio_component_descriptor (0xC4) in EIT section', () => {
+            // Descriptor 0xC4 (audio_component_descriptor)
+            const c4Payload = [
+                0xc4,
+                0x09, // tag 0xC4, length 9
+                0x02, // stream_content = 2
+                0x03, // component_type = 3 (stereo)
+                0x10, // component_tag = 0x10
+                0x0f, // stream_type = 0x0F (AAC)
+                0xff, // simulcast_group_tag
+                0x4e, // main_component_flag = 1, sampling_rate = 7 (48kHz) -> 0x40 | (7 << 1) = 0x4E
+                0x6a,
+                0x70,
+                0x6e, // 'j', 'p', 'n'
+            ];
+
+            const descLoopLen = c4Payload.length;
+            const eitBody = new Uint8Array([
+                0x4e, // table_id = 0x4E
+                0x00,
+                0x00, // length placeholder
+                0x04,
+                0x00, // service_id = 1024
+                0xc1, // version = 0, current_next = 1
+                0x00, // section_number = 0 (present)
+                0x01, // last_section_number = 1
+                0x7f,
+                0x00, // transport_stream_id = 0x7F00
+                0x7f,
+                0x00, // original_network_id = 0x7F00
+                0x01, // segment_last_section_number
+                0x4e, // last_table_id
+                // Event 1 (12 bytes + descLoopLen)
+                0x00,
+                0x7b, // event_id = 123
+                0xef,
+                0x6e,
+                0x22,
+                0x30,
+                0x00, // start_time
+                0x00,
+                0x30,
+                0x00, // duration: 1800s
+                0x80 | ((descLoopLen >> 8) & 0x0f),
+                descLoopLen & 0xff,
+                ...c4Payload,
+            ]);
+
+            const sectionLen = eitBody.length - 3 + 4;
+            eitBody[1] = 0xf0 | ((sectionLen >> 8) & 0x0f);
+            eitBody[2] = sectionLen & 0xff;
+
+            const crc = calcCrc32Mpeg2(eitBody);
+            const eitWithCrc = new Uint8Array(eitBody.length + 4);
+            eitWithCrc.set(eitBody);
+            eitWithCrc[eitBody.length] = (crc >> 24) & 0xff;
+            eitWithCrc[eitBody.length + 1] = (crc >> 16) & 0xff;
+            eitWithCrc[eitBody.length + 2] = (crc >> 8) & 0xff;
+            eitWithCrc[eitBody.length + 3] = crc & 0xff;
+
+            const decoded = decodeEitSection(eitWithCrc);
+            expect(decoded).not.toBeNull();
+            expect(decoded!.events[0].audio).toBeDefined();
+            expect(decoded!.events[0].audio!.component_type).toBe(0x03);
+            expect(decoded!.events[0].audio!.component_type_name).toBe('ステレオ (2/0)');
+            expect(decoded!.events[0].audio!.sampling_rate_hz).toBe(48000);
+            expect(decoded!.events[0].audio!.languages).toEqual(['jpn']);
+            expect(decoded!.events[0].audio!.main_component_flag).toBe(true);
+            expect(decoded!.events[0].audios).toHaveLength(1);
         });
 
         it('should drop packets with transport_error_indicator and clear ongoing buffer', () => {

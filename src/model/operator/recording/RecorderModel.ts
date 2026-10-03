@@ -4,7 +4,7 @@ import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
-import { EitInfo, type EitRelatedItem } from 'arib-probe';
+import { EitInfo, type AudioComponentInfo, type EitRelatedItem, type PmtInfo } from 'arib-probe';
 import * as mapid from 'mirakurun/api.js';
 import * as apid from '../../../../api.js';
 import DropLogFile from '../../../db/entities/DropLogFile.js';
@@ -78,6 +78,7 @@ class RecorderModel implements IRecorderModel {
     private eventEmitter = new events.EventEmitter();
 
     private dropLogFileId: apid.DropLogFileId | null = null;
+    private detectedAudio: AudioComponentInfo | null = null;
     private actualStartAt: number | null = null;
 
     private abortController: AbortController | null = null;
@@ -327,6 +328,7 @@ class RecorderModel implements IRecorderModel {
         // stop drop check
         if (typeof this.dropChecker.off === 'function') {
             this.dropChecker.off('eit', this.onEit);
+            this.dropChecker.off('pmt', this.onPmt);
         }
         if (this.dropLogFileId !== null) {
             this.dropChecker.stop().catch(err => {
@@ -466,6 +468,7 @@ class RecorderModel implements IRecorderModel {
                 dropFilePath = this.dropChecker.getFilePath();
                 if (typeof this.dropChecker.on === 'function') {
                     this.dropChecker.on('eit', this.onEit);
+                    this.dropChecker.on('pmt', this.onPmt);
                 }
             } catch (err: any) {
                 this.log.system.error(`drop check error: ${recPath.fullPath}`);
@@ -843,6 +846,14 @@ class RecorderModel implements IRecorderModel {
         } else {
             // 時刻指定予約ではないのに、name が null
             throw new Error('CreateRecordedError');
+        }
+
+        // 放送波 PMT から音声情報が検出されている場合は実測値を反映
+        if (this.detectedAudio !== null) {
+            if (this.detectedAudio.sampling_rate_hz > 0) {
+                recorded.audioSamplingRate = this.detectedAudio.sampling_rate_hz;
+            }
+            recorded.audioComponentType = this.detectedAudio.component_type;
         }
 
         if (this.dropLogFileId !== null) {
@@ -1393,8 +1404,44 @@ class RecorderModel implements IRecorderModel {
     }
 
     /**
+     * TS ストリーム内の PMT 受信時のハンドラ
+     * 放送波からの実際の音声ストリーム情報（主/副音声、サラウンド、サンプリングレート）を取得する
+     * @param pmt: PmtInfo
+     */
+    private onPmt = (pmt: PmtInfo): void => {
+        let isChanged = false;
+        for (const s of pmt.streams) {
+            if (s.audio) {
+                if (s.audio.main_component_flag || this.detectedAudio === null) {
+                    if (
+                        this.detectedAudio === null ||
+                        this.detectedAudio.component_type !== s.audio.component_type ||
+                        this.detectedAudio.sampling_rate_hz !== s.audio.sampling_rate_hz
+                    ) {
+                        isChanged = true;
+                    }
+                    this.detectedAudio = s.audio;
+                }
+            }
+        }
+        if (isChanged && this.recordedId !== null && this.detectedAudio !== null) {
+            void this.recordedDB
+                .updateProgramInfo(this.recordedId, {
+                    audioComponentType: this.detectedAudio.component_type,
+                    ...(this.detectedAudio.sampling_rate_hz > 0
+                        ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
+                        : {}),
+                })
+                .catch(err => {
+                    this.log.system.error(`[PMT] failed to update audio info: ${this.recordedId}`);
+                    this.log.system.error(err);
+                });
+        }
+    };
+
+    /**
      * TS ストリーム内の EIT (present/following) 受信時のハンドラ
-     * 放送波からのリアルタイム番組延長・タイトル変更・イベントリレーの即時検知を行う
+     * 放送波からのリアルタイム番組延長・タイトル変更・イベントリレー・音声メタデータの即時検知を行う
      * @param eit: EitInfo
      */
     private onEit = (eit: EitInfo): void => {
@@ -1413,6 +1460,28 @@ class RecorderModel implements IRecorderModel {
         const event = eit.events.find(e => e.eventId === targetEventId);
         if (!event) {
             return;
+        }
+
+        // 0. 音声メタデータ（2ヶ国語/ステレオ/5.1ch/サンプリング周波数）検知
+        if (event.audio && (event.audio.main_component_flag || this.detectedAudio === null)) {
+            const isChanged =
+                this.detectedAudio === null ||
+                this.detectedAudio.component_type !== event.audio.component_type ||
+                this.detectedAudio.sampling_rate_hz !== event.audio.sampling_rate_hz;
+            this.detectedAudio = event.audio;
+            if (isChanged && this.recordedId !== null) {
+                void this.recordedDB
+                    .updateProgramInfo(this.recordedId, {
+                        audioComponentType: this.detectedAudio.component_type,
+                        ...(this.detectedAudio.sampling_rate_hz > 0
+                            ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
+                            : {}),
+                    })
+                    .catch(err => {
+                        this.log.system.error(`[EIT] failed to update audio info: ${this.recordedId}`);
+                        this.log.system.error(err);
+                    });
+            }
         }
 
         // 1. 番組延長検知

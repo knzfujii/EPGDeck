@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `client/src/lib/utils/dropLog.ts`: ドロップログのタイムコード（PCR 経過時間）をパースし、密集ドロップをクラスタリングするユーティリティを新設。
   - `VideoControls.svelte` / `VideoPlayer.svelte`: シークバー上にドロップ発生ポイントをマーカー（ピン）として視覚化。ホバーで詳細ツールチップを表示し、クリックで該当箇所へ直接シーク可能に。
   - `Watch.svelte`: 録画再生時にドロップログを自動取得してプレイヤーに供給。
-  - `RecordedDetail.svelte`: ドロップログモーダル内に「発生タイムライン」一覧を表示し、各発生位置から直接動画プレイヤーを再生開始できる「再生」導線を配備。
+  - `RecordedDetail.svelte`: ドロップログモーダル内に「発生タイムライン」一覧を表示し、各発生位置とストリーム種別（映像・音声・字幕）を一目で把握可能に。
 - **放送波 TS ストリーム（EIT）直接監視による録画中リアルタイム番組延長・タイトル追従・イベントリレー即時検知**:
   - `packages/arib-probe` の `decodeEitSection` に ARIB STD-B10 `event_group_descriptor` (Tag `0xD6`) の解析を追加し、イベントリレー情報（他チャンネル移行・マルチ編成）の取得に対応。
   - `DropCheckerModel` に `on('eit')` / `off('eit')` を新設し、録画ストリームの `TsProbe` から EIT イベントを購読可能に。
@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ReservationManageModel.recheckConflicts()` を新設。番組延長（EIT）や繰り下げ（prepRecord / doRecord 待機中）が発生した時間枠に対して平面走査法によるシミュレーションを即座に再実行。
   - チューナー不足による競合状態の変化を検知し、DB更新および `reserveEvent.emitUpdated(diff)` を送出。次回の定期EPG更新を待たずにUI（番組表・予約一覧）や録画実行エンジン（`RecordingManageModel`）へリアルタイムに競合情報を反映。
   - `RecordingEvent.emitRecheckConflicts` / `EventSetter` を介した疎結合なイベント駆動アーキテクチャにより、循環依存を排除して実装。
+- **放送波 PMT / EIT 音声記述子（`audio_component_descriptor` 0xC4）解析による録画メタデータの実測値同期**:
+  - `packages/arib-probe` に `audio_component_descriptor`（Tag 0xC4）のデコーダーを新設し、PMT の ES 記述子ループおよび EIT（PID 0x0012）の番組記述子ループの双方から音声メタデータをデコード可能に。主/副音声（デュアルモノラル 0x02）、ステレオ（0x03）、5.1ch サラウンド（0x09）、言語コード（`jpn`, `eng` 等）、サンプリングレート（48kHz 等）および音声説明テキストを抽出。
+  - `RecorderModel` で PMT / EIT イベントをリアルタイム購読し、録画中および録画完了時に `recorded.audioComponentType` および `recorded.audioSamplingRate` へ実測値を即座に同期（`recordedDB.updateProgramInfo`）。EPG 情報が未設定の番組や時刻指定予約でも実放送波に即した音声メタデータを記録し、エンコーダーへの正確なパラメータ伝達（二重音声分離等）を支援。
+- **ドロップログのストリーム種別（映像・音声・字幕）詳細分類 & プレイヤー・録画詳細 UI での種別バッジ・色分け表示**:
+  - `DropCheckerModel` のドロップ・エラー記録時にストリーム名称をリアルタイム結合。
+  - `client/src/lib/utils/dropLog.ts` にドロップ種別分類ロジック（`inferCategory`）およびサマリーテーブル解析を実装。
+  - `VideoControls.svelte`: シークバー上のドロップピンを重要度・ストリーム種別に応じて色分け表示（映像: 赤、音声: 橙、字幕: 水色、制御情報/その他: 灰）し、ツールチップに `[映像] ドロップ` のように明示。
+  - `RecordedDetail.svelte`: 発生タイムライン一覧にストリーム種別バッジ（`[映像]`, `[音声]`, `[字幕]`）を追加。
 
 ### Changed
 - **`arib-probe` クラス・メソッド名のモダン化・規格準拠リファクタ**:

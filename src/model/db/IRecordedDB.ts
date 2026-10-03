@@ -18,7 +18,14 @@ export default interface IRecordedDB {
     updateOnce(recorded: Recorded): Promise<void>;
     updateProgramInfo(
         recordedId: apid.RecordedId,
-        values: { name?: string; halfWidthName?: string; endAt?: number; duration?: number },
+        values: {
+            name?: string;
+            halfWidthName?: string;
+            endAt?: number;
+            duration?: number;
+            audioSamplingRate?: number;
+            audioComponentType?: number;
+        },
     ): Promise<void>;
     removeRecording(
         recordedId: apid.RecordedId,

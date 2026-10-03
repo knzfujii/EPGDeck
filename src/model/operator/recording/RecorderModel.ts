@@ -204,12 +204,20 @@ class RecorderModel implements IRecorderModel {
 
                     // 番組開始時刻が未来に繰り下げられている場合
                     if (latestStartAt > this.reserve.startAt) {
+                        const oldStartAt = this.reserve.startAt;
+                        const oldEndAt = this.reserve.endAt;
                         this.log.system.info(
                             `program start delayed (prepRecord): reserveId: ${this.reserve.id}, original: ${new Date(this.reserve.startAt).toISOString()} -> delayed: ${new Date(latestStartAt).toISOString()}`,
                         );
                         this.reserve.startAt = latestStartAt;
                         this.reserve.endAt = latestEndAt;
                         await this.reserveDB.updateOnce(this.reserve);
+
+                        // スライド元とスライド先の時間帯のチューナー競合（isConflict）を即時再調停
+                        this.recordingEvent.emitRecheckConflicts([
+                            { startAt: oldStartAt, endAt: oldEndAt },
+                            { startAt: latestStartAt, endAt: latestEndAt },
+                        ]);
 
                         // 準備時間（15秒）以上先ならタイマーを再設定して待機し直す（外部コマンドや準備通知の発行を抑止）
                         if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
@@ -519,9 +527,17 @@ class RecorderModel implements IRecorderModel {
 
                         // 開始繰り下げを検知した場合
                         if (latestStartAt > this.reserve.startAt) {
+                            const oldStartAt = this.reserve.startAt;
+                            const oldEndAt = this.reserve.endAt;
                             this.reserve.startAt = latestStartAt;
                             this.reserve.endAt = latestEndAt;
                             await this.reserveDB.updateOnce(this.reserve);
+
+                            // スライド元とスライド先の時間帯のチューナー競合（isConflict）を即時再調停
+                            this.recordingEvent.emitRecheckConflicts([
+                                { startAt: oldStartAt, endAt: oldEndAt },
+                                { startAt: latestStartAt, endAt: latestEndAt },
+                            ]);
 
                             // 準備時間（15秒）以上先ならストリームを解放してタイマー再設定
                             if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
@@ -1403,6 +1419,7 @@ class RecorderModel implements IRecorderModel {
         if (event.startTime !== null && event.duration > 0) {
             const streamEndAt = event.startTime.getTime() + event.duration * 1000;
             if (streamEndAt > this.reserve.endAt) {
+                const oldEndAt = this.reserve.endAt;
                 const diffSec = Math.round((streamEndAt - this.reserve.endAt) / 1000);
                 this.log.system.info(
                     `[EIT] Program extension detected via TS for reserveId: ${this.reserve.id} (${this.reserve.name}): ` +
@@ -1415,6 +1432,14 @@ class RecorderModel implements IRecorderModel {
                     this.log.system.error(`[EIT] failed to update reserve endAt: ${this.reserve.id}`);
                     this.log.system.error(err);
                 });
+
+                // 延長された時間帯について後続予約とのチューナー競合（isConflict）を即時再調停
+                this.recordingEvent.emitRecheckConflicts([
+                    {
+                        startAt: oldEndAt,
+                        endAt: streamEndAt,
+                    },
+                ]);
 
                 // 録画中レコードの endAt と duration を更新
                 if (this.recordedId !== null) {

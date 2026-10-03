@@ -1229,6 +1229,55 @@ class ReservationManageModel implements IReservationManageModel {
     }
 
     /**
+     * 放送延長や開始繰り下げに伴い、指定された時間帯の予約同士のチューナー競合（isConflict）を即時再調停する
+     * @param timeRanges: IReserveTimeOption[] 再判定対象の時間帯リスト
+     * @param isSuppressLog: boolean
+     */
+    public async recheckConflicts(timeRanges: IReserveTimeOption[], isSuppressLog: boolean = false): Promise<void> {
+        if (timeRanges.length === 0) {
+            return;
+        }
+
+        // 実行権取得
+        const exeId = await this.executeManagementModel.getExecution(ReservationManageModel.UPDATE_RESERVE_PRIORITY);
+        const finalize = () => {
+            this.executeManagementModel.unLockExecution(exeId);
+        };
+
+        if (isSuppressLog === false) {
+            this.log.system.info('recheck conflicts for delayed/extended reservations');
+        }
+
+        try {
+            const findOption: IFindTimeRangesOption = {
+                times: timeRanges,
+                hasSkip: false,
+                hasConflict: true,
+                hasOverlap: false,
+            };
+
+            // DB上の予約を抽出し、最新のチューナー状況で競合判定を実施・差分更新
+            const diff = await this.createDiff(findOption, [], [], isSuppressLog);
+
+            finalize();
+
+            // 差分があればイベントを発行
+            if (
+                (diff.insert && diff.insert.length > 0) ||
+                (diff.update && diff.update.length > 0) ||
+                (diff.delete && diff.delete.length > 0)
+            ) {
+                this.reserveEvent.emitUpdated(diff);
+            }
+        } catch (err: any) {
+            finalize();
+            this.log.system.error('recheck conflicts error');
+            this.log.system.error(err);
+            throw err;
+        }
+    }
+
+    /**
      * 予約キャンセル
      * 手動予約の場合は削除
      * ルール予約の場合は除外

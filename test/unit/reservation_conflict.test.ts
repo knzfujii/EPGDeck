@@ -378,4 +378,70 @@ describe('ReservationManageModel Conflict & Tuner Allocation Tests', () => {
         expect(evaluatedR1.isConflict).toBe(false);
         expect(evaluatedR2.isConflict).toBe(true);
     });
+
+    it('rechecks conflicts on broadcast extension and updates DB with emitted diff', async () => {
+        const model = createModel();
+        model.setTuners([mockTuner(0, 'GR_Tuner_0', ['GR'])]); // Only 1 GR tuner
+
+        const now = Date.now();
+        // r1: Extended anime (priority 10 - higher)
+        const r1 = new Reserve();
+        r1.id = 301;
+        r1.ruleId = 1;
+        r1.programId = 10001;
+        r1.priority = 10;
+        r1.channelId = 1;
+        r1.channelType = 'GR';
+        r1.channel = '27';
+        r1.startAt = now + 100000;
+        r1.endAt = now + 100000 + 3600000; // extended into r2's slot!
+        r1.isConflict = false;
+
+        // r2: Originally scheduled program in overlapping slot (priority 5 - lower)
+        const r2 = new Reserve();
+        r2.id = 302;
+        r2.ruleId = 2;
+        r2.programId = 10002;
+        r2.priority = 5;
+        r2.channelId = 2;
+        r2.channelType = 'GR';
+        r2.channel = '28';
+        r2.startAt = now + 100000 + 1800000; // overlapping with r1
+        r2.endAt = now + 100000 + 3600000;
+        r2.isConflict = false; // originally was not conflicting before extension!
+
+        // When recheckConflicts searches DB for time range, it finds r1 and r2
+        dummyReserveDB.findTimeRanges = vi.fn().mockResolvedValue([r1, r2]);
+
+        await model.recheckConflicts([
+            {
+                startAt: r2.startAt,
+                endAt: r1.endAt,
+            },
+        ]);
+
+        // Verify updateMany was called with diff where r2 became isConflict = true
+        expect(dummyReserveDB.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                update: expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 302,
+                        isConflict: true,
+                    }),
+                ]),
+            }),
+        );
+
+        // Verify reserveEvent.emitUpdated was notified
+        expect(dummyReserveEvent.emitUpdated).toHaveBeenCalledWith(
+            expect.objectContaining({
+                update: expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 302,
+                        isConflict: true,
+                    }),
+                ]),
+            }),
+        );
+    });
 });

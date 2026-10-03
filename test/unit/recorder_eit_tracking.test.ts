@@ -95,6 +95,7 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
             emitFinishRecording: vi.fn(),
             emitRecordingFailed: vi.fn(),
             emitEventRelay: vi.fn(),
+            emitRecheckConflicts: vi.fn(),
         };
 
         mockGetProgram = vi.fn().mockResolvedValue({
@@ -177,6 +178,14 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
 
         // Verify reserve.endAt is extended
         expect(reserve.endAt).toBe(6400000);
+
+        // Verify conflict recheck is emitted for the extended period
+        expect(dummyRecordingEvent.emitRecheckConflicts).toHaveBeenCalledWith([
+            {
+                startAt: 4600000,
+                endAt: 6400000,
+            },
+        ]);
 
         // Verify DB updates
         expect(dummyReserveDB.updateOnce).toHaveBeenCalledWith(
@@ -420,6 +429,12 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
             // Timer should be rescheduled cleanly without killing the reservation
             expect(setTimerSpy).toHaveBeenCalledWith(animeReserve, false);
 
+            // Verify conflict recheck is emitted for both old and new time ranges
+            expect(dummyRecordingEvent.emitRecheckConflicts).toHaveBeenCalledWith([
+                { startAt: 2000000 + 10000, endAt: 2000000 + 10000 + 1800000 },
+                { startAt: delayedStartAt, endAt: delayedStartAt + delayedDuration },
+            ]);
+
             vi.useRealTimers();
         });
 
@@ -588,6 +603,12 @@ describe('RecorderModel EIT Broadcast Tracking Tests', () => {
 
             // Stream and temporary file should be cleaned up
             expect(stream.destroyed).toBe(true);
+
+            // Verify conflict recheck is emitted for both old and new time ranges
+            expect(dummyRecordingEvent.emitRecheckConflicts).toHaveBeenCalledWith([
+                { startAt: now, endAt: now + 1800000 },
+                { startAt: delayedStartAt, endAt: delayedStartAt + delayedDuration },
+            ]);
 
             vi.useRealTimers();
         });

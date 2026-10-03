@@ -296,6 +296,14 @@ export default class EventSetter implements IEventSetter {
             }
         });
 
+        // 放送延長・繰り下げに伴うチューナー競合の即時再調停
+        this.recordingEvent.setRecheckConflicts(async timeRanges => {
+            await this.reservationManage.recheckConflicts(timeRanges).catch(err => {
+                this.log.system.error('failed to recheck conflicts on delay/extension');
+                this.log.system.error(err);
+            });
+        });
+
         // サムネイル作成完了
         this.thumbnailEvent.setAdded((_videoFileId, _recordedId) => {
             this.ipc.notifyClient();

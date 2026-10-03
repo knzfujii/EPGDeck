@@ -63,6 +63,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `TsSectionParser.ts` ➔ `TsSectionAssembler.ts`: クラス名とファイル名の完全一致。
   - `ID3` クラスのメソッド名を規格書のスネークケース（`metadata_pointer_descriptor` 等）から TypeScript 慣例のキャメルケース（`createMetadataPointerDescriptor`, `createMetadataElementaryStream`, `createPrivFrame`, `createTimedMetadataPes`）に刷新。
   - `StreamBaseModel` 等における長年のタイポプロパティ名 `id3MetadataTransoform` を `id3MetadataTransform` に修正。
+- **外部依存パッケージのマイナー更新および不要パッケージ整理**:
+  - `inversify`: `6.0.2` ➔ `6.2.2`
+  - `eslint`: `10.11.0` ➔ `10.12.0`
+  - `@types/node`: `24.13.6` ➔ `24.19.1`（ルート・クライアント共通）
+  - `@lucide/svelte`: `1.50.0` ➔ `1.51.0`（クライアント）
+  - 非推奨スタブパッケージ `@types/socket.io` を削除（`socket.io` v4 本体の組み込み型定義へ一本化）
+  - Flat Config 移行に伴い不要となった旧形式アダプタ `@eslint/eslintrc` を削除
+  - `@playwright/test` と二重登録されていた単体パッケージ `playwright` を削除（`@playwright/test` 内包 CLI に集約）
+  - `eslint.config.mjs` で直接インポートされていた `globals` を正規の devDependencies（`17.13.0`）として明示登録
+- **レガシー互換スクリプトの完全撤廃**:
+  - 旧 EPGStation 時代の名残だった `npm run all-install` スクリプトを完全撤廃（npm workspaces による標準の `npm install` へ完全一本化）し、README およびドキュメントの不要な互換性注記を削除。
 
 ## [0.1.0-beta.4] - 2026-10-02
 

@@ -16,7 +16,7 @@
         "format:check": "prettier --check 'src/**/*.{js,ts,svelte}'"
     },
     "dependencies": {
-        "@lucide/svelte": "1.50.0",
+        "@lucide/svelte": "1.51.0",
         "aribb24.js": "2.0.26",
         "hls.js": "1.7.3",
         "hono": "4.13.12",
@@ -27,7 +27,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "7.3.1",
         "@tailwindcss/vite": "^4.0.0",
-        "@types/node": "24.13.6",
+        "@types/node": "24.19.1",
         "prettier": "3.9.9",
         "prettier-plugin-svelte": "4.1.1",
         "svelte-check": "^4.0.0",

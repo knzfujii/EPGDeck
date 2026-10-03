@@ -33,7 +33,6 @@
     $ npm install
     $ npm run build
     ```
-    *(互換性のため `npm run all-install` も引き続き利用可能です)*
 
 3. 設定ファイルの作成
 

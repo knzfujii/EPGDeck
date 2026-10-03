@@ -2,6 +2,8 @@ import * as apid from '../../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import Reserve from '../../../db/entities/Reserve.js';
 
+import { IReserveTimeOption } from '../../db/IReserveDB.js';
+
 export default interface IReservationManageModel {
     setTuners(tuners: mapid.TunerDevice[]): void;
     getBroadcastStatus(): apid.BroadcastStatus;
@@ -10,6 +12,7 @@ export default interface IReservationManageModel {
     update(reserveId: apid.ReserveId, isSuppressLog?: boolean): Promise<void>;
     updateRule(ruleId: apid.RuleId, isSuppressLog?: boolean, isFirstUpdate?: boolean): Promise<void>;
     updateAll(isFirstUpdate?: boolean): Promise<void>;
+    recheckConflicts(timeRanges: IReserveTimeOption[], isSuppressLog?: boolean): Promise<void>;
     cancel(reserveId: apid.ReserveId): Promise<void>;
     removeSkip(reserveId: apid.ReserveId): Promise<void>;
     removeOverlap(reserveId: apid.ReserveId): Promise<void>;

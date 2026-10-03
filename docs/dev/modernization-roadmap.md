@@ -221,3 +221,40 @@ flowchart TD
   - モーダルやフォーム部分を別コンポーネントへ分割。
   - ビジネスロジックや状態管理を Svelte 5 の Runes クラス（`*.svelte.ts`）に外出しし、保守性・可読性を向上させる。
 
+#### 3.4 `aribts` からゼロ依存・内製パッケージ `arib-probe` への刷新
+> **ステータス**: 実装完了 (`v0.1.0-beta.4`)
+
+- **対象ファイル**: `packages/arib-probe/*`, `src/model/operator/recording/DropCheckerModel.ts`, `src/model/operator/recording/IDropCheckerModel.ts`, `test/unit/arib_probe.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **外部パッケージの更新停止とバージョンのねじれ**:
+     - 本家 `aribts` は 2018 年の `v2.1.12` を最後にメンテナンスが停止しており、npm の `latest` タグが旧系 `1.3.5` を指すなど semver 上のねじれが発生していた。
+     - Mirakurun 側が利用するフォーク版 `@chinachu/aribts` は `1.x` 系ベースの `TsStream` のみを提供しており、EPGStation / EPGDeck が依存する 2.x 系のパケットドロップ監視クラス群（`TsPacketAnalyzer`, `TsSectionParser` 等）が存在しないため移行不能だった。
+  2. **不要な間接依存・C++ 残骸の排除**:
+     - `aribts` の package.json には過去の試作残骸（`nan`, `bindings`, `eventemitter3@2.x`, `crc@3.x`）が含まれており、依存ツリーの健全性を損ねていた。
+  3. **責務の局所化とパイプラインの劇的な簡素化**:
+     - EPGDeck が必要としていたのは「ドロップ・エラー・スクランブル監視」「PMT 音声/映像 PID 解析」「TOT 放送時刻取得」のごく一部の機能。
+     - 7 つの中間クラスをパイプ接続する過剰設計を排し、単一の `TsProbe`（Transform stream）に集約することで、コード行数を大幅に削減し、ゼロ依存（Node.js 標準ライブラリのみ）かつ Pure TypeScript / ESM の高信頼・高速な内部パッケージとして確立した。
+  4. **規格準拠の PID 名称解決と PCR タイムコード解析の統合**:
+     - ARIB STD-B10 / ISO 13818-1 規格の Well-known PID および Stream Type 定義をパッケージ側へ集約し、`DropCheckerModel.ts` 内に散乱していた約 120 行の冗長な switch 文を完全撤廃。
+     - TS アダプテーションフィールドの PCR（Program Clock Reference）デコードにより、ドロップ発生時に放送時刻だけでなく動画プレイヤー基準の再生位置（`timecode: HH:MM:SS.mmm`）をドロップログへ記録可能とした。
+- **将来の巻き戻し禁止**:
+  - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
+
+#### 3.5 字幕 PES パース & ID3 Timed Metadata 多重化の内製化 (`TsSubtitleId3Muxer`)
+> **ステータス**: 実装完了 (`v0.1.0-beta.4`)
+
+- **対象ファイル**: `packages/arib-probe/src/TsSubtitleId3Muxer.ts`, `packages/arib-probe/src/pes/TsPesParser.ts`, `packages/arib-probe/src/section/TsPacketizer.ts`, `packages/arib-probe/src/id3/id3.ts`, `src/model/service/stream/base/StreamBaseModel.ts`, `test/unit/arib_probe.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **外部パッケージの CJS / ESM 相互運用性の負債解消**:
+     - `arib-subtitle-timedmetadater` は CJS でビルドされており、Node.js ネイティブ ESM 環境で `(module as any).default ?? module` という防衛的アンラップコードが必要であった。また、間接依存として `arib-mpeg2ts-parser` や `commander`（CLI ライブラリ）を含むなど不要な依存が混入していた。
+  2. **上流ライブラリの潜在的バグ（FIXME）の根本解消**:
+     - `node-arib-subtitle-timedmetadater` は内部で `if ((data_group_id & 0x0F) != 1) continue; // FIXME!` とハードコードしており、CaptionManagement（字幕管理データ：言語・文字コード定義）を破棄していた。
+     - これが原因で厳格な `aribb24.js v2` で字幕本文がスキップされる不具合を引き起こしていた。内製化により CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方が漏れなく ID3 化され、根本解決に至った。
+  3. **ゼロ依存・超軽量な ID3v2 PRIV & TS パケタイザーの実装**:
+     - ID3v2 PRIV フレーム生成、33bit 90kHz PTS デコーダー、可変長 PES アセンブラ、PMT 書換器（`metadata_pointer_descriptor` / `metadata_elementary_stream`）、188B TS パケタイザー（Adaptation Field スタッフィング対応）を完全ゼロ依存（Pure TS）で `arib-probe` 内に実装。
+     - 外部パッケージ 3 つ（`arib-subtitle-timedmetadater`, `arib-mpeg2ts-parser`, `commander`）をプロジェクトから完全アンインストールし、依存ツリーの極小化を達成した。
+- **将来の巻き戻し禁止**:
+  - `arib-subtitle-timedmetadater` や外部の PES パーサーライブラリへの再依存は厳禁。HLS 字幕処理は `packages/arib-probe` 内の `TsSubtitleId3Muxer` を継続保守すること。
+
+
+

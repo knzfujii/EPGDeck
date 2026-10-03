@@ -1,6 +1,7 @@
 import * as apid from '../../../api.js';
 import Recorded from '../../db/entities/Recorded.js';
 import Reserve from '../../db/entities/Reserve.js';
+import { IReserveTimeOption } from '../db/IReserveDB.js';
 
 export default interface IRecordingEvent {
     emitStartPrepRecording(reserve: Reserve): void;
@@ -11,6 +12,7 @@ export default interface IRecordingEvent {
     emitRecordingRetryOver(reserve: Reserve): void;
     emitFinishRecording(reserve: Reserve, recorded: Recorded, isNeedDeleteReservation: boolean): void;
     emitEventRelay(programs: { programId: apid.ProgramId; parentReserve: Reserve }[]): void;
+    emitRecheckConflicts(timeRanges: IReserveTimeOption[]): void;
     setStartPrepRecording(callback: (reserve: Reserve) => void): void;
     setCancelPrepRecording(callback: (reserve: Reserve) => void): void;
     setPrepRecordingFailed(callback: (reserve: Reserve) => void): void;
@@ -21,4 +23,5 @@ export default interface IRecordingEvent {
         callback: (reserve: Reserve, recorded: Recorded, isNeedDeleteReservation: boolean) => void,
     ): void;
     setEventRelay(callback: (programs: { programId: apid.ProgramId; parentReserve: Reserve }[]) => void): void;
+    setRecheckConflicts(callback: (timeRanges: IReserveTimeOption[]) => void): void;
 }

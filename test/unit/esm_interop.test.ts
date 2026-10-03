@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
-import * as aribtsNamespace from 'aribts';
+import { TsProbe, TsSubtitleId3Muxer } from 'arib-probe';
 import { Client as MirakurunClient } from 'mirakurun';
 import * as rfs from 'rotating-file-stream';
 import * as SocketIO from 'socket.io';
@@ -9,8 +8,8 @@ import * as yaml from 'js-yaml';
 import StreamBaseModel from '../../src/model/service/stream/base/StreamBaseModel.js';
 
 describe('CJS / ESM Interop Regression Tests', () => {
-    describe('arib-subtitle-timedmetadater', () => {
-        it('should safely unwrap and instantiate ID3MetadataTransform stream', () => {
+    describe('TsSubtitleId3Muxer', () => {
+        it('should instantiate TsSubtitleId3Muxer stream via StreamBaseModel factory', () => {
             // StreamBaseModel 実装ファクトリの挙動テスト
             class TestStreamModel extends StreamBaseModel<any> {
                 public start(): Promise<void> {
@@ -39,43 +38,17 @@ describe('CJS / ESM Interop Regression Tests', () => {
             expect(typeof transform.pipe).toBe('function');
             expect(typeof transform.unpipe).toBe('function');
             expect(typeof transform.destroy).toBe('function');
-        });
-
-        it('should unwrap constructor even when imported as default object', () => {
-            const Ctor = ((ID3MetadataTransform as any).default || ID3MetadataTransform) as typeof ID3MetadataTransform;
-            const instance = new Ctor();
-            expect(instance).toBeDefined();
-            expect(instance.constructor.name).toBe('MetadataTransform');
+            expect(transform).toBeInstanceOf(TsSubtitleId3Muxer);
         });
     });
 
-    describe('aribts', () => {
-        it('should safely unwrap aribts namespace and instantiate all parser components', () => {
-            const aribtsCtor = ((aribtsNamespace as any).default || aribtsNamespace) as typeof aribtsNamespace;
-
-            expect(typeof aribtsCtor.TsReadableConnector).toBe('function');
-            expect(typeof aribtsCtor.TsPacketParser).toBe('function');
-            expect(typeof aribtsCtor.TsPacketAnalyzer).toBe('function');
-            expect(typeof aribtsCtor.TsSectionParser).toBe('function');
-            expect(typeof aribtsCtor.TsSectionAnalyzer).toBe('function');
-            expect(typeof aribtsCtor.TsSectionUpdater).toBe('function');
-            expect(typeof aribtsCtor.TsPacketSelector).toBe('function');
-
-            const connector = new aribtsCtor.TsReadableConnector();
-            const parser = new aribtsCtor.TsPacketParser();
-            const analyzer = new aribtsCtor.TsPacketAnalyzer();
-            const sParser = new aribtsCtor.TsSectionParser();
-            const sAnalyzer = new aribtsCtor.TsSectionAnalyzer();
-            const sUpdater = new aribtsCtor.TsSectionUpdater();
-            const selector = new aribtsCtor.TsPacketSelector({ pids: [], programNumbers: [] });
-
-            expect(connector).toBeDefined();
-            expect(parser).toBeDefined();
-            expect(analyzer).toBeDefined();
-            expect(sParser).toBeDefined();
-            expect(sAnalyzer).toBeDefined();
-            expect(sUpdater).toBeDefined();
-            expect(selector).toBeDefined();
+    describe('arib-probe', () => {
+        it('should instantiate TsProbe stream and verify methods', () => {
+            const probe = new TsProbe();
+            expect(probe).toBeDefined();
+            expect(typeof probe.pipe).toBe('function');
+            expect(typeof probe.getResult).toBe('function');
+            expect(typeof probe.reset).toBe('function');
         });
     });
 

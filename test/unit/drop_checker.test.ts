@@ -30,7 +30,7 @@ describe('DropCheckerModel Unit Tests', () => {
         }
     });
 
-    it('should instantiate DropCheckerModel without error and initialize aribts pipeline', () => {
+    it('should instantiate DropCheckerModel without error and initialize arib-probe pipeline', () => {
         const dropChecker = new DropCheckerModel(dummyLogger);
         expect(dropChecker).toBeDefined();
     });
@@ -90,5 +90,94 @@ describe('DropCheckerModel Unit Tests', () => {
 
         // 書き込み完了後に unlink されているため、ファイルが再生成されていないこと
         expect(fs.existsSync(logPath!)).toBe(false);
+    });
+
+    it('should correctly record drops and write summary when drop occurs in stream', async () => {
+        const dropChecker = new DropCheckerModel(dummyLogger);
+
+        // PID 0x0100: CC 0, 1, 2, 4 (drop 3!), 5
+        function createTsPacket(pid: number, cc: number): Uint8Array {
+            const buf = new Uint8Array(188);
+            buf[0] = 0x47;
+            buf[1] = (pid >> 8) & 0x1f;
+            buf[2] = pid & 0xff;
+            buf[3] = 0x10 | (cc & 0x0f);
+            buf.fill(0xaa, 4);
+            return buf;
+        }
+
+        const packets = Buffer.concat([
+            createTsPacket(0x0100, 0),
+            createTsPacket(0x0100, 1),
+            createTsPacket(0x0100, 2),
+            createTsPacket(0x0100, 4), // Drop! expected 3, got 4
+            createTsPacket(0x0100, 5),
+        ]);
+
+        const streamWithDrop = new Readable({
+            read() {
+                this.push(packets);
+                this.push(null);
+            },
+        });
+
+        await dropChecker.start(testDir, 'test_drop_occurred.ts', streamWithDrop);
+        const logPath = dropChecker.getFilePath();
+        expect(logPath).not.toBeNull();
+
+        // ストリームの pipe とパケット処理完了を待機
+        await new Promise(resolve => streamWithDrop.on('end', resolve));
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        await dropChecker.stop();
+        const result = await dropChecker.getResult();
+
+        expect(result[0x0100]).toBeDefined();
+        expect(result[0x0100].drop).toBe(1);
+        expect(result[0x0100].packet).toBe(5);
+
+        // ログファイルが残っており、ドロップ詳細とサマリーが書き込まれていること
+        expect(fs.existsSync(logPath!)).toBe(true);
+        const logContent = fs.readFileSync(logPath!, 'utf-8');
+        expect(logContent).toContain('drop (pid: 0x0100, counter: 4, expected: 3');
+        expect(logContent).toContain('pid: 0x0100, error: 0, drop: 1, scrambling: 0, packet: 5');
+    });
+
+    it('should forward eit events from TsProbe to registered on("eit") listeners', async () => {
+        const dropChecker = new DropCheckerModel(dummyLogger);
+        let emittedEit: any = null;
+        dropChecker.on('eit', eit => {
+            emittedEit = eit;
+        });
+
+        // Create TS stream with minimal EIT section
+        const dummyStream = new Readable({
+            read() {
+                this.push(null);
+            },
+        });
+
+        await dropChecker.start(testDir, 'test_eit.ts', dummyStream);
+
+        // Manually emit eit on the internal tsProbe to verify forwarding
+        const sampleEit = { serviceId: 1032, events: [] };
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+
+        expect(emittedEit).toEqual(sampleEit);
+
+        // Test off('eit')
+        let callCount = 0;
+        const listener = () => {
+            callCount++;
+        };
+        dropChecker.on('eit', listener);
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+        expect(callCount).toBe(1);
+
+        dropChecker.off('eit', listener);
+        (dropChecker as any).tsProbe.emit('eit', sampleEit);
+        expect(callCount).toBe(1);
+
+        await dropChecker.stop();
     });
 });

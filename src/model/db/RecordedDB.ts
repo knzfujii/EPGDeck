@@ -79,6 +79,27 @@ export default class RecordedDB implements IRecordedDB {
     }
 
     /**
+     * 録画中番組のメタ情報（番組名、終了予定時刻、録画長など）を部分更新する
+     */
+    public async updateProgramInfo(
+        recordedId: apid.RecordedId,
+        values: {
+            name?: string;
+            halfWidthName?: string;
+            endAt?: number;
+            duration?: number;
+            audioSamplingRate?: number;
+            audioComponentType?: number;
+        },
+    ): Promise<void> {
+        const client = this.drizzleOp.getDB();
+        await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            await (db as any).update(schema.recorded).set(values).where(eq(schema.recorded.id, recordedId));
+        });
+    }
+
+    /**
      * 指定した録画情報の isRecording を false に
      */
     public async removeRecording(
@@ -163,7 +184,16 @@ export default class RecordedDB implements IRecordedDB {
      * id を指定して録画番組情報取得
      */
     public async findId(recordedId: apid.RecordedId): Promise<Recorded | null> {
-        const results = await this.findIds([recordedId], undefined, false);
+        const results = await this.findIds(
+            [recordedId],
+            {
+                isNeedVideoFiles: true,
+                isNeedThumbnails: true,
+                isNeedsDropLog: true,
+                isNeedTags: true,
+            },
+            false,
+        );
         return results.length === 0 ? null : results[0];
     }
 
@@ -182,7 +212,7 @@ export default class RecordedDB implements IRecordedDB {
         return await this.promiseRetry.run(async () => {
             const isNeedVideoFiles = typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true;
             const isNeedThumbnails = typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true;
-            const isNeedsDropLog = typeof columnOption !== 'undefined' && columnOption.isNeedsDropLog === true;
+            const isNeedsDropLog = typeof columnOption === 'undefined' || columnOption.isNeedsDropLog === true;
             const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
 
             const { db, schema } = client;

@@ -24,7 +24,11 @@
    - [日跨ぎ枠の算出ロジック](#日跨ぎ枠の算出ロジック)
    - [レガシー時単位ルールの後方互換対応](#レガシー時単位ルールの後方互換対応)
    - [録画完了時の EPG 番組名自動補完と予約名フォールバック](#録画完了時の-epg-番組名自動補完と予約名フォールバック)
-6. [関連ソースコード一覧](#6-関連ソースコード一覧)
+6. [放送波（EIT）直接監視による録画中のリアルタイム番組追従・延長](#6-放送波eit直接監視による録画中のリアルタイム番組追従延長)
+   - [判定フローと即時更新](#61-判定フローと即時更新)
+   - [前番組延長（野球等）に伴う後続番組の開始繰り下げ（Delay）保護と待機制御](#62-前番組延長野球等に伴う後続番組の開始繰り下げdelay保護と待機制御)
+   - [番組延長・繰り下げ時のチューナー競合（isConflict）即時再調停](#63-番組延長繰り下げ時のチューナー競合isconflict即時再調停)
+7. [関連ソースコード一覧](#7-関連ソースコード一覧)
 
 ---
 
@@ -293,14 +297,66 @@ const rangeSec = startSec <= endSec
 
 ---
 
-## 6. 関連ソースコード一覧
+## 6. 放送波（EIT）直接監視による録画中のリアルタイム番組追従・延長
+
+録画実行中（`RecorderModel`）における番組延長やイベントリレー（マルチ編成移行等）への対応は、従来の HTTP ポーリングに加えて、受信ストリーム自体から直接パースする **EIT (present/following, PID 0x0012) 直接監視** によってミリ秒単位でリアルタイム制御されます。
+
+### 6.1. 判定フローと即時更新
+1. **ストリーム直接購読**: `RecorderModel` は録画開始時に `DropCheckerModel`（`TsProbe`）の `on('eit')` を購読します。
+2. **対象イベント照合**: EIT 内の `serviceId` および `eventId`（`programId % 100000`）を予約中の対象番組と照合します。
+3. **番組延長（Extension）の検知**:
+   - `streamEndAt = startTime + duration` が現在の `reserve.endAt` を超えている場合、即座に番組延長と判定します。
+   - `reserve.endAt` を更新し、`reserveDB.updateOnce` および `recordedDB.updateProgramInfo` を実行して DB の `endAt` と `duration` を即時延伸します。
+   - チューナー共有判定（`RecordingStreamCreator`）の予約終了時刻も延伸されるため、後続番組によるチューナーの早期強制奪取を防止します。
+   - イベントリレー確認タイマー（`eventRelayTimer`）を新たな終了時刻に合わせて再スケジュールします。
+4. **番組タイトル・メタ情報のリアルタイム追従**:
+   - 放送局側でタイトルに「[延]」「試合終了まで中継」等の付記が行われた場合、`reserve.name` および `recordedDB` のタイトル情報を自動同期します。
+5. **イベントリレー（event_group_descriptor Tag 0xD6）の早期検知とTS直結連携**:
+   - ARIB STD-B10 `event_group_descriptor`（group_type = 2: relay）が EIT に記載された場合、終了直前タイマーを待たずに即時 `checkEventRelay()` をトリガーします。
+   - 移行先チャンネルの `networkId`、`serviceId`、`eventId` を放送波の記述子から直接引き渡すため、Mirakurun 側の REST API（`/api/programs/{id}`）の EPG 更新遅延に一切影響されず、即座に移行先番組の予約・録画準備が発行されます。
+
+### 6.2. 前番組延長（野球等）に伴う後続番組の開始繰り下げ（Delay）保護と待機制御
+プロ野球中継や報道特番の延長時、後続の目的番組（アニメ・ドラマ等）が繰り下げ（遅延）になった場合の録画欠損・自爆死を防ぐ多重防護機構：
+
+1. **録画準備時（`prepRecord`）の繰り下げ早期検知とタイマーリスケジュール**:
+   - 録画準備時、Mirakurun から最新の番組情報（`getProgram`）を問い合わせます。
+   - 前番組延長により開始時刻が未来へ繰り下げられ、準備時間（15秒）以上先である場合、`reserve.startAt` および `reserve.endAt` を DB に即時更新した上でタイマーを再設定（`setTimer`）して待機し直します。これにより、無駄なチューナーの事前占有を防止します。
+2. **録画ストリーム開始時（`doRecord`）の放送波・EIT待機制御**:
+   - Mirakurun の `getProgramStream` は内部で EIT present（放送波 Section 0）の `eventId` を監視しており、前番組放送中は目的番組の TS パケットを流さず待機する設計となっています。
+   - レガシー EPGStation では固定 5 秒でタイムアウトして予約自体を削除していましたが、EPGDeck では番組指定予約において Mirakurun との接続が維持されている間、定期的に番組情報を確認しながら番組の放送開始（Mirakurun ready）を待機します。
+   - 待機中に Mirakurun で繰り下げ確定を検知した場合は、ストリームと一時ファイルを速やかに解放し、新開始時刻にタイマーを再設定します。
+   - 前番組が終了して目的番組の TS パケットが到着した瞬間に、待機タイマーを即座に解除してクリーンに録画を開始します（Mirakurun が前番組パケットを破棄しているため、冒頭の混入もありません）。
+
+### 6.3. 番組延長・繰り下げ時のチューナー競合（isConflict）即時再調停
+番組の延長や繰り下げが発生すると、録画枠の時間帯が変動するため、同一時間帯や後続の他局・他番組との間でチューナー競合状態（物理チューナー数の上限超過）がリアルタイムに変化します。
+
+- **従来の課題**:
+  - レガシー EPGStation では、定期的な EPG 更新ジョブ（10分〜数十分に1回）が走るまでチューナー競合状態が再計算されませんでした。そのため、前番組延長でチューナーが逼迫しても後続の優先度の低い番組が `isConflict` にならずチューナー奪い合いを起こしたり、逆に番組枠が後ろにずれて空いた時間帯の番組が `isConflict` のまま録画されないといった不整合が生じていました。
+- **EPGDeck の即時再調停機構**:
+  - `RecorderModel` は以下のタイミングで `RecordingEvent.emitRecheckConflicts(timeRanges)` を即座に発火します：
+    1. **放送波 EIT 監視による番組延長検知時**: 延伸された区間 `[oldEndAt, streamEndAt]`
+    2. **録画準備中（`prepRecord`）の繰り下げ検知時**: 旧時間枠 `[oldStartAt, oldEndAt]` および 新時間枠 `[latestStartAt, latestEndAt]`
+    3. **ストリーム待機中（`checkStreamTimeout`）の繰り下げ検知時**: 旧時間枠 `[oldStartAt, oldEndAt]` および 新時間枠 `[latestStartAt, latestEndAt]`
+  - `EventSetter` を経由して `ReservationManageModel.recheckConflicts(timeRanges)` が呼び出されます。
+  - 平面走査法（`createDiff`）を該当時間枠のみにスコープを絞って実行し、優先度（`priority` / `ruleId` / 手動予約）に基づくチューナー割り当てを再評価します。
+  - `isConflict` フラグに変化があった予約レコードのみを DB へ即座に反映し、`reserveEvent.emitUpdated(diff)` を送出します。
+  - これにより、WebSocket 経由でフロントエンド UI（番組表・予約一覧）に即座に競合アイコンが反映されるとともに、`RecordingManageModel` 側でも最新のチューナー競合状態に基づいた録画開始制御が行われます。
+
+---
+
+## 7. 関連ソースコード一覧
 
 | ファイルパス | 対象シンボル | 役割・該当処理 |
 |---|---|---|
 | [`src/model/db/ProgramDB.ts`](../../src/model/db/ProgramDB.ts) | `ProgramDB.findRulePrograms` | `recorded_history` との照合による `overlap` 判定処理 |
 | [`src/util/StrUtil.ts`](../../src/util/StrUtil.ts) | `StrUtil.deleteBrackets` | 囲み文字・角括弧の除去による `shortName` 生成 |
+| [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts) | `RecorderModel.onEit` | 放送波 EIT からの番組延長・タイトル・リレーのリアルタイム追従 |
 | [`src/model/operator/recording/RecorderModel.ts`](../../src/model/operator/recording/RecorderModel.ts) | `RecorderModel.recEnd` | 録画完了時の `recorded_history` へのレコード記録 |
+| [`src/model/operator/recording/DropCheckerModel.ts`](../../src/model/operator/recording/DropCheckerModel.ts) | `DropCheckerModel.on('eit')` | `TsProbe` からの EIT present/following イベントの中継 |
+| [`packages/arib-probe/src/section/eit.ts`](../../packages/arib-probe/src/section/eit.ts) | `decodeEitSection` | EIT present/following および event_group_descriptor (0xD6) のデコード |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.createReserves` | 平面走査法によるチューナー競合判定（`isConflict`） |
+| [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.recheckConflicts` | 延長・繰り下げ時の時間枠に対する平面走査法を用いた即時競合再調停 |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.sortReserve` | 手動予約・優先度（Priority）・ルールIDに基づく優先度ソート |
 | [`src/model/operator/reservation/ReservationManageModel.ts`](../../src/model/operator/reservation/ReservationManageModel.ts) | `ReservationManageModel.updateRule` | 重複フラグの引き継ぎおよび `isIgnoreOverlap`（手動解除）の維持 |
+| [`src/model/event/RecordingEvent.ts`](../../src/model/event/RecordingEvent.ts) | `RecordingEvent.emitRecheckConflicts` | 録画実行モデルから予約管理モデルへの競合再チェック通知イベント |
 

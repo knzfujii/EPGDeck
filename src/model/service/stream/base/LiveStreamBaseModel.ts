@@ -2,7 +2,7 @@ import { ChildProcess } from 'child_process';
 import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import internal from 'stream';
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
+import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import ProcessUtil from '../../../../util/ProcessUtil.js';
 import IConfigFile from '../../../IConfigFile.js';
@@ -24,7 +24,7 @@ export default abstract class LiveStreamBaseModel
     private stream: http.IncomingMessage | null = null;
     private streamProcess: ChildProcess | null = null;
     private mirakurunClientModel: IMirakurunClientModel;
-    private id3MetadataTransoform: ID3MetadataTransform | null = null;
+    private id3MetadataTransform: TsSubtitleId3Muxer | null = null;
 
     constructor(
         @inject('IConfiguration') configure: IConfiguration,
@@ -131,12 +131,12 @@ export default abstract class LiveStreamBaseModel
                     this.log.stream.error(`streamProcess stdin error: ${err.message}`);
                 });
 
-                // HLS 配信の場合は arib-subtitle-timedmetadater を通す
+                // HLS 配信の場合は arib-subtitle-timedmetadater (TsSubtitleId3Muxer) を通す
                 if (this.getStreamType() === 'LiveHLS') {
-                    this.log.stream.info('use arib-subtitle-timedmetadater');
-                    this.id3MetadataTransoform = this.createID3MetadataTransform();
-                    this.stream.pipe(this.id3MetadataTransoform);
-                    this.id3MetadataTransoform.pipe(this.streamProcess.stdin);
+                    this.log.stream.info('use TsSubtitleId3Muxer');
+                    this.id3MetadataTransform = this.createID3MetadataTransform();
+                    this.stream.pipe(this.id3MetadataTransform);
+                    this.id3MetadataTransform.pipe(this.streamProcess.stdin);
                 } else {
                     this.stream.pipe(this.streamProcess.stdin);
                 }
@@ -210,9 +210,9 @@ export default abstract class LiveStreamBaseModel
             this.stream.destroy();
         }
 
-        if (this.id3MetadataTransoform !== null) {
-            this.id3MetadataTransoform.unpipe();
-            this.id3MetadataTransoform.destroy();
+        if (this.id3MetadataTransform !== null) {
+            this.id3MetadataTransform.unpipe();
+            this.id3MetadataTransform.destroy();
         }
 
         if (this.streamProcess !== null) {

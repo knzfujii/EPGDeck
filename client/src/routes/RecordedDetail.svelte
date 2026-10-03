@@ -15,6 +15,7 @@
         getGenreBadgeClass,
     } from '../lib/utils/format';
     import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
+    import { parseDropLog, getDropCategoryLabel, type DropMarker } from '../lib/utils/dropLog';
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import Badge from '../lib/components/common/Badge.svelte';
@@ -83,6 +84,7 @@
     let isDropLogModalOpen = $state(false);
     let dropLogContent = $state<string | null>(null);
     let isLoadingDropLog = $state(false);
+    let parsedDropMarkers = $derived(dropLogContent && recorded ? parseDropLog(dropLogContent, recorded.startAt) : []);
 
     let unsubscribeSocket: (() => void) | null = null;
 
@@ -1271,11 +1273,73 @@
                     {:else if isLoadingDropLog}
                         <p class="py-4 text-center text-xs text-slate-400">詳細ログを読み込み中...</p>
                     {:else if dropLogContent}
-                        <div>
-                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">詳細ログ</p>
+                        {#if parsedDropMarkers.length > 0}
+                            <div>
+                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                    発生タイムライン
+                                </p>
+                                <div
+                                    class="max-h-48 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950 flex flex-col gap-1.5"
+                                >
+                                    {#each parsedDropMarkers as marker}
+                                        <div
+                                            class="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 shadow-2xs dark:bg-slate-900 border border-slate-100/60 dark:border-slate-800/60"
+                                        >
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <span
+                                                    class="font-mono text-xs font-bold {marker.type === 'drop'
+                                                        ? 'text-rose-600 dark:text-rose-400'
+                                                        : marker.type === 'error'
+                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                          : 'text-purple-600 dark:text-purple-400'}"
+                                                >
+                                                    {marker.timecode}
+                                                </span>
+                                                <span
+                                                    class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.category ===
+                                                    'video'
+                                                        ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                        : marker.category === 'audio'
+                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                                          : marker.category === 'subtitle'
+                                                            ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400'
+                                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}"
+                                                >
+                                                    {getDropCategoryLabel(marker.category)}
+                                                </span>
+                                                <span
+                                                    class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.type ===
+                                                    'drop'
+                                                        ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                        : marker.type === 'error'
+                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                                          : 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400'}"
+                                                >
+                                                    {marker.type === 'drop'
+                                                        ? 'ドロップ'
+                                                        : marker.type === 'error'
+                                                          ? 'エラー'
+                                                          : 'スクランブル'}
+                                                </span>
+                                                <span class="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                                    {marker.description}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/if}
+
+                        <details class="text-xs">
+                            <summary
+                                class="cursor-pointer font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-1 select-none"
+                            >
+                                生ログテキストを表示
+                            </summary>
                             <pre
-                                class="max-h-60 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300 whitespace-pre-wrap border border-slate-100 dark:border-slate-800">{dropLogContent}</pre>
-                        </div>
+                                class="mt-2 max-h-40 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300 whitespace-pre-wrap border border-slate-100 dark:border-slate-800">{dropLogContent}</pre>
+                        </details>
                     {:else}
                         <p class="py-2 text-center text-xs text-slate-400">詳細ログファイルは存在しません</p>
                     {/if}

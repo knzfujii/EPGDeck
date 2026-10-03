@@ -6,22 +6,15 @@ import * as fs from 'node:fs';
 
 console.log('[Smoke] Starting Node.js native ESM interop checks...');
 
-// 1. arib-subtitle-timedmetadater
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
-const ID3Ctor = ID3MetadataTransform.default || ID3MetadataTransform;
-const id3Instance = new ID3Ctor();
-assert.strictEqual(typeof id3Instance.pipe, 'function', 'ID3MetadataTransform.pipe must be a function');
-assert.strictEqual(typeof id3Instance.destroy, 'function', 'ID3MetadataTransform.destroy must be a function');
-console.log('  ✔ arib-subtitle-timedmetadater constructor verified');
-
-// 2. aribts
-import * as aribtsNamespace from 'aribts';
-const aribts = aribtsNamespace.default || aribtsNamespace;
-const parser = new aribts.TsPacketParser();
-const connector = new aribts.TsReadableConnector();
-assert.ok(parser, 'TsPacketParser instance must be created');
-assert.ok(connector, 'TsReadableConnector instance must be created');
-console.log('  ✔ aribts parser & connector constructors verified');
+// 1. arib-probe (TsProbe & TsSubtitleId3Muxer)
+import { TsProbe, TsSubtitleId3Muxer } from 'arib-probe';
+const probe = new TsProbe();
+assert.strictEqual(typeof probe.pipe, 'function', 'TsProbe.pipe must be a function');
+assert.strictEqual(typeof probe.getResult, 'function', 'TsProbe.getResult must be a function');
+const metadater = new TsSubtitleId3Muxer();
+assert.strictEqual(typeof metadater.pipe, 'function', 'TsSubtitleId3Muxer.pipe must be a function');
+assert.strictEqual(typeof metadater.destroy, 'function', 'TsSubtitleId3Muxer.destroy must be a function');
+console.log('  ✔ arib-probe TsProbe & TsSubtitleId3Muxer verified');
 
 // 3. mirakurun
 import { Client as MirakurunClient } from 'mirakurun';

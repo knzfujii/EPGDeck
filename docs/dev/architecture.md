@@ -107,6 +107,7 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - `minimist` $\rightarrow$ `node:util.parseArgs`
 - `url-join` $\rightarrow$ 自作の堅牢な `StrUtil.urlJoin`
 - `eventsource` $\rightarrow$ Node.js 22.3+ グローバル `EventSource`
+- `aribts`（C++ バインディング残骸、未保守） $\rightarrow$ 自前 `packages/arib-probe`（ゼロ依存、Pure TS/ESM、PCR タイムコード追跡、規格準拠 PID 名称解決）
 
 ### 非同期排他制御と直列化キュー (`PromiseQueue`)
 

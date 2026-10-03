@@ -4,6 +4,7 @@ import * as http from 'http';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
+import { EitInfo, type AudioComponentInfo, type EitRelatedItem, type PmtInfo } from 'arib-probe';
 import * as mapid from 'mirakurun/api.js';
 import * as apid from '../../../../api.js';
 import DropLogFile from '../../../db/entities/DropLogFile.js';
@@ -77,12 +78,14 @@ class RecorderModel implements IRecorderModel {
     private eventEmitter = new events.EventEmitter();
 
     private dropLogFileId: apid.DropLogFileId | null = null;
+    private detectedAudio: AudioComponentInfo | null = null;
     private actualStartAt: number | null = null;
 
     private abortController: AbortController | null = null;
 
     // イベントリレータイマー
     private eventRelayTimerId: NodeJS.Timeout | null = null;
+    private hasHandledEitRelay: boolean = false;
     private prepRetryTimerId: NodeJS.Timeout | null = null;
     private recordingStartTimeoutId: NodeJS.Timeout | null = null;
     private currentRecFilePath: string | null = null;
@@ -181,24 +184,64 @@ class RecorderModel implements IRecorderModel {
         this.isRecording = false;
         this.isPlanToDelete = false;
 
-        if (retry === 0) {
-            // 録画準備開始通知
-            this.recordingEvent.emitStartPrepRecording(this.reserve);
-        }
-
         // 番組ストリームを取得する
         try {
-            // 番組開始時刻が変更されたことに伴い番組間に重なりが生じ、当該番組が削除されている
-            // NOTE: mirakurunの不具合に対処
             if (this.reserve.programId) {
+                // Mirakurun から最新の番組情報を取得して開始繰り下げ（野球延長等）を確認
+                let latestProgram: any = null;
+                try {
+                    const mirakurun = this.mirakurunClientModel.getClient();
+                    latestProgram = await mirakurun.getProgram(this.reserve.programId);
+                } catch (err: any) {
+                    this.log.system.debug(
+                        `failed to get latest program info from mirakurun in prepRecord: ${this.reserve.programId}`,
+                    );
+                }
+
+                if (latestProgram !== null) {
+                    const latestStartAt = latestProgram.startAt;
+                    const latestEndAt = latestProgram.startAt + latestProgram.duration;
+                    const now = new Date().getTime();
+
+                    // 番組開始時刻が未来に繰り下げられている場合
+                    if (latestStartAt > this.reserve.startAt) {
+                        const oldStartAt = this.reserve.startAt;
+                        const oldEndAt = this.reserve.endAt;
+                        this.log.system.info(
+                            `program start delayed (prepRecord): reserveId: ${this.reserve.id}, original: ${new Date(this.reserve.startAt).toISOString()} -> delayed: ${new Date(latestStartAt).toISOString()}`,
+                        );
+                        this.reserve.startAt = latestStartAt;
+                        this.reserve.endAt = latestEndAt;
+                        await this.reserveDB.updateOnce(this.reserve);
+
+                        // スライド元とスライド先の時間帯のチューナー競合（isConflict）を即時再調停
+                        this.recordingEvent.emitRecheckConflicts([
+                            { startAt: oldStartAt, endAt: oldEndAt },
+                            { startAt: latestStartAt, endAt: latestEndAt },
+                        ]);
+
+                        // 準備時間（15秒）以上先ならタイマーを再設定して待機し直す（外部コマンドや準備通知の発行を抑止）
+                        if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
+                            this.isPrepRecording = false;
+                            this.setTimer(this.reserve, false);
+                            return;
+                        }
+                    }
+                }
+
                 const program = await this.programDB.findId(this.reserve.programId);
-                if (program === null) {
+                if (program === null && latestProgram === null) {
                     this.log.system.warn(
-                        `the program data does not found in database. retry later, (reerveId: ${this.reserve.id}, programId: ${this.reserve.programId})`,
+                        `the program data does not found in database or mirakurun. retry later, (reserveId: ${this.reserve.id}, programId: ${this.reserve.programId})`,
                     );
                     this.emitCancelEvent();
                     return;
                 }
+            }
+
+            if (retry === 0) {
+                // 録画準備開始通知（繰り下げリスケジュールが発生しなかった場合のみ発行）
+                this.recordingEvent.emitStartPrepRecording(this.reserve);
             }
 
             this.abortController = new AbortController();
@@ -283,6 +326,10 @@ class RecorderModel implements IRecorderModel {
         }
 
         // stop drop check
+        if (typeof this.dropChecker.off === 'function') {
+            this.dropChecker.off('eit', this.onEit);
+            this.dropChecker.off('pmt', this.onPmt);
+        }
         if (this.dropLogFileId !== null) {
             this.dropChecker.stop().catch(err => {
                 this.log.system.error(`dropChecker stop error: ${this.reserve.id}`);
@@ -419,6 +466,10 @@ class RecorderModel implements IRecorderModel {
             try {
                 await this.dropChecker.start(this.config.recording.dropLog.path, recPath.fullPath, this.stream);
                 dropFilePath = this.dropChecker.getFilePath();
+                if (typeof this.dropChecker.on === 'function') {
+                    this.dropChecker.on('eit', this.onEit);
+                    this.dropChecker.on('pmt', this.onPmt);
+                }
             } catch (err: any) {
                 this.log.system.error(`drop check error: ${recPath.fullPath}`);
                 this.log.system.error(err);
@@ -450,8 +501,84 @@ class RecorderModel implements IRecorderModel {
             }
 
             // stream データ受信のタイムアウト設定
+            let isDataReceived = false;
             let isStreamTimeout = false; // stream データ受信がタイムアウトした場合は true
-            this.recordingStartTimeoutId = setTimeout(async () => {
+
+            const checkStreamTimeout = async () => {
+                if (isDataReceived || this.stream === null) {
+                    return;
+                }
+
+                // 番組指定予約の場合、前番組延長（野球等）による放送待ちの可能性を検証
+                if (this.reserve.programId !== null) {
+                    const now = new Date().getTime();
+
+                    // Mirakurun から最新の番組情報を取得
+                    let latestProgram: any = null;
+                    try {
+                        const mirakurun = this.mirakurunClientModel.getClient();
+                        latestProgram = await mirakurun.getProgram(this.reserve.programId);
+                    } catch (err: any) {
+                        this.log.system.debug(
+                            `failed to get latest program info while waiting stream: ${this.reserve.programId}`,
+                        );
+                    }
+
+                    if (latestProgram !== null) {
+                        const latestStartAt = latestProgram.startAt;
+                        const latestEndAt = latestProgram.startAt + latestProgram.duration;
+
+                        // 開始繰り下げを検知した場合
+                        if (latestStartAt > this.reserve.startAt) {
+                            const oldStartAt = this.reserve.startAt;
+                            const oldEndAt = this.reserve.endAt;
+                            this.reserve.startAt = latestStartAt;
+                            this.reserve.endAt = latestEndAt;
+                            await this.reserveDB.updateOnce(this.reserve);
+
+                            // スライド元とスライド先の時間帯のチューナー競合（isConflict）を即時再調停
+                            this.recordingEvent.emitRecheckConflicts([
+                                { startAt: oldStartAt, endAt: oldEndAt },
+                                { startAt: latestStartAt, endAt: latestEndAt },
+                            ]);
+
+                            // 準備時間（15秒）以上先ならストリームを解放してタイマー再設定
+                            if (latestStartAt - now > IRecordingStreamCreator.PREP_TIME) {
+                                this.log.system.info(
+                                    `program start delayed while waiting stream: reserveId: ${this.reserve.id}, delaying timer to ${new Date(latestStartAt).toISOString()}`,
+                                );
+
+                                if (this.stream !== null) {
+                                    this.stream.removeListener('data', onData);
+                                    this.destroyStream();
+                                }
+                                await this.closeRecFile();
+                                await FileUtil.unlink(recPath.fullPath).catch(() => {});
+
+                                this.isRecording = false;
+                                this.isPrepRecording = false;
+                                this.setTimer(this.reserve, false);
+                                resolve();
+                                return;
+                            }
+                        }
+
+                        // 番組終了予定時刻前、かつストリーム接続が生きていれば番組開始を継続待機
+                        if (now < latestEndAt && !this.stream.destroyed) {
+                            this.log.system.info(
+                                `waiting for program broadcast to start (eventId: ${this.reserve.programId}, reserve: ${this.reserve.id})`,
+                            );
+                            this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 5000);
+                            return;
+                        }
+                    } else if (now < this.reserve.endAt && !this.stream.destroyed) {
+                        // Mirakurunから最新情報が取れなくても、予約終了時刻前かつストリームが生きていれば待機継続
+                        this.log.system.info(`waiting for program broadcast stream: reserveId: ${this.reserve.id}`);
+                        this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 5000);
+                        return;
+                    }
+                }
+
                 this.recordingStartTimeoutId = null;
                 isStreamTimeout = true;
                 this.log.system.error(`recording failed: ${this.reserve.id}`);
@@ -469,10 +596,13 @@ class RecorderModel implements IRecorderModel {
                 }
 
                 reject(new Error('recordingStartError'));
-            }, 1000 * 5);
+            };
+
+            this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 1000 * 5);
 
             // stream データ受診時のコールバック関数定義
             const onData = async () => {
+                isDataReceived = true;
                 if (this.recordingStartTimeoutId !== null) {
                     clearTimeout(this.recordingStartTimeoutId);
                     this.recordingStartTimeoutId = null;
@@ -716,6 +846,14 @@ class RecorderModel implements IRecorderModel {
         } else {
             // 時刻指定予約ではないのに、name が null
             throw new Error('CreateRecordedError');
+        }
+
+        // 放送波 PMT から音声情報が検出されている場合は実測値を反映
+        if (this.detectedAudio !== null) {
+            if (this.detectedAudio.sampling_rate_hz > 0) {
+                recorded.audioSamplingRate = this.detectedAudio.sampling_rate_hz;
+            }
+            recorded.audioComponentType = this.detectedAudio.component_type;
         }
 
         if (this.dropLogFileId !== null) {
@@ -1150,9 +1288,15 @@ class RecorderModel implements IRecorderModel {
 
         // 待機時間を計算
         const now = new Date().getTime();
+        if (now >= reserve.endAt) {
+            return;
+        }
         let time = reserve.endAt - RecorderModel.EVENT_RELAY_CHECK_TIME - now;
         if (time < 0) {
             time = 0;
+        }
+        if (time > 2147483647) {
+            time = 2147483647;
         }
 
         // タイマーをセットする
@@ -1166,8 +1310,9 @@ class RecorderModel implements IRecorderModel {
 
     /**
      * イベントリレーの対象となる予約情報の確認を行う
+     * @param relatedItemsFromEit: TS 放送波の EIT から直接取得した関連番組情報（指定時は Mirakurun REST API 問い合わせをバイパス）
      */
-    private async checkEventRelay(): Promise<void> {
+    private async checkEventRelay(relatedItemsFromEit?: EitRelatedItem[]): Promise<void> {
         // ProgramId の指定がない場合は何もしない
         if (this.reserve.programId === null) {
             return;
@@ -1176,53 +1321,70 @@ class RecorderModel implements IRecorderModel {
         this.log.system.debug(
             `check event relay program. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
         );
-        const mirakurun = this.mirakurunClientModel.getClient();
 
-        // program 情報の取得
-        let parentProgram: mapid.Program;
-        try {
-            parentProgram = await mirakurun.getProgram(this.reserve.programId);
-            this.log.system.debug(parentProgram);
-        } catch (err: any) {
-            this.log.system.error(
-                `failed to get event relay info. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
-            );
-            return;
-        }
+        const parentNetworkId = Math.floor(this.reserve.programId / 10000000000);
+        let relayItems: { networkId: number; serviceId: number; eventId: number }[] = [];
 
-        // event relay の設定の有無を調べる
-        if (typeof parentProgram.relatedItems === 'undefined') {
-            this.log.system.debug(
-                `event relay porgram does not exist. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
-            );
-            return;
+        if (relatedItemsFromEit && relatedItemsFromEit.length > 0) {
+            // 放送波 TS の EIT から直接得られたリレー情報を優先利用（Mirakurun REST API 遅延のバイパス）
+            relayItems = relatedItemsFromEit
+                .filter(item => item.type === 'relay')
+                .map(item => ({
+                    networkId: item.networkId ?? parentNetworkId,
+                    serviceId: item.serviceId,
+                    eventId: item.eventId,
+                }));
+        } else {
+            const mirakurun = this.mirakurunClientModel.getClient();
+
+            // program 情報の取得
+            let parentProgram: mapid.Program;
+            try {
+                parentProgram = await mirakurun.getProgram(this.reserve.programId);
+                this.log.system.debug(parentProgram);
+            } catch (err: any) {
+                this.log.system.error(
+                    `failed to get event relay info. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
+                );
+                return;
+            }
+
+            // event relay の設定の有無を調べる
+            if (typeof parentProgram.relatedItems === 'undefined') {
+                this.log.system.debug(
+                    `event relay porgram does not exist. reserveId: ${this.reserve.id}, programId: ${this.reserve.programId}`,
+                );
+                return;
+            }
+
+            for (const relatedItem of parentProgram.relatedItems) {
+                if (relatedItem.type !== 'relay') {
+                    continue;
+                }
+                let networkId = relatedItem.networkId;
+                if (typeof networkId === 'undefined' || networkId === null) {
+                    networkId = parentProgram.networkId ?? parentNetworkId;
+                }
+                relayItems.push({
+                    networkId,
+                    serviceId: relatedItem.serviceId,
+                    eventId: relatedItem.eventId,
+                });
+            }
         }
 
         // event relay 対象の ProgramId のリストを作成する
         const reserveProgramIds: { programId: apid.ProgramId; parentReserve: Reserve }[] = [];
-        for (const relatedItem of parentProgram.relatedItems) {
-            // type が ralay 出ないなら skip
-            if (relatedItem.type !== 'relay') {
-                continue;
-            }
-
-            // 番組を予約するための networkId を生成する
-            let networkId = relatedItem.networkId;
-            if (typeof networkId === 'undefined' || networkId === null) {
-                // 本来 networkId は null を取らないはずだが、mirakc は null を返す
-                // networkId が存在しない場合は自ネットワークのイベントリレーと判断する
-                networkId = parentProgram.networkId;
-            }
-
+        for (const item of relayItems) {
             // networkId, serviceId, eventId から該当する番組情報を検索する
             const reserveProgram = await this.programDB.findEventRelayProgram(
-                networkId,
-                relatedItem.serviceId,
-                relatedItem.eventId,
+                item.networkId,
+                item.serviceId,
+                item.eventId,
             );
             if (reserveProgram === null) {
                 this.log.system.warn(
-                    `event relay program is not found. networkId: ${networkId}, serviceId: ${relatedItem.serviceId}, eventId: ${relatedItem.eventId}`,
+                    `event relay program is not found. networkId: ${item.networkId}, serviceId: ${item.serviceId}, eventId: ${item.eventId}`,
                 );
                 continue;
             }
@@ -1240,6 +1402,147 @@ class RecorderModel implements IRecorderModel {
             this.recordingEvent.emitEventRelay(reserveProgramIds);
         }
     }
+
+    /**
+     * TS ストリーム内の PMT 受信時のハンドラ
+     * 放送波からの実際の音声ストリーム情報（主/副音声、サラウンド、サンプリングレート）を取得する
+     * @param pmt: PmtInfo
+     */
+    private onPmt = (pmt: PmtInfo): void => {
+        let isChanged = false;
+        for (const s of pmt.streams) {
+            if (s.audio) {
+                if (s.audio.main_component_flag || this.detectedAudio === null) {
+                    if (
+                        this.detectedAudio === null ||
+                        this.detectedAudio.component_type !== s.audio.component_type ||
+                        this.detectedAudio.sampling_rate_hz !== s.audio.sampling_rate_hz
+                    ) {
+                        isChanged = true;
+                    }
+                    this.detectedAudio = s.audio;
+                }
+            }
+        }
+        if (isChanged && this.recordedId !== null && this.detectedAudio !== null) {
+            void this.recordedDB
+                .updateProgramInfo(this.recordedId, {
+                    audioComponentType: this.detectedAudio.component_type,
+                    ...(this.detectedAudio.sampling_rate_hz > 0
+                        ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
+                        : {}),
+                })
+                .catch(err => {
+                    this.log.system.error(`[PMT] failed to update audio info: ${this.recordedId}`);
+                    this.log.system.error(err);
+                });
+        }
+    };
+
+    /**
+     * TS ストリーム内の EIT (present/following) 受信時のハンドラ
+     * 放送波からのリアルタイム番組延長・タイトル変更・イベントリレー・音声メタデータの即時検知を行う
+     * @param eit: EitInfo
+     */
+    private onEit = (eit: EitInfo): void => {
+        if (this.isRecording === false || this.reserve.programId === null) {
+            return;
+        }
+
+        const targetServiceId = Math.floor(this.reserve.programId / 100000) % 100000;
+        const targetEventId = this.reserve.programId % 100000;
+
+        // 対象サービスの EIT かどうか確認
+        if (eit.serviceId !== targetServiceId) {
+            return;
+        }
+
+        const event = eit.events.find(e => e.eventId === targetEventId);
+        if (!event) {
+            return;
+        }
+
+        // 音声メタデータ（2ヶ国語/ステレオ/5.1ch/サンプリング周波数）検知
+        if (event.audio && (event.audio.main_component_flag || this.detectedAudio === null)) {
+            const isChanged =
+                this.detectedAudio === null ||
+                this.detectedAudio.component_type !== event.audio.component_type ||
+                this.detectedAudio.sampling_rate_hz !== event.audio.sampling_rate_hz;
+            this.detectedAudio = event.audio;
+            if (isChanged && this.recordedId !== null) {
+                void this.recordedDB
+                    .updateProgramInfo(this.recordedId, {
+                        audioComponentType: this.detectedAudio.component_type,
+                        ...(this.detectedAudio.sampling_rate_hz > 0
+                            ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
+                            : {}),
+                    })
+                    .catch(err => {
+                        this.log.system.error(`[EIT] failed to update audio info: ${this.recordedId}`);
+                        this.log.system.error(err);
+                    });
+            }
+        }
+
+        // 番組延長（終了時刻変更）検知
+        if (event.startTime !== null && event.duration > 0) {
+            const streamEndAt = event.startTime.getTime() + event.duration * 1000;
+            if (streamEndAt > this.reserve.endAt) {
+                const oldEndAt = this.reserve.endAt;
+                const diffSec = Math.round((streamEndAt - this.reserve.endAt) / 1000);
+                this.log.system.info(
+                    `[EIT] Program extension detected via TS for reserveId: ${this.reserve.id} (${this.reserve.name}): ` +
+                        `endAt extended by +${diffSec}s (new endAt: ${new Date(streamEndAt).toISOString()})`,
+                );
+                this.reserve.endAt = streamEndAt;
+
+                // DB 上の予約情報を更新
+                void this.reserveDB.updateOnce(this.reserve).catch(err => {
+                    this.log.system.error(`[EIT] failed to update reserve endAt: ${this.reserve.id}`);
+                    this.log.system.error(err);
+                });
+
+                // 延長された時間帯について後続予約とのチューナー競合（isConflict）を即時再調停
+                this.recordingEvent.emitRecheckConflicts([
+                    {
+                        startAt: oldEndAt,
+                        endAt: streamEndAt,
+                    },
+                ]);
+
+                // 録画中レコードの endAt と duration を更新
+                if (this.recordedId !== null) {
+                    const newDuration = Math.max(0, streamEndAt - this.reserve.startAt);
+                    void this.recordedDB
+                        .updateProgramInfo(this.recordedId, {
+                            endAt: streamEndAt,
+                            duration: newDuration,
+                        })
+                        .catch(err => {
+                            this.log.system.error(`[EIT] failed to update recorded endAt: ${this.recordedId}`);
+                            this.log.system.error(err);
+                        });
+                }
+
+                // イベントリレー確認タイマーを新しい終了時刻に合わせて再設定
+                this.setEventRelayTimer(this.reserve);
+            }
+        }
+
+        // イベントリレー（他チャンネル・マルチ編成への移行）検知
+        if (event.relatedItems && event.relatedItems.some(item => item.type === 'relay')) {
+            if (this.hasHandledEitRelay !== true) {
+                this.hasHandledEitRelay = true;
+                if (this.eventRelayTimerId !== null) {
+                    clearTimeout(this.eventRelayTimerId);
+                    this.eventRelayTimerId = null;
+                }
+                this.log.system.info(`[EIT] Event relay descriptor detected via TS for reserveId: ${this.reserve.id}`);
+                const relayItems = event.relatedItems.filter(item => item.type === 'relay');
+                void this.checkEventRelay(relayItems);
+            }
+        }
+    };
 
     /**
      * タイマーを再設定する

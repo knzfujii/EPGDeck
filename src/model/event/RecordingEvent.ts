@@ -6,6 +6,7 @@ import Reserve from '../../db/entities/Reserve.js';
 import ILogger from '../ILogger.js';
 import ILoggerModel from '../ILoggerModel.js';
 import IRecordingEvent from './IRecordingEvent.js';
+import { IReserveTimeOption } from '../db/IReserveDB.js';
 
 @injectable()
 class RecordingEvent implements IRecordingEvent {
@@ -202,6 +203,28 @@ class RecordingEvent implements IRecordingEvent {
             },
         );
     }
+
+    /**
+     * 放送延長・繰り下げに伴うチューナー競合再判定イベント発行
+     * @param timeRanges: IReserveTimeOption[]
+     */
+    public emitRecheckConflicts(timeRanges: IReserveTimeOption[]): void {
+        this.emitter.emit(RecordingEvent.RECHECK_CONFLICTS_EVENT, timeRanges);
+    }
+
+    /**
+     * 放送延長・繰り下げに伴うチューナー競合再判定イベントへの登録
+     * @param callback: (timeRanges: IReserveTimeOption[]) => void
+     */
+    public setRecheckConflicts(callback: (timeRanges: IReserveTimeOption[]) => void): void {
+        this.emitter.on(RecordingEvent.RECHECK_CONFLICTS_EVENT, async (timeRanges: IReserveTimeOption[]) => {
+            try {
+                await callback(timeRanges);
+            } catch (err: any) {
+                this.log.system.error(err);
+            }
+        });
+    }
 }
 
 namespace RecordingEvent {
@@ -213,6 +236,7 @@ namespace RecordingEvent {
     export const RECORDING_RETRY_OVER_EVENT = 'RecordingRetryOverEvent';
     export const FINISH_RECORDING_EVENT = 'FinishRecordingEvent';
     export const EVENT_RELAY_EVENT = 'EventRelayEvent';
+    export const RECHECK_CONFLICTS_EVENT = 'RecheckConflictsEvent';
 }
 
 export default RecordingEvent;

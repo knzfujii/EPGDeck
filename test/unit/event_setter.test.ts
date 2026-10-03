@@ -102,6 +102,9 @@ describe('EventSetter Unit Tests', () => {
             setEventRelay: vi.fn(cb => {
                 recordingCallbacks.eventRelay = cb;
             }),
+            setRecheckConflicts: vi.fn(cb => {
+                recordingCallbacks.recheckConflicts = cb;
+            }),
         };
 
         dummyRecordedEvent = {
@@ -405,6 +408,15 @@ describe('EventSetter Unit Tests', () => {
 
             expect(dummyReservationManage.addEventRelay).toHaveBeenCalledWith(100, { id: 1 });
             expect(dummyReservationManage.addEventRelay).toHaveBeenCalledWith(101, { id: 2 });
+        });
+
+        it('handles recheckConflicts callback', async () => {
+            dummyReservationManage.recheckConflicts = vi.fn().mockResolvedValue(undefined);
+            const timeRanges = [{ startAt: 1000, endAt: 2000 }];
+
+            await recordingCallbacks.recheckConflicts(timeRanges);
+
+            expect(dummyReservationManage.recheckConflicts).toHaveBeenCalledWith(timeRanges);
         });
     });
 

@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - イベントリレー検知時は Mirakurun REST API の EPG 更新遅延をバイパスし、TS 記述子から取得した `networkId` / `serviceId` / `eventId` を直接用いて即座に移行先番組の予約作成を発行。
   - `TsSectionAssembler` の耐障害性向上: ハードウェアビットエラーパケット（TEI=1）の即時破棄、未同期 `pointer_field` プレフィックスの安全なスキップ、4096バイト超過セクション長の境界値保護を追加。
   - `RecorderModel.setEventRelayTimer` における過去終了時刻ガード（`now >= reserve.endAt`）および 32-bit 最大タイマー値クランプによる Node.js `TimeoutOverflowWarning` の防止。
+- **番組延長・繰り下げ時のチューナー競合（isConflict）即時再調停**:
+  - `ReservationManageModel.recheckConflicts()` を新設。番組延長（EIT）や繰り下げ（prepRecord / doRecord 待機中）が発生した時間枠に対して平面走査法によるシミュレーションを即座に再実行。
+  - チューナー不足による競合状態の変化を検知し、DB更新および `reserveEvent.emitUpdated(diff)` を送出。次回の定期EPG更新を待たずにUI（番組表・予約一覧）や録画実行エンジン（`RecordingManageModel`）へリアルタイムに競合情報を反映。
+  - `RecordingEvent.emitRecheckConflicts` / `EventSetter` を介した疎結合なイベント駆動アーキテクチャにより、循環依存を排除して実装。
 
 ### Changed
 - **`arib-probe` クラス・メソッド名のモダン化・規格準拠リファクタ**:

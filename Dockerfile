@@ -8,6 +8,7 @@ WORKDIR /app
 # パッケージインストール用のファイル
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/
+COPY packages/arib-probe/package.json ./packages/arib-probe/
 
 # 全依存関係インストール（devDependencies含む、workspaces対応）
 RUN npm ci
@@ -15,11 +16,12 @@ RUN npm ci
 # ソースコードのコピー
 COPY . .
 
-# サーバーおよびクライアントのビルド
-RUN npm run compile && npm run build:client
+# サーバー（packages含む）およびクライアントのビルド
+RUN npm run build
 
 # 本番用依存関係のみを残す（workspacesも含め開発依存関係を除外）
 RUN npm prune --omit=dev
+
 
 
 # ==========================================
@@ -45,6 +47,7 @@ ENV NODE_ENV=production
 # ビルド成果物と依存モジュールのコピー
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/api.yml ./

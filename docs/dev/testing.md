@@ -55,6 +55,26 @@ UI コンポーネントに結合させるとテストが重厚化・不安定�
 - **HTTP / API クライアント (`test/client/http_client.test.ts`)**:
   - 認証トークン自動付与、クエリパラメータ構築、リードオンリーエラー時の例外ハンドリング
 
+### 2.3 テストコードのタイムゾーン中立性原則 (Timezone Agnostic)
+単体テストおよび結合テストにおいて、テスト実行マシンのローカルタイムゾーン（開発者の JST / UTC、GitHub Actions CI の UTC 等）に依存して成否が変わる不安定なアサーションを厳禁とします。
+
+- **禁止パターン (Anti-pattern)**:
+  ```typescript
+  // 開発環境 (JST) では 14 でパスするが、CI 環境 (UTC) では 5 となり失敗する
+  expect(date.getHours()).toBe(14);
+  expect(date.getDate()).toBe(4);
+  ```
+- **推奨パターン (Best Practices)**:
+  ```typescript
+  // 1. UTC 基準のメソッドで検証
+  expect(date.getUTCHours()).toBe(5);
+  // 2. ISO 8601 文字列やミリ秒 Unixtime で厳密に検証
+  expect(date.toISOString()).toBe('2026-10-04T05:00:00.000Z');
+  expect(date.getTime()).toBe(1791090000000);
+  ```
+- **タイムゾーン強制による見かけ上の解決の禁止**:
+  - テストランナーに無理やり `TZ=Asia/Tokyo` を環境変数注入してテストを通すアドホックな回避策は行わず、コードとアサーション自体を環境ニュートラル（タイムゾーン非依存）に設計します。
+
 ---
 
 ## 3. MariaDB / MySQL 実機結合テスト基盤
@@ -217,6 +237,10 @@ GitHub Actions Parallel Jobs
   - 順序制御や結果待ちが必要な処理: `await` を付与
   - バックグラウンド実行（Fire-and-forget）で例外ログが必要な処理: `.catch(err => { log.error(err); })` を付与
   - 意図的な非同期起動（キュー投入など、例外が内部で捕捉済みの処理）: `void` を明示
+- **引数なし `.catch()` による偽のエラー捕捉の厳格禁止**:
+  - JavaScript の言語仕様上、`promise.catch()` のように引数コールバックを渡さない呼び出しは**例外を一切捕捉せず、そのまま unhandledRejection として再送出**されます。
+  - 「ESLint の `no-floating-promises` を黙らせるためだけに引数なし `.catch()` を付ける」行為は、ファイル削除失敗（`ENOENT`）などの実行時エラーでサービスプロセスをクラッシュさせる致命的バグの原因となります。
+  - エラーを意図的に握りつぶす場合は、必ず `.catch(() => {})` とコールバック関数を明示するか、`try { await ... } catch { /* ignore */ }` で理由を添えて処理すること。
 
 ### 6.2 テストコードを含めた網羅的型検査 (`tsconfig.test.json`)
 - 通常の `tsconfig.json` は本番ビルド（`dist/` への出力）用として `src/` のみを対象としていますが、テストコード（`test/`）の型整合性を担保するため、`noEmit: true` の `tsconfig.test.json` を配備しています。

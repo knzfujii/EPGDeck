@@ -144,6 +144,23 @@ OS のシャットダウンやサービス再起動（`systemctl stop` / `docker
 5. **DB コネクション安全クローズ**:
    - `IDrizzleOperator.closeConnection()` により、SQLite ファイルロック解除または MySQL コネクションプールを安全に終了。
 
+### 内部共有パッケージ (npm workspaces) と Docker ビルド連携
+
+EPGDeck では、外部依存のないドメインロジック（例: ARIB TS ストリーム解析器 `packages/arib-probe`）をルート `package.json` の `workspaces: ["packages/*"]` で管理しています。
+
+コンテナビルド（`Dockerfile`）におけるレイヤーキャッシュ効率化およびシンボリックリンク破損防止のため、以下の設計原則を遵守します：
+
+1. **`package.json` の独立性 (`private: true`)**:
+   - 内部専用パッケージには必ず `"private": true` を設定する。
+2. **自動ビルドフック（`"prepare"` 等）の排除**:
+   - `npm ci` 実行時に自動実行される `"prepare": "npm run build"` 等のスクリプトは**配置してはならない**。
+   - 理由: Docker ビルドでは `package.json` のみを先行コピーして `npm ci`（依存関係インストール）を行うため、TypeScript ソースコード（`src/`）がまだ存在しない段階で `tsc` が発火し、Docker ビルドが破損するため。
+3. **ビルドの一元化 (`npm run build`)**:
+   - パッケージのコンパイルは、ルートの `npm run build`（`tsc -p tsconfig.build.json` および `npm run build --workspaces`）のパイプラインに委譲する。
+4. **Dockerfile における 2 ステージ同期**:
+   - **builder ステージ**: `COPY packages/*/package.json ./packages/*/` を `npm ci` 前に行う。
+   - **runner ステージ**: `npm install --omit=dev` 後、`node_modules/<pkg>` はルート直下の `packages/<pkg>` への相対シンボリックリンクとなるため、`COPY --from=builder /app/packages ./packages` で実体ディレクトリを確実に同期する。
+
 ---
 
 ## 4. フロントエンド設計

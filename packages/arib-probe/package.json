@@ -2,6 +2,7 @@
   "name": "arib-probe",
   "version": "0.1.0",
   "description": "Ultra-lightweight, modern TypeScript tool for MPEG-2 TS continuity drop checking and ARIB PSI/SI probing.",
+  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +11,6 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build",
     "watch": "tsc --watch",
     "clean": "rm -rf dist"
   },

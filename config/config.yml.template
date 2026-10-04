@@ -82,6 +82,7 @@ recording:
     streaming: 0                       # ライブ配信時のMirakurun優先度
   timeSpecifiedStartMargin: 1          # 時刻指定予約の開始マージン(秒)
   timeSpecifiedEndMargin: 2            # 時刻指定予約の終了マージン(秒)
+  # shortProgramDurationThresholdSeconds: 300 # EIT更新のない短時間番組（PR・ミニ枠）のサービスストリーム自動切替閾値(秒、0で無効化、デフォルト: 300)
   thumbnail:
     path: '%ROOT%/thumbnail'
     size: 480x270

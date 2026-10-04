@@ -210,6 +210,12 @@ class Configuration implements IConfiguration {
                 typeof recConf.timeSpecifiedEndMargin === 'number'
                     ? recConf.timeSpecifiedEndMargin
                     : raw.timeSpecifiedEndMargin || 1,
+            shortProgramDurationThresholdSeconds:
+                typeof recConf.shortProgramDurationThresholdSeconds === 'number'
+                    ? recConf.shortProgramDurationThresholdSeconds
+                    : typeof raw.shortProgramDurationThresholdSeconds === 'number'
+                      ? raw.shortProgramDurationThresholdSeconds
+                      : 300, // デフォルト 5分 (300秒)
             thumbnail,
             dropLog,
             uploadTempDir: Configuration.directoryFormatting(

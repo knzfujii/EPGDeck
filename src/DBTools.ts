@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import { parseArgs } from 'util';
-import 'reflect-metadata';
 import DropLogFile from './db/entities/DropLogFile.js';
 import Recorded from './db/entities/Recorded.js';
 import RecordedHistory from './db/entities/RecordedHistory.js';
@@ -19,7 +18,6 @@ import IThumbnailDB from './model/db/IThumbnailDB.js';
 import IVideoFileDB from './model/db/IVideoFileDB.js';
 import IConnectionCheckModel from './model/IConnectionCheckModel.js';
 import ILogger from './model/ILogger.js';
-import ILoggerModel from './model/ILoggerModel.js';
 import container from './model/ModelContainer.js';
 import * as containerSetter from './model/ModelContainerSetter.js';
 
@@ -99,19 +97,19 @@ class DBTools {
         this.filePath = values.output as string;
         this.mode = values.mode as 'backup' | 'restore';
 
-        const logger = container.get<ILoggerModel>('ILoggerModel');
+        const logger = container.loggerModel;
         logger.initialize();
         this.log = logger.getLogger();
-        this.connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');
-        this.drizzleOperator = container.get<IDrizzleOperator>('IDrizzleOperator');
-        this.dropLogFileDB = container.get<IDropLogFileDB>('IDropLogFileDB');
-        this.recordedDB = container.get<IRecordedDB>('IRecordedDB');
-        this.recordedHistoryDB = container.get<IRecordedHistoryDB>('IRecordedHistoryDB');
-        this.recordedTagDB = container.get<IRecordedTagDB>('IRecordedTagDB');
-        this.reserveDB = container.get<IReserveDB>('IReserveDB');
-        this.ruleDB = container.get<IRuleDB>('IRuleDB');
-        this.thumbnailDB = container.get<IThumbnailDB>('IThumbnailDB');
-        this.videoFileDB = container.get<IVideoFileDB>('IVideoFileDB');
+        this.connectionChecker = container.connectionCheckModel;
+        this.drizzleOperator = container.drizzleOperator;
+        this.dropLogFileDB = container.dropLogFileDB;
+        this.recordedDB = container.recordedDB;
+        this.recordedHistoryDB = container.recordedHistoryDB;
+        this.recordedTagDB = container.recordedTagDB;
+        this.reserveDB = container.reserveDB;
+        this.ruleDB = container.ruleDB;
+        this.thumbnailDB = container.thumbnailDB;
+        this.videoFileDB = container.videoFileDB;
     }
 
     /**

@@ -1,5 +1,4 @@
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import Reserve from '../../db/entities/Reserve.js';
 import { IReserveUpdateValues } from '../event/IReserveEvent.js';
@@ -14,15 +13,11 @@ import IReserveDB, {
     RuleIdCountResult,
 } from './IReserveDB.js';
 
-@injectable()
 export default class ReserveDB implements IReserveDB {
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;
     }

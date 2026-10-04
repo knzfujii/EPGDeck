@@ -1,5 +1,4 @@
 import * as http from 'http';
-import { inject, injectable } from 'inversify';
 import type { Client } from 'mirakurun';
 import { finished } from 'stream';
 import * as apid from '../../../../api.js';
@@ -27,7 +26,6 @@ interface TimerIndex {
     [key: number]: NodeJS.Timeout;
 }
 
-@injectable()
 export default class RecordingStreamCreator implements IRecordingStreamCreator {
     private log: ILogger;
     private config: IConfigFile;
@@ -35,12 +33,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
     private tuners: TunerStatus[] = [];
     private timerIndex: TimerIndex = {};
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IMirakurunClientModel')
-        mirakurunClientModel: IMirakurunClientModel,
-    ) {
+    constructor(logger: ILoggerModel, configuration: IConfiguration, mirakurunClientModel: IMirakurunClientModel) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();
         this.mirakurunClientModel = mirakurunClientModel;

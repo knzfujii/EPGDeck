@@ -1,5 +1,4 @@
 import { eq } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import DropLogFile from '../../db/entities/DropLogFile.js';
 import IPromiseRetry from '../IPromiseRetry.js';
@@ -7,15 +6,11 @@ import { DrizzleHelper } from './DrizzleHelper.js';
 import IDropLogFileDB, { UpdateCntOption } from './IDropLogFileDB.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 
-@injectable()
 export default class DropLogFileDB implements IDropLogFileDB {
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;
     }

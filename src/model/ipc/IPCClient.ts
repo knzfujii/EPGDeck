@@ -1,5 +1,4 @@
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent.js';
 import ILogger from '../ILogger.js';
@@ -32,7 +31,6 @@ import {
     ThumbnailFunctions,
 } from './IPCMessageDefine.js';
 
-@injectable()
 export default class IPCClient implements IIPCClient {
     private socketIO: ISocketIOManageModel;
     private encodeManage: IEncodeManageModel;
@@ -51,10 +49,10 @@ export default class IPCClient implements IIPCClient {
     private static messageSeq: number = 0;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
-        @inject('IEncodeManageModel') encodeManage: IEncodeManageModel,
-        @inject('ILogManageModel') logManage: ILogManageModel,
+        logger: ILoggerModel,
+        socketIO: ISocketIOManageModel,
+        encodeManage: IEncodeManageModel,
+        logManage: ILogManageModel,
     ) {
         this.log = logger.getLogger();
         this.socketIO = socketIO;

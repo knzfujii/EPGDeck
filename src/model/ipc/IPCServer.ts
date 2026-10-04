@@ -1,5 +1,4 @@
 import { ChildProcess } from 'node:child_process';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import IOperatorEncodeEvent, { OperatorFinishEncodeInfo } from '../event/IOperatorEncodeEvent.js';
 import IRecordedManageModel, {
@@ -39,7 +38,6 @@ type ModelFunctions<M extends ModelName> = {
     ) => Promise<IPCResponseMap[M][F]>;
 };
 
-@injectable()
 export default class IPCServer implements IIPCServer {
     private reservationManage: IReservationManageModel;
     private recordedManage: IRecordedManageModel;
@@ -56,16 +54,15 @@ export default class IPCServer implements IIPCServer {
     } = {};
 
     constructor(
-        @inject('IReservationManageModel')
         reservationManage: IReservationManageModel,
-        @inject('IRecordedManageModel') recordedManage: IRecordedManageModel,
-        @inject('IRecordedTagManageModel') recordedTagManage: IRecordedTagManageModel,
-        @inject('IRecordingManageModel') recordingManage: IRecordingManageModel,
-        @inject('IRuleManageModel') ruleManage: IRuleManageModel,
-        @inject('IThumbnailManageModel') thumbnailManage: IThumbnailManageModel,
-        @inject('IOperatorEncodeEvent') encodeEvent: IOperatorEncodeEvent,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IReserveDB') reserveDB: IReserveDB,
+        recordedManage: IRecordedManageModel,
+        recordedTagManage: IRecordedTagManageModel,
+        recordingManage: IRecordingManageModel,
+        ruleManage: IRuleManageModel,
+        thumbnailManage: IThumbnailManageModel,
+        encodeEvent: IOperatorEncodeEvent,
+        recordedDB: IRecordedDB,
+        reserveDB: IReserveDB,
     ) {
         this.reservationManage = reservationManage;
         this.recordedManage = recordedManage;

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
 import ReserveOptionChecker from '../../src/model/operator/ReserveOptionChecker.js';
 

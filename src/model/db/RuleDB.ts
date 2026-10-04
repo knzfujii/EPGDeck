@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, like, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import StrUtil from '../../util/StrUtil.js';
 import IPromiseRetry from '../IPromiseRetry.js';
@@ -7,15 +6,11 @@ import { DrizzleHelper } from './DrizzleHelper.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 import IRuleDB, { RuleWithCnt } from './IRuleDB.js';
 
-@injectable()
 export default class RuleDB implements IRuleDB {
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;
     }

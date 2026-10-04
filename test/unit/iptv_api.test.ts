@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import IPTVApiModel from '../../src/model/api/iptv/IPTVApiModel.js';
 

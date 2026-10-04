@@ -1,5 +1,4 @@
 import { execFile } from 'child_process';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import VideoFile from '../../../db/entities/VideoFile.js';
@@ -8,15 +7,11 @@ import IConfigFile from '../../IConfigFile.js';
 import IConfiguration from '../../IConfiguration.js';
 import IVideoUtil, { VideoInfo } from './IVideoUtil.js';
 
-@injectable()
 export default class VideoUtil implements IVideoUtil {
     private config: IConfigFile;
     private videoFileDB: IVideoFileDB;
 
-    constructor(
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-    ) {
+    constructor(configuration: IConfiguration, videoFileDB: IVideoFileDB) {
         this.config = configuration.getConfig();
         this.videoFileDB = videoFileDB;
     }

@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import { IncomingMessage } from 'http';
-import { inject, injectable } from 'inversify';
 import type { Client } from 'mirakurun';
 import * as mapid from 'mirakurun/api.js';
 import IChannelDB from '../db/IChannelDB.js';
@@ -20,7 +19,6 @@ import IEPGUpdateManageModel, {
     TunerServerType,
 } from './IEPGUpdateManageModel.js';
 
-@injectable()
 class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel {
     private log: ILogger;
     private mirakurunClient: Client;
@@ -44,12 +42,11 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
     private mirakurunPath: string;
 
     constructor(
-        @inject('ILoggerModel') loggerModel: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IMirakurunClientModel')
+        loggerModel: ILoggerModel,
+        configuration: IConfiguration,
         mirakurunClientModel: IMirakurunClientModel,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IProgramDB') programDB: IProgramDB,
+        channelDB: IChannelDB,
+        programDB: IProgramDB,
     ) {
         super();
 

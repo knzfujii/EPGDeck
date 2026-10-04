@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import * as apid from '../../api.js';
 import PromiseQueue from '../../src/model/PromiseQueue.js';

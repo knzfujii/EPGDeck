@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { EventEmitter } from 'events';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EncoderModel from '../../src/model/service/encode/EncoderModel.js';

@@ -1,6 +1,5 @@
 /* eslint-disable no-control-regex */
 /* eslint-disable no-irregular-whitespace */
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import Program from '../../../db/entities/Program.js';
 import DateUtil from '../../../util/DateUtil.js';
@@ -9,12 +8,11 @@ import IProgramDB from '../../db/IProgramDB.js';
 import IIPTVApiModel from './IIPTVApiModel.js';
 import ChannelUtil from '../../../util/ChannelUtil.js';
 
-@injectable()
 class IPTVApiModel implements IIPTVApiModel {
     private channelDB: IChannelDB;
     private programDB: IProgramDB;
 
-    constructor(@inject('IChannelDB') channelDB: IChannelDB, @inject('IProgramDB') programDB: IProgramDB) {
+    constructor(channelDB: IChannelDB, programDB: IProgramDB) {
         this.channelDB = channelDB;
         this.programDB = programDB;
     }

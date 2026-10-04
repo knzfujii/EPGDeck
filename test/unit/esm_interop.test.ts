@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect } from 'vitest';
 import { TsProbe, TsSubtitleId3Muxer } from 'arib-probe';
 import { Client as MirakurunClient } from 'mirakurun';

@@ -1,5 +1,4 @@
 import * as child_process from 'child_process';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import IEPGUpdateEvent from '../event/IEPGUpdateEvent.js';
 import IIPCServer from '../ipc/IIPCServer.js';
@@ -11,7 +10,6 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-@injectable()
 export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorManageModel {
     private log: ILogger;
     private epgUpdateEvent: IEPGUpdateEvent;
@@ -22,11 +20,7 @@ export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorM
     private lastStartTime: number = 0;
     private restartTimer: NodeJS.Timeout | null = null;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IEPGUpdateEvent') epgUpdateEvent: IEPGUpdateEvent,
-        @inject('IIPCServer') ipcServer: IIPCServer,
-    ) {
+    constructor(logger: ILoggerModel, epgUpdateEvent: IEPGUpdateEvent, ipcServer: IIPCServer) {
         this.log = logger.getLogger();
         this.epgUpdateEvent = epgUpdateEvent;
         this.ipcServer = ipcServer;

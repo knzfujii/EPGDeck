@@ -1,5 +1,4 @@
 import { spawn } from 'child_process';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import IRecordedDB from '../../db/IRecordedDB.js';
@@ -12,7 +11,6 @@ import IPlayList from '../IPlayList.js';
 import IVideoApiModel, { VideoFilePathInfo } from './IVideoApiModel.js';
 import IVideoUtil from './IVideoUtil.js';
 
-@injectable()
 export default class VideoApiModel implements IVideoApiModel {
     private configuration: IConfiguration;
     private videoFileDB: IVideoFileDB;
@@ -22,12 +20,12 @@ export default class VideoApiModel implements IVideoApiModel {
     private ipc: IIPCClient;
 
     constructor(
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IApiUtil') apiUtil: IApiUtil,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
-        @inject('IIPCClient') ipc: IIPCClient,
+        configuration: IConfiguration,
+        videoFileDB: IVideoFileDB,
+        recordedDB: IRecordedDB,
+        apiUtil: IApiUtil,
+        videoUtil: IVideoUtil,
+        ipc: IIPCClient,
     ) {
         this.configuration = configuration;
         this.videoFileDB = videoFileDB;

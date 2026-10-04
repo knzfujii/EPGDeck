@@ -1,39 +1,37 @@
-import { Container } from 'inversify';
-
 import ApiUtil from './api/ApiUtil.js';
 import ChannelApiModel from './api/channel/ChannelApiModel.js';
-import IChannelApiModel from './api/channel/IChannelApiModel.js';
+import type IChannelApiModel from './api/channel/IChannelApiModel.js';
 import ConfigApiModel from './api/config/ConfigApiModel.js';
-import IConfigApiModel from './api/config/IConfigApiModel.js';
+import type IConfigApiModel from './api/config/IConfigApiModel.js';
 import DropLogApiModel from './api/dropLog/DropLogApiModel.js';
-import IDropLogApiModel from './api/dropLog/IDropLogApiModel.js';
+import type IDropLogApiModel from './api/dropLog/IDropLogApiModel.js';
 import EncodeApiModel from './api/encode/EncodeApiModel.js';
-import IEncodeApiModel from './api/encode/IEncodeApiModel.js';
-import IApiUtil from './api/IApiUtil.js';
-import IIPTVApiModel from './api/iptv/IIPTVApiModel.js';
+import type IEncodeApiModel from './api/encode/IEncodeApiModel.js';
+import type IApiUtil from './api/IApiUtil.js';
+import type IIPTVApiModel from './api/iptv/IIPTVApiModel.js';
 import IPTVApiModel from './api/iptv/IPTVApiModel.js';
-import IRecordedItemUtil from './api/IRecordedItemUtil.js';
-import IRecordedApiModel from './api/recorded/IRecordedApiModel.js';
+import type IRecordedItemUtil from './api/IRecordedItemUtil.js';
+import type IRecordedApiModel from './api/recorded/IRecordedApiModel.js';
 import RecordedApiModel from './api/recorded/RecordedApiModel.js';
 import RecordedItemUtil from './api/RecordedItemUtil.js';
-import IRecordedTagApiModel from './api/recordedTag/IRecordedTagApiModel.js';
+import type IRecordedTagApiModel from './api/recordedTag/IRecordedTagApiModel.js';
 import RecordedTagApiModel from './api/recordedTag/RecordedTagApiModel.js';
-import IRecordingApiModel from './api/recording/IRecordingApiModel.js';
+import type IRecordingApiModel from './api/recording/IRecordingApiModel.js';
 import RecordingApiModel from './api/recording/RecordingApiModel.js';
-import IReserveApiModel from './api/reserve/IReserveApiModel.js';
+import type IReserveApiModel from './api/reserve/IReserveApiModel.js';
 import ReserveApiModel from './api/reserve/ReserveApiModel.js';
-import IRuleApiModel from './api/rule/IRuleApiModel.js';
+import type IRuleApiModel from './api/rule/IRuleApiModel.js';
 import RuleApiModel from './api/rule/RuleApiModel.js';
-import IScheduleApiModel from './api/schedule/IScheduleApiModel.js';
+import type IScheduleApiModel from './api/schedule/IScheduleApiModel.js';
 import ScheduleApiModel from './api/schedule/ScheduleApiModel.js';
-import IStorageApiModel from './api/storage/IStorageApiModel.js';
+import type IStorageApiModel from './api/storage/IStorageApiModel.js';
 import StorageApiModel from './api/storage/StorageApiModel.js';
-import IStreamApiModel from './api/stream/IStreamApiModel.js';
+import type IStreamApiModel from './api/stream/IStreamApiModel.js';
 import StreamApiModel from './api/stream/StreamApiModel.js';
-import IThumbnailApiModel from './api/thumbnail/IThumbnailApiModel.js';
+import type IThumbnailApiModel from './api/thumbnail/IThumbnailApiModel.js';
 import ThumbnailApiModel from './api/thumbnail/ThumbnailApiModel.js';
-import IVideoApiModel from './api/video/IVideoApiModel.js';
-import IVideoUtil from './api/video/IVideoUtil.js';
+import type IVideoApiModel from './api/video/IVideoApiModel.js';
+import type IVideoUtil from './api/video/IVideoUtil.js';
 import VideoApiModel from './api/video/VideoApiModel.js';
 import VideoUtil from './api/video/VideoUtil.js';
 import Configuration from './Configuration.js';
@@ -41,17 +39,17 @@ import ConnectionCheckModel from './ConnectionCheckModel.js';
 import ChannelDB from './db/ChannelDB.js';
 import DrizzleOperator from './db/DrizzleOperator.js';
 import DropLogFileDB from './db/DropLogFileDB.js';
-import IChannelDB from './db/IChannelDB.js';
-import IDrizzleOperator from './db/IDrizzleOperator.js';
-import IDropLogFileDB from './db/IDropLogFileDB.js';
-import IProgramDB from './db/IProgramDB.js';
-import IRecordedDB from './db/IRecordedDB.js';
-import IRecordedHistoryDB from './db/IRecordedHistoryDB.js';
-import IRecordedTagDB from './db/IRecordedTagDB.js';
-import IReserveDB from './db/IReserveDB.js';
-import IRuleDB from './db/IRuleDB.js';
-import IThumbnailDB from './db/IThumbnailDB.js';
-import IVideoFileDB from './db/IVideoFileDB.js';
+import type IChannelDB from './db/IChannelDB.js';
+import type IDrizzleOperator from './db/IDrizzleOperator.js';
+import type IDropLogFileDB from './db/IDropLogFileDB.js';
+import type IProgramDB from './db/IProgramDB.js';
+import type IRecordedDB from './db/IRecordedDB.js';
+import type IRecordedHistoryDB from './db/IRecordedHistoryDB.js';
+import type IRecordedTagDB from './db/IRecordedTagDB.js';
+import type IReserveDB from './db/IReserveDB.js';
+import type IRuleDB from './db/IRuleDB.js';
+import type IThumbnailDB from './db/IThumbnailDB.js';
+import type IVideoFileDB from './db/IVideoFileDB.js';
 import ProgramDB from './db/ProgramDB.js';
 import RecordedDB from './db/RecordedDB.js';
 import RecordedHistoryDB from './db/RecordedHistoryDB.js';
@@ -63,22 +61,22 @@ import VideoFileDB from './db/VideoFileDB.js';
 import EPGUpdateExecutorManageModel from './epgUpdater/EPGUpdateExecutorManageModel.js';
 import EPGUpdateManageModel from './epgUpdater/EPGUpdateManageModel.js';
 import EPGUpdater from './epgUpdater/EPGUpdater.js';
-import IEPGUpdateExecutorManageModel from './epgUpdater/IEPGUpdateExecutorManageModel.js';
-import IEPGUpdateManageModel from './epgUpdater/IEPGUpdateManageModel.js';
-import IEPGUpdater from './epgUpdater/IEPGUpdater.js';
+import type IEPGUpdateExecutorManageModel from './epgUpdater/IEPGUpdateExecutorManageModel.js';
+import type IEPGUpdateManageModel from './epgUpdater/IEPGUpdateManageModel.js';
+import type IEPGUpdater from './epgUpdater/IEPGUpdater.js';
 import EncodeEvent from './event/EncodeEvent.js';
 import EPGUpdateEvent from './event/EPGUpdateEvent.js';
 import EventSetter from './event/EventSetter.js';
-import IEncodeEvent from './event/IEncodeEvent.js';
-import IEPGUpdateEvent from './event/IEPGUpdateEvent.js';
-import IEventSetter from './event/IEventSetter.js';
-import IOperatorEncodeEvent from './event/IOperatorEncodeEvent.js';
-import IRecordedEvent from './event/IRecordedEvent.js';
-import IRecordedTagEvent from './event/IRecordedTagEvent.js';
-import IRecordingEvent from './event/IRecordingEvent.js';
-import IReserveEvent from './event/IReserveEvent.js';
-import IRuleEvent from './event/IRuleEvent.js';
-import IThumbnailEvent from './event/IThumbnailEvent.js';
+import type IEncodeEvent from './event/IEncodeEvent.js';
+import type IEPGUpdateEvent from './event/IEPGUpdateEvent.js';
+import type IEventSetter from './event/IEventSetter.js';
+import type IOperatorEncodeEvent from './event/IOperatorEncodeEvent.js';
+import type IRecordedEvent from './event/IRecordedEvent.js';
+import type IRecordedTagEvent from './event/IRecordedTagEvent.js';
+import type IRecordingEvent from './event/IRecordingEvent.js';
+import type IReserveEvent from './event/IReserveEvent.js';
+import type IRuleEvent from './event/IRuleEvent.js';
+import type IThumbnailEvent from './event/IThumbnailEvent.js';
 import OperatorEncodeEvent from './event/OperatorEncodeEvent.js';
 import RecordedEvent from './event/RecordedEvent.js';
 import RecordedTagEvent from './event/RecordedTagEvent.js';
@@ -87,46 +85,48 @@ import ReserveEvent from './event/ReserveEvent.js';
 import RuleEvent from './event/RuleEvent.js';
 import ThumbnailEvent from './event/ThumbnailEvent.js';
 import ExecutionManagementModel from './ExecutionManagementModel.js';
-import IConfiguration from './IConfiguration.js';
-import IConnectionCheckModel from './IConnectionCheckModel.js';
-import IExecutionManagementModel from './IExecutionManagementModel.js';
-import ILoggerModel from './ILoggerModel.js';
-import IMirakurunClientModel from './IMirakurunClientModel.js';
-import IIPCClient from './ipc/IIPCClient.js';
-import IIPCServer from './ipc/IIPCServer.js';
+import type IConfiguration from './IConfiguration.js';
+import type IConnectionCheckModel from './IConnectionCheckModel.js';
+import type IExecutionManagementModel from './IExecutionManagementModel.js';
+import type ILoggerModel from './ILoggerModel.js';
+import type IMirakurunClientModel from './IMirakurunClientModel.js';
+import type IIPCClient from './ipc/IIPCClient.js';
+import type IIPCServer from './ipc/IIPCServer.js';
 import IPCClient from './ipc/IPCClient.js';
 import IPCServer from './ipc/IPCServer.js';
-import { IPromiseQueue } from './IPromiseQueue.js';
-import IPromiseRetry from './IPromiseRetry.js';
+import type { IPromiseQueue } from './IPromiseQueue.js';
+import type IPromiseRetry from './IPromiseRetry.js';
 import LoggerModel from './LoggerModel.js';
 import MirakurunClientModel from './MirakurunClientModel.js';
+import type { ModelContainer } from './ModelContainer.js';
 import ExternalCommandManageModel from './operator/externalCommand/ExternalCommandManageModel.js';
-import IExternalCommandManageModel from './operator/externalCommand/IExternalCommandManageModel.js';
-import IReserveOptionChecker from './operator/IReserveOptionChecker.js';
-import IRecordedManageModel from './operator/recorded/IRecordedManageModel.js';
+import type IExternalCommandManageModel from './operator/externalCommand/IExternalCommandManageModel.js';
+import type IReserveOptionChecker from './operator/IReserveOptionChecker.js';
+import type IRecordedManageModel from './operator/recorded/IRecordedManageModel.js';
 import RecordedManageModel from './operator/recorded/RecordedManageModel.js';
-import IRecordedTagManageModel from './operator/recordedTag/IRecordedTagManageModel.js';
+import type IRecordedTagManageModel from './operator/recordedTag/IRecordedTagManageModel.js';
 import RecordedTagManageModel from './operator/recordedTag/RecordedTagManageModel.js';
 import DropCheckerModel from './operator/recording/DropCheckerModel.js';
-import IDropCheckerModel from './operator/recording/IDropCheckerModel.js';
-import IRecorderModel, { RecorderModelProvider } from './operator/recording/IRecorderModel.js';
-import IRecordingManageModel from './operator/recording/IRecordingManageModel.js';
-import IRecordingStreamCreator from './operator/recording/IRecordingStreamCreator.js';
-import IRecordingUtilModel from './operator/recording/IRecordingUtilModel.js';
+import type IDropCheckerModel from './operator/recording/IDropCheckerModel.js';
+import type IRecorderModel from './operator/recording/IRecorderModel.js';
+import { type RecorderModelProvider } from './operator/recording/IRecorderModel.js';
+import type IRecordingManageModel from './operator/recording/IRecordingManageModel.js';
+import type IRecordingStreamCreator from './operator/recording/IRecordingStreamCreator.js';
+import type IRecordingUtilModel from './operator/recording/IRecordingUtilModel.js';
 import RecorderModel from './operator/recording/RecorderModel.js';
 import RecordingManageModel from './operator/recording/RecordingManageModel.js';
 import RecordingStreamCreator from './operator/recording/RecordingStreamCreator.js';
 import RecordingUtilModel from './operator/recording/RecordingUtilModel.js';
-import IReservationManageModel from './operator/reservation/IReservationManageModel.js';
+import type IReservationManageModel from './operator/reservation/IReservationManageModel.js';
 import ReservationManageModel from './operator/reservation/ReservationManageModel.js';
 import ReserveOptionChecker from './operator/ReserveOptionChecker.js';
-import IRuleManageModel from './operator/rule/IRuleManageModel.js';
+import type IRuleManageModel from './operator/rule/IRuleManageModel.js';
 import RuleManageModel from './operator/rule/RuleManageModel.js';
-import IStorageManageModel from './operator/storage/IStorageManageModel.js';
-import StorageManageModel from './operator/storage/StorageManageModel.js';
-import IOperatorShutdownModel from './operator/shutdown/IOperatorShutdownModel.js';
+import type IOperatorShutdownModel from './operator/shutdown/IOperatorShutdownModel.js';
 import OperatorShutdownModel from './operator/shutdown/OperatorShutdownModel.js';
-import IThumbnailManageModel from './operator/thumbnail/IThumbnailManageModel.js';
+import type IStorageManageModel from './operator/storage/IStorageManageModel.js';
+import StorageManageModel from './operator/storage/StorageManageModel.js';
+import type IThumbnailManageModel from './operator/thumbnail/IThumbnailManageModel.js';
 import ThumbnailManageModel from './operator/thumbnail/ThumbnailManageModel.js';
 import PromiseQueue from './PromiseQueue.js';
 import PromiseRetry from './PromiseRetry.js';
@@ -135,282 +135,505 @@ import EncodeFinishModel from './service/encode/EncodeFinishModel.js';
 import EncodeManageModel from './service/encode/EncodeManageModel.js';
 import EncodeProcessManageModel from './service/encode/EncodeProcessManageModel.js';
 import EncoderModel from './service/encode/EncoderModel.js';
-import IEncodeFileManageModel from './service/encode/IEncodeFileManageModel.js';
-import IEncodeFinishModel from './service/encode/IEncodeFinishModel.js';
-import IEncodeManageModel from './service/encode/IEncodeManageModel.js';
-import IEncodeProcessManageModel from './service/encode/IEncodeProcessManageModel.js';
-import { EncoderModelProvider, IEncoderModel } from './service/encode/IEncoderModel.js';
-import IServiceServer from './service/IServiceServer.js';
+import type IEncodeFileManageModel from './service/encode/IEncodeFileManageModel.js';
+import type IEncodeFinishModel from './service/encode/IEncodeFinishModel.js';
+import type IEncodeManageModel from './service/encode/IEncodeManageModel.js';
+import type IEncodeProcessManageModel from './service/encode/IEncodeProcessManageModel.js';
+import { type EncoderModelProvider, type IEncoderModel } from './service/encode/IEncoderModel.js';
+import type IServiceServer from './service/IServiceServer.js';
 import ServiceServer from './service/ServiceServer.js';
-import ISocketIOManageModel from './service/socketio/ISocketIOManageModel.js';
-import SocketIOManageModel from './service/socketio/SocketIOManageModel.js';
-import ILogManageModel from './service/log/ILogManageModel.js';
+import type ILogManageModel from './service/log/ILogManageModel.js';
 import LogManageModel from './service/log/LogManageModel.js';
-import ILiveStreamBaseModel, {
-    LiveHLSStreamModelProvider,
-    LiveStreamModelProvider,
+import type ISocketIOManageModel from './service/socketio/ISocketIOManageModel.js';
+import SocketIOManageModel from './service/socketio/SocketIOManageModel.js';
+import type ILiveStreamBaseModel from './service/stream/base/ILiveStreamBaseModel.js';
+import {
+    type LiveHLSStreamModelProvider,
+    type LiveStreamModelProvider,
 } from './service/stream/base/ILiveStreamBaseModel.js';
-import IRecordedStreamBaseModel, {
-    RecordedHLSStreamModelProvider,
-    RecordedStreamModelProvider,
+import type IRecordedStreamBaseModel from './service/stream/base/IRecordedStreamBaseModel.js';
+import {
+    type RecordedHLSStreamModelProvider,
+    type RecordedStreamModelProvider,
 } from './service/stream/base/IRecordedStreamBaseModel.js';
 import LiveHLSStreamModel from './service/stream/LiveHLSStreamModel.js';
 import LiveStreamModel from './service/stream/LiveStreamModel.js';
-import IStreamManageModel from './service/stream/manager/IStreamManageModel.js';
+import type IStreamManageModel from './service/stream/manager/IStreamManageModel.js';
 import StreamManageModel from './service/stream/manager/StreamManageModel.js';
 import RecordedHLSStreamModel from './service/stream/RecordedHLSStreamModel.js';
 import RecordedStreamModel from './service/stream/RecordedStreamModel.js';
 import HLSFileDeleterModel from './service/stream/util/HLSFileDeleterModel.js';
-import IHLSFileDeleterModel from './service/stream/util/IHLSFileDeleterModel.js';
+import type IHLSFileDeleterModel from './service/stream/util/IHLSFileDeleterModel.js';
 
 /**
- * container に 各 Model を登録する
+ * ModelContainer に各 Model のファクトリを登録する (Pure DI)
  */
-export const set = (container: Container): void => {
-    container.bind<ILoggerModel>('ILoggerModel').to(LoggerModel).inSingletonScope();
+export const set = (container: ModelContainer): void => {
+    // 基礎インフラ
+    container.registerSingleton<ILoggerModel>('ILoggerModel', () => new LoggerModel());
+    container.registerSingleton<IConfiguration>('IConfiguration', c => new Configuration(c.loggerModel));
+    container.registerSingleton<IConnectionCheckModel>(
+        'IConnectionCheckModel',
+        c => new ConnectionCheckModel(c.loggerModel, c.mirakurunClientModel, c.drizzleOperator),
+    );
+    container.registerTransient<IPromiseQueue>('IPromiseQueue', () => new PromiseQueue());
+    container.registerTransient<IPromiseRetry>('IPromiseRetry', () => new PromiseRetry());
+    container.registerTransient<IExecutionManagementModel>(
+        'IExecutionManagementModel',
+        c => new ExecutionManagementModel(c.loggerModel),
+    );
 
-    container.bind<IConfiguration>('IConfiguration').to(Configuration).inSingletonScope();
+    // プロセス間通信 (IPC)
+    container.registerSingleton<IIPCClient>(
+        'IIPCClient',
+        c => new IPCClient(c.loggerModel, c.socketIOManageModel, c.encodeManageModel, c.logManageModel),
+    );
+    container.registerSingleton<IIPCServer>(
+        'IIPCServer',
+        c =>
+            new IPCServer(
+                c.reservationManageModel,
+                c.recordedManageModel,
+                c.recordedTagManageModel,
+                c.recordingManageModel,
+                c.ruleManageModel,
+                c.thumbnailManageModel,
+                c.operatorEncodeEvent,
+                c.recordedDB,
+                c.reserveDB,
+            ),
+    );
 
-    container.bind<IConnectionCheckModel>('IConnectionCheckModel').to(ConnectionCheckModel).inSingletonScope();
+    // データベース (DAO)
+    container.registerSingleton<IDrizzleOperator>('IDrizzleOperator', c => new DrizzleOperator(c.configuration));
+    container.registerSingleton<IChannelDB>(
+        'IChannelDB',
+        c => new ChannelDB(c.configuration, c.drizzleOperator, c.promiseRetry),
+    );
+    container.registerSingleton<IProgramDB>(
+        'IProgramDB',
+        c => new ProgramDB(c.configuration, c.drizzleOperator, c.promiseRetry),
+    );
+    container.registerSingleton<IRecordedDB>('IRecordedDB', c => new RecordedDB(c.drizzleOperator, c.promiseRetry));
+    container.registerSingleton<IRecordedTagDB>(
+        'IRecordedTagDB',
+        c => new RecordedTagDB(c.drizzleOperator, c.promiseRetry),
+    );
+    container.registerSingleton<IRecordedHistoryDB>(
+        'IRecordedHistoryDB',
+        c => new RecordedHistoryDB(c.drizzleOperator, c.promiseRetry),
+    );
+    container.registerSingleton<IReserveDB>('IReserveDB', c => new ReserveDB(c.drizzleOperator, c.promiseRetry));
+    container.registerTransient<IRuleDB>('IRuleDB', c => new RuleDB(c.drizzleOperator, c.promiseRetry));
+    container.registerSingleton<IThumbnailDB>('IThumbnailDB', c => new ThumbnailDB(c.drizzleOperator, c.promiseRetry));
+    container.registerSingleton<IVideoFileDB>('IVideoFileDB', c => new VideoFileDB(c.drizzleOperator, c.promiseRetry));
+    container.registerSingleton<IDropLogFileDB>(
+        'IDropLogFileDB',
+        c => new DropLogFileDB(c.drizzleOperator, c.promiseRetry),
+    );
 
-    container.bind<IPromiseQueue>('IPromiseQueue').to(PromiseQueue);
+    // イベント
+    container.registerSingleton<IRuleEvent>('IRuleEvent', c => new RuleEvent(c.loggerModel));
+    container.registerSingleton<IThumbnailEvent>('IThumbnailEvent', c => new ThumbnailEvent(c.loggerModel));
+    container.registerSingleton<IRecordedEvent>('IRecordedEvent', c => new RecordedEvent(c.loggerModel));
+    container.registerSingleton<IRecordingEvent>('IRecordingEvent', c => new RecordingEvent(c.loggerModel));
+    container.registerSingleton<IRecordedTagEvent>('IRecordedTagEvent', c => new RecordedTagEvent(c.loggerModel));
+    container.registerSingleton<IReserveEvent>('IReserveEvent', c => new ReserveEvent(c.loggerModel));
+    container.registerSingleton<IEPGUpdateEvent>('IEPGUpdateEvent', c => new EPGUpdateEvent(c.loggerModel));
+    container.registerSingleton<IOperatorEncodeEvent>(
+        'IOperatorEncodeEvent',
+        c => new OperatorEncodeEvent(c.loggerModel),
+    );
 
-    container.bind<IPromiseRetry>('IPromiseRetry').to(PromiseRetry);
+    // EPG
+    container.registerSingleton<IEPGUpdateExecutorManageModel>(
+        'IEPGUpdateExecutorManageModel',
+        c => new EPGUpdateExecutorManageModel(c.loggerModel, c.epgUpdateEvent, c.ipcServer),
+    );
+    container.registerSingleton<IReserveOptionChecker>(
+        'IReserveOptionChecker',
+        c => new ReserveOptionChecker(c.configuration),
+    );
+    container.registerSingleton<IMirakurunClientModel>(
+        'IMirakurunClientModel',
+        c => new MirakurunClientModel(c.configuration),
+    );
+    container.registerSingleton<IEPGUpdateManageModel>(
+        'IEPGUpdateManageModel',
+        c => new EPGUpdateManageModel(c.loggerModel, c.configuration, c.mirakurunClientModel, c.channelDB, c.programDB),
+    );
+    container.registerSingleton<IEPGUpdater>(
+        'IEPGUpdater',
+        c => new EPGUpdater(c.loggerModel, c.configuration, c.epgUpdateManageModel),
+    );
 
-    container.bind<IExecutionManagementModel>('IExecutionManagementModel').to(ExecutionManagementModel);
+    // 予約・録画・管理 (Operator)
+    container.registerSingleton<IReservationManageModel>(
+        'IReservationManageModel',
+        c =>
+            new ReservationManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.executionManagementModel,
+                c.reserveOptionChecker,
+                c.reserveDB,
+                c.channelDB,
+                c.programDB,
+                c.ruleDB,
+                c.reserveEvent,
+            ),
+    );
+    container.registerSingleton<IRuleManageModel>(
+        'IRuleManageModel',
+        c => new RuleManageModel(c.loggerModel, c.reserveOptionChecker, c.ruleDB, c.ruleEvent, c.promiseQueue),
+    );
+    container.registerSingleton<IRecordingStreamCreator>(
+        'IRecordingStreamCreator',
+        c => new RecordingStreamCreator(c.loggerModel, c.configuration, c.mirakurunClientModel),
+    );
+    container.registerSingleton<IRecordingUtilModel>(
+        'IRecordingUtilModel',
+        c =>
+            new RecordingUtilModel(
+                c.loggerModel,
+                c.configuration,
+                c.executionManagementModel,
+                c.channelDB,
+                c.programDB,
+                c.videoFileDB,
+                c.videoUtil,
+            ),
+    );
 
-    container.bind<IIPCClient>('IIPCClient').to(IPCClient).inSingletonScope();
-
-    container.bind<IIPCServer>('IIPCServer').to(IPCServer).inSingletonScope();
-
-    container.bind<IDrizzleOperator>('IDrizzleOperator').to(DrizzleOperator).inSingletonScope();
-
-    container.bind<IChannelDB>('IChannelDB').to(ChannelDB).inSingletonScope();
-
-    container.bind<IProgramDB>('IProgramDB').to(ProgramDB).inSingletonScope();
-
-    container.bind<IRecordedDB>('IRecordedDB').to(RecordedDB).inSingletonScope();
-
-    container.bind<IRecordedTagDB>('IRecordedTagDB').to(RecordedTagDB).inSingletonScope();
-
-    container.bind<IRecordedHistoryDB>('IRecordedHistoryDB').to(RecordedHistoryDB).inSingletonScope();
-
-    container.bind<IReserveDB>('IReserveDB').to(ReserveDB).inSingletonScope();
-
-    container.bind<IRuleDB>('IRuleDB').to(RuleDB).inRequestScope();
-
-    container.bind<IThumbnailDB>('IThumbnailDB').to(ThumbnailDB).inSingletonScope();
-
-    container.bind<IVideoFileDB>('IVideoFileDB').to(VideoFileDB).inSingletonScope();
-
-    container.bind<IDropLogFileDB>('IDropLogFileDB').to(DropLogFileDB).inSingletonScope();
-
-    container.bind<IRuleEvent>('IRuleEvent').to(RuleEvent).inSingletonScope();
-
-    container.bind<IThumbnailEvent>('IThumbnailEvent').to(ThumbnailEvent).inSingletonScope();
-
-    container.bind<IRecordedEvent>('IRecordedEvent').to(RecordedEvent).inSingletonScope();
-
-    container.bind<IRecordingEvent>('IRecordingEvent').to(RecordingEvent).inSingletonScope();
-
-    container.bind<IRecordedTagEvent>('IRecordedTagEvent').to(RecordedTagEvent).inSingletonScope();
-
-    container.bind<IReserveEvent>('IReserveEvent').to(ReserveEvent).inSingletonScope();
-
-    container.bind<IEPGUpdateEvent>('IEPGUpdateEvent').to(EPGUpdateEvent).inSingletonScope();
-
-    container.bind<IOperatorEncodeEvent>('IOperatorEncodeEvent').to(OperatorEncodeEvent).inSingletonScope();
-
-    container
-        .bind<IEPGUpdateExecutorManageModel>('IEPGUpdateExecutorManageModel')
-        .to(EPGUpdateExecutorManageModel)
-        .inSingletonScope();
-
-    container.bind<IReserveOptionChecker>('IReserveOptionChecker').to(ReserveOptionChecker).inSingletonScope();
-
-    container.bind<IMirakurunClientModel>('IMirakurunClientModel').to(MirakurunClientModel).inSingletonScope();
-
-    container.bind<IEPGUpdateManageModel>('IEPGUpdateManageModel').to(EPGUpdateManageModel).inSingletonScope();
-
-    container.bind<IEPGUpdater>('IEPGUpdater').to(EPGUpdater).inSingletonScope();
-
-    container.bind<IReservationManageModel>('IReservationManageModel').to(ReservationManageModel).inSingletonScope();
-
-    container.bind<IRuleManageModel>('IRuleManageModel').to(RuleManageModel).inSingletonScope();
-
-    container.bind<IRecordingStreamCreator>('IRecordingStreamCreator').to(RecordingStreamCreator).inSingletonScope();
-
-    container.bind<IRecordingUtilModel>('IRecordingUtilModel').to(RecordingUtilModel).inSingletonScope();
-
-    container.bind<IDropCheckerModel>('IDropCheckerModel').to(DropCheckerModel);
-
-    container.bind<IRecorderModel>('IRecorderModel').to(RecorderModel);
-
-    container.bind<RecorderModelProvider>('RecorderModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<IRecorderModel>(
-                (resolve: (model: IRecorderModel) => void, reject: (err: Error) => void) => {
-                    try {
-                        const recorderModel = context.container.get<IRecorderModel>('IRecorderModel');
-                        resolve(recorderModel);
-                    } catch (err: any) {
-                        reject(err);
-                    }
-                },
-            );
-        };
+    container.registerTransient<IDropCheckerModel>('IDropCheckerModel', c => new DropCheckerModel(c.loggerModel));
+    container.registerTransient<IRecorderModel>(
+        'IRecorderModel',
+        c =>
+            new RecorderModel(
+                c.loggerModel,
+                c.configuration,
+                c.programDB,
+                c.reserveDB,
+                c.recordedDB,
+                c.recordedHistoryDB,
+                c.videoFileDB,
+                c.dropLogFileDB,
+                c.recordingStreamCreator,
+                c.dropCheckerModel,
+                c.recordingUtilModel,
+                c.recordingEvent,
+                c.mirakurunClientModel,
+            ),
+    );
+    container.registerSingleton<RecorderModelProvider>('RecorderModelProvider', c => {
+        return () => Promise.resolve(c.recorderModel);
     });
 
-    container.bind<IRecordedManageModel>('IRecordedManageModel').to(RecordedManageModel).inSingletonScope();
+    container.registerSingleton<IRecordedManageModel>(
+        'IRecordedManageModel',
+        c =>
+            new RecordedManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.recordedDB,
+                c.videoFileDB,
+                c.thumbnailDB,
+                c.dropLogFileDB,
+                c.recordedHistoryDB,
+                c.recordingManageModel,
+                c.recordedEvent,
+                c.videoUtil,
+                c.recordingUtilModel,
+            ),
+    );
+    container.registerSingleton<IRecordingManageModel>(
+        'IRecordingManageModel',
+        c =>
+            new RecordingManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.recorderModelProvider,
+                c.recordingEvent,
+                c.recordingStreamCreator,
+                c.recordedDB,
+                c.reserveDB,
+                c.recordingUtilModel,
+            ),
+    );
+    container.registerSingleton<IRecordedTagManageModel>(
+        'IRecordedTagManageModel',
+        c => new RecordedTagManageModel(c.loggerModel, c.recordedTagDB, c.recordedTagEvent),
+    );
+    container.registerSingleton<IThumbnailManageModel>(
+        'IThumbnailManageModel',
+        c =>
+            new ThumbnailManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.promiseQueue,
+                c.recordedDB,
+                c.videoFileDB,
+                c.thumbnailDB,
+                c.thumbnailEvent,
+                c.videoUtil,
+            ),
+    );
+    container.registerSingleton<IStorageManageModel>(
+        'IStorageManageModel',
+        c => new StorageManageModel(c.loggerModel, c.configuration, c.recordedManageModel, c.recordedDB),
+    );
+    container.registerSingleton<IOperatorShutdownModel>(
+        'IOperatorShutdownModel',
+        c => new OperatorShutdownModel(c.loggerModel, c.storageManageModel, c.recordingManageModel, c.drizzleOperator),
+    );
+    container.registerSingleton<IEventSetter>(
+        'IEventSetter',
+        c =>
+            new EventSetter(
+                c.loggerModel,
+                c.epgUpdateEvent,
+                c.operatorEncodeEvent,
+                c.ruleEvent,
+                c.reserveEvent,
+                c.recordingEvent,
+                c.recordedTagEvent,
+                c.recordedEvent,
+                c.thumbnailEvent,
+                c.reservationManageModel,
+                c.recordingManageModel,
+                c.recordedManageModel,
+                c.recordedTagManageModel,
+                c.thumbnailManageModel,
+                c.externalCommandManageModel,
+                c.ipcServer,
+                c.configuration,
+            ),
+    );
 
-    container.bind<IRecordingManageModel>('IRecordingManageModel').to(RecordingManageModel).inSingletonScope();
+    // サービス・ログ・ソケット (Service)
+    container.registerSingleton<ISocketIOManageModel>(
+        'ISocketIOManageModel',
+        c => new SocketIOManageModel(c.loggerModel, c.configuration),
+    );
+    container.registerSingleton<ILogManageModel>(
+        'ILogManageModel',
+        c => new LogManageModel(c.loggerModel, c.configuration, c.socketIOManageModel),
+    );
+    container.registerSingleton<IExternalCommandManageModel>(
+        'IExternalCommandManageModel',
+        c =>
+            new ExternalCommandManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.promiseQueue,
+                c.channelDB,
+                c.recordedDB,
+                c.videoUtil,
+            ),
+    );
+    container.registerSingleton<IServiceServer>(
+        'IServiceServer',
+        c => new ServiceServer(c.loggerModel, c.configuration, c.socketIOManageModel),
+    );
 
-    container.bind<IRecordedTagManageModel>('IRecordedTagManageModel').to(RecordedTagManageModel).inSingletonScope();
+    // API ユーティリティ
+    container.registerSingleton<IApiUtil>('IApiUtil', c => new ApiUtil(c.configuration));
+    container.registerSingleton<IRecordedItemUtil>('IRecordedItemUtil', () => new RecordedItemUtil());
+    container.registerSingleton<IVideoUtil>('IVideoUtil', c => new VideoUtil(c.configuration, c.videoFileDB));
 
-    container.bind<IThumbnailManageModel>('IThumbnailManageModel').to(ThumbnailManageModel).inSingletonScope();
+    // API モデル
+    container.registerSingleton<IConfigApiModel>(
+        'IConfigApiModel',
+        c => new ConfigApiModel(c.configuration, c.ipcClient),
+    );
+    container.registerSingleton<IChannelApiModel>(
+        'IChannelApiModel',
+        c => new ChannelApiModel(c.channelDB, c.mirakurunClientModel),
+    );
+    container.registerSingleton<IScheduleApiModel>(
+        'IScheduleApiModel',
+        c => new ScheduleApiModel(c.channelDB, c.programDB),
+    );
+    container.registerSingleton<IReserveApiModel>(
+        'IReserveApiModel',
+        c => new ReserveApiModel(c.ipcClient, c.reserveDB),
+    );
+    container.registerSingleton<IRecordedApiModel>(
+        'IRecordedApiModel',
+        c =>
+            new RecordedApiModel(
+                c.ipcClient,
+                c.recordedDB,
+                c.recordedHistoryDB,
+                c.encodeManageModel,
+                c.recordedItemUtil,
+            ),
+    );
+    container.registerSingleton<IRecordingApiModel>(
+        'IRecordingApiModel',
+        c => new RecordingApiModel(c.ipcClient, c.recordedDB, c.recordedItemUtil),
+    );
+    container.registerSingleton<IRecordedTagApiModel>(
+        'IRecordedTagApiModel',
+        c => new RecordedTagApiModel(c.ipcClient, c.recordedTagDB),
+    );
+    container.registerSingleton<IRuleApiModel>(
+        'IRuleApiModel',
+        c => new RuleApiModel(c.ipcClient, c.ruleDB, c.reserveDB),
+    );
+    container.registerSingleton<IThumbnailApiModel>(
+        'IThumbnailApiModel',
+        c => new ThumbnailApiModel(c.ipcClient, c.thumbnailDB, c.configuration),
+    );
+    container.registerSingleton<IDropLogApiModel>(
+        'IDropLogApiModel',
+        c => new DropLogApiModel(c.configuration, c.dropLogFileDB),
+    );
+    container.registerSingleton<IVideoApiModel>(
+        'IVideoApiModel',
+        c => new VideoApiModel(c.configuration, c.videoFileDB, c.recordedDB, c.apiUtil, c.videoUtil, c.ipcClient),
+    );
+    container.registerSingleton<IEncodeApiModel>(
+        'IEncodeApiModel',
+        c => new EncodeApiModel(c.encodeManageModel, c.videoFileDB, c.recordedDB, c.recordedItemUtil),
+    );
+    container.registerSingleton<IIPTVApiModel>('IIPTVApiModel', c => new IPTVApiModel(c.channelDB, c.programDB));
 
-    container.bind<IStorageManageModel>('IStorageManageModel').to(StorageManageModel).inSingletonScope();
-    container.bind<IOperatorShutdownModel>('IOperatorShutdownModel').to(OperatorShutdownModel).inSingletonScope();
+    // エンコード
+    container.registerSingleton<IEncodeEvent>('IEncodeEvent', c => new EncodeEvent(c.loggerModel));
+    container.registerSingleton<IEncodeProcessManageModel>(
+        'IEncodeProcessManageModel',
+        c => new EncodeProcessManageModel(c.loggerModel, c.configuration),
+    );
+    container.registerSingleton<IEncodeFileManageModel>('IEncodeFileManageModel', () => new EncodeFileManageModel());
+    container.registerTransient<IEncoderModel>(
+        'IEncoderModel',
+        c =>
+            new EncoderModel(
+                c.loggerModel,
+                c.configuration,
+                c.encodeProcessManageModel,
+                c.encodeFileManageModel,
+                c.videoFileDB,
+                c.recordedDB,
+                c.channelDB,
+                c.videoUtil,
+                c.encodeEvent,
+                c.recordingUtilModel,
+            ),
+    );
+    container.registerSingleton<EncoderModelProvider>('EncoderModelProvider', c => {
+        return () => Promise.resolve(c.encoderModel);
+    });
+    container.registerSingleton<IEncodeManageModel>(
+        'IEncodeManageModel',
+        c =>
+            new EncodeManageModel(
+                c.loggerModel,
+                c.configuration,
+                c.executionManagementModel,
+                c.encoderModelProvider,
+                c.encodeEvent,
+            ),
+    );
+    container.registerSingleton<IEncodeFinishModel>(
+        'IEncodeFinishModel',
+        c => new EncodeFinishModel(c.loggerModel, c.socketIOManageModel, c.ipcClient, c.encodeEvent),
+    );
 
-    container.bind<IEventSetter>('IEventSetter').to(EventSetter).inSingletonScope();
-
-    container.bind<ISocketIOManageModel>('ISocketIOManageModel').to(SocketIOManageModel).inSingletonScope();
-
-    container.bind<ILogManageModel>('ILogManageModel').to(LogManageModel).inSingletonScope();
-
-    container
-        .bind<IExternalCommandManageModel>('IExternalCommandManageModel')
-        .to(ExternalCommandManageModel)
-        .inSingletonScope();
-
-    container.bind<IServiceServer>('IServiceServer').to(ServiceServer).inSingletonScope();
-
-    container.bind<IApiUtil>('IApiUtil').to(ApiUtil).inSingletonScope();
-
-    container.bind<IRecordedItemUtil>('IRecordedItemUtil').to(RecordedItemUtil).inSingletonScope();
-
-    container.bind<IConfigApiModel>('IConfigApiModel').to(ConfigApiModel).inSingletonScope();
-
-    container.bind<IChannelApiModel>('IChannelApiModel').to(ChannelApiModel).inSingletonScope();
-
-    container.bind<IScheduleApiModel>('IScheduleApiModel').to(ScheduleApiModel).inSingletonScope();
-
-    container.bind<IReserveApiModel>('IReserveApiModel').to(ReserveApiModel).inSingletonScope();
-
-    container.bind<IRecordedApiModel>('IRecordedApiModel').to(RecordedApiModel).inSingletonScope();
-
-    container.bind<IRecordingApiModel>('IRecordingApiModel').to(RecordingApiModel).inSingletonScope();
-
-    container.bind<IRecordedTagApiModel>('IRecordedTagApiModel').to(RecordedTagApiModel).inSingletonScope();
-
-    container.bind<IRuleApiModel>('IRuleApiModel').to(RuleApiModel).inSingletonScope();
-
-    container.bind<IThumbnailApiModel>('IThumbnailApiModel').to(ThumbnailApiModel).inSingletonScope();
-
-    container.bind<IDropLogApiModel>('IDropLogApiModel').to(DropLogApiModel).inSingletonScope();
-
-    container.bind<IVideoUtil>('IVideoUtil').to(VideoUtil).inSingletonScope();
-
-    container.bind<IVideoApiModel>('IVideoApiModel').to(VideoApiModel).inSingletonScope();
-
-    container.bind<IEncodeApiModel>('IEncodeApiModel').to(EncodeApiModel).inSingletonScope();
-
-    container.bind<IIPTVApiModel>('IIPTVApiModel').to(IPTVApiModel).inSingletonScope();
-
-    container.bind<IEncodeEvent>('IEncodeEvent').to(EncodeEvent).inSingletonScope();
-
-    container
-        .bind<IEncodeProcessManageModel>('IEncodeProcessManageModel')
-        .to(EncodeProcessManageModel)
-        .inSingletonScope();
-
-    container.bind<IEncodeFileManageModel>('IEncodeFileManageModel').to(EncodeFileManageModel).inSingletonScope();
-
-    container.bind<IEncoderModel>('IEncoderModel').to(EncoderModel);
-
-    container.bind<EncoderModelProvider>('EncoderModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<IEncoderModel>(
-                (resolve: (model: IEncoderModel) => void, reject: (err: Error) => void) => {
-                    try {
-                        const encoderModel = context.container.get<IEncoderModel>('IEncoderModel');
-                        resolve(encoderModel);
-                    } catch (err: any) {
-                        reject(err);
-                    }
-                },
-            );
-        };
+    // ストリーミング
+    container.registerTransient<ILiveStreamBaseModel>(
+        'LiveStreamModel',
+        c =>
+            new LiveStreamModel(
+                c.configuration,
+                c.loggerModel,
+                c.encodeProcessManageModel,
+                c.hlsFileDeleterModel,
+                c.mirakurunClientModel,
+                c.socketIOManageModel,
+            ),
+    );
+    container.registerSingleton<LiveStreamModelProvider>('LiveStreamModelProvider', c => {
+        return () => Promise.resolve(c.liveStreamModel);
     });
 
-    container.bind<IEncodeManageModel>('IEncodeManageModel').to(EncodeManageModel).inSingletonScope();
-
-    container.bind<IEncodeFinishModel>('IEncodeFinishModel').to(EncodeFinishModel).inSingletonScope();
-
-    container.bind<ILiveStreamBaseModel>('LiveStreamModel').to(LiveStreamModel);
-
-    container.bind<LiveStreamModelProvider>('LiveStreamModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<ILiveStreamBaseModel>((resolve, reject) => {
-                try {
-                    const streamModel = context.container.get<ILiveStreamBaseModel>('LiveStreamModel');
-                    resolve(streamModel);
-                } catch (err: any) {
-                    reject(err);
-                }
-            });
-        };
+    container.registerTransient<IHLSFileDeleterModel>(
+        'IHLSFileDeleterModel',
+        c => new HLSFileDeleterModel(c.loggerModel),
+    );
+    container.registerTransient<ILiveStreamBaseModel>(
+        'LiveHLSStreamModel',
+        c =>
+            new LiveHLSStreamModel(
+                c.configuration,
+                c.loggerModel,
+                c.encodeProcessManageModel,
+                c.hlsFileDeleterModel,
+                c.mirakurunClientModel,
+                c.socketIOManageModel,
+            ),
+    );
+    container.registerSingleton<LiveHLSStreamModelProvider>('LiveHLSStreamModelProvider', c => {
+        return () => Promise.resolve(c.liveHLSStreamModel);
     });
 
-    container.bind<IHLSFileDeleterModel>('IHLSFileDeleterModel').to(HLSFileDeleterModel);
-
-    container.bind<ILiveStreamBaseModel>('LiveHLSStreamModel').to(LiveHLSStreamModel);
-
-    container.bind<LiveHLSStreamModelProvider>('LiveHLSStreamModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<ILiveStreamBaseModel>((resolve, reject) => {
-                try {
-                    const streamModel = context.container.get<ILiveStreamBaseModel>('LiveHLSStreamModel');
-                    resolve(streamModel);
-                } catch (err: any) {
-                    reject(err);
-                }
-            });
-        };
+    container.registerTransient<IRecordedStreamBaseModel>(
+        'RecordedStreamModel',
+        c =>
+            new RecordedStreamModel(
+                c.configuration,
+                c.loggerModel,
+                c.encodeProcessManageModel,
+                c.hlsFileDeleterModel,
+                c.socketIOManageModel,
+                c.videoFileDB,
+                c.recordedDB,
+                c.videoUtil,
+            ),
+    );
+    container.registerSingleton<RecordedStreamModelProvider>('RecordedStreamModelProvider', c => {
+        return () => Promise.resolve(c.recordedStreamModel);
     });
 
-    container.bind<IRecordedStreamBaseModel>('RecordedStreamModel').to(RecordedStreamModel);
-
-    container.bind<RecordedStreamModelProvider>('RecordedStreamModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<IRecordedStreamBaseModel>((resolve, reject) => {
-                try {
-                    const streamModel = context.container.get<IRecordedStreamBaseModel>('RecordedStreamModel');
-                    resolve(streamModel);
-                } catch (err: any) {
-                    reject(err);
-                }
-            });
-        };
+    container.registerTransient<IRecordedStreamBaseModel>(
+        'RecordedHLSStreamModel',
+        c =>
+            new RecordedHLSStreamModel(
+                c.configuration,
+                c.loggerModel,
+                c.encodeProcessManageModel,
+                c.hlsFileDeleterModel,
+                c.socketIOManageModel,
+                c.videoFileDB,
+                c.recordedDB,
+                c.videoUtil,
+            ),
+    );
+    container.registerSingleton<RecordedHLSStreamModelProvider>('RecordedHLSStreamModelProvider', c => {
+        return () => Promise.resolve(c.recordedHLSStreamModel);
     });
 
-    container.bind<IRecordedStreamBaseModel>('RecordedHLSStreamModel').to(RecordedHLSStreamModel);
-    container.bind<RecordedHLSStreamModelProvider>('RecordedHLSStreamModelProvider').toProvider(context => {
-        return () => {
-            return new Promise<IRecordedStreamBaseModel>((resolve, reject) => {
-                try {
-                    const streamModel = context.container.get<IRecordedStreamBaseModel>('RecordedHLSStreamModel');
-                    resolve(streamModel);
-                } catch (err: any) {
-                    reject(err);
-                }
-            });
-        };
-    });
-
-    container.bind<IStreamManageModel>('IStreamManageModel').to(StreamManageModel).inSingletonScope();
-
-    container.bind<IStreamApiModel>('IStreamApiModel').to(StreamApiModel).inSingletonScope();
-
-    container.bind<IStorageApiModel>('IStorageApiModel').to(StorageApiModel).inSingletonScope();
+    container.registerSingleton<IStreamManageModel>(
+        'IStreamManageModel',
+        c => new StreamManageModel(c.loggerModel, c.executionManagementModel, c.socketIOManageModel),
+    );
+    container.registerSingleton<IStreamApiModel>(
+        'IStreamApiModel',
+        c =>
+            new StreamApiModel(
+                c.configuration,
+                c.liveStreamModelProvider,
+                c.liveHLSStreamModelProvider,
+                c.recordedStreamModelProvider,
+                c.recordedHLSStreamModelProvider,
+                c.streamManageModel,
+                c.programDB,
+                c.videoFileDB,
+                c.recordedDB,
+                c.channelDB,
+                c.apiUtil,
+            ),
+    );
+    container.registerSingleton<IStorageApiModel>('IStorageApiModel', c => new StorageApiModel(c.configuration));
 };

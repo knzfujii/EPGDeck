@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import { Client } from 'mirakurun';
 import Util from '../util/Util.js';
 import IDrizzleOperator from './db/IDrizzleOperator.js';
@@ -7,17 +6,12 @@ import ILogger from './ILogger.js';
 import ILoggerModel from './ILoggerModel.js';
 import IMirakurunClientModel from './IMirakurunClientModel.js';
 
-@injectable()
 export default class ConnectionCheckModel implements IConnectionCheckModel {
     private log: ILogger;
     private mirakurunClient: Client;
     private drizzleOperator: IDrizzleOperator;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IMirakurunClientModel') mirakurunClientModel: IMirakurunClientModel,
-        @inject('IDrizzleOperator') drizzleOperator: IDrizzleOperator,
-    ) {
+    constructor(logger: ILoggerModel, mirakurunClientModel: IMirakurunClientModel, drizzleOperator: IDrizzleOperator) {
         this.log = logger.getLogger();
         this.mirakurunClient = mirakurunClientModel.getClient();
         this.drizzleOperator = drizzleOperator;

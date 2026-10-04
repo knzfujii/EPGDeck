@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../../api.js';
 import IExecutionManagementModel from '../../../IExecutionManagementModel.js';
 import ILogger from '../../../ILogger.js';
@@ -7,7 +6,6 @@ import ISocketIOManageModel from '../../socketio/ISocketIOManageModel.js';
 import IStreamBaseModel, { LiveStreamInfo, RecordedStreamInfo } from '../base/IStreamBaseModel.js';
 import IStreamManageModel, { StreamInfoWithStreamId } from './IStreamManageModel.js';
 
-@injectable()
 class StreamManageModel implements IStreamManageModel {
     private log: ILogger;
     private executeManagementModel: IExecutionManagementModel;
@@ -15,9 +13,9 @@ class StreamManageModel implements IStreamManageModel {
     private streams: { [streamId: number]: IStreamBaseModel<any> } = {};
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IExecutionManagementModel') executeManagementModel: IExecutionManagementModel,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
+        logger: ILoggerModel,
+        executeManagementModel: IExecutionManagementModel,
+        socketIO: ISocketIOManageModel,
     ) {
         this.log = logger.getLogger();
         this.executeManagementModel = executeManagementModel;

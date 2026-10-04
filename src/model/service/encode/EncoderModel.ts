@@ -1,6 +1,5 @@
 import { ChildProcess } from 'child_process';
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import FileUtil from '../../../util/FileUtil.js';
@@ -19,7 +18,6 @@ import IEncodeProcessManageModel from './IEncodeProcessManageModel.js';
 import { EncodeOption, EncodeProgressInfo, IEncoderModel } from './IEncoderModel.js';
 import IRecordingUtilModel from '../../operator/recording/IRecordingUtilModel.js';
 
-@injectable()
 class EncoderModel implements IEncoderModel {
     private log: ILogger;
     private configure: IConfiguration;
@@ -42,16 +40,16 @@ class EncoderModel implements IEncoderModel {
     private ffmpegCommand: string | null = null; // 実行されたFFmpegコマンドライン
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('IEncodeProcessManageModel') processManager: IEncodeProcessManageModel,
-        @inject('IEncodeFileManageModel') fileManager: IEncodeFileManageModel,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
-        @inject('IEncodeEvent') encodeEvent: IEncodeEvent,
-        @inject('IRecordingUtilModel') recordingUtil: IRecordingUtilModel,
+        logger: ILoggerModel,
+        configure: IConfiguration,
+        processManager: IEncodeProcessManageModel,
+        fileManager: IEncodeFileManageModel,
+        videoFileDB: IVideoFileDB,
+        recordedDB: IRecordedDB,
+        channelDB: IChannelDB,
+        videoUtil: IVideoUtil,
+        encodeEvent: IEncodeEvent,
+        recordingUtil: IRecordingUtilModel,
     ) {
         this.log = logger.getLogger();
         this.configure = configure;

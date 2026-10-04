@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import { Client } from 'mirakurun';
 import * as path from 'path';
 import IConfigFile from './IConfigFile.js';
@@ -13,12 +12,11 @@ const __dirname = dirname(__filename);
 /**
  * mirakurun client のインスタンスを生成する
  */
-@injectable()
 export default class MirakurunClientModel implements IMirakurunClientModel {
     private client: Client;
     private config: IConfigFile;
 
-    constructor(@inject('IConfiguration') conf: IConfiguration) {
+    constructor(conf: IConfiguration) {
         this.client = new Client();
         this.config = conf.getConfig();
 

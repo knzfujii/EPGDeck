@@ -3,15 +3,12 @@ import * as path from 'path';
 import * as readline from 'readline/promises';
 import { pipeline } from 'stream/promises';
 import { parseArgs } from 'util';
-import 'reflect-metadata';
 import VideoFile from '../db/entities/VideoFile.js';
 import IDrizzleOperator from '../model/db/IDrizzleOperator.js';
 import IVideoFileDB from '../model/db/IVideoFileDB.js';
 import IConfigFile, { RecordedDirInfo } from '../model/IConfigFile.js';
-import IConfiguration from '../model/IConfiguration.js';
 import IConnectionCheckModel from '../model/IConnectionCheckModel.js';
 import ILogger from '../model/ILogger.js';
-import ILoggerModel from '../model/ILoggerModel.js';
 import container from '../model/ModelContainer.js';
 import * as containerSetter from '../model/ModelContainerSetter.js';
 import FileUtil from '../util/FileUtil.js';
@@ -265,15 +262,15 @@ export default class MoveRecordedFiles {
     private initContainer(): void {
         containerSetter.set(container);
 
-        const logger = container.get<ILoggerModel>('ILoggerModel');
+        const logger = container.loggerModel;
         logger.initialize();
         this.log = logger.getLogger();
 
-        const configuration = container.get<IConfiguration>('IConfiguration');
+        const configuration = container.configuration;
         this.config = configuration.getConfig();
-        this.connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');
-        this.drizzleOperator = container.get<IDrizzleOperator>('IDrizzleOperator');
-        this.videoFileDB = container.get<IVideoFileDB>('IVideoFileDB');
+        this.connectionChecker = container.connectionCheckModel;
+        this.drizzleOperator = container.drizzleOperator;
+        this.videoFileDB = container.videoFileDB;
     }
 
     public setDependenciesForTest(deps: { log: ILogger; videoFileDB: IVideoFileDB }): void {

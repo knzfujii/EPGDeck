@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Program from '../../src/db/entities/Program.js';
 import Reserve from '../../src/db/entities/Reserve.js';

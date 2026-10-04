@@ -1,6 +1,5 @@
 import * as path from 'path';
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IEncodeEvent from '../../event/IEncodeEvent.js';
 import IConfiguration from '../../IConfiguration.js';
@@ -10,7 +9,6 @@ import ILoggerModel from '../../ILoggerModel.js';
 import IEncodeManageModel, { EncodeInfoItem, EncodeQueueInfo, EncodeRecordedIdIndex } from './IEncodeManageModel.js';
 import { EncodeOption, EncoderModelProvider, IEncoderModel } from './IEncoderModel.js';
 
-@injectable()
 class EncodeManageModel implements IEncodeManageModel {
     private log: ILogger;
     private executeManagementModel: IExecutionManagementModel;
@@ -24,11 +22,11 @@ class EncodeManageModel implements IEncodeManageModel {
     private listener: events.EventEmitter = new events.EventEmitter();
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('IExecutionManagementModel') executeManagementModel: IExecutionManagementModel,
-        @inject('EncoderModelProvider') encoderModelProvider: EncoderModelProvider,
-        @inject('IEncodeEvent') encodeEvent: IEncodeEvent,
+        logger: ILoggerModel,
+        configure: IConfiguration,
+        executeManagementModel: IExecutionManagementModel,
+        encoderModelProvider: EncoderModelProvider,
+        encodeEvent: IEncodeEvent,
     ) {
         this.log = logger.getLogger();
         this.executeManagementModel = executeManagementModel;

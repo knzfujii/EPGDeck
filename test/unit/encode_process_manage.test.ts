@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as events from 'events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EncodeProcessManageModel from '../../src/model/service/encode/EncodeProcessManageModel.js';

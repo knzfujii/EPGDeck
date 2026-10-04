@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

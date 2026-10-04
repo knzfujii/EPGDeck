@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import FileUtil from '../../../util/FileUtil.js';
@@ -7,15 +6,11 @@ import IConfigFile from '../../IConfigFile.js';
 import IConfiguration from '../../IConfiguration.js';
 import IDropLogApiModel, { DropLogApiErrors } from './IDropLogApiModel.js';
 
-@injectable()
 export default class DropLogApiModel implements IDropLogApiModel {
     private config: IConfigFile;
     private dropLogFileDB: IDropLogFileDB;
 
-    constructor(
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IDropLogFileDB') dropLogFileDB: IDropLogFileDB,
-    ) {
+    constructor(configuration: IConfiguration, dropLogFileDB: IDropLogFileDB) {
         this.dropLogFileDB = dropLogFileDB;
         this.config = configuration.getConfig();
     }

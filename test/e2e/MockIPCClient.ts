@@ -1,4 +1,3 @@
-import { injectable } from 'inversify';
 import IIPCClient, {
     IPCOperatorEncodeEvent,
     IPCRecordedManageModel,
@@ -9,7 +8,6 @@ import IIPCClient, {
     IPCThumbnailManageModel,
 } from '../../src/model/ipc/IIPCClient.js';
 
-@injectable()
 export default class MockIPCClient implements IIPCClient {
     public reservation: IPCReservationManageModel = {
         getBroadcastStatus: async () => ({ GR: false, BS: false, CS: false, SKY: false }),

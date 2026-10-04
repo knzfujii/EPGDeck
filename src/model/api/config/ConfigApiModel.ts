@@ -1,15 +1,13 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IConfiguration from '../../IConfiguration.js';
 import IIPCClient from '../../ipc/IIPCClient.js';
 import IConfigApiModel from './IConfigApiModel.js';
 
-@injectable()
 export default class ConfigApiModel implements IConfigApiModel {
     private configuration: IConfiguration;
     private ipc: IIPCClient;
 
-    constructor(@inject('IConfiguration') configuration: IConfiguration, @inject('IIPCClient') ipc: IIPCClient) {
+    constructor(configuration: IConfiguration, ipc: IIPCClient) {
         this.configuration = configuration;
         this.ipc = ipc;
     }

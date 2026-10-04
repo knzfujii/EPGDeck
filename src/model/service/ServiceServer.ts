@@ -2,7 +2,6 @@ import { getRequestListener } from '@hono/node-server';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
-import { inject, injectable } from 'inversify';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
 import ILogger from '../ILogger.js';
@@ -11,19 +10,13 @@ import IServiceServer from './IServiceServer.js';
 import { createHonoApp } from './hono/createHonoApp.js';
 import ISocketIOManageModel from './socketio/ISocketIOManageModel.js';
 
-@injectable()
 class ServiceServer implements IServiceServer {
     private log: ILogger;
     private config: IConfigFile;
     private socketIoManageModel: ISocketIOManageModel;
     private requestListener!: http.RequestListener;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('ISocketIOManageModel')
-        socketIoManageModel: ISocketIOManageModel,
-    ) {
+    constructor(logger: ILoggerModel, configuration: IConfiguration, socketIoManageModel: ISocketIOManageModel) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();
         this.socketIoManageModel = socketIoManageModel;

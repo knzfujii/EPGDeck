@@ -1,9 +1,7 @@
-import { injectable } from 'inversify';
 import * as path from 'path';
 import FileUtil from '../../../util/FileUtil.js';
 import IEncodeFileManageModel from './IEncodeFileManageModel.js';
 
-@injectable()
 export default class EncodeFileManageModel implements IEncodeFileManageModel {
     private usedFileNameIndex: { [name: string]: boolean } = {}; // 使用済みファイル名
 

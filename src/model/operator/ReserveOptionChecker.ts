@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
@@ -15,11 +14,10 @@ export interface KeywordOption {
 /**
  * 予約オプションチェッカー
  */
-@injectable()
 export default class ReserveOptionChecker implements IReserveOptionChecker {
     private conf: IConfiguration;
 
-    constructor(@inject('IConfiguration') conf: IConfiguration) {
+    constructor(conf: IConfiguration) {
         this.conf = conf;
     }
 

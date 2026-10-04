@@ -1,6 +1,5 @@
 import { ChildProcess, execFile } from 'child_process';
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import internal, { Readable } from 'stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
@@ -18,7 +17,6 @@ import IRecordedStreamBaseModel, { RecordedStreamOption, VideoFileInfo } from '.
 import { RecordedStreamInfo } from './IStreamBaseModel.js';
 import StreamBaseModel from './StreamBaseModel.js';
 
-@injectable()
 export default abstract class RecordedStreamBaseModel
     extends StreamBaseModel<RecordedStreamOption>
     implements IRecordedStreamBaseModel
@@ -36,14 +34,14 @@ export default abstract class RecordedStreamBaseModel
     private isRecording: boolean = false;
 
     constructor(
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IEncodeProcessManageModel') processManager: IEncodeProcessManageModel,
-        @inject('IHLSFileDeleterModel') fileDeleter: IHLSFileDeleterModel,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
+        configure: IConfiguration,
+        logger: ILoggerModel,
+        processManager: IEncodeProcessManageModel,
+        fileDeleter: IHLSFileDeleterModel,
+        socketIO: ISocketIOManageModel,
+        videoFileDB: IVideoFileDB,
+        recordedDB: IRecordedDB,
+        videoUtil: IVideoUtil,
     ) {
         super(configure, logger, processManager, fileDeleter, socketIO);
 

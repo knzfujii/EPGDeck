@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
@@ -21,7 +20,6 @@ import IReserveEvent from './IReserveEvent.js';
 import IRuleEvent from './IRuleEvent.js';
 import IThumbnailEvent from './IThumbnailEvent.js';
 
-@injectable()
 export default class EventSetter implements IEventSetter {
     private log: ILogger;
     private epgUpdateEvent: IEPGUpdateEvent;
@@ -44,24 +42,23 @@ export default class EventSetter implements IEventSetter {
     private isFirstReservationUpdate: boolean = true;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IEPGUpdateEvent') epgUpdateEvent: IEPGUpdateEvent,
-        @inject('IOperatorEncodeEvent') encodeEvent: IOperatorEncodeEvent,
-        @inject('IRuleEvent') ruleEvent: IRuleEvent,
-        @inject('IReserveEvent') reserveEvent: IReserveEvent,
-        @inject('IRecordingEvent') recordingEvent: IRecordingEvent,
-        @inject('IRecordedTagEvent') recordedTagEvent: IRecordedTagEvent,
-        @inject('IRecordedEvent') recordedEvent: IRecordedEvent,
-        @inject('IThumbnailEvent') thumbnailEvent: IThumbnailEvent,
-        @inject('IReservationManageModel')
+        logger: ILoggerModel,
+        epgUpdateEvent: IEPGUpdateEvent,
+        encodeEvent: IOperatorEncodeEvent,
+        ruleEvent: IRuleEvent,
+        reserveEvent: IReserveEvent,
+        recordingEvent: IRecordingEvent,
+        recordedTagEvent: IRecordedTagEvent,
+        recordedEvent: IRecordedEvent,
+        thumbnailEvent: IThumbnailEvent,
         reservationManage: IReservationManageModel,
-        @inject('IRecordingManageModel') recordingManage: IRecordingManageModel,
-        @inject('IRecordedManageModel') recordedManage: IRecordedManageModel,
-        @inject('IRecordedTagManageModel') recordedTagManage: IRecordedTagManageModel,
-        @inject('IThumbnailManageModel') thumbnailManage: IThumbnailManageModel,
-        @inject('IExternalCommandManageModel') externalCommandManage: IExternalCommandManageModel,
-        @inject('IIPCServer') ipc: IIPCServer,
-        @inject('IConfiguration') configure: IConfiguration,
+        recordingManage: IRecordingManageModel,
+        recordedManage: IRecordedManageModel,
+        recordedTagManage: IRecordedTagManageModel,
+        thumbnailManage: IThumbnailManageModel,
+        externalCommandManage: IExternalCommandManageModel,
+        ipc: IIPCServer,
+        configure: IConfiguration,
     ) {
         this.log = logger.getLogger();
         this.epgUpdateEvent = epgUpdateEvent;

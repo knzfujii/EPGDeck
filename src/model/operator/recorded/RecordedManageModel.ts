@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import DropLogFile from '../../../db/entities/DropLogFile.js';
@@ -23,7 +22,6 @@ import IRecordingManageModel from '../recording/IRecordingManageModel.js';
 import IRecordedManageModel, { AddVideoFileOption, UploadedVideoFileOption } from './IRecordedManageModel.js';
 import IRecordingUtilModel from '../recording/IRecordingUtilModel.js';
 
-@injectable()
 export default class RecordedManageModel implements IRecordedManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -38,18 +36,17 @@ export default class RecordedManageModel implements IRecordedManageModel {
     private recordingUtilModel: IRecordingUtilModel;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IThumbnailDB') thumbnailDB: IThumbnailDB,
-        @inject('IDropLogFileDB') dropLogFileDB: IDropLogFileDB,
-        @inject('IRecordedHistoryDB') recordedHistoryDB: IRecordedHistoryDB,
-        @inject('IRecordingManageModel')
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        recordedDB: IRecordedDB,
+        videoFileDB: IVideoFileDB,
+        thumbnailDB: IThumbnailDB,
+        dropLogFileDB: IDropLogFileDB,
+        recordedHistoryDB: IRecordedHistoryDB,
         recordingManageModel: IRecordingManageModel,
-        @inject('IRecordedEvent') recordedEvent: IRecordedEvent,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
-        @inject('IRecordingUtilModel') recordingUtilModel: IRecordingUtilModel,
+        recordedEvent: IRecordedEvent,
+        videoUtil: IVideoUtil,
+        recordingUtilModel: IRecordingUtilModel,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

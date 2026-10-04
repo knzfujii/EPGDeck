@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import StrUtil from '../../../util/StrUtil.js';
 import IRecordedDB, { FindAllOption } from '../../db/IRecordedDB.js';
@@ -9,7 +8,6 @@ import IEncodeManageModel from '../../service/encode/IEncodeManageModel.js';
 import IRecordedItemUtil from '../IRecordedItemUtil.js';
 import IRecordedApiModel from './IRecordedApiModel.js';
 
-@injectable()
 export default class RecordedApiModel implements IRecordedApiModel {
     private ipc: IIPCClient;
     private recordedDB: IRecordedDB;
@@ -18,11 +16,11 @@ export default class RecordedApiModel implements IRecordedApiModel {
     private recordedItemUtil: IRecordedItemUtil;
 
     constructor(
-        @inject('IIPCClient') ipc: IIPCClient,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IRecordedHistoryDB') recordedHistoryDB: IRecordedHistoryDB,
-        @inject('IEncodeManageModel') encodeManage: IEncodeManageModel,
-        @inject('IRecordedItemUtil') recordedItemUtil: IRecordedItemUtil,
+        ipc: IIPCClient,
+        recordedDB: IRecordedDB,
+        recordedHistoryDB: IRecordedHistoryDB,
+        encodeManage: IEncodeManageModel,
+        recordedItemUtil: IRecordedItemUtil,
     ) {
         this.recordedDB = recordedDB;
         this.recordedHistoryDB = recordedHistoryDB;

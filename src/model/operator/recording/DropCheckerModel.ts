@@ -1,7 +1,6 @@
 import { DropResult, EitInfo, PmtInfo, TsProbe } from 'arib-probe';
 import * as events from 'events';
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
 import DateUtil from '../../../util/DateUtil.js';
@@ -10,7 +9,6 @@ import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import IDropCheckerModel from './IDropCheckerModel.js';
 
-@injectable()
 class DropCheckerModel implements IDropCheckerModel {
     private log: ILogger;
     private listener: events.EventEmitter = new events.EventEmitter();
@@ -23,7 +21,7 @@ class DropCheckerModel implements IDropCheckerModel {
 
     private tsProbe: TsProbe | null = null;
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
     }
 

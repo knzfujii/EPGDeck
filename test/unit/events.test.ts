@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import EPGUpdateEvent from '../../src/model/event/EPGUpdateEvent.js';
 import ReserveEvent from '../../src/model/event/ReserveEvent.js';

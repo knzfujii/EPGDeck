@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IChannelDB from '../../db/IChannelDB.js';
 import IProgramDB from '../../db/IProgramDB.js';
@@ -23,7 +22,6 @@ interface RecordedStreamConfig {
     cmd: string;
 }
 
-@injectable()
 export default class StreamApiModel implements IStreamApiModel {
     private configure: IConfiguration;
     private liveStreamProvider: LiveStreamModelProvider;
@@ -38,17 +36,17 @@ export default class StreamApiModel implements IStreamApiModel {
     private apiUtil: IApiUtil;
 
     constructor(
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('LiveStreamModelProvider') liveStreamProvider: LiveStreamModelProvider,
-        @inject('LiveHLSStreamModelProvider') liveHLSStreamProvider: LiveHLSStreamModelProvider,
-        @inject('RecordedStreamModelProvider') recordedStreamProvider: RecordedStreamModelProvider,
-        @inject('RecordedHLSStreamModelProvider') recordedHLSStreamProvider: RecordedHLSStreamModelProvider,
-        @inject('IStreamManageModel') streamManageModel: IStreamManageModel,
-        @inject('IProgramDB') programDB: IProgramDB,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IApiUtil') apiUtil: IApiUtil,
+        configure: IConfiguration,
+        liveStreamProvider: LiveStreamModelProvider,
+        liveHLSStreamProvider: LiveHLSStreamModelProvider,
+        recordedStreamProvider: RecordedStreamModelProvider,
+        recordedHLSStreamProvider: RecordedHLSStreamModelProvider,
+        streamManageModel: IStreamManageModel,
+        programDB: IProgramDB,
+        videoFileDB: IVideoFileDB,
+        recordedDB: IRecordedDB,
+        channelDB: IChannelDB,
+        apiUtil: IApiUtil,
     ) {
         this.configure = configure;
         this.liveStreamProvider = liveStreamProvider;

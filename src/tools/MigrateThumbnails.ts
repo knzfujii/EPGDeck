@@ -1,13 +1,10 @@
 import * as path from 'path';
 import { parseArgs } from 'util';
-import 'reflect-metadata';
 import IDrizzleOperator from '../model/db/IDrizzleOperator.js';
 import IThumbnailDB from '../model/db/IThumbnailDB.js';
 import IConfigFile from '../model/IConfigFile.js';
-import IConfiguration from '../model/IConfiguration.js';
 import IConnectionCheckModel from '../model/IConnectionCheckModel.js';
 import ILogger from '../model/ILogger.js';
-import ILoggerModel from '../model/ILoggerModel.js';
 import container from '../model/ModelContainer.js';
 import * as containerSetter from '../model/ModelContainerSetter.js';
 import ThumbnailManageModel from '../model/operator/thumbnail/ThumbnailManageModel.js';
@@ -63,15 +60,15 @@ class MigrateThumbnails {
 
         this.isDryRun = !!values['dry-run'];
 
-        const logger = container.get<ILoggerModel>('ILoggerModel');
+        const logger = container.loggerModel;
         logger.initialize();
         this.log = logger.getLogger();
 
-        const configuration = container.get<IConfiguration>('IConfiguration');
+        const configuration = container.configuration;
         this.config = configuration.getConfig();
-        this.connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');
-        this.drizzleOperator = container.get<IDrizzleOperator>('IDrizzleOperator');
-        this.thumbnailDB = container.get<IThumbnailDB>('IThumbnailDB');
+        this.connectionChecker = container.connectionCheckModel;
+        this.drizzleOperator = container.drizzleOperator;
+        this.thumbnailDB = container.thumbnailDB;
     }
 
     public async run(): Promise<void> {

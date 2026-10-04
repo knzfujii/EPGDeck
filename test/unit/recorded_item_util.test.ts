@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
 import RecordedItemUtil from '../../src/model/api/RecordedItemUtil.js';
 import Recorded from '../../src/db/entities/Recorded.js';

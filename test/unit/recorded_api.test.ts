@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Recorded from '../../src/db/entities/Recorded.js';
 import RecordedApiModel from '../../src/model/api/recorded/RecordedApiModel.js';

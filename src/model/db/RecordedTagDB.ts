@@ -1,5 +1,4 @@
 import { and, eq, like, notInArray, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import RecordedTag from '../../db/entities/RecordedTag.js';
 import StrUtil from '../../util/StrUtil.js';
@@ -8,15 +7,11 @@ import { DrizzleHelper } from './DrizzleHelper.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 import IRecordedTagDB from './IRecordedTagDB.js';
 
-@injectable()
 export default class RecordedTagDB implements IRecordedTagDB {
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;
     }

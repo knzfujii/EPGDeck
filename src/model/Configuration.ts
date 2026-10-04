@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import StrUtil from '../util/StrUtil.js';
@@ -16,12 +15,11 @@ const __dirname = dirname(__filename);
  * Configuration
  * EPGDeck 構造化コンフィグ設定管理
  */
-@injectable()
 class Configuration implements IConfiguration {
     private config!: IConfigFile;
     private log: ILogger;
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
 
         const configFilePath = Configuration.getConfigFilePath();

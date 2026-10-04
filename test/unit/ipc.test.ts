@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import EventEmitter from 'events';
 import IPCServer from '../../src/model/ipc/IPCServer.js';

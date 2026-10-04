@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as fs from 'fs';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';

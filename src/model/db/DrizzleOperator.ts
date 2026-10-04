@@ -1,15 +1,13 @@
-import { inject, injectable } from 'inversify';
 import { createDrizzleClient, DrizzleDB } from '../../db/drizzle.js';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 
-@injectable()
 export default class DrizzleOperator implements IDrizzleOperator {
     private drizzleDB: DrizzleDB | null = null;
     private config: IConfigFile;
 
-    constructor(@inject('IConfiguration') conf: IConfiguration) {
+    constructor(conf: IConfiguration) {
         this.config = conf.getConfig();
     }
 

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DropLogFile from '../../src/db/entities/DropLogFile.js';

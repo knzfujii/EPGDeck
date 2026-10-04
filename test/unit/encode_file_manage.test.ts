@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as path from 'path';
 import EncodeFileManageModel from '../../src/model/service/encode/EncodeFileManageModel.js';

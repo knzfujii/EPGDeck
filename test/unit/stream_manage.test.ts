@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import StreamManageModel from '../../src/model/service/stream/manager/StreamManageModel.js';
 

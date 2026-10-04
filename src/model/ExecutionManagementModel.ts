@@ -1,5 +1,4 @@
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import IExecutionManagementModel, { ExecutionId } from './IExecutionManagementModel.js';
 import ILogger from './ILogger.js';
 import ILoggerModel from './ILoggerModel.js';
@@ -9,7 +8,6 @@ interface ExeQueueData {
     priority: number;
 }
 
-@injectable()
 class ExecutionManagementModel implements IExecutionManagementModel {
     private log: ILogger;
 
@@ -17,7 +15,7 @@ class ExecutionManagementModel implements IExecutionManagementModel {
     private exeQueue: ExeQueueData[] = [];
     private exeEventEmitter: events.EventEmitter = new events.EventEmitter();
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
     }
 

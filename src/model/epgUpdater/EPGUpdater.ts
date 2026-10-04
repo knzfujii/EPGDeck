@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
 import ILogger from '../ILogger.js';
@@ -7,7 +6,6 @@ import IEPGUpdateManageModel, { EPGUpdateEvent, TunerServerType } from './IEPGUp
 import IEPGUpdater from './IEPGUpdater.js';
 import Util from '../../util/Util.js';
 
-@injectable()
 class EPGUpdater implements IEPGUpdater {
     private log: ILogger;
     private config: IConfigFile;
@@ -20,11 +18,7 @@ class EPGUpdater implements IEPGUpdater {
 
     private static readonly EVENT_STREAM_RECONNECTION_MAX = 12;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IEPGUpdateManageModel') updateManage: IEPGUpdateManageModel,
-    ) {
+    constructor(logger: ILoggerModel, configuration: IConfiguration, updateManage: IEPGUpdateManageModel) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();
         this.updateManage = updateManage;

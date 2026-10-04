@@ -1,5 +1,4 @@
 import * as http from 'http';
-import { inject, injectable } from 'inversify';
 import * as SocketIO from 'socket.io';
 import StrUtil from '../../../util/StrUtil.js';
 import IConfigFile from '../../IConfigFile.js';
@@ -8,7 +7,6 @@ import ILogger, { LogEntry } from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import ISocketIOManageModel from './ISocketIOManageModel.js';
 
-@injectable()
 export default class SocketIOManageModel implements ISocketIOManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -16,7 +14,7 @@ export default class SocketIOManageModel implements ISocketIOManageModel {
     private callTimer: NodeJS.Timer | null = null;
     private encodeProgressCallTimer: NodeJS.Timer | null = null;
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel, @inject('IConfiguration') configuration: IConfiguration) {
+    constructor(logger: ILoggerModel, configuration: IConfiguration) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();
     }

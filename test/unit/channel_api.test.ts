@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Channel from '../../src/db/entities/Channel.js';
 import ChannelApiModel from '../../src/model/api/channel/ChannelApiModel.js';

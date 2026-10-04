@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EPGUpdateManageModel from '../../src/model/epgUpdater/EPGUpdateManageModel.js';
 import { EPGUpdateEvent, TunerServerType } from '../../src/model/epgUpdater/IEPGUpdateManageModel.js';

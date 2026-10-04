@@ -136,7 +136,7 @@
                     onpointerup={handleSliderEnd}
                     onchange={handleSliderEnd}
                     tabindex="-1"
-                    class="relative z-10 h-2 w-full cursor-pointer appearance-none rounded-full bg-transparent accent-blue-500 transition hover:h-2.5 touch-none"
+                    class="relative z-10 h-2 w-full cursor-pointer appearance-none rounded-full bg-transparent accent-blue-500 touch-none"
                     style="background: linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) {progressPercent}%, transparent {progressPercent}%, transparent 100%);"
                 />
             </div>

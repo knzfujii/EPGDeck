@@ -90,4 +90,17 @@ describe('HLSFileDeleterModel Tests', () => {
         expect(fs.existsSync(stream2M3u8)).toBe(true);
         expect(mockStreamLog.info).toHaveBeenCalledWith('delete all hls files: 99');
     });
+
+    it('safely handles already deleted files (ENOENT) without throwing', async () => {
+        model.setOption({
+            streamId: 1,
+            streamFilePath: testTempDir,
+        });
+
+        // readDir detects file, but file is removed before unlink (simulating ffmpeg/external removal)
+        vi.spyOn(FileUtil, 'readDir').mockResolvedValueOnce(['stream10.ts']);
+
+        await expect(model.deleteAllFiles()).resolves.not.toThrow();
+        expect(mockStreamLog.warn).not.toHaveBeenCalled();
+    });
 });

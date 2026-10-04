@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { inject, injectable } from 'inversify';
 import FileUtil from '../../../../util/FileUtil.js';
 import ILogger from '../../../ILogger.js';
@@ -55,9 +56,18 @@ export default class HLSFileDeleterModel implements IHLSFileDeleterModel {
         targetFiles = targetFiles.sort();
 
         for (let i = 0; i < targetFiles.length - fileNum; i++) {
-            if (typeof targetFiles[i] !== 'undefined' && targetFiles[i] !== '.gitkeep') {
-                await FileUtil.unlink(`${this.option.streamFilePath}/${targetFiles[i]}`).catch();
-                this.log.stream.info(`deleted ${targetFiles[i]}`);
+            const fileName = targetFiles[i];
+            if (typeof fileName !== 'undefined' && fileName !== '.gitkeep') {
+                const targetPath = path.join(this.option.streamFilePath, fileName);
+                try {
+                    await FileUtil.unlink(targetPath);
+                    this.log.stream.info(`deleted ${fileName}`);
+                } catch (err: any) {
+                    // 既に ffmpeg 等により先行削除されている場合は正常としてスルー
+                    if (err?.code !== 'ENOENT') {
+                        this.log.stream.warn(`failed to delete ${fileName}: ${err?.message}`);
+                    }
+                }
             }
         }
     }

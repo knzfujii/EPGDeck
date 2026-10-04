@@ -1096,16 +1096,20 @@
             <div
                 class="flex shrink-0 items-center justify-between border-t border-slate-100 p-3 sm:p-4 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70"
             >
-                <Button
-                    variant="secondary"
-                    size="compact"
-                    onclick={() => {
-                        isModalOpen = false;
-                        router.push(buildRuleEditUrl(selectedProgram!.name, selectedProgram!.channelId));
-                    }}
-                >
-                    <Plus size={14} /> ルール追加
-                </Button>
+                {#if !readOnlyStore.isReadOnly}
+                    <Button
+                        variant="secondary"
+                        size="compact"
+                        onclick={() => {
+                            isModalOpen = false;
+                            router.push(buildRuleEditUrl(selectedProgram!.name, selectedProgram!.channelId));
+                        }}
+                    >
+                        <Plus size={14} /> ルール追加
+                    </Button>
+                {:else}
+                    <div></div>
+                {/if}
 
                 <div class="flex items-center gap-2 overflow-x-auto">
                     <Button variant="secondary" size="compact" onclick={() => (isModalOpen = false)}>閉じる</Button>

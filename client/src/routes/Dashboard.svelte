@@ -442,7 +442,7 @@
                                             </h4>
                                         </div>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            {#if item.ruleId}
+                                            {#if !readOnlyStore.isReadOnly && item.ruleId}
                                                 <button
                                                     type="button"
                                                     onclick={() => router.push(`/rule/edit?ruleId=${item.ruleId}`)}

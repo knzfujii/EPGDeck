@@ -235,20 +235,26 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `updateCnt` | `INTEGER` / `INT` | NO | `0` | ルール更新カウンター (リビジョン) |
 | `isTimeSpecification` | `INTEGER` / `BOOLEAN` | NO | `false` | 時刻指定予約ルールか否か |
 | `keyword` | `TEXT` / `VARCHAR(255)` | YES | NULL | 検索キーワード |
+| `halfWidthKeyword` | `TEXT` / `VARCHAR(255)` | YES | NULL | 検索キーワード（半角置換） |
 | `ignoreKeyword` | `TEXT` / `VARCHAR(255)` | YES | NULL | 除外キーワード |
+| `halfWidthIgnoreKeyword` | `TEXT` / `VARCHAR(255)` | YES | NULL | 除外キーワード（半角置換） |
 | `keyCS` / `ignoreKeyCS` | `INTEGER` / `BOOLEAN` | NO | `false` | 大小文字区別フラグ |
 | `keyRegExp` / `ignoreKeyRegExp` | `INTEGER` / `BOOLEAN` | NO | `false` | 正規表現検索フラグ |
 | `name` / `description` / `extended` | `INTEGER` / `BOOLEAN` | NO | `false` | キーワード検索対象（タイトル/概要/詳細） |
+| `ignoreName` / `ignoreDescription` / `ignoreExtended` | `INTEGER` / `BOOLEAN` | NO | `false` | 除外キーワード対象（タイトル/概要/詳細） |
 | `GR` / `BS` / `CS` / `SKY` | `INTEGER` / `BOOLEAN` | NO | `false` | 対象放送波フィルター |
-| `channelIds` | `TEXT` / `TEXT` | YES | NULL | 対象チャンネルID配列（JSON/カンマ区切り） |
-| `genres` | `TEXT` / `TEXT` | YES | NULL | 対象ジャンル・サブジャンル配列 |
-| `times` | `TEXT` / `TEXT` | YES | NULL | 対象曜日および時間帯範囲 |
+| `channelIds` | `TEXT` / `TEXT` | YES | NULL | 対象チャンネルID配列（JSON） |
+| `genres` | `TEXT` / `TEXT` | YES | NULL | 対象ジャンル・サブジャンル配列（JSON） |
+| `times` | `TEXT` / `TEXT` | YES | NULL | 対象曜日および時間帯範囲（JSON） |
+| `isFree` | `INTEGER` / `BOOLEAN` | NO | `false` | 無料放送番組のみを対象とするフラグ |
 | `durationMin` / `durationMax` | `INTEGER` / `INT` | YES | NULL | 番組尺の最小・最大長 (秒) |
+| `searchPeriods` | `TEXT` / `TEXT` | YES | NULL | 検索対象期間（JSON） |
 | `enable` | `INTEGER` / `BOOLEAN` | NO | `false` | ルール有効/無効フラグ |
 | `priority` | `INTEGER` / `INT` | NO | `5` | **ルール優先度 (1〜10、チューナー競合時の調停用)** |
 | `avoidDuplicate` | `INTEGER` / `BOOLEAN` | NO | `false` | **二重録画防止フラグ** |
 | `periodToAvoidDuplicate` | `INTEGER` / `INT` | YES | NULL | 二重録画防止の対象日数 (未指定/0で無期限) |
 | `allowEndLack` | `INTEGER` / `BOOLEAN` | NO | `false` | チューナー競合時の末尾欠け許可 |
+| `tags` | `TEXT` / `TEXT` | YES | NULL | 自動付与タグID配列（JSON） |
 | `parentDirectoryName` | `TEXT` / `VARCHAR(255)` | YES | NULL | TS録画保存先親ディレクトリ名 |
 | `directory` | `TEXT` / `VARCHAR(255)` | YES | NULL | TS録画保存先サブディレクトリ |
 | `recordedFormat` | `TEXT` / `VARCHAR(255)` | YES | NULL | 録画ファイル名フォーマットマクロ |
@@ -265,9 +271,14 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | カラム名 | 型 (SQLite / MySQL) | NULL | デフォルト | 説明 |
 | :--- | :--- | :---: | :---: | :--- |
 | `id` | `INTEGER` / `INT` | NO | (PK, AI) | 予約ID |
+| `updateTime` | `INTEGER` / `BIGINT` | NO | - | レコード最終更新日時 (Unixtime ms) |
 | `ruleId` | `INTEGER` / `INT` | YES | (FK) | 紐づくルールID（手動予約時は NULL） |
+| `ruleUpdateCnt` | `INTEGER` / `INT` | YES | NULL | 予約生成時のルール更新カウンター |
 | `programId` | `INTEGER` / `BIGINT` | YES | (FK) | 紐づく番組ID（時間指定時は NULL） |
+| `programUpdateTime` | `INTEGER` / `BIGINT` | YES | NULL | 番組情報更新日時 |
 | `channelId` | `INTEGER` / `BIGINT` | NO | (FK) | 放送局ID (`channel.id` 参照) |
+| `channel` | `TEXT` / `VARCHAR(255)` | NO | - | チャンネル識別子 (例: `GR27`) |
+| `channelType` | `TEXT` / `VARCHAR(255)` | NO | - | 放送波種別 (`GR` / `BS` / `CS` / `SKY`) |
 | `startAt` | `INTEGER` / `BIGINT` | NO | - | 録画開始予定日時 (Unixtime ms) |
 | `endAt` | `INTEGER` / `BIGINT` | NO | - | 録画終了予定日時 (Unixtime ms) |
 | `priority` | `INTEGER` / `INT` | NO | `5` | **予約優先度 (1〜10、ルール優先度を引き継ぎ)** |
@@ -278,10 +289,20 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `isTimeSpecified` | `INTEGER` / `BOOLEAN` | NO | `false` | 時間指定予約フラグ |
 | `isEventRelay` | `INTEGER` / `BOOLEAN` | NO | `false` | イベントリレー追従予約フラグ |
 | `allowEndLack` | `INTEGER` / `BOOLEAN` | NO | `false` | 末尾欠け許可フラグ |
-| `name` | `TEXT` / `VARCHAR(255)` | YES | NULL | 番組タイトル |
-| `description` | `TEXT` / `TEXT` | YES | NULL | 番組概要 |
-| `parentDirectoryName` / `directory` | `TEXT` / `VARCHAR(255)` | YES | NULL | TS録画保存先 |
-| `encodeMode1`〜`3` | `TEXT` / `VARCHAR(255)` | YES | NULL | 自動エンコード設定 |
+| `tags` | `TEXT` / `TEXT` | YES | NULL | 付与タグID配列（JSON） |
+| `name` / `halfWidthName` / `shortName` | `TEXT` / `VARCHAR(255)` | YES | NULL | 番組名（全角 / 半角置換 / 記号除去コアタイトル） |
+| `description` / `halfWidthDescription` | `TEXT` / `TEXT` | YES | NULL | 番組概要（全角 / 半角置換） |
+| `extended` / `halfWidthExtended` | `TEXT` / `TEXT` | YES | NULL | 番組詳細（全角 / 半角置換） |
+| `rawExtended` / `rawHalfWidthExtended` | `TEXT` / `TEXT` | YES | NULL | ARIB 構造化詳細テキスト |
+| `genre1`〜`genre3` / `subGenre1`〜`subGenre3` | `INTEGER` / `INT` | YES | NULL | ARIB 主ジャンルおよび中ジャンルコード |
+| `videoType` / `videoResolution` | `TEXT` / `VARCHAR(255)` | YES | NULL | 映像形式・解像度 |
+| `videoStreamContent` / `videoComponentType` | `INTEGER` / `INT` | YES | NULL | ARIB 映像ストリーム種別・コンポーネントコード |
+| `audioSamplingRate` | `INTEGER` / `INT` | YES | NULL | 音声サンプリングレート |
+| `parentDirectoryName` / `directory` | `TEXT` / `VARCHAR(255)` | YES | NULL | TS録画保存先親ディレクトリ / サブディレクトリ |
+| `recordedFormat` | `TEXT` / `VARCHAR(255)` | YES | NULL | 録画ファイル名フォーマットマクロ |
+| `encodeMode1`〜`3` | `TEXT` / `VARCHAR(255)` | YES | NULL | 自動エンコードプリセット名 |
+| `encodeParentDirectoryName1`〜`3` / `encodeDirectory1`〜`3` | `TEXT` / `VARCHAR(255)` | YES | NULL | エンコード保存先親 / サブディレクトリ |
+| `isDeleteOriginalAfterEncode` | `INTEGER` / `BOOLEAN` | NO | `false` | エンコード完了後の元 TS 削除フラグ |
 
 - **主要インデックス**:
   - `idx_reserve_start_end`: `(startAt, endAt)`
@@ -305,10 +326,14 @@ Mirakurun から定期取得した最新の放映予定番組データです。
 | `startAt` | `INTEGER` / `BIGINT` | NO | - | 実録画開始日時 (Unixtime ms) |
 | `endAt` | `INTEGER` / `BIGINT` | NO | - | 実録画終了日時 (Unixtime ms) |
 | `duration` | `INTEGER` / `INT` | NO | - | **実録画時間**（実測ミリ秒） |
-| `name` | `TEXT` / `VARCHAR(255)` | NO | - | 番組タイトル |
-| `description` | `TEXT` / `TEXT` | YES | NULL | 番組概要 |
-| `extended` | `TEXT` / `TEXT` | YES | NULL | 番組詳細 |
-| `genre1`〜`genre3` | `INTEGER` / `INT` | YES | NULL | ジャンルコード |
+| `name` / `halfWidthName` | `TEXT` / `VARCHAR(255)` | NO | - | 番組タイトル（全角 / 半角置換） |
+| `description` / `halfWidthDescription` | `TEXT` / `TEXT` | YES | NULL | 番組概要（全角 / 半角置換） |
+| `extended` / `halfWidthExtended` | `TEXT` / `TEXT` | YES | NULL | 番組詳細（全角 / 半角置換） |
+| `rawExtended` / `rawHalfWidthExtended` | `TEXT` / `TEXT` | YES | NULL | ARIB 構造化詳細テキスト |
+| `genre1`〜`genre3` / `subGenre1`〜`subGenre3` | `INTEGER` / `INT` | YES | NULL | ARIB 主ジャンルおよび中ジャンルコード |
+| `videoType` / `videoResolution` | `TEXT` / `VARCHAR(255)` | YES | NULL | 映像形式・解像度 |
+| `videoStreamContent` / `videoComponentType` | `INTEGER` / `INT` | YES | NULL | ARIB 映像ストリーム種別・コンポーネントコード |
+| `audioSamplingRate` / `audioComponentType` | `INTEGER` / `INT` | YES | NULL | 音声サンプリングレート・コンポーネントコード |
 | `dropLogFileId` | `INTEGER` / `INT` | YES | (FK, UNIQUE) | ドロップ集計レコードID (`drop_log_file.id` 参照) |
 
 - **主要インデックス**:

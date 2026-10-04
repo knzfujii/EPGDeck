@@ -25,7 +25,7 @@ EPGDeck が Web アクセスを待ち受ける HTTP ポート番号です。
 
 | 種類 | デフォルト値 | 必須 |
 | --- | --- | --- |
-| number | - | no (※https 設定が無い場合は必須) |
+| number | `8888`（テンプレート） / `8889`（内部） | no (※https 設定が無い場合は必須) |
 
 ```yaml
 server:
@@ -100,6 +100,15 @@ database:
   type: sqlite
 ```
 
+### `database.path`
+SQLite を使用する場合のデータベースファイル保存先パスです（省略時: `%ROOT%/data/database.db`）。
+
+```yaml
+database:
+  type: sqlite
+  path: '%ROOT%/data/database.db'
+```
+
 ### `database.mysql`
 MySQL を使用する場合の接続設定です。文字コードには自動的に `utf8mb4` が適用されます。
 
@@ -171,6 +180,8 @@ recording:
     streaming: 0                   # ライブ配信時のMirakurun優先度
   timeSpecifiedStartMargin: 1      # 時刻指定予約の開始前マージン(秒)
   timeSpecifiedEndMargin: 2        # 時刻指定予約の終了後マージン(秒)
+  # EIT更新のない短時間番組（PR枠・ミニ番組等）のサービスストリーム自動切替閾値(秒、0で無効化、デフォルト: 300)
+  shortProgramDurationThresholdSeconds: 300
   thumbnail:
     path: '%ROOT%/thumbnail'
     size: 480x270
@@ -183,6 +194,9 @@ recording:
   uploadTempDir: '%ROOT%/data/upload'
   copyKeywordToDirectory: false    # ルール新規作成時に検索キーワードを保存先サブディレクトリ名に自動設定 (省略時: false)
 ```
+
+### `recording.shortProgramDurationThresholdSeconds`（短時間番組のサービスストリーム自動切替）
+- **`shortProgramDurationThresholdSeconds`**: 5分（300秒）以下のミニ番組やPR枠など、放送波の番組情報（EIT[p/f]）が更新されず録画タイムアウト・頭欠けが発生しやすい短時間番組について、自動的にサービスストリーム（時刻指定相当の録画）へ切り替えて確実に録画する閾値（秒）です。`0` を指定すると自動切替を無効化します。
 
 ### `recording.directories`（保存先ディレクトリ・容量管理）
 - **`limitThreshold`**: 空き容量限界閾値を **MB 単位** で指定します（例: `102400` で 100GB）。空き容量がこの値を下回ると `action` や `limitCmd` がトリガーされます。
@@ -212,12 +226,15 @@ encode:
     ffprobe: /usr/bin/ffprobe
   maxProcesses: 4                  # システム全体の最大エンコードプロセス数
   concurrency: 1                   # 同時実行キュー数
+  subtitle: false                  # 全プリセット共通の字幕保存デフォルト (省略時: false)
+  skipSubtitleForSuperimpose: true # "字幕スーパー" (焼き込み字幕) を含む番組は ARIB 字幕埋め込みを自動スキップ (省略時: false)
   presets:
     # 1. 標準スクリプト指定 (config/ 配下のファイル名を指定)
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
       rate: 4.0
+      subtitle: true               # プリセット個別指定 (MP4 内に mov_text 字幕を保存)
     - name: H.264-720p
       script: enc_720p.js
       suffix: .mp4
@@ -235,6 +252,10 @@ encode:
     #   rate: 4.0
 ```
 
+### グローバル設定項目
+- **`subtitle`**: 全プリセット共通の字幕保存デフォルトです（省略時: `false`）。
+- **`skipSubtitleForSuperimpose`**: 番組情報に「字幕スーパー」が含まれる場合、映像自体に字幕が焼き込まれているため、ARIB 字幕埋め込み処理（`mov_text`）を自動的にスキップしてエンコードの失敗や字幕の重複描画を防ぎます（省略時: `false`）。
+
 ### `encode.presets` パラメータ一覧
 
 | パラメータ名 | 型 | 必須 | 説明 |
@@ -244,6 +265,7 @@ encode:
 | **`cmd`** | `string` | 任意 | 独自コマンド・外部シェルスクリプトを実行する場合のコマンド文字列 |
 | **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
 | **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。録画実時間 × `rate` を超過した場合にハングアップとみなして強制終了します（例: 30分番組 × `rate: 4.0` = 120分でタイムアウト） |
+| **`subtitle`** | `boolean` | 任意 | このプリセットで MP4 内に ARIB 字幕（`mov_text`）を埋め込むかどうか（省略時: `encode.subtitle` の値に従う） |
 
 ---
 
@@ -262,7 +284,7 @@ hooks:
   recordingFinish: '%ROOT%/config/hooks/recordingFinish.sh'
   recordingFailed: '%ROOT%/config/hooks/recordingFailed.sh'
   encodingFinish: '%ROOT%/config/hooks/encodingFinish.sh'
-  isSuppressReservesUpdateAllLog: false
+  isSuppressReservesUpdateAllLog: false # true で EPG 更新に伴う予約一括更新時のフック実行ログ出力を抑制
 ```
 
 ---

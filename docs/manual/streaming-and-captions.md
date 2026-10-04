@@ -129,13 +129,14 @@ encode:
 ```
 
 ※全プリセットで一括して字幕保存を有効化したい場合は、`encode.subtitle: true` を指定することも可能です。
+また、番組情報に「字幕スーパー」が含まれる番組で ARIB 字幕の重複埋め込みを自動スキップしたい場合は、`encode.skipSubtitleForSuperimpose: true` を指定できます。
 
 > [!WARNING]
 > **libaribb24 非対応 FFmpeg での注意点**:
 > OS 標準パッケージ等の `libaribb24` が有効化されていない FFmpeg を使用している環境で `subtitle: true` を指定すると、字幕付き番組のエンコード開始時に `Decoder (codec arib_caption) not found for input stream` エラーが発生してエンコードが失敗します。
 > 通常の FFmpeg をご利用の場合は、`subtitle: false`（省略時のデフォルト）のままでご使用ください。
 
-### 再生環境と互換性
-- **Web プレイヤー**: EPGDeck のプレイヤーで直接再生時、画面右下の字幕ボタンまたはキーボードの `C` キーで字幕の表示/非表示を切り替えられます。
+### 再生環境と互換性（オンデマンド WebVTT 配信）
+- **Web プレイヤー（動的 WebVTT 連携）**: EPGDeck の Web プレイヤーでは、MP4 を直接再生する際、サーバー側のオンデマンド字幕抽出エンドポイント（`GET /api/videos/:videoFileId/vtt`）と連携します。ディスク上に `.vtt` を余分に生成することなく、FFmpeg パイプとインメモリ LRU キャッシュから WebVTT を高速抽出し、`<track>` 要素として即座に字幕を表示します（Chrome 等における MP4 内部字幕パース時のシーク遅延バグも回避されます）。
 - **外部プレイヤー / デバイス**: iOS / iPadOS / macOS 標準プレイヤー、Apple TV、VLC、Kodi、Infuse 等でそのまま字幕付き動画として再生できます。
 - **SRT 抽出**: 外部 SRT ファイルが必要な場合、`ffmpeg -i video.mp4 -map 0:s:0 video.srt` でいつでも一瞬で抽出できます。

@@ -4,9 +4,12 @@
 
 ## EPGDeck における WebAPI
 
-EPGDeck が提供する WebAPI は [Hono](https://hono.dev/) による RESTful API で、OpenAPI (Swagger) 準拠です  
-利用可能な全ての API は **Swagger UI** 上で確認可能です  
+EPGDeck が提供する WebAPI は [Hono](https://hono.dev/) による RESTful API で、OpenAPI (Swagger) 仕様に準拠しています。  
+主要な API スキーマおよび認可エンドポイントは **Swagger UI** 上で対話的に確認・検証可能です。  
 `http://<hostname>:<port>/api-docs`
+
+> [!NOTE]
+> 現在の OpenAPI 定義（`api.yml`）には認証や主要モデルスキーマが収録されています。全エンドポイントのスキーマ完全同期は今後のロードマップにて段階的に拡張予定です。開発時はフロントエンド・バックエンド間で共有される完全型安全な **Hono RPC (`ApiRoutesType`)** をご利用いただけます。
 
 ### Swagger UI へのアクセス
 
@@ -14,6 +17,33 @@ EPGDeck が提供する WebAPI は [Hono](https://hono.dev/) による RESTful A
 | :--- | :--- |
 | `GET /api-docs` | Swagger UI の HTML を直接提供 |
 | `GET /api/docs` | OpenAPI 仕様書（JSON）を提供 |
+
+### API ルート一覧
+
+EPGDeck では以下の 18 系統の API ルートを提供しています：
+
+| ルートプレフィックス | 概要 | 主な操作 |
+| :--- | :--- | :--- |
+| `/api/auth` | 認証・認可制御 | 管理者モードアンロック、トークン検証、ロック |
+| `/api/channels` | 放送局・チャンネル | 局一覧、ロゴ画像取得（`/:channelId/logo`） |
+| `/api/schedules` | 番組表・スケジュール | 放送波別/局別番組表、番組詳細、現在・次番組（オンエア） |
+| `/api/reserves` | 録画予約管理 | 予約一覧、個別予約追加・更新・削除、手動時間指定予約 |
+| `/api/rules` | 自動録画ルール | ルール一覧、ルール作成・更新・削除、ルール予約再評価 |
+| `/api/recorded` | 録画アーカイブ | 録画一覧（検索/絞り込み/年月）、メタデータ更新、録画保護、削除、重複判定履歴 |
+| `/api/recording` | 録画中制御 | 録画中一覧、3択操作（完了保存/途中中断/破棄）、タイマー再設定 |
+| `/api/videos` | 動画ファイル・字幕 | 動画ストリーミング、アップロード、動画長取得、オンデマンド WebVTT 字幕（`/vtt`） |
+| `/api/dropLogs` | ドロップログ詳細 | ドロップログ実ファイルの詳細テキスト取得（`/:dropLogFileId`） |
+| `/api/thumbnails` | サムネイル管理 | サムネイル画像取得、任意秒数での再作成、欠損一括自己修復、クリーンアップ |
+| `/api/streams` | ライブ・録画配信 | HLS / M2TS / M2TS-LL ストリーミング開始・停止、配信情報 |
+| `/api/encode` | エンコード管理 | ジョブキュー一覧、手動エンコード投入、ジョブキャンセル |
+| `/api/storages` | ストレージ情報 | 録画保存先ディスクの空き容量・総容量情報 |
+| `/api/tags` | 録画タグ管理 | タグ一覧、タグ作成・編集・削除 |
+| `/api/iptv` | 外部 IPTV 連携 | M3U プレイリスト、XMLTV 番組表データ配信 |
+| `/api/logs` | システムログ | リアルタイムログ取得、ログファイルダウンロード |
+| `/api/config` | システム設定情報 | クライアント向け設定値、サーバー動作モード |
+| `/api/version` | バージョン情報 | EPGDeck システムバージョン取得 |
+
+---
 
 ### API へのアクセス
 
@@ -224,6 +254,24 @@ const createRes = await api.reserves.$post({
 | `POST` | `/api/recording/:reserveId/discard` | **録画を取り消し**: 録画ストリームを停止し、書きかけファイルや DB レコードを物理削除して安全に破棄 | `{ "code": 200 }` |
 | `DELETE` | `/api/recording/:reserveId` | 録画を取り消し（`discard` と同等の互換エンドポイント） | `{ "code": 200 }` |
 
+---
 
+## ドロップログ詳細 API (`/api/dropLogs`)
 
+録画時に検出されたドロップ・エラーの詳細ログ実ファイルを取得する API です。
 
+| メソッド | パス | 説明 | 主なパラメータ / レスポンス |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/dropLogs/:dropLogFileId` | 指定ドロップログファイルの詳細テキストを取得 | クエリ: `maxsize` (最大読込行数/バイト、デフォルト: 全件)。レスポンス: ログ行テキスト |
+
+---
+
+## 動画・オンデマンド字幕 API (`/api/videos`)
+
+動画再生および字幕抽出を行う API です。
+
+| メソッド | パス | 説明 | 主なパラメータ / レスポンス |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/videos/:videoFileId` | 録画動画ファイルの直接ストリーミング再生 / ダウンロード | クエリ: `token` (管理者トークン)。レスポンス: `video/mp4` 等のバイナリ |
+| `GET` | `/api/videos/:videoFileId/vtt` | 動画（MP4 等）からオンデマンドで WebVTT 字幕を抽出・配信 | 内部で FFmpeg パイプ抽出＋インメモリ LRU キャッシュ（100件）によりファイルレスで即座に応答。レスポンス: `text/vtt` |
+| `GET` | `/api/videos/:videoFileId/duration` | 動画ファイルの実生時間（秒）を取得 | レスポンス: `{ "duration": number }` |

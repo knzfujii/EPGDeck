@@ -32,18 +32,16 @@ kodi:
 
 ### 1. config.yml の設定
 
-ライブ視聴の設定を追加してください
+※ EPGDeck には高品質なライブ配信コマンドが標準内蔵されているため、通常は設定不要でそのまま利用できます。独自にトランスコード設定をカスタマイズしたい場合のみ以下のように `config.yml` に追加してください。
 
 ```yaml
-stream:
-    live:
-        ts:
-            m2ts:
-                - name: 720p
-                  cmd:
-                      '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2
-                      -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1'
-                - name: 無変換
+streaming:
+  live:
+    ts:
+      m2ts:
+        - name: 720p
+          cmd: '%FFMPEG% -re -dual_mono_mode main -i pipe:0 -sn -threads 0 -c:a aac -ar 48000 -b:a 192k -ac 2 -c:v libx264 -vf yadif,scale=-2:720 -b:v 3000k -preset veryfast -y -f mpegts pipe:1'
+        - name: 無変換
 ```
 
 ### 2. IPTV Simple Client の設定

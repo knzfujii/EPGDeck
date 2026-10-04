@@ -161,9 +161,12 @@ EPGDeck では、新機能開発やバグ修正時にブランチ切り替えの
 ### 基本操作フロー
 
 1. **新しいブランチと作業ディレクトリの作成**:
-   リポジトリの外側（隣のディレクトリなど）に独立した作業ツリーを作成します。
+   リポジトリ内に公式ヘルパースクリプト `./misc/worktree.sh` が同梱されています。これを使用すると、設定ファイル（`config/config.yml` 等）の自動シンボリックリンク同期も含めて一発でワークツリーを構築できます（推奨）。
    ```bash
-   # 例: feature/new-player ブランチを作成して作業ディレクトリを展開
+   # 推奨: ヘルパースクリプトを使用（未追跡の設定ファイルを自動リンク）
+   $ ./misc/worktree.sh feature/new-player
+
+   # または生コマンドで作成する場合
    $ git worktree add ../EPGDeck-feature-player -b feature/new-player
    ```
 

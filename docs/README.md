@@ -29,6 +29,8 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
   - Nginx を使用したリバースプロキシ構築と Socket.IO 設定例。
 - **[字幕表示・低遅延配信設定](manual/streaming-and-captions.md)**
   - aribb24.js / mpegts.js を用いた Web での字幕表示と低遅延ライブ配信の設定。
+- **[RAM ディスク (/dev/shm) 活用ガイド](manual/ramdisk.md)**
+  - HLS 配信・エンコード一時ファイルを RAM 上に配置し、SSD への書き込み負荷を抑える高速化ガイド。
 - **[SQLite3 正規表現検索の有効化](manual/sqlite-regexp.md)**
   - SQLite3 使用時に正規表現検索を利用可能にする手順。
 - **[トラブルシューティング / FAQ](manual/troubleshooting.md)**

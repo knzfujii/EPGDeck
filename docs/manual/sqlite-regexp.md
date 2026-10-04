@@ -1,10 +1,13 @@
-# SQLite3 使用時の正規表現での検索の有効化について
+# SQLite3 使用時の正規表現検索について
 
-[SQLite](https://www.sqlite.org/) は標準で REGEXP 関数をサポートしておらず正規表現での検索ができません。ただし
-、[Run-Time Loadable Extensions - SQLite](https://sqlite.org/loadext.html) にあるように実行時に自作の SQL 関数を読み込む
-ことができます
+> [!WARNING]
+> **現在 EPGDeck では本設定は非推奨・非対応です**:
+> EPGDeck ではモダンなアーキテクチャへの刷新に伴い、データベースドライバに `@libsql/client` (LibSQL) および Drizzle ORM を採用しています。
+> そのため、旧 EPGStation 時代の `sqlite.extensions` および `sqlite.regexp` 設定は現在廃止されており、`config.yml` に指定しても読み込まれません。
+> 
+> ルール予約や番組検索で高度な正規表現検索（`REGEXP`）を活用したい場合は、標準で正規表現に対応し、大量録画でも高いパフォーマンスを発揮する **MySQL (MariaDB)** のご利用を推奨します（詳細は [セットアップマニュアル](./setup.md#mysql-mariadb-使用時の注意) を参照してください）。
 
-この機能を使用して EPGDeck で SQLite3 使用時でも正規表現を使えるようにする手順を紹介します
+以下は、レガシーな C 拡張ライブラリを用いた過去の参考手順です。
 
 ## shared library の作成
 

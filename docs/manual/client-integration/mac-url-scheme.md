@@ -1,27 +1,24 @@
-# macOS でのカスタム URL Sceheme の設定
+# macOS でのカスタム URL Scheme の設定
 
-## config.yml の設定
+macOS で外部動画プレイヤーを起動する方法として、モダンなオープンソースプレイヤー **[IINA](https://iina.io/)** を利用する方法（推奨）と、AppleScript で VLC 起動用アプレットを作成する方法があります。
 
-urlscheme の各プロパティを下記のように `mac` プロパティを追加してください
+## 方法 1: IINA を使用する（推奨・簡単）
+
+IINA をインストールしている場合、標準で URL スキームが登録されているため、アプレット作成不要で `config.yml` の設定のみで利用できます。
 
 ```yaml
 urlscheme:
-    m2ts:
-        ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS'
-        android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end'
-        mac: 'cvlc://ADDRESS'
-    video:
-        ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS'
-        android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end'
-        mac: 'cvlc://ADDRESS'
+  m2ts:
+    mac: 'iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS'
+  video:
+    mac: 'iina://weblink?url=PROTOCOL%3A%2F%2FADDRESS'
 ```
 
-## AppleScript でのカスタム URL Scheme アプリの作成
+---
 
-[Qiita: AppleScript でカスタム URL スキーム](http://qiita.com/CorecaraBiz/items/9a1fc60aada31858d582) を参考にしていま
-す。詳しい解説はそちらを見てください
+## 方法 2: AppleScript で VLC 用カスタム URL Scheme アプリを作成する
 
-してください
+VLC を使用したい場合、VLC 自体には URL スキームハンドラが内蔵されていないため、AppleScript でラッパーアプレットを作成します。
 
 ### 1. アプレットの作成
 

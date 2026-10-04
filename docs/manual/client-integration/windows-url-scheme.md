@@ -2,21 +2,17 @@
 
 ## config.yml の設定
 
-urlscheme の各プロパティを下記のように `win` プロパティを追加してください
+外部プレイヤーとして **PotPlayer** を使用する場合、PotPlayer 自体に `potplayer://` スキームが登録されているため、追加のバッチファイルやレジストリ設定なしで直接起動できます。
 
 ```yaml
 urlscheme:
-    m2ts:
-        ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS'
-        android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end'
-        win: 'cvlc://PROTOCOL://ADDRESS'
-    video:
-        ios: 'vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS'
-        android: 'intent://ADDRESS#Intent;action=android.intent.action.VIEW;type=video/*;scheme=PROTOCOL;end'
-        win: 'cvlc://PROTOCOL://ADDRESS'
+  m2ts:
+    win: 'potplayer://PROTOCOL://ADDRESS'
+  video:
+    win: 'potplayer://PROTOCOL://ADDRESS'
 ```
 
-のように設定してください
+VLC media player を使用したい場合は、以下の手順でカスタム URL プロトコルハンドラを Windows に登録してください。
 
 ## URL Protocol 設定
 

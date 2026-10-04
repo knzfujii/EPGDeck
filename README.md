@@ -182,6 +182,8 @@ EPGDeck では、システム構成に合わせて設定ファイルを機能別
 │       └── routes/      # 各画面ルート（ダッシュボード、番組表、録画一覧、ログ等）
 ├── config/              # 設定ファイルテンプレート、エンコード支援スクリプト
 ├── docs/                # 利用者向けマニュアル（manual/）および開発者ガイド（dev/）
+├── packages/            # 内部共有パッケージ
+│   └── arib-probe/      # 高速・堅牢な ARIB STD-B24/TR-B14/TR-B15 TS ストリーム解析器
 ├── src/                 # バックエンド（Node.js + Hono + Drizzle ORM）
 │   ├── db/              # Drizzle ORM スキーマ定義（SQLite / MySQL）
 │   └── model/           # ドメインモデル、録画・配信制御、Hono API ルート
@@ -249,7 +251,7 @@ EPGDeck は非同期ファイルローテーション（`rotating-file-stream`�
 
 EPGDeck 上の動画再生を OS 上の外部アプリケーション（VLC、IINA、PotPlayer 等）で行うことができます。
 
--   [config.yml 内の設定 (iOS, Android, macOS, Windows)](docs/manual/configuration.md#urlscheme)
+-   [config.yml 内の設定 (iOS, Android, macOS, Windows)](docs/manual/configuration.md#8-urlスキーム設定-urlscheme)
 -   [macOS 用の URL Scheme 設定方法](docs/manual/client-integration/mac-url-scheme.md)
 -   [Windows 用の URL Scheme 設定方法](docs/manual/client-integration/windows-url-scheme.md)
 

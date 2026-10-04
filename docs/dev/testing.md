@@ -10,7 +10,7 @@ EPGDeck では、実行速度と検証精度のバランスを取るため、3�
 
 ```mermaid
 graph TD
-    E2E["Playwright E2E テスト (全58シナリオ・画面導線・UI)"]
+    E2E["Playwright E2E テスト (全70+シナリオ・画面導線・UI)"]
     Integration["MariaDB / MySQL 実機結合テスト (DDL・方言・DAO)"]
     Unit["Vitest 単体テスト (SQLite インメモリ・ロジック・約1.8秒)"]
 
@@ -183,7 +183,7 @@ Playwright は 1 つのロケータに対して複数要素がヒットすると
    - 型チェック・単体テスト・クライアント構文チェックを約 2〜3 秒で実行し、即座にフィードバックを得てコミット承認要請を行います。
    - 画面改修時に直接挙動を確認したい場合のみ、対象スペック単体 `npm run test:e2e:file -- test/e2e/<spec>.spec.ts`（約 1.5 秒）を実行します。
 2. **リモート PR / CI（総合 E2E 検証・マージ条件）**:
-   - 全件 Playwright E2E テスト（全 69 シナリオ）および MariaDB/MySQL 結合テストは、GitHub Actions（PR トリガー）へ完全に委譲します。
+   - 全件 Playwright E2E テスト（全 70+ シナリオ）および MariaDB/MySQL 結合テストは、GitHub Actions（PR トリガー）へ完全に委譲します。
    - PR 上で CI がオールグリーンであることを確認して `main` へマージします。
 
 ---
@@ -200,7 +200,7 @@ GitHub Actions Parallel Jobs
 │     ├── Lint & フォーマット検証 (Server & Client)
 │     ├── 型チェック & Svelte コンパイル & 本番ビルド
 │     ├── 単体テスト (SQLite) & DB 実機結合テスト (MariaDB & MySQL)
-│     └── Playwright E2E テスト (Chromium / 2ワーカー並列 / 全65シナリオ)
+│     └── Playwright E2E テスト (Chromium / 2ワーカー並列 / 全70+シナリオ)
 │     ───────────────────────────────────────────────────
 │     ★ 所要時間: 約 1分40秒 〜 2分 でオールパス
 │
@@ -219,7 +219,7 @@ GitHub Actions Parallel Jobs
 2. **Playwright ブラウザキャッシュ (`actions/cache@v6`)**:
    `~/.cache/ms-playwright` をコミットハッシュベースでキャッシュし、毎回のブラウザダウンロード時間（約30秒）を完全に排除。キャッシュヒット時の不要な `install-deps` も抑止してオーバーヘッドをゼロ化。
 3. **CI 上での Playwright 2 並列実行 (`workers: 2`)**:
-   GitHub Actions の `ubuntu-latest`（2 vCPU）を活用し、CI 上でも 2 ワーカー並列でテストを実行。63 シナリオの直列実行による待ち時間を半減（約 30〜35 秒）。
+   GitHub Actions の `ubuntu-latest`（2 vCPU）を活用し、CI 上でも 2 ワーカー並列でテストを実行。全70+シナリオの直列実行による待ち時間を半減（約 30〜35 秒）。
 4. **無駄な CI の自動スキップ**:
    - `paths-ignore`: ドキュメント（`docs/**`, `*.md`）変更時は CI を起動せず無料枠を温存。
    - `concurrency`: 同一ブランチへの連続プッシュ時、古い進行中ジョブを自動キャンセル。

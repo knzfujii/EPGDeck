@@ -256,5 +256,40 @@ flowchart TD
 - **将来の巻き戻し禁止**:
   - `arib-subtitle-timedmetadater` や外部の PES パーサーライブラリへの再依存は厳禁。HLS 字幕処理は `packages/arib-probe` 内の `TsSubtitleId3Muxer` を継続保守すること。
 
+#### 3.6 放送波 EIT リアルタイム監視・繰り下げ保護・チューナー競合即時再調停
+> **ステータス**: 実装完了 (`v0.2.0-beta.1`)
+
+- **対象ファイル**: `packages/arib-probe/src/section/TsSectionAssembler.ts`, `packages/arib-probe/src/section/TsEitDecoder.ts`, `src/model/operator/recording/RecorderModel.ts`, `src/model/operator/recording/RecordingManageModel.ts`, `src/model/operator/reservation/ReservationManageModel.ts`
+- **Why (意思決定理由と背景)**:
+  1. **Mirakurun の定期 EPG 更新の遅延限界**:
+     - スポーツ中継の延長や特別番組の繰り下げは放送直前・放送中に発生するため、Mirakurun からの定期 EPG 更新（10分間隔）では検知が間に合わず、録画終了タイマーの打ち切りや後続番組の頭欠けが発生していた。
+  2. **TS セクションアセンブラの堅牢化と EIT[p/f] 直接監視**:
+     - `packages/arib-probe` に ARIB TR-B14/TR-B15 準拠の EIT デコーダー（短形式イベント記述子、イベントリレー記述子対応）を実装。録画ストリームから直接 EIT[p/f]（PID: 0x0012）を解析し、番組延長を数秒以内にリアルタイム検知。
+  3. **多重防御（延長タイマー自動更新・開始繰り下げ待機・チューナー競合即時再調停）**:
+     - 番組延長検知時に録画終了タイマーを即時延長。前番組延長に伴う後続番組の開始繰り下げ（Delay）時もタイマーをリスケジュール。
+     - 延長によって同一チューナー枠の後続予約と衝突した際は、該当時間枠のチューナー競合判定（`recheckConflicts`）を即座に再実行し、手動/優先度ルールに従って安全に割り振りを更新する。
+
+#### 3.7 短時間番組（PR枠・ミニ番組）のサービスストリーム自動切替
+> **ステータス**: 実装完了 (`v0.2.0-beta.1`)
+
+- **対象ファイル**: `src/model/operator/recording/RecorderModel.ts`, `src/model/Configuration.ts`
+- **Why (意思決定理由と背景)**:
+  1. **放送局設備の EIT[p/f] 未送出によるタイムアウト**:
+     - 1〜5分程度のミニ番組やPR枠では、放送局送出設備の都合で放送波の EIT[p/f] が番組切り替わり時に更新されず、録画開始時のストリーム待機（`checkStreamTimeout`）がタイムアウトして録画失敗・頭欠けになるトラブルが発生していた。
+  2. **サービスストリームへの自動切替**:
+     - 予約枠の長さが閾値（`shortProgramDurationThresholdSeconds`、デフォルト: 300秒 / 5分）以下の短時間番組は、Mirakurun の番組指定ストリーム（`getProgramStream`）ではなくサービス指定ストリーム（`getServiceStream`）へ自動切替して接続。
+     - EIT の更新待機を行わずに即時録画を開始することで、PR枠やミニ番組を 100% 確実に録画保護する。
+
+#### 3.8 オンデマンド WebVTT 字幕抽出とファイルレス・インメモリ LRU 配信
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `src/model/service/api/video/VideoApiModel.ts`, `src/model/service/hono/routes/videos.ts`, `client/src/routes/Watch.svelte`, `client/src/lib/components/video/VideoPlayer.svelte`
+- **Why (意思決定理由と背景)**:
+  1. **Chrome 等における MP4 内部字幕 (`mov_text`) のシーク遅延バグ回避**:
+     - MP4 内のテキスト字幕を Chrome がデコードする際、シーク時に数十秒フリーズする問題に対し、ディスクを汚染しないオンデマンド抽出（`ffmpeg -i <mp4> -f webvtt pipe:1`）を採用。
+  2. **LRU インメモリキャッシュによる高速応答**:
+     - 抽出結果をメモリ上（最大 100 件）にキャッシュし、同一動画の視聴・リロード時の FFmpeg 起動コストを排除。
+     - プレイヤーの `<track>` 要素連携により、Chrome/Firefox/Safari 等あらゆるブラウザでシーク遅延ゼロの字幕表示を達成。
+
 
 

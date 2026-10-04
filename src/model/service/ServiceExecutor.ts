@@ -1,20 +1,14 @@
-import 'reflect-metadata';
-import IConfiguration from '../IConfiguration.js';
-import IIPCClient from '../ipc/IIPCClient.js';
-import ILoggerModel from '../ILoggerModel.js';
 import container from '../ModelContainer.js';
 import * as containerSetter from '../ModelContainerSetter.js';
-import IEncodeFinishModel from './encode/IEncodeFinishModel.js';
-import IServiceServer from './IServiceServer.js';
 
 containerSetter.set(container);
 
-const config = container.get<IConfiguration>('IConfiguration').getConfig();
-const loggerModel = container.get<ILoggerModel>('ILoggerModel');
+const config = container.configuration.getConfig();
+const loggerModel = container.loggerModel;
 loggerModel.initialize('Service', config.log);
 
 // IPCClient を取得してメッセージ受信開始
-container.get<IIPCClient>('IIPCClient');
+void container.ipcClient;
 
 const log = loggerModel.getLogger();
 process.on('uncaughtException', err => {
@@ -24,9 +18,6 @@ process.on('uncaughtException', err => {
 process.on('unhandledRejection', err => {
     log.system.fatal(`unhandledRejection: ${err}`);
 });
-
-import IEncodeProcessManageModel from './encode/IEncodeProcessManageModel.js';
-import IStreamManageModel from './stream/manager/IStreamManageModel.js';
 
 let isExiting = false;
 const cleanExit = async (reason: string) => {
@@ -38,7 +29,7 @@ const cleanExit = async (reason: string) => {
 
     try {
         if (container.isBound('IStreamManageModel')) {
-            const streamManage = container.get<IStreamManageModel>('IStreamManageModel');
+            const streamManage = container.streamManageModel;
             await streamManage.stopAll();
         }
     } catch (err: any) {
@@ -47,7 +38,7 @@ const cleanExit = async (reason: string) => {
 
     try {
         if (container.isBound('IEncodeProcessManageModel')) {
-            const encodeProcessManage = container.get<IEncodeProcessManageModel>('IEncodeProcessManageModel');
+            const encodeProcessManage = container.encodeProcessManageModel;
             await encodeProcessManage.killAll();
         }
     } catch (err: any) {
@@ -76,10 +67,10 @@ process.on('SIGINT', () => {
     void cleanExit('SIGINT');
 });
 
-const encodeFinishModel = container.get<IEncodeFinishModel>('IEncodeFinishModel');
+const encodeFinishModel = container.encodeFinishModel;
 encodeFinishModel.set();
 
-const serviceServer = container.get<IServiceServer>('IServiceServer');
+const serviceServer = container.serviceServer;
 try {
     serviceServer.start();
 } catch (err: any) {

@@ -1,5 +1,4 @@
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import Recorded from '../../db/entities/Recorded.js';
 import Reserve from '../../db/entities/Reserve.js';
@@ -8,12 +7,11 @@ import ILoggerModel from '../ILoggerModel.js';
 import IRecordingEvent from './IRecordingEvent.js';
 import { IReserveTimeOption } from '../db/IReserveDB.js';
 
-@injectable()
 class RecordingEvent implements IRecordingEvent {
     private log: ILogger;
     private emitter: events.EventEmitter = new events.EventEmitter();
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
     }
 

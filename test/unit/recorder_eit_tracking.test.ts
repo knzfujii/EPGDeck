@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PassThrough } from 'stream';
 import { EitInfo } from 'arib-probe';

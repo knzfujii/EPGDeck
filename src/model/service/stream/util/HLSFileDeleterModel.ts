@@ -1,16 +1,14 @@
 import * as path from 'node:path';
-import { inject, injectable } from 'inversify';
 import FileUtil from '../../../../util/FileUtil.js';
 import ILogger from '../../../ILogger.js';
 import ILoggerModel from '../../../ILoggerModel.js';
 import IHLSFileDeleterModel, { HLSFileDeleterOption } from './IHLSFileDeleterModel.js';
 
-@injectable()
 export default class HLSFileDeleterModel implements IHLSFileDeleterModel {
     private log: ILogger;
     private option: HLSFileDeleterOption | null = null;
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
     }
 

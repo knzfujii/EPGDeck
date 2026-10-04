@@ -1,16 +1,14 @@
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import ILogger from '../ILogger.js';
 import ILoggerModel from '../ILoggerModel.js';
 import IEncodeEvent, { FinishEncodeInfo } from './IEncodeEvent.js';
 
-@injectable()
 class EncodeEvent implements IEncodeEvent {
     private log: ILogger;
     private emitter: events.EventEmitter = new events.EventEmitter();
 
-    constructor(@inject('ILoggerModel') logger: ILoggerModel) {
+    constructor(logger: ILoggerModel) {
         this.log = logger.getLogger();
     }
 

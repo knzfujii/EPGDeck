@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import Recorded from '../../../db/entities/Recorded.js';
@@ -8,7 +7,6 @@ import IEncodeManageModel from '../../service/encode/IEncodeManageModel.js';
 import IRecordedItemUtil from '../IRecordedItemUtil.js';
 import IEncodeApiModel from './IEncodeApiModel.js';
 
-@injectable()
 export default class EncodeApiModel implements IEncodeApiModel {
     private encodeManage: IEncodeManageModel;
     private videoFileDB: IVideoFileDB;
@@ -16,10 +14,10 @@ export default class EncodeApiModel implements IEncodeApiModel {
     private recordedItemUtil: IRecordedItemUtil;
 
     constructor(
-        @inject('IEncodeManageModel') encodeManage: IEncodeManageModel,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IRecordedItemUtil') recordedItemUtil: IRecordedItemUtil,
+        encodeManage: IEncodeManageModel,
+        videoFileDB: IVideoFileDB,
+        recordedDB: IRecordedDB,
+        recordedItemUtil: IRecordedItemUtil,
     ) {
         this.encodeManage = encodeManage;
         this.videoFileDB = videoFileDB;

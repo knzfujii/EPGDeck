@@ -1,21 +1,15 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IRecordedDB, { FindAllOption } from '../../db/IRecordedDB.js';
 import IIPCClient from '../../ipc/IIPCClient.js';
 import IRecordedItemUtil from '../IRecordedItemUtil.js';
 import IRecordingApiModel from './IRecordingApiModel.js';
 
-@injectable()
 export default class RecordingApiModel implements IRecordingApiModel {
     private ipc: IIPCClient;
     private recordedDB: IRecordedDB;
     private recordedItemUtil: IRecordedItemUtil;
 
-    constructor(
-        @inject('IIPCClient') ipc: IIPCClient,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IRecordedItemUtil') recordedItemUtil: IRecordedItemUtil,
-    ) {
+    constructor(ipc: IIPCClient, recordedDB: IRecordedDB, recordedItemUtil: IRecordedItemUtil) {
         this.ipc = ipc;
         this.recordedDB = recordedDB;
         this.recordedItemUtil = recordedItemUtil;

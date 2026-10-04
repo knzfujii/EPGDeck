@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConfigApiModel from '../../src/model/api/config/ConfigApiModel.js';
 

@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import RecordedTag from '../../../db/entities/RecordedTag.js';
 import StrUtil from '../../../util/StrUtil.js';
@@ -8,17 +7,12 @@ import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import IRecordedTagManageModel from './IRecordedTagManageModel.js';
 
-@injectable()
 export default class RecordedTagManageModel implements IRecordedTagManageModel {
     private log: ILogger;
     private recordedTagDB: IRecordedTagDB;
     private recordedTagEvent: IRecordedTagEvent;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IRecordedTagDB') recordedTagDB: IRecordedTagDB,
-        @inject('IRecordedTagEvent') recordedTagEvent: IRecordedTagEvent,
-    ) {
+    constructor(logger: ILoggerModel, recordedTagDB: IRecordedTagDB, recordedTagEvent: IRecordedTagEvent) {
         this.log = logger.getLogger();
         this.recordedTagDB = recordedTagDB;
         this.recordedTagEvent = recordedTagEvent;

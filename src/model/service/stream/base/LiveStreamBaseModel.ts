@@ -1,6 +1,5 @@
 import { ChildProcess } from 'child_process';
 import * as http from 'http';
-import { inject, injectable } from 'inversify';
 import internal from 'stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
@@ -16,7 +15,6 @@ import ILiveStreamBaseModel, { LiveStreamOption } from './ILiveStreamBaseModel.j
 import { LiveStreamInfo } from './IStreamBaseModel.js';
 import StreamBaseModel from './StreamBaseModel.js';
 
-@injectable()
 export default abstract class LiveStreamBaseModel
     extends StreamBaseModel<LiveStreamOption>
     implements ILiveStreamBaseModel
@@ -27,12 +25,12 @@ export default abstract class LiveStreamBaseModel
     private id3MetadataTransform: TsSubtitleId3Muxer | null = null;
 
     constructor(
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IEncodeProcessManageModel') processManager: IEncodeProcessManageModel,
-        @inject('IHLSFileDeleterModel') fileDeleter: IHLSFileDeleterModel,
-        @inject('IMirakurunClientModel') mirakurunClientModel: IMirakurunClientModel,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
+        configure: IConfiguration,
+        logger: ILoggerModel,
+        processManager: IEncodeProcessManageModel,
+        fileDeleter: IHLSFileDeleterModel,
+        mirakurunClientModel: IMirakurunClientModel,
+        socketIO: ISocketIOManageModel,
     ) {
         super(configure, logger, processManager, fileDeleter, socketIO);
 

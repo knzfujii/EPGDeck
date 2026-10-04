@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import Channel from '../../../db/entities/Channel.js';
 import Program from '../../../db/entities/Program.js';
@@ -7,12 +6,11 @@ import IChannelDB from '../../db/IChannelDB.js';
 import IProgramDB, { ProgramWithOverlap } from '../../db/IProgramDB.js';
 import IScheduleApiModel from './IScheduleApiModel.js';
 
-@injectable()
 export default class ScheduleApiModel implements IScheduleApiModel {
     private channelDB: IChannelDB;
     private programDB: IProgramDB;
 
-    constructor(@inject('IChannelDB') channelDB: IChannelDB, @inject('IProgramDB') programDB: IProgramDB) {
+    constructor(channelDB: IChannelDB, programDB: IProgramDB) {
         this.channelDB = channelDB;
         this.programDB = programDB;
     }

@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { injectable } from 'inversify';
 import * as path from 'path';
 import * as rfs from 'rotating-file-stream';
 import * as util from 'util';
@@ -41,7 +40,6 @@ let logSequenceId = 0;
 /**
  * Logger
  */
-@injectable()
 export default class LoggerModel implements ILoggerModel {
     private logger: ILogger | null = null;
     private listeners: Set<(entry: LogEntry) => void> = new Set();

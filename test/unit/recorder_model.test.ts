@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { EventEmitter } from 'events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Reserve from '../../src/db/entities/Reserve.js';

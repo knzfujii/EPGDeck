@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import Thumbnail from '../../../db/entities/Thumbnail.js';
@@ -18,7 +17,6 @@ import ILoggerModel from '../../ILoggerModel.js';
 import { IPromiseQueue } from '../../IPromiseQueue.js';
 import IThumbnailManageModel from './IThumbnailManageModel.js';
 
-@injectable()
 export default class ThumbnailManageModel implements IThumbnailManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -30,14 +28,14 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
     private videoUtil: IVideoUtil;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IPromiseQueue') queue: IPromiseQueue,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IThumbnailDB') thumbnailDB: IThumbnailDB,
-        @inject('IThumbnailEvent') thumbnailEvent: IThumbnailEvent,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        queue: IPromiseQueue,
+        recordedDB: IRecordedDB,
+        videoFileDB: IVideoFileDB,
+        thumbnailDB: IThumbnailDB,
+        thumbnailEvent: IThumbnailEvent,
+        videoUtil: IVideoUtil,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

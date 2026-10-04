@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

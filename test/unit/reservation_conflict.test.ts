@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import * as mapid from '../../node_modules/mirakurun/api.js';
 import Program from '../../src/db/entities/Program.js';

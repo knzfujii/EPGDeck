@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as apid from '../../../../api.js';
 import Reserve from '../../../db/entities/Reserve.js';
@@ -18,7 +17,6 @@ import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
 import IRecordingUtilModel, { RecFilePathInfo } from './IRecordingUtilModel.js';
 
-@injectable()
 class RecordingUtilModel implements IRecordingUtilModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -29,13 +27,13 @@ class RecordingUtilModel implements IRecordingUtilModel {
     private videoUtil: IVideoUtil;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IExecutionManagementModel') executeManagementModel: IExecutionManagementModel,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IProgramDB') programDB: IProgramDB,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        executeManagementModel: IExecutionManagementModel,
+        channelDB: IChannelDB,
+        programDB: IProgramDB,
+        videoFileDB: IVideoFileDB,
+        videoUtil: IVideoUtil,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

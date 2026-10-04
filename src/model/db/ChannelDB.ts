@@ -1,5 +1,4 @@
 import { asc, eq, inArray } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import Channel from '../../db/entities/Channel.js';
@@ -10,17 +9,12 @@ import { DrizzleHelper } from './DrizzleHelper.js';
 import IChannelDB, { ChannelUpdateValues } from './IChannelDB.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 
-@injectable()
 export default class ChannelDB implements IChannelDB {
     private configuration: IConfiguration;
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(configuration: IConfiguration, drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.configuration = configuration;
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;

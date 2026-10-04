@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import Recorded from '../../../db/entities/Recorded.js';
 import ProcessUtil from '../../../util/ProcessUtil.js';
 import Util from '../../../util/Util.js';
@@ -12,7 +11,6 @@ import ILoggerModel from '../../ILoggerModel.js';
 import IRecordedManageModel from '../recorded/IRecordedManageModel.js';
 import IStorageManageModel from './IStorageManageModel.js';
 
-@injectable()
 export default class StorageManageModel implements IStorageManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -23,10 +21,10 @@ export default class StorageManageModel implements IStorageManageModel {
     private timerId: NodeJS.Timeout | null = null;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IRecordedManageModel') recordedManage: IRecordedManageModel,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        recordedManage: IRecordedManageModel,
+        recordedDB: IRecordedDB,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

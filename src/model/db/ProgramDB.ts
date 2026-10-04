@@ -1,5 +1,4 @@
 import { and, asc, eq, gt, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import Program from '../../db/entities/Program.js';
@@ -19,17 +18,12 @@ import IProgramDB, {
     ProgramWithOverlap,
 } from './IProgramDB.js';
 
-@injectable()
 export default class ProgramDB implements IProgramDB {
     private config: IConfigFile;
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IConfiguration') conf: IConfiguration,
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(conf: IConfiguration, drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.config = conf.getConfig();
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;

@@ -1,15 +1,13 @@
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IConfigFile from '../../IConfigFile.js';
 import IConfiguration from '../../IConfiguration.js';
 import IStorageApiModel from './IStorageApiModel.js';
 
-@injectable()
 export default class StorageApiModel implements IStorageApiModel {
     private config: IConfigFile;
 
-    constructor(@inject('IConfiguration') configuration: IConfiguration) {
+    constructor(configuration: IConfiguration) {
         this.config = configuration.getConfig();
     }
 

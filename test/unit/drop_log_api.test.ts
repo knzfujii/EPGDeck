@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import DropLogApiModel from '../../src/model/api/dropLog/DropLogApiModel.js';
 import * as path from 'path';

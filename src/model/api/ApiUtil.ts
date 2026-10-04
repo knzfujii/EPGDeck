@@ -1,15 +1,13 @@
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import StrUtil from '../../util/StrUtil.js';
 import { KodiInfo } from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
 import IApiUtil, { CreateM3U8Option } from './IApiUtil.js';
 
-@injectable()
 export default class ApiUtil implements IApiUtil {
     private configuration: IConfiguration;
 
-    constructor(@inject('IConfiguration') configuration: IConfiguration) {
+    constructor(configuration: IConfiguration) {
         this.configuration = configuration;
     }
 

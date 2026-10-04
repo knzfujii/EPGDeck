@@ -1,15 +1,13 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IRecordedTagDB from '../../db/IRecordedTagDB.js';
 import IIPCClient from '../../ipc/IIPCClient.js';
 import IRecordedTagApiModel from './IRecordedTagApiModel.js';
 
-@injectable()
 export default class RecordedTagApiModel implements IRecordedTagApiModel {
     private ipc: IIPCClient;
     private recordedTagDB: IRecordedTagDB;
 
-    constructor(@inject('IIPCClient') ipc: IIPCClient, @inject('IRecordedTagDB') recordedTagDB: IRecordedTagDB) {
+    constructor(ipc: IIPCClient, recordedTagDB: IRecordedTagDB) {
         this.ipc = ipc;
         this.recordedTagDB = recordedTagDB;
     }

@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql } from 'drizzle-orm';
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import DropLogFile from '../../db/entities/DropLogFile.js';
 import Recorded from '../../db/entities/Recorded.js';
@@ -12,15 +11,11 @@ import { DrizzleHelper } from './DrizzleHelper.js';
 import IDrizzleOperator from './IDrizzleOperator.js';
 import IRecordedDB, { FindAllOption, RecordedColumnOption } from './IRecordedDB.js';
 
-@injectable()
 export default class RecordedDB implements IRecordedDB {
     private drizzleOp: IDrizzleOperator;
     private promiseRetry: IPromiseRetry;
 
-    constructor(
-        @inject('IDrizzleOperator') drizzleOp: IDrizzleOperator,
-        @inject('IPromiseRetry') promiseRetry: IPromiseRetry,
-    ) {
+    constructor(drizzleOp: IDrizzleOperator, promiseRetry: IPromiseRetry) {
         this.drizzleOp = drizzleOp;
         this.promiseRetry = promiseRetry;
     }

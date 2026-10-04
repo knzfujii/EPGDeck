@@ -100,7 +100,7 @@ EPGDeck は SQLite と MySQL / MariaDB のマルチデータベースに対応�
 CI ランナーや開発環境において、**Mirakurun やチューナーデバイスが存在しない環境でも自律して 100% 稼働する完全隔離 E2E 環境** を構築しています。
 
 - **モックリバインドによる密閉化**:
-  InversifyJS DI コンテナを活用し、`IIPCClient` を `MockIPCClient` に、`IMirakurunClientModel` を `MockMirakurunClientModel` に差し替えて起動します。これにより外部サービスへの依存を完全排除しています。
+  Pure DI コンテナ（`ModelContainer`）を活用し、`IIPCClient` を `MockIPCClient` に、`IMirakurunClientModel` を `MockMirakurunClientModel` に差し替えて起動します。これにより外部サービスへの依存を完全排除しています。
 - **完全隔離テストデータベース (`data/test_e2e.db`)**:
   本番用 DB（`data/database.db`）や本番設定ファイル（`config/config.yml`）には一切触れず、テスト専用の SQLite DB および専用ポート（`18889`）で動作します。
 

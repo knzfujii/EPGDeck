@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as http from 'http';
 import { getRequestListener } from '@hono/node-server';
 import { Server as SocketIOServer } from 'socket.io';

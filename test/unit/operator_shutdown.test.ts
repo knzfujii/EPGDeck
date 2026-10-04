@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import OperatorShutdownModel from '../../src/model/operator/shutdown/OperatorShutdownModel.js';
 

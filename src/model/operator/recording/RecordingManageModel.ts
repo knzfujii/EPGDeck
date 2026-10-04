@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import IRecordedDB from '../../db/IRecordedDB.js';
@@ -18,7 +17,6 @@ interface RecordingIndex {
     [key: number]: IRecorderModel;
 }
 
-@injectable()
 class RecordingManageModel implements IRecordingManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -32,15 +30,14 @@ class RecordingManageModel implements IRecordingManageModel {
     private isStopped: boolean = false;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('RecorderModelProvider') provider: RecorderModelProvider,
-        @inject('IRecordingEvent') recordingEvent: IRecordingEvent,
-        @inject('IRecordingStreamCreator')
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        provider: RecorderModelProvider,
+        recordingEvent: IRecordingEvent,
         streamCreator: IRecordingStreamCreator,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IReserveDB') reserveDB: IReserveDB,
-        @inject('IRecordingUtilModel') recordingUtil: IRecordingUtilModel,
+        recordedDB: IRecordedDB,
+        reserveDB: IReserveDB,
+        recordingUtil: IRecordingUtilModel,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

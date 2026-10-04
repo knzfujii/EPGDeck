@@ -68,9 +68,9 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 - [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃 (Phase 2)**
   - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
   - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減
-- [ ] **InversifyJS 6.x とレガシーデコレータからの脱却 (Phase 3)**
-  - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準デコレータ（TC39 Stage 3）および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
-  - 400 行超の `ModelContainerSetter.ts` 手動文字列バインドを型安全な解決方式へスリム化
+- [x] **InversifyJS 6.x とレガシーデコレータからの脱却 (Phase 3)**
+  - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準仕様および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
+  - `ModelContainerSetter.ts` を Pure DI（型安全なファクトリ関数 Composition Root）へ刷新し、`inversify` および `reflect-metadata` を完全削除
 - [ ] **フロントエンドの巨大コンポーネント（God Component）の関心事分離 (Phase 3)**
   - `RuleEdit.svelte` (2,149 行)、`RecordedDetail.svelte` (1,310 行) 等の巨大画面からモーダル・フォーム部品をサブコンポーネントへ分割し、ロジックを Svelte 5 Runes クラス（`*.svelte.ts`）に外出し
 

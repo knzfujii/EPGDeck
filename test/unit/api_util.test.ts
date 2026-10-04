@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as http from 'http';
 import ApiUtil from '../../src/model/api/ApiUtil.js';

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@libsql/client';

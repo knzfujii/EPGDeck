@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import Channel from '../../../db/entities/Channel.js';
@@ -26,7 +25,6 @@ interface ReserveDiffData {
     isChecked: boolean;
 }
 
-@injectable()
 class ReservationManageModel implements IReservationManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -46,15 +44,15 @@ class ReservationManageModel implements IReservationManageModel {
     };
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IExecutionManagementModel') executeManagementModel: IExecutionManagementModel,
-        @inject('IReserveOptionChecker') optionChecker: IReserveOptionChecker,
-        @inject('IReserveDB') reserveDB: IReserveDB,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IProgramDB') programDB: IProgramDB,
-        @inject('IRuleDB') ruleDB: IRuleDB,
-        @inject('IReserveEvent') reserveEvent: IReserveEvent,
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        executeManagementModel: IExecutionManagementModel,
+        optionChecker: IReserveOptionChecker,
+        reserveDB: IReserveDB,
+        channelDB: IChannelDB,
+        programDB: IProgramDB,
+        ruleDB: IRuleDB,
+        reserveEvent: IReserveEvent,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'events';
 import * as childProcess from 'child_process';

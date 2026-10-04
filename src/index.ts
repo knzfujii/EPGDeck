@@ -1,20 +1,7 @@
 import * as child_process from 'child_process';
 import * as path from 'path';
-import 'reflect-metadata';
-import IEPGUpdateExecutorManageModel from './model/epgUpdater/IEPGUpdateExecutorManageModel.js';
-import IEventSetter from './model/event/IEventSetter.js';
-import IConfiguration from './model/IConfiguration.js';
-import IConnectionCheckModel from './model/IConnectionCheckModel.js';
-import ILoggerModel from './model/ILoggerModel.js';
-import IMirakurunClientModel from './model/IMirakurunClientModel.js';
-import IIPCServer from './model/ipc/IIPCServer.js';
 import container from './model/ModelContainer.js';
 import * as containerSetter from './model/ModelContainerSetter.js';
-import IRecordingManageModel from './model/operator/recording/IRecordingManageModel.js';
-import IRecordedManageModel from './model/operator/recorded/IRecordedManageModel.js';
-import IReservationManageModel from './model/operator/reservation/IReservationManageModel.js';
-import IStorageManageModel from './model/operator/storage/IStorageManageModel.js';
-import IOperatorShutdownModel from './model/operator/shutdown/IOperatorShutdownModel.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -26,11 +13,11 @@ containerSetter.set(container);
  * 初期処理
  */
 const init = async () => {
-    const config = container.get<IConfiguration>('IConfiguration').getConfig();
-    const logger = container.get<ILoggerModel>('ILoggerModel');
+    const config = container.configuration.getConfig();
+    const logger = container.loggerModel;
     logger.initialize('Operator', config.log);
 
-    const ipcServer = container.get<IIPCServer>('IIPCServer');
+    const ipcServer = container.ipcServer;
     logger.onLog(entry => {
         ipcServer.pushLog(entry);
     });
@@ -66,7 +53,7 @@ const init = async () => {
     }
 
     // 接続確認
-    const connectionChecker = container.get<IConnectionCheckModel>('IConnectionCheckModel');
+    const connectionChecker = container.connectionCheckModel;
     // wait mirakurun
     await connectionChecker.checkMirakurun();
 
@@ -78,25 +65,25 @@ const init = async () => {
  * Operator 機能起動処理
  */
 const runOperator = async () => {
-    const client = container.get<IMirakurunClientModel>('IMirakurunClientModel').getClient();
+    const client = container.mirakurunClientModel.getClient();
 
-    const eventSetter = container.get<IEventSetter>('IEventSetter');
+    const eventSetter = container.eventSetter;
     eventSetter.set();
 
-    const reservationManageModel = container.get<IReservationManageModel>('IReservationManageModel');
-    const recordingManager = container.get<IRecordingManageModel>('IRecordingManageModel');
+    const reservationManageModel = container.reservationManageModel;
+    const recordingManager = container.recordingManageModel;
 
     const tuners = await client.getTuners();
     reservationManageModel.setTuners(tuners);
     recordingManager.setTuner(tuners);
 
-    const storageManageModel = container.get<IStorageManageModel>('IStorageManageModel');
+    const storageManageModel = container.storageManageModel;
     storageManageModel.start();
 
     // 起動時に孤立・0件ドロップログファイルをバックグラウンドでクリーンアップ
-    const recordedManageModel = container.get<IRecordedManageModel>('IRecordedManageModel');
+    const recordedManageModel = container.recordedManageModel;
     void recordedManageModel.dropLogFileCleanup().catch(err => {
-        const logger = container.get<ILoggerModel>('ILoggerModel');
+        const logger = container.loggerModel;
         logger.getLogger().system.error('initial dropLogFileCleanup failed');
         logger.getLogger().system.error(err);
     });
@@ -107,7 +94,7 @@ let serviceRestartCount: number = 0;
 let serviceStartTime: number = 0;
 let serviceRestartTimer: NodeJS.Timeout | null = null;
 
-const operatorShutdown = container.get<IOperatorShutdownModel>('IOperatorShutdownModel');
+const operatorShutdown = container.operatorShutdownModel;
 operatorShutdown.setServiceRestartTimerClearer(() => {
     if (serviceRestartTimer !== null) {
         clearTimeout(serviceRestartTimer);
@@ -149,7 +136,7 @@ const runService = async () => {
     operatorShutdown.setServiceChild(child);
 
     // 終了したら再起動（バックオフ機構付き）
-    const log = container.get<ILoggerModel>('ILoggerModel').getLogger();
+    const log = container.loggerModel.getLogger();
     const handleExit = () => {
         serviceChild = null;
         operatorShutdown.setServiceChild(null);
@@ -186,7 +173,7 @@ const runService = async () => {
     }
 
     // IPC 通信設定
-    const ipcServer = container.get<IIPCServer>('IIPCServer');
+    const ipcServer = container.ipcServer;
     ipcServer.register(child);
 
     log.system.info(`start service pid: ${child.pid}`);
@@ -198,8 +185,8 @@ const runService = async () => {
  * クリーンアップ処理
  */
 const cleanup = async () => {
-    const reservationManageModel = container.get<IReservationManageModel>('IReservationManageModel');
-    const recordingManager = container.get<IRecordingManageModel>('IRecordingManageModel');
+    const reservationManageModel = container.reservationManageModel;
+    const recordingManager = container.recordingManageModel;
 
     await recordingManager.cleanup();
     await reservationManageModel.cleanup();
@@ -209,7 +196,7 @@ const cleanup = async () => {
  * EPGUpdater 起動処理
  */
 const runEPGUpdater = async () => {
-    const epgUpdateExecutorManageModel = container.get<IEPGUpdateExecutorManageModel>('IEPGUpdateExecutorManageModel');
+    const epgUpdateExecutorManageModel = container.epgUpdateExecutorManageModel;
     await epgUpdateExecutorManageModel.execute();
 };
 

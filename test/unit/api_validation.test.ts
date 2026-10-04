@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import createHonoApp from '../../src/model/service/hono/createHonoApp.js';
 import IConfigFile from '../../src/model/IConfigFile.js';

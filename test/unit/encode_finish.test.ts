@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import EncodeFinishModel from '../../src/model/service/encode/EncodeFinishModel.js';
 import { FinishEncodeInfo } from '../../src/model/event/IEncodeEvent.js';

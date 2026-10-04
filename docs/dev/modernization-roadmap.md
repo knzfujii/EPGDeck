@@ -177,14 +177,24 @@ flowchart TD
 
 ### Phase 3: アーキテクチャ近代化 & DX 向上 (長期的な保守性)
 
-#### 3.1 InversifyJS 6.x とレガシーデコレータからの脱却
-> **ステータス**: 検討中 (Phase 3 残タスク)
+#### 3.1 InversifyJS 6.x とレガシーデコレータからの脱却 (TypeScript ネイティブ Pure DI への完全刷新)
+> **ステータス**: 実装完了 (`Phase 3`)
 
-- **対象ファイル**: `src/model/ModelContainerSetter.ts`, `tsconfig.json`
+- **対象ファイル**: `src/model/ModelContainer.ts`, `src/model/ModelContainerSetter.ts`, `tsconfig.json`, `package.json`, 全モデルクラス (`src/model/**/*.ts`)
 - **課題**:
-  `experimentalDecorators` と `emitDecoratorMetadata` に依存しているため、TypeScript 5+ の標準デコレータ（TC39 Stage 3）への移行や、Vite / esbuild / SWC / tsx などの高速トランスパイラによるサーバー実行が阻害されている。また 1 クラス 1 インターフェースの文字列トークン手動バインドが保守コストになっている。
-- **改善方針**:
-  - Inversify 最新版（7+ / 8+）への移行、またはクラスそのものをトークンとして解決する型安全な DI、あるいは Hono Context / ファクトリ関数パターンへのスリム化を検討・検証する。
+  InversifyJS 6.x、`experimentalDecorators`、および `emitDecoratorMetadata` に依存していたため、TypeScript 5+ 標準仕様への追従や高速トランスパイラ（Vite / esbuild / tsx）利用が制約されていた。また、全クラスに付与された `@injectable()` / `@inject(...)` と手動文字列トークン解決による保守負債が存在した。
+- **実施した改善**:
+  1. **TypeScript ネイティブな Pure DI コンテナの実装 (`ModelContainer.ts`, `ModelContainerSetter.ts`)**:
+     - 外部 DI ライブラリに依存せず、型安全なファクトリ関数（Composition Root）パターンによる純粋依存性注入（Pure DI）へ刷新。
+     - 単一責任とシングルトン/トランジェントの遅延解決を両立し、全モデルに対する型安全なアクセサー（`container.loggerModel`, `container.recordedDB` 等）を提供。
+     - 既存コード・テストとの 100% 互換性を維持（`container.get()`, `container.rebind().toConstantValue()` 等をサポート）。
+  2. **全 82 モデルクラスおよびテストモックからのレガシーデコレータ完全撤廃**:
+     - `@injectable()` および `@inject(...)` デコレータを全クラスから削除し、プレーンな TypeScript コンストラクタ引数渡しへ移行。
+     - `tsconfig.json` から `experimentalDecorators` と `emitDecoratorMetadata` を完全撤廃。
+  3. **InversifyJS および reflect-metadata の完全アンインストール**:
+     - `inversify`、`reflect-metadata`、および関連パッケージ（計 5 パッケージ）を依存関係から完全削除。
+  4. **テスト網羅**:
+     - Pure DI コンテナのシングルトン・トランジェント・型安全アクセサー・リバインド機能を検証する単体テスト（`pure_di.test.ts`）を追加。全 857 件のテストが 100% PASS。
 
 #### 3.2 `log4js` からモダン・高速ロガーへの刷新
 > **ステータス**: 実装完了 (`v0.1.0-beta.2`)

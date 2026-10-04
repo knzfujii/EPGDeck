@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IRuleDB from '../../db/IRuleDB.js';
 import IRuleEvent from '../../event/IRuleEvent.js';
@@ -8,7 +7,6 @@ import { IPromiseQueue } from '../../IPromiseQueue.js';
 import IReserveOptionChecker from '../IReserveOptionChecker.js';
 import IRuleManageModel from './IRuleManageModel.js';
 
-@injectable()
 export default class RuleManageModel implements IRuleManageModel {
     private log: ILogger;
     private optionChecker: IReserveOptionChecker;
@@ -17,11 +15,11 @@ export default class RuleManageModel implements IRuleManageModel {
     private queue: IPromiseQueue;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IReserveOptionChecker') optionChecker: IReserveOptionChecker,
-        @inject('IRuleDB') ruleDB: IRuleDB,
-        @inject('IRuleEvent') ruleEvent: IRuleEvent,
-        @inject('IPromiseQueue') queue: IPromiseQueue,
+        logger: ILoggerModel,
+        optionChecker: IReserveOptionChecker,
+        ruleDB: IRuleDB,
+        ruleEvent: IRuleEvent,
+        queue: IPromiseQueue,
     ) {
         this.log = logger.getLogger();
         this.optionChecker = optionChecker;

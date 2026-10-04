@@ -1,4 +1,3 @@
-import { inject, injectable } from 'inversify';
 import * as apid from '../../../../api.js';
 import IEncodeEvent, { FinishEncodeInfo } from '../../event/IEncodeEvent.js';
 import ILogger from '../../ILogger.js';
@@ -7,19 +6,13 @@ import IIPCClient from '../../ipc/IIPCClient.js';
 import ISocketIOManageModel from '../socketio/ISocketIOManageModel.js';
 import IEncodeFinishModel from './IEncodeFinishModel.js';
 
-@injectable()
 export default class EncodeFinishModel implements IEncodeFinishModel {
     private log: ILogger;
     private socket: ISocketIOManageModel;
     private ipc: IIPCClient;
     private encodeEvent: IEncodeEvent;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('ISocketIOManageModel') socket: ISocketIOManageModel,
-        @inject('IIPCClient') ipc: IIPCClient,
-        @inject('IEncodeEvent') encodeEvent: IEncodeEvent,
-    ) {
+    constructor(logger: ILoggerModel, socket: ISocketIOManageModel, ipc: IIPCClient, encodeEvent: IEncodeEvent) {
         this.log = logger.getLogger();
         this.socket = socket;
         this.ipc = ipc;

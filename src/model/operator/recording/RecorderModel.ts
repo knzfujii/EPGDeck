@@ -1,7 +1,6 @@
 import * as events from 'events';
 import * as fs from 'fs';
 import * as http from 'http';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import * as stream from 'stream';
 import { EitInfo, type AudioComponentInfo, type EitRelatedItem, type PmtInfo } from 'arib-probe';
@@ -34,7 +33,6 @@ import IRecordingUtilModel, { RecFilePathInfo } from './IRecordingUtilModel.js';
 /**
  * Recorder
  */
-@injectable()
 class RecorderModel implements IRecorderModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -93,20 +91,19 @@ class RecorderModel implements IRecorderModel {
     private isShutdownStop: boolean = false;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IProgramDB') programDB: IProgramDB,
-        @inject('IReserveDB') reserveDB: IReserveDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IRecordedHistoryDB') recordedHistoryDB: IRecordedHistoryDB,
-        @inject('IVideoFileDB') videoFileDB: IVideoFileDB,
-        @inject('IDropLogFileDB') dropLogFileDB: IDropLogFileDB,
-        @inject('IRecordingStreamCreator')
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        programDB: IProgramDB,
+        reserveDB: IReserveDB,
+        recordedDB: IRecordedDB,
+        recordedHistoryDB: IRecordedHistoryDB,
+        videoFileDB: IVideoFileDB,
+        dropLogFileDB: IDropLogFileDB,
         streamCreator: IRecordingStreamCreator,
-        @inject('IDropCheckerModel') dropChecker: IDropCheckerModel,
-        @inject('IRecordingUtilModel') recordingUtil: IRecordingUtilModel,
-        @inject('IRecordingEvent') recordingEvent: IRecordingEvent,
-        @inject('IMirakurunClientModel') mirakurunClientModel: IMirakurunClientModel,
+        dropChecker: IDropCheckerModel,
+        recordingUtil: IRecordingUtilModel,
+        recordingEvent: IRecordingEvent,
+        mirakurunClientModel: IMirakurunClientModel,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

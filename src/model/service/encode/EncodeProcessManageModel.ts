@@ -1,6 +1,5 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as events from 'events';
-import { inject, injectable } from 'inversify';
 import ProcessUtil from '../../../util/ProcessUtil.js';
 import IConfiguration from '../../IConfiguration.js';
 import ILogger from '../../ILogger.js';
@@ -13,14 +12,13 @@ interface ChildProcessInfo {
     processId: number;
 }
 
-@injectable()
 class EncodeProcessManageModel implements IEncodeProcessManageModel {
     private log: ILogger;
     private maxEncode: number;
     private childs: ChildProcessInfo[] = [];
     private listener: events.EventEmitter = new events.EventEmitter();
 
-    constructor(@inject('ILoggerModel') logeer: ILoggerModel, @inject('IConfiguration') configure: IConfiguration) {
+    constructor(logeer: ILoggerModel, configure: IConfiguration) {
         this.log = logeer.getLogger();
         this.maxEncode = configure.getConfig().encode.maxProcesses;
     }

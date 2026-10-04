@@ -1,5 +1,4 @@
 import { spawn } from 'child_process';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import Recorded from '../../../db/entities/Recorded.js';
 import Reserve from '../../../db/entities/Reserve.js';
@@ -16,7 +15,6 @@ import ILoggerModel from '../../ILoggerModel.js';
 import { IPromiseQueue } from '../../IPromiseQueue.js';
 import IExternalCommandManageModel from './IExternalCommandManageModel.js';
 
-@injectable()
 export default class ExternalCommandManageModel implements IExternalCommandManageModel {
     private log: ILogger;
     private config: IConfigFile;
@@ -26,12 +24,12 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
     private videoUtil: IVideoUtil;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('IPromiseQueue') queue: IPromiseQueue,
-        @inject('IChannelDB') channelDB: IChannelDB,
-        @inject('IRecordedDB') recordedDB: IRecordedDB,
-        @inject('IVideoUtil') videoUtil: IVideoUtil,
+        logger: ILoggerModel,
+        configuration: IConfiguration,
+        queue: IPromiseQueue,
+        channelDB: IChannelDB,
+        recordedDB: IRecordedDB,
+        videoUtil: IVideoUtil,
     ) {
         this.log = logger.getLogger();
         this.config = configuration.getConfig();

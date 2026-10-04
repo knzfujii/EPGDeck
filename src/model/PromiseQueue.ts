@@ -1,6 +1,3 @@
-import { injectable } from 'inversify';
-
-@injectable()
 export default class PromiseQueue {
     private queue: Promise<any> = Promise.resolve(true);
 

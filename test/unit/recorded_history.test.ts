@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RecordedManageModel from '../../src/model/operator/recorded/RecordedManageModel.js';
 

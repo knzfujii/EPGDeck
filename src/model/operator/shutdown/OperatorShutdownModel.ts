@@ -1,5 +1,4 @@
 import * as child_process from 'child_process';
-import { inject, injectable } from 'inversify';
 import IDrizzleOperator from '../../db/IDrizzleOperator.js';
 import ILogger from '../../ILogger.js';
 import ILoggerModel from '../../ILoggerModel.js';
@@ -7,7 +6,6 @@ import IRecordingManageModel from '../recording/IRecordingManageModel.js';
 import IStorageManageModel from '../storage/IStorageManageModel.js';
 import IOperatorShutdownModel from './IOperatorShutdownModel.js';
 
-@injectable()
 export default class OperatorShutdownModel implements IOperatorShutdownModel {
     private log: ILogger;
     private loggerModel: ILoggerModel;
@@ -24,10 +22,10 @@ export default class OperatorShutdownModel implements IOperatorShutdownModel {
     public stopAllTimeoutMs: number = 10000;
 
     constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IStorageManageModel') storageManageModel: IStorageManageModel,
-        @inject('IRecordingManageModel') recordingManageModel: IRecordingManageModel,
-        @inject('IDrizzleOperator') drizzleOperator: IDrizzleOperator,
+        logger: ILoggerModel,
+        storageManageModel: IStorageManageModel,
+        recordingManageModel: IRecordingManageModel,
+        drizzleOperator: IDrizzleOperator,
     ) {
         this.log = logger.getLogger();
         this.loggerModel = logger;

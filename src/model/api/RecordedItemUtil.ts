@@ -1,12 +1,10 @@
 import * as path from 'path';
-import { injectable } from 'inversify';
 import * as apid from '../../../api.js';
 import Recorded from '../../db/entities/Recorded.js';
 import StrUtil from '../../util/StrUtil.js';
 import { EncodeRecordedIdIndex } from '../service/encode/IEncodeManageModel.js';
 import IRecordedItemUtil from './IRecordedItemUtil.js';
 
-@injectable()
 export default class RecordedItemUtil implements IRecordedItemUtil {
     /**
      * Recorded を RecordedItem に変換する

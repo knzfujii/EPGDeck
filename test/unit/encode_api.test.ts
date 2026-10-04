@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import EncodeApiModel from '../../src/model/api/encode/EncodeApiModel.js';
 

@@ -1,6 +1,5 @@
 import * as events from 'events';
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import * as path from 'path';
 import internal from 'stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
@@ -15,7 +14,6 @@ import ISocketIOManageModel from '../../socketio/ISocketIOManageModel.js';
 import IHLSFileDeleterModel from '../util/IHLSFileDeleterModel.js';
 import IStreamBaseModel, { LiveStreamInfo, RecordedStreamInfo } from './IStreamBaseModel.js';
 
-@injectable()
 abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
     protected config: IConfigFile;
     protected log: ILogger;
@@ -31,11 +29,11 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
     private streamStopTimer: NodeJS.Timeout | null = null;
 
     constructor(
-        @inject('IConfiguration') configure: IConfiguration,
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IEncodeProcessManageModel') processManager: IEncodeProcessManageModel,
-        @inject('IHLSFileDeleterModel') fileDeleter: IHLSFileDeleterModel,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
+        configure: IConfiguration,
+        logger: ILoggerModel,
+        processManager: IEncodeProcessManageModel,
+        fileDeleter: IHLSFileDeleterModel,
+        socketIO: ISocketIOManageModel,
     ) {
         this.config = configure.getConfig();
         this.log = logger.getLogger();

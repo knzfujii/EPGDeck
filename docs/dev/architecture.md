@@ -35,13 +35,14 @@ graph TD
 
 ## 3. バックエンド設計パターン
 
-### DI (依存性注入) コンテナ: InversifyJS
+### DI (依存性注入): TypeScript ネイティブ Pure DI
 
-バックエンドの各モジュール（Model, Service, DB Operator 等）は `inversify`
-による IoC コンテナで疎結合に管理されています。
+バックエンドの各モジュール（Model, Service, DB Operator 等）は、外部 DI コンテナライブラリ（InversifyJS 等）やレガシーデコレータに依存せず、**Pure DI（TypeScript-native 純粋依存性注入）** により明示的・型安全に管理されています。
 
-- 定義: `src/model/ModelContainer.ts`
-- 各クラスは `@injectable()` で修飾され、インターフェース名（文字列シンボル）でインジェクションされます。
+- コンテナ定義: `src/model/ModelContainer.ts`
+- ファクトリ登録（Composition Root）: `src/model/ModelContainerSetter.ts`
+- 各クラスはデコレータ（`@injectable` / `@inject`）を持たないプレーンな TypeScript クラスとして実装され、コンストラクタ経由で依存性を受け取ります。
+- コンテナは型安全なアクセサー（`container.loggerModel`, `container.recordedDB` 等）を提供し、テスト用モック差し替え（`rebind().toConstantValue()`）との互換性も維持しています。
 
 ### REST API: Hono
 

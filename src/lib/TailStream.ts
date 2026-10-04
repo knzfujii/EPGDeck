@@ -13,7 +13,6 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import { Readable, ReadableOptions } from 'stream';
 import ILogger from '../model/ILogger.js';
-import ILoggerModel from '../model/ILoggerModel.js';
 import container from '../model/ModelContainer.js';
 
 export interface TailStreamOption extends ReadableOptions {
@@ -39,7 +38,7 @@ class TailStream extends Readable {
         this.filePath = filename;
         this.offset = option.start || 0;
 
-        this.log = container.get<ILoggerModel>('ILoggerModel').getLogger();
+        this.log = container.loggerModel.getLogger();
 
         this.getFd();
     }

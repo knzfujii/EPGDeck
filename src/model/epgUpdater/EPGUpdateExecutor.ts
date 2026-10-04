@@ -1,14 +1,10 @@
-import 'reflect-metadata';
-import IConfiguration from '../IConfiguration.js';
-import ILoggerModel from '../ILoggerModel.js';
 import container from '../ModelContainer.js';
 import * as containerSetter from '../ModelContainerSetter.js';
-import IEPGUpdater from './IEPGUpdater.js';
 
 containerSetter.set(container);
 
-const config = container.get<IConfiguration>('IConfiguration').getConfig();
-const loggerModel = container.get<ILoggerModel>('ILoggerModel');
+const config = container.configuration.getConfig();
+const loggerModel = container.loggerModel;
 loggerModel.initialize('EPGUpdater', config.log);
 
 loggerModel.onLog(entry => {
@@ -44,7 +40,7 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
-const updater = container.get<IEPGUpdater>('IEPGUpdater');
+const updater = container.epgUpdater;
 
 void (async () => {
     // 初回更新 or event stream 更新時にエラーが発生する

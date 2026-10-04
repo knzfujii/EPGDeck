@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import * as fs from 'fs';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import StorageManageModel from '../../src/model/operator/storage/StorageManageModel.js';

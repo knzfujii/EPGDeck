@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { inject, injectable } from 'inversify';
 import IConfigFile from '../../IConfigFile.js';
 import IConfiguration from '../../IConfiguration.js';
 import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger.js';
@@ -17,18 +16,13 @@ const LEVEL_PRIORITY: Record<LogEntryLevel, number> = {
 
 let bufferIdSeq = 0;
 
-@injectable()
 export default class LogManageModel implements ILogManageModel {
     private buffer: LogEntry[] = [];
     private maxBufferSize: number = 1000;
     private logFilePath: string | null = null;
     private socketIO: ISocketIOManageModel;
 
-    constructor(
-        @inject('ILoggerModel') logger: ILoggerModel,
-        @inject('IConfiguration') configuration: IConfiguration,
-        @inject('ISocketIOManageModel') socketIO: ISocketIOManageModel,
-    ) {
+    constructor(logger: ILoggerModel, configuration: IConfiguration, socketIO: ISocketIOManageModel) {
         this.socketIO = socketIO;
         const config: IConfigFile = configuration.getConfig();
         if (config.log?.bufferSize) {

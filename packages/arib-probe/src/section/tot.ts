@@ -30,11 +30,9 @@ export function decodeMjdBcdTime(buffer: Uint8Array, offset: number = 0): Date |
     const min = ((b1 >> 4) * 10) + (b1 & 0x0f);
     const sec = ((b2 >> 4) * 10) + (b2 & 0x0f);
 
-    // Japan Standard Time (UTC+9)
-    // Create Date as JST timestamp
-    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-    const isoStr = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(min)}:${pad(sec)}+09:00`;
-    const date = new Date(isoStr);
+    // Japan Standard Time (UTC+9) -> Convert to UTC epoch milliseconds
+    const utcMs = Date.UTC(year, month - 1, day, hour - 9, min, sec);
+    const date = new Date(utcMs);
 
     return Number.isNaN(date.getTime()) ? null : date;
 }

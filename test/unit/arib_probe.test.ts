@@ -149,12 +149,14 @@ describe('arib-probe', () => {
 
             const date = decodeMjdBcdTime(timeBytes);
             expect(date).not.toBeNull();
-            expect(date?.getFullYear()).toBe(2026);
-            expect(date?.getMonth()).toBe(9); // 10月 (0-indexed)
-            expect(date?.getDate()).toBe(2);
-            expect(date?.getHours()).toBe(14);
-            expect(date?.getMinutes()).toBe(30);
-            expect(date?.getSeconds()).toBe(45);
+            // 2026-10-02 14:30:45 JST (UTC+9) is 2026-10-02 05:30:45 UTC
+            expect(date?.toISOString()).toBe('2026-10-02T05:30:45.000Z');
+            expect(date?.getUTCFullYear()).toBe(2026);
+            expect(date?.getUTCMonth()).toBe(9); // 10月 (0-indexed)
+            expect(date?.getUTCDate()).toBe(2);
+            expect(date?.getUTCHours()).toBe(5);
+            expect(date?.getUTCMinutes()).toBe(30);
+            expect(date?.getUTCSeconds()).toBe(45);
         });
 
         it('should decode TOT section payload', () => {
@@ -163,8 +165,7 @@ describe('arib-probe', () => {
             const totSection = new Uint8Array([0x73, 0x70, 0x05, (mjd >> 8) & 0xff, mjd & 0xff, 0x14, 0x30, 0x45]);
             const date = decodeTotSection(totSection);
             expect(date).not.toBeNull();
-            expect(date?.getFullYear()).toBe(2026);
-            expect(date?.getHours()).toBe(14);
+            expect(date?.toISOString()).toBe('2026-10-02T05:30:45.000Z');
         });
     });
 

@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ReservationManageModel.recheckConflicts()` を新設。番組延長（EIT）や繰り下げ（prepRecord / doRecord 待機中）が発生した時間枠に対して平面走査法によるシミュレーションを即座に再実行。
   - チューナー不足による競合状態の変化を検知し、DB更新および `reserveEvent.emitUpdated(diff)` を送出。次回の定期EPG更新を待たずにUI（番組表・予約一覧）や録画実行エンジン（`RecordingManageModel`）へリアルタイムに競合情報を反映。
   - `RecordingEvent.emitRecheckConflicts` / `EventSetter` を介した疎結合なイベント駆動アーキテクチャにより、循環依存を排除して実装。
+- **HLS ストリーム停止時におけるファイル削除レースコンディション（ENOENT）例外の解消**:
+  - `HLSFileDeleterModel.deleteFile()` において、`.catch()` にエラーハンドラが渡されていなかったため、ffmpeg 等により先行削除されたセグメントファイル（`.ts`）が存在した場合に `ENOENT` 未処理例外がスローされ、ストリーム停止処理（`stop()`）がクラッシュしていた不具合を修正。`try ... catch` により `ENOENT` を安全に許容し、`path.join` によるパス結合の安全性を向上。
+- **TOT/TDT（放送時刻）デコーダーの高速化 & タイムゾーン非依存テスト化**:
+  - `packages/arib-probe` の `decodeMjdBcdTime` における Date 生成処理を文字列結合・パースから `Date.UTC` に最適化。単体テストにおいて実行環境のタイムゾーン（`getHours()`）依存のアサーションを排し、環境に左右されない UTC ISO 8601 文字列（`toISOString()`）および UTC メソッドによる厳格な検証へ刷新。
 
 ### Changed
 - **外部依存パッケージのマイナー更新および不要パッケージ整理**:

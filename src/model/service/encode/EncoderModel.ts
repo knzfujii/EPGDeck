@@ -174,7 +174,9 @@ class EncoderModel implements IEncoderModel {
         this.log.encode.info(`encodeId: ${this.encodeOption.encodeId}`);
         this.log.encode.info(`encodeCmd.cmd: ${encodeCmd.cmd}`);
         this.log.encode.info(`encodeCmd.suffix: ${encodeCmd.suffix}`);
-        this.log.encode.info(`queueItem.directory: ${this.encodeOption.directory}`);
+        if (typeof this.encodeOption.directory !== 'undefined') {
+            this.log.encode.info(`queueItem.directory: ${this.encodeOption.directory}`);
+        }
         this.log.encode.info(`outputFilePath: ${outputFilePath}`);
 
         // 字幕埋め込みフラグの判定 (「字幕スーパー」検出時はスキップ)

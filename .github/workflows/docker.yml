@@ -7,9 +7,16 @@ on:
       - completed
     branches:
       - main
-  push:
-    tags:
-      - '*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'package*.json'
+      - 'packages/**'
+      - 'client/package.json'
+      - '.github/workflows/docker.yml'
   workflow_dispatch:
 
 concurrency:

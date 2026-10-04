@@ -242,8 +242,22 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
             ? this.config.recording.priority.conflict
             : this.config.recording.priority.recording;
 
-        if (reserve.programId === null) {
-            // 時刻指定予約
+        const duration =
+            typeof reserve.startAt === 'number' && typeof reserve.endAt === 'number'
+                ? reserve.endAt - reserve.startAt
+                : 0;
+        const thresholdSeconds = this.config.recording.shortProgramDurationThresholdSeconds ?? 300;
+        const isShortProgram =
+            reserve.programId !== null && thresholdSeconds > 0 && duration > 0 && duration <= thresholdSeconds * 1000;
+
+        if (reserve.programId === null || isShortProgram) {
+            if (isShortProgram) {
+                this.log.system.info(
+                    `use service stream for short program: reserveId: ${reserve.id}, programId: ${reserve.programId}, duration: ${duration / 1000}s, threshold: ${thresholdSeconds}s`,
+                );
+            }
+
+            // 時刻指定予約 または 短時間番組
             return this.getTimeSpecifiedStream(reserve, mirakurun, abortSignal);
         } else {
             // programId 指定予約
@@ -331,7 +345,7 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
      * @param reserve
      */
     public changeEndAt(reserve: Reserve): void {
-        if (reserve.programId !== null || typeof this.timerIndex[reserve.id] === 'undefined') {
+        if (typeof this.timerIndex[reserve.id] === 'undefined') {
             throw new Error('StreamChangeAtError');
         }
 

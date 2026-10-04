@@ -113,6 +113,7 @@ export interface RecordingConfig {
     priority: RecordingPriorityConfig;
     timeSpecifiedStartMargin: number;
     timeSpecifiedEndMargin: number;
+    shortProgramDurationThresholdSeconds?: number;
     thumbnail: ThumbnailConfig;
     dropLog: DropLogConfig;
     uploadTempDir: string;

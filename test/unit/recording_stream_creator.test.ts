@@ -251,5 +251,61 @@ describe('RecordingStreamCreator Unit Tests', () => {
             reserve.programId = null; // time-specified but not registered
             expect(() => creator.changeEndAt(reserve)).toThrow('StreamChangeAtError');
         });
+
+        it('uses getServiceStream for short program (duration <= threshold)', async () => {
+            const mockStream = createDummyStream();
+            dummyMirakurunClient.getServiceStream.mockResolvedValue(mockStream);
+
+            const now = Date.now();
+            const reserve = new Reserve();
+            reserve.id = 601;
+            reserve.programId = 99999; // programId is set
+            reserve.channelId = 1024;
+            reserve.channelType = 'GR';
+            reserve.channel = 'ch27';
+            reserve.isConflict = false;
+            reserve.startAt = now - 1000;
+            reserve.endAt = now + 120 * 1000; // 2 minutes (120s <= 300s threshold)
+
+            const stream = await creator.create(reserve);
+            expect(stream).toBe(mockStream);
+            expect(dummyMirakurunClient.getServiceStream).toHaveBeenCalledWith({
+                id: 1024,
+                decode: true,
+                signal: undefined,
+            });
+            expect(dummyMirakurunClient.getProgramStream).not.toHaveBeenCalled();
+
+            // cleanup
+            mockStream.emit('end');
+        });
+
+        it('uses getProgramStream for normal program (duration > threshold)', async () => {
+            const mockStream = createDummyStream();
+            dummyMirakurunClient.getProgramStream.mockResolvedValue(mockStream);
+
+            const now = Date.now();
+            const reserve = new Reserve();
+            reserve.id = 602;
+            reserve.programId = 88888;
+            reserve.channelId = 1024;
+            reserve.channelType = 'GR';
+            reserve.channel = 'ch27';
+            reserve.isConflict = false;
+            reserve.startAt = now;
+            reserve.endAt = now + 1800 * 1000; // 30 minutes (> 300s threshold)
+
+            const stream = await creator.create(reserve);
+            expect(stream).toBe(mockStream);
+            expect(dummyMirakurunClient.getProgramStream).toHaveBeenCalledWith({
+                id: 88888,
+                decode: true,
+                signal: undefined,
+            });
+            expect(dummyMirakurunClient.getServiceStream).not.toHaveBeenCalled();
+
+            // cleanup
+            mockStream.emit('end');
+        });
     });
 });

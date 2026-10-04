@@ -36,9 +36,11 @@ EPGDeck は、EPGStation のデータ互換性を保ちながら再構築され�
   - `main` への直接 push は原則禁止。トピックブランチ（`feat/...`, `fix/...`, `docs/...` 等）から PR を作成してマージする。
   - トピックブランチ作成時は `./misc/worktree.sh <branch> [path]` を推奨（未追跡設定を自動リンク同期）。
   - **バージョン更新 & リリース運用 (GitHub Flow)**:
-    - 日常のコミットでは `CHANGELOG.md` を編集せず、**バージョンアップ（`package.json` の version 更新）のタイミングで一括して `CHANGELOG.md` をメンテナンス**する（直前リリースタグからの純粋なプロダクト差分を俯瞰して整理）。
-    - バージョン変更時は、リリース PR 作成前に必ずローカルで `docker build` の成功を先行確認する。
-    - PR を `main` にマージした後のマージコミット（または `main` の HEAD）に対して必ず Git タグ（`vX.Y.Z` 等）を打鍵してリモートへ push し、`gh release create` で `CHANGELOG.md` の該当バージョン内容をリリースノートとして GitHub Release を作成・公開する（`-beta` や `-rc` 等は `--prerelease` を付与）。
+    - **日常 PR とリリース PR の厳格分離**: 日常のコミット・機能開発 PR では `package.json` のバージョン変更や `CHANGELOG.md` の編集を行わない。
+    - **リリース作業の一気通貫（公式スキル）**: バージョン更新作業は、公式スキル [`.agents/skills/epgdeck-release/SKILL.md`](.agents/skills/epgdeck-release/SKILL.md) に則って遂行する。
+    - **CHANGELOG の前タグ差分集約**: 直前のリリースタグからの `git log <previous-tag>..HEAD` を俯瞰し、純粋なプロダクト差分のみを一括して `CHANGELOG.md` にまとめる。
+    - **ローカル先行検証**: リリース PR 作成前に、ローカルで `docker build` および `npm run check:quick` を先行確認する。
+    - **タグ打鍵 & Release 公開**: PR が `main` にマージされた後の最新コミット（HEAD）に対して Git タグ（`vX.Y.Z` 等）を打鍵してリモートへ push し、`gh release create` で即座に GitHub Release を作成・公開する（タグ push 時に重複ビルド・テストは行わない）。
 
 ---
 

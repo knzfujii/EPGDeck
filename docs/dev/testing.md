@@ -223,6 +223,10 @@ GitHub Actions Parallel Jobs
 4. **無駄な CI の自動スキップ**:
    - `paths-ignore`: ドキュメント（`docs/**`, `*.md`）変更時は CI を起動せず無料枠を温存。
    - `concurrency`: 同一ブランチへの連続プッシュ時、古い進行中ジョブを自動キャンセル。
+5. **Docker Build Check のパス連動 & タグ再実行排除 (`.github/workflows/docker.yml`)**:
+   - `Dockerfile`, `package*.json`, `packages/**` 等のコンテナ構成ファイル変更時のみ PR トリガーで高速ビルドチェック（`linux/amd64`）を実行し、マージ前の破損を 100% 遮断。
+   - main マージ後はマルチアーキテクチャ（amd64, arm64）の完全検証を実行。
+   - すでに main で検証済みなため、タグ push 時に無駄な再ビルド（QEMU エミュレーション等）は一切走らせず、即座に GitHub Release 公開へ移行可能。
 
 ---
 

@@ -261,11 +261,13 @@
 
     // 新規作成ページへ遷移
     function goCreateRule() {
+        if (readOnlyStore.isReadOnly) return;
         router.push('/rule/edit');
     }
 
     // 編集ページへ遷移
     function goEditRule(rule: apid.Rule) {
+        if (readOnlyStore.isReadOnly) return;
         saveLastRuleTargetId(rule.id);
         router.push(`/rule/edit?ruleId=${rule.id}`);
     }
@@ -442,7 +444,7 @@
                             <Button variant="secondary" onclick={() => setFilterStatus('all')}>
                                 すべてのルールを表示
                             </Button>
-                        {:else}
+                        {:else if !readOnlyStore.isReadOnly}
                             <Button variant="primary" onclick={goCreateRule}>
                                 <Plus size={16} /> ルール追加
                             </Button>
@@ -460,9 +462,11 @@
             {:else}
                 <EmptyState icon={SlidersHorizontal} title="登録されたルールはありません">
                     {#snippet action()}
-                        <Button variant="primary" onclick={goCreateRule}>
-                            <Plus size={16} /> ルール追加
-                        </Button>
+                        {#if !readOnlyStore.isReadOnly}
+                            <Button variant="primary" onclick={goCreateRule}>
+                                <Plus size={16} /> ルール追加
+                            </Button>
+                        {/if}
                     {/snippet}
                 </EmptyState>
             {/if}
@@ -481,6 +485,7 @@
                         data-rule-id={r.id}
                         role="button"
                         tabindex="0"
+                        aria-disabled={readOnlyStore.isReadOnly ? 'true' : undefined}
                         onclick={() => goEditRule(r)}
                         onkeydown={e => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -488,7 +493,9 @@
                                 goEditRule(r);
                             }
                         }}
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 cursor-pointer {isEnabled
+                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition dark:border-slate-800 dark:bg-slate-900 {readOnlyStore.isReadOnly
+                            ? 'cursor-default'
+                            : 'hover:border-slate-300 cursor-pointer'} {isEnabled
                             ? ''
                             : 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'}"
                     >
@@ -777,7 +784,9 @@
                                     id="rule-item-{r.id}"
                                     data-rule-id={r.id}
                                     onclick={() => goEditRule(r)}
-                                    class="transition hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer {isEnabled
+                                    class="transition {readOnlyStore.isReadOnly
+                                        ? ''
+                                        : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer'} {isEnabled
                                         ? ''
                                         : 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40'}"
                                 >

@@ -344,7 +344,7 @@
                 : filterMode === 'skips'
                   ? 'スキップ中の予約はありません'
                   : '録画予約はありません'}
-            description="番組表や検索画面から録画予約を追加できます"
+            description={readOnlyStore.isReadOnly ? undefined : '番組表や検索画面から録画予約を追加できます'}
         />
     {:else}
         <!-- テーブル表示 -->
@@ -842,7 +842,7 @@
                             </button>
                         {/if}
                     </div>
-                {:else}
+                {:else if !readOnlyStore.isReadOnly}
                     <!-- 個別予約: 予約自体を編集可能 -->
                     <div>
                         <RecordingOptionForm
@@ -854,6 +854,32 @@
                             {encodeModes}
                             {storageDirs}
                         />
+                    </div>
+                {:else}
+                    <!-- 個別予約 (リードオンリー): 設定内容を閲覧表示 -->
+                    <div
+                        class="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-900/40"
+                    >
+                        <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                            <SlidersHorizontal size={13} /> 録画オプション
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/60">
+                                <span class="text-slate-400 text-[11px] block">保存先</span>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">
+                                    {item.parentDirectoryName || 'デフォルト'}
+                                    {item.directory ? `/ ${item.directory}` : ''}
+                                </span>
+                            </div>
+                            <div class="rounded-lg bg-white/70 p-2.5 dark:bg-slate-800/60">
+                                <span class="text-slate-400 text-[11px] block">エンコード設定</span>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">
+                                    {[item.encodeMode1, item.encodeMode2, item.encodeMode3]
+                                        .filter(Boolean)
+                                        .join(', ') || 'なし'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 {/if}
             </div>

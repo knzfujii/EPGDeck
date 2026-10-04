@@ -65,6 +65,9 @@ jobs:
       - name: Install Dependencies (Root & Workspaces)
         run: npm ci
 
+      - name: Build Workspaces Packages
+        run: npm run build:packages
+
       - name: Lint Check (Server & Test)
         run: npm run lint:check
 
@@ -157,6 +160,9 @@ jobs:
 
       - name: Install Dependencies (Root & Workspaces)
         run: npm ci
+
+      - name: Build Workspaces Packages
+        run: npm run build:packages
 
       - name: TypeScript Compile (Server)
         run: npm run compile

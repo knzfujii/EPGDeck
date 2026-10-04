@@ -56,7 +56,8 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
      * @param replace?: boolean 既存サムネイルを置き換えるか
      */
     public add(videoFileId: apid.VideoFileId, seconds?: number, replace: boolean = false): void {
-        this.log.system.info(`add thumbnail queue: ${videoFileId}, seconds: ${seconds}, replace: ${replace}`);
+        const secondsStr = typeof seconds !== 'undefined' ? `, seconds: ${seconds}` : '';
+        this.log.system.info(`add thumbnail queue: ${videoFileId}${secondsStr}, replace: ${replace}`);
 
         void this.queue.add<void>(() => {
             return this.create(videoFileId, seconds, replace).catch(err => {

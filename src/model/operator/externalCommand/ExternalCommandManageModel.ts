@@ -149,11 +149,11 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
      * @param info: OperatorFinishEncodeInfo
      */
     public addEncodingFinishCmd(info: OperatorFinishEncodeInfo): void {
-        this.log.system.info(`encodingFinishCommand: ${this.config.hooks?.encodingFinish}`);
         if (typeof this.config.hooks?.encodingFinish === 'undefined') {
             return;
         }
 
+        this.log.system.info(`encodingFinishCommand: ${this.config.hooks.encodingFinish}`);
         this.addFinishEncode(this.config.hooks.encodingFinish, info);
     }
 

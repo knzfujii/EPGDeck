@@ -50,9 +50,18 @@ describe('Hono REST API Integration Tests', () => {
         },
     } as any;
 
+    const accessLogs: string[] = [];
     const dummyLog: ILogger = {
         system: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
-        access: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
+        access: {
+            info: (msg: string) => {
+                accessLogs.push(msg);
+            },
+            error: () => {},
+            warn: () => {},
+            debug: () => {},
+            fatal: () => {},
+        },
         stream: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
         encode: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
     } as any;
@@ -79,6 +88,8 @@ describe('Hono REST API Integration Tests', () => {
     const dummyStorages = [{ name: 'recorded', total: 1000000000000, used: 400000000000, free: 600000000000 }];
 
     beforeEach(() => {
+        accessLogs.length = 0;
+
         // DI コンテナへモック API モデルを登録
         const rebindOrBind = (symbol: string, value: any) => {
             if (container.isBound(symbol)) {
@@ -349,5 +360,26 @@ describe('Hono REST API Integration Tests', () => {
         expect(res.headers.get('Pragma')).toBe('no-cache');
         expect(res.headers.get('Cache-Control')).toBe('private, no-cache, no-store, must-revalidate');
         expect(res.headers.get('Expires')).toBe('-1');
+    });
+
+    it('records accurate 200 status code in access log for successful request', async () => {
+        accessLogs.length = 0;
+        const res = await app.request('/api/version');
+        expect(res.status).toBe(200);
+        expect(accessLogs.some(log => log.startsWith('GET /api/version 200'))).toBe(true);
+    });
+
+    it('records accurate 404 status code in access log when resource is not found', async () => {
+        accessLogs.length = 0;
+        const res = await app.request('/api/videos/2/vtt');
+        expect(res.status).toBe(404);
+        expect(accessLogs.some(log => log.startsWith('GET /api/videos/2/vtt 404'))).toBe(true);
+    });
+
+    it('records accurate 500 status code in access log when unhandled error occurs', async () => {
+        accessLogs.length = 0;
+        const res = await app.request('/api/videos/999/vtt');
+        expect(res.status).toBe(500);
+        expect(accessLogs.some(log => log.startsWith('GET /api/videos/999/vtt 500'))).toBe(true);
     });
 });

@@ -17,7 +17,7 @@ describe('Version Consistency', () => {
             fs.readFileSync(path.join(__dirname, '..', '..', 'packages', 'arib-probe', 'package.json'), 'utf-8'),
         );
 
-        expect(rootPkg.version).toBe('0.2.0-beta.1');
+        expect(rootPkg.version).toBe('0.3.0-beta.1');
         expect(clientPkg.version).toBe(rootPkg.version);
         expect(aribProbePkg.version).toBe('0.1.0');
         expect(rootPkg.name).toBe('epgdeck');

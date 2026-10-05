@@ -20,12 +20,16 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
     // 1. Access Logger Middleware
     app.use('*', async (c, next) => {
         const start = Date.now();
-        await next();
-        const duration = Date.now() - start;
-        const method = c.req.method;
-        const path = c.req.path;
-        const status = (c.env as any)?.outgoing?.statusCode ?? c.res.status;
-        log.access.info(`${method} ${path} ${status} - ${duration} ms`);
+        try {
+            await next();
+        } finally {
+            const duration = Date.now() - start;
+            const method = c.req.method;
+            const path = c.req.path;
+            const outgoing = (c.env as any)?.outgoing;
+            const status = outgoing?.headersSent ? outgoing.statusCode : c.res.status;
+            log.access.info(`${method} ${path} ${status} - ${duration} ms`);
+        }
     });
 
     // 2. CORS

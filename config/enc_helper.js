@@ -289,10 +289,10 @@ const buildFFmpegArgs = (options, mediaInfo) => {
             if (deinterlace) {
                 filters.push('yadif');
             }
-            if (res.isScaled) {
-                filters.push(`scale=${res.targetW}:${res.targetH},setsar=1/1`);
-            }
             filters.push('format=nv12', 'hwupload');
+            if (res.isScaled) {
+                filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+            }
         }
         if (filters.length > 0) {
             args.push('-vf', filters.join(','));

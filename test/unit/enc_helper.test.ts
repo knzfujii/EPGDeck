@@ -249,7 +249,7 @@ describe('enc_helper.js', () => {
             expect(args).toContain('/dev/dri/renderD128');
             expect(args).not.toContain('-hwaccel');
             expect(args).toContain('-vf');
-            expect(args).toContain('yadif,scale=1920:1080,setsar=1/1,format=nv12,hwupload');
+            expect(args).toContain('yadif,format=nv12,hwupload,scale_vaapi=w=1920:h=1080,setsar=1/1');
             expect(args).toContain('-c:v');
             expect(args).toContain('hevc_vaapi');
             expect(args).toContain('-b:v');

@@ -301,9 +301,10 @@ export default class RecordingStreamCreator implements IRecordingStreamCreator {
         });
 
         // 予約時間まで待つ
-        if (now < reserve.startAt) {
+        const waitTime = reserve.startAt - Date.now() - 1000 * this.config.recording.timeSpecifiedStartMargin;
+        if (waitTime > 0) {
             channelStream.on('data', () => {}); // 読み込まないと stream がバッファに貯まるため
-            await Util.sleep(reserve.startAt - now - 1000 * this.config.recording.timeSpecifiedStartMargin);
+            await Util.sleep(waitTime);
             channelStream.removeAllListeners('data'); // clear
         }
 

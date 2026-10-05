@@ -226,6 +226,10 @@ describe('RecordingStreamCreator Unit Tests', () => {
 
             // Sleep should be called for future startAt
             expect(sleepSpy).toHaveBeenCalled();
+            // Verify sleep duration is around (startAt - now - margin * 1000)
+            const sleepArg = sleepSpy.mock.calls[0][0];
+            expect(sleepArg).toBeGreaterThan(0);
+            expect(sleepArg).toBeLessThanOrEqual(5000 - 1000); // 5000ms - 1s margin
 
             // Timer should be registered
             const timerIndex = (creator as any).timerIndex;
@@ -239,6 +243,31 @@ describe('RecordingStreamCreator Unit Tests', () => {
             // Destroying stream clears timer
             mockStream.emit('end');
             expect(timerIndex[401]).toBeUndefined();
+        });
+
+        it('does not sleep when startAt with margin is already past', async () => {
+            creator.setTuner([{ types: ['GR'] } as any]);
+
+            const mockStream = createDummyStream();
+            dummyMirakurunClient.getServiceStream.mockResolvedValue(mockStream);
+
+            const now = Date.now();
+            const reserve = new Reserve();
+            reserve.id = 402;
+            reserve.programId = null; // time specified
+            reserve.channelType = 'GR';
+            reserve.channel = 'ch27';
+            reserve.channelId = 10;
+            reserve.startAt = now; // exactly now (margin of 1s means startAt - 1s is in the past)
+            reserve.endAt = now + 30000;
+
+            sleepSpy.mockClear();
+            const stream = await creator.create(reserve);
+            expect(stream).toBe(mockStream);
+            // sleep should not be called since waitTime <= 0
+            expect(sleepSpy).not.toHaveBeenCalled();
+
+            mockStream.emit('end');
         });
 
         it('throws StreamChangeAtError when changeEndAt called on non-time-specified or non-active reserve', () => {

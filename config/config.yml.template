@@ -80,6 +80,8 @@ recording:
     recording: 2                       # 通常録画時のMirakurun優先度
     conflict: 1                        # 重複録画時のMirakurun優先度
     streaming: 0                       # ライブ配信時のMirakurun優先度
+  # ※デジタル放送波は伝送・復調・バッファリングによりシステム時計より約2.5〜3秒遅れて届くため、
+  #   時刻指定予約では開始マージンを小さめ(0〜1秒)、終了マージンを大きめ(4〜5秒以上)に設定すると尻切れを防げます。
   timeSpecifiedStartMargin: 1          # 時刻指定予約の開始マージン(秒)
   timeSpecifiedEndMargin: 2            # 時刻指定予約の終了マージン(秒)
   # shortProgramDurationThresholdSeconds: 300 # EIT更新のない短時間番組（PR・ミニ枠）のサービスストリーム自動切替閾値(秒、0で無効化、デフォルト: 300)

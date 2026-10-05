@@ -1,0 +1,24 @@
+import { runEncode } from './enc_helper.js';
+
+/**
+ * 高効率 1080p ハードウェアエンコード設定 (AMD / Intel VAAPI - HEVC/H.265)
+ * - 5600G 内蔵 GPU (VCN 2.2) 等による爆速 HEVC エンコード (実時間の 5〜8倍速)
+ * - VBR (目標 4Mbps / 最大 6Mbps / バッファ 12Mbps) により、海・波・森林などの自然映像でも容量肥大化を完全阻止
+ * - CPU デコード + GPU hwupload による安定動作 (Mesa radeonsi の EOF メモリクラッシュ回避)
+ * - 地デジ 1440x1080 を 1920x1080 に補正 & インターレース解除
+ * - 音声全トラック保持 & 二重音声 2トラック分離
+ * - 字幕保持 (ARIB STD-B24 -> mov_text)
+ */
+runEncode({
+    codec: 'hevc_vaapi',
+    vaapiDevice: '/dev/dri/renderD128',
+    vaapiHwaccel: false, // CPU デコード + hwupload (Radeon/Mesa の EOF メモリクラッシュ回避)
+    videoBitrate: '4000k',
+    maxrate: '6000k',
+    bufsize: '12000k',
+    rcMode: 'VBR',
+    maxHeight: 1080,
+    dualMono: 'split',
+    audioStreamMode: 'all',
+    subtitle: true,
+});

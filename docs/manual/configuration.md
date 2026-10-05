@@ -250,6 +250,11 @@ encode:
       script: enc_720p.js
       suffix: .mp4
       rate: 2.5
+    - name: HEVC-1080p-VAAPI
+      script: enc_1080p_hevc_vaapi.js
+      suffix: .mp4
+      rate: 2.0
+      subtitle: true
 
     # 2. 独自コマンド・外部シェルスクリプト指定 (cmd を直接記述)
     # %NODE% (Node.js実行パス), %ROOT% (プロジェクトルート) などのマクロや外部バイナリが利用可能です
@@ -277,6 +282,19 @@ encode:
 | **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
 | **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。録画実時間 × `rate` を超過した場合にハングアップとみなして強制終了します（例: 30分番組 × `rate: 4.0` = 120分でタイムアウト） |
 | **`subtitle`** | `boolean` | 任意 | このプリセットで MP4 内に ARIB 字幕（`mov_text`）を埋め込むかどうか（省略時: `encode.subtitle` の値に従う） |
+
+### ジャンル別・ハードウェア別エンコードの最適化ガイド
+
+`config/enc_*.js` では、番組ジャンル（アニメ、映画、自然映像等）や使用GPUに応じた最適化オプションを指定できます：
+
+| ターゲット | 推奨設定・オプション | 効果・特徴 |
+| :--- | :--- | :--- |
+| **アニメ** | `codec: 'libx264'`, `tune: 'animation'`, `crf: 23` | ベタ塗り部のビットを節約しつつ輪郭線を保護。通常より容量が20〜30%削減 |
+| **映画・シネマ** | `codec: 'libx264'`, `tune: 'film'`, `crf: 21` | 暗部階調とフィルムグレインのディテールを維持 |
+| **自然・海・波** | `maxrate: '6000k'`, `bufsize: '12000k'`<br>または `codec: 'hevc_vaapi'` (VBR 4M/6M) | 水面や吹雪、芝生などの高周波ノイズによる容量爆発（TS原画と同等以上になる現象）を確実に抑制 |
+| **AMD GPU (VAAPI)** | `enc_1080p_hevc_vaapi.js`<br>(`codec: 'hevc_vaapi'`, `vaapiHwaccel: false`) | Ryzen内蔵GPUによる高速HEVC変換。Mesaドライバのメモリクラッシュを回避する安定設計 |
+| **NVIDIA GPU (NVENC)** | `enc_nvenc.js`<br>(`codec: 'h264_nvenc'` または `'hevc_nvenc'`) | GeForce/Quadroによる高速処理（※設定例・実機動作未確認） |
+| **Intel GPU (QSV)** | `enc_qsv.js`<br>(`codec: 'h264_qsv'` または `'hevc_qsv'`) | Coreプロセッサ内蔵QuickSyncによる低消費電力エンコード（※設定例・実機動作未確認） |
 
 ---
 

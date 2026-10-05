@@ -1,14 +1,22 @@
 import { runEncode } from './enc_helper.js';
 
 /**
- * 高品質 1080p エンコード設定
+ * 高品質 1080p エンコード設定 (CPU libx264)
  * - フルHD (1080p) / CRF 21 / preset: medium
  * - 二重音声の2トラック（Main / Sub）分離
+ *
+ * 【ジャンル別 tune / パラメータのおすすめ】
+ * - アニメ: tune: 'animation' (輪郭線をクリアに保ちつつ容量を20〜30%削減)
+ * - 映画: tune: 'film' (フィルムグレインと暗部ディテールを保護)
+ * - 自然・波・海: tune: 'grain' または maxrate: '6000k', bufsize: '12000k' (水面・芝生等の容量爆発を完全阻止)
  */
 runEncode({
     codec: 'libx264',
     preset: 'medium',
     crf: 21,
+    // tune: 'animation', // アニメ向け
+    // maxrate: '6000k',  // 自然映像などの容量肥大化を抑える上限キャップ
+    // bufsize: '12000k',
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

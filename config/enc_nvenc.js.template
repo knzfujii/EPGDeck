@@ -2,12 +2,19 @@ import { runEncode } from './enc_helper.js';
 
 /**
  * NVIDIA NVENC ハードウェアアクセラレーション設定 (GeForce / Quadro GPU)
- * - h264_nvenc / cq 23 / preset: p4 (medium)
+ * ※ 本テンプレートは設定例（雛形）であり、実機環境での動作未確認です。
+ * - h264_nvenc または hevc_nvenc (GTX 960/1050以降でHEVC対応)
+ * - preset: p1 (fastest) 〜 p7 (slowest/highest quality), 標準は p4 (medium)
+ * - tune: 'hq' (高画質・標準) | 'll' (低遅延) | 'ull' (超低遅延) | 'lossless'
+ * - 自然・波・海などの容量肥大化を防ぐには、maxrate / bufsize の指定を推奨
  */
 runEncode({
-    codec: 'h264_nvenc',
+    codec: 'h264_nvenc', // または 'hevc_nvenc'
     preset: 'p4',
-    crf: 23,
+    // tune: 'hq',
+    crf: 23, // NVENC の -cq 値 (0-51)
+    // maxrate: '6000k',  // 容量爆発を防ぐ上限キャップ
+    // bufsize: '12000k',
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

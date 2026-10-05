@@ -160,6 +160,11 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         probesize = '32M',
         maxMuxingQueueSize = 1024,
         vaapiDevice = '/dev/dri/renderD128',
+        vaapiHwaccel = true,
+        maxrate = null,
+        bufsize = null,
+        rcMode = null,
+        tune = null,
         customArgs = [],
         modifyArgs = null,
     } = options;
@@ -191,7 +196,10 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     }
 
     if (isVAAPI) {
-        args.push('-vaapi_device', vaapiDevice, '-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi');
+        args.push('-vaapi_device', vaapiDevice);
+        if (vaapiHwaccel) {
+            args.push('-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi');
+        }
     }
 
     args.push('-i', input);
@@ -270,11 +278,21 @@ const buildFFmpegArgs = (options, mediaInfo) => {
 
     if (isVAAPI) {
         const filters = [];
-        if (deinterlace) {
-            filters.push('deinterlace_vaapi');
-        }
-        if (res.isScaled) {
-            filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+        if (vaapiHwaccel) {
+            if (deinterlace) {
+                filters.push('deinterlace_vaapi');
+            }
+            if (res.isScaled) {
+                filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+            }
+        } else {
+            if (deinterlace) {
+                filters.push('yadif');
+            }
+            if (res.isScaled) {
+                filters.push(`scale=${res.targetW}:${res.targetH},setsar=1/1`);
+            }
+            filters.push('format=nv12', 'hwupload');
         }
         if (filters.length > 0) {
             args.push('-vf', filters.join(','));
@@ -299,19 +317,30 @@ const buildFFmpegArgs = (options, mediaInfo) => {
 
     if (isVAAPI) {
         args.push('-b:v', videoBitrate || (res.targetH <= 720 ? '2500k' : '4500k'));
+        if (maxrate) args.push('-maxrate', maxrate);
+        if (bufsize) args.push('-bufsize', bufsize);
+        if (rcMode) args.push('-rc_mode', rcMode);
     } else if (isNVENC) {
         if (preset) args.push('-preset', preset);
+        if (tune) args.push('-tune', tune);
         if (crf !== null) args.push('-cq', String(crf));
         if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (maxrate) args.push('-maxrate', maxrate);
+        if (bufsize) args.push('-bufsize', bufsize);
     } else if (isQSV) {
         if (preset) args.push('-preset', preset);
         if (crf !== null) args.push('-global_quality', String(crf));
         if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (maxrate) args.push('-maxrate', maxrate);
+        if (bufsize) args.push('-bufsize', bufsize);
     } else {
         // CPU
         if (preset) args.push('-preset', preset);
+        if (tune) args.push('-tune', tune);
         if (crf !== null) args.push('-crf', String(crf));
         if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (maxrate) args.push('-maxrate', maxrate);
+        if (bufsize) args.push('-bufsize', bufsize);
     }
 
     // 音声共通オプション

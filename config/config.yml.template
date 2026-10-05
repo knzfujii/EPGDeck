@@ -120,6 +120,11 @@ encode:
       suffix: .mp4
       rate: 2.5
       # subtitle: false
+    # - name: HEVC-1080p-VAAPI
+    #   script: enc_1080p_hevc_vaapi.js
+    #   suffix: .mp4
+    #   rate: 2.0
+    #   subtitle: true
     # - name: H.264-VAAPI
     #   script: enc_vaapi.js
     #   suffix: .mp4

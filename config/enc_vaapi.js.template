@@ -1,15 +1,18 @@
 import { runEncode } from './enc_helper.js';
 
 /**
- * Linux VAAPI ハードウェアアクセラレーション設定 (Intel / AMD GPU)
+ * Linux VAAPI ハードウェアアクセラレーション設定 (Intel / AMD GPU - H.264)
  * - GPU によるインターレース解除 (deinterlace_vaapi)
  * - 地デジ 1440x1080 を 1920x1080 にハードウェア拡大補正
  * - 二重音声の2トラック分離
+ * - ※ 自然映像や高精細番組の容量爆発を防ぐ場合は、高圧縮な HEVC 版 (enc_1080p_hevc_vaapi.js) の利用を推奨
  */
 runEncode({
     codec: 'h264_vaapi',
     vaapiDevice: '/dev/dri/renderD128',
     videoBitrate: '4500k',
+    // maxrate: '6000k',
+    // bufsize: '12000k',
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

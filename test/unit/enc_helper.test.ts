@@ -224,6 +224,75 @@ describe('enc_helper.js', () => {
             expect(args).toContain('4500k');
         });
 
+        it('should support VAAPI with CPU decode (vaapiHwaccel: false), maxrate, bufsize, and rcMode', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    vaapiHwaccel: false,
+                    videoBitrate: '4000k',
+                    maxrate: '6000k',
+                    bufsize: '12000k',
+                    rcMode: 'VBR',
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-vaapi_device');
+            expect(args).toContain('/dev/dri/renderD128');
+            expect(args).not.toContain('-hwaccel');
+            expect(args).toContain('-vf');
+            expect(args).toContain('yadif,scale=1920:1080,setsar=1/1,format=nv12,hwupload');
+            expect(args).toContain('-c:v');
+            expect(args).toContain('hevc_vaapi');
+            expect(args).toContain('-b:v');
+            expect(args).toContain('4000k');
+            expect(args).toContain('-maxrate');
+            expect(args).toContain('6000k');
+            expect(args).toContain('-bufsize');
+            expect(args).toContain('12000k');
+            expect(args).toContain('-rc_mode');
+            expect(args).toContain('VBR');
+        });
+
+        it('should support tune, maxrate, and bufsize for CPU encoders', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'libx264',
+                    tune: 'animation',
+                    crf: 23,
+                    maxrate: '5000k',
+                    bufsize: '10000k',
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-c:v');
+            expect(args).toContain('libx264');
+            expect(args).toContain('-tune');
+            expect(args).toContain('animation');
+            expect(args).toContain('-crf');
+            expect(args).toContain('23');
+            expect(args).toContain('-maxrate');
+            expect(args).toContain('5000k');
+            expect(args).toContain('-bufsize');
+            expect(args).toContain('10000k');
+        });
+
         it('should include subtitle streams and -fix_sub_duration when subtitle is true', () => {
             const mediaInfo = {
                 duration: 1800,

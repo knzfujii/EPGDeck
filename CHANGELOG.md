@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-beta.1] - 2026-10-05
+
+### Changed
+- **Pure DI への全面刷新（Inversify / reflect-metadata の完全排除）**:
+  - `inversify` および `reflect-metadata` への依存を完全撤廃し、TC39 Stage 1 レガシーデコレータ設定（`experimentalDecorators`, `emitDecoratorMetadata`）を削除。
+  - TypeScript 標準の型安全な `ModelContainer`（DI コンテナ）および Composition Root（`ModelContainerSetter`）を自前実装。シングルトン・トランジェント・遅延初期化プロバイダ・循環依存検知をサポートし、起動速度と型安全性を向上。全モデル・DB・イベント・サービスから `@injectable()` / `@inject()` デコレータを排除。
+- **デッドコード・旧レガシー定義のクリーンアップ**:
+  - EPGStation v1/v2 由来の旧定数ファイル（`client/src/lib/event.ts`）、未使用 TypeORM Entity（`src/db/entities/Rule.ts`）、空ディレクトリおよび内部の未使用エクスポート（`getDrizzleInstance`, `responseJSON`, `createThumbnailBodySchema`, `formatBitrate`）を完全整理。
+
+### Fixed
+- **アクセスログにおける正確な HTTP ステータスコード記録**:
+  - Hono アクセスログミドルウェアにおいて、未送信の Node `ServerResponse` デフォルトステータス（200）で上書きされていた問題を修正し、4xx/5xx エラーレスポンス時も正確なステータスコードを記録可能に。また、未処理例外発生時も確実にログ出力されるよう `try...finally` で保護。
+- **短時間番組（スポット枠等）におけるサービスストリーム利用による EIT タイムアウト回避**:
+  - 放送波の EIT 更新間隔（最大約 20 秒）を下回る極めて短時間の番組（1分枠・天気予報・スポットニュース等）において、Mirakurun `getProgramStream` の EIT 待機によるタイムアウト・録画失敗を防止するため、設定可能な閾値（デフォルト 60 秒以下）に基づいてサービスストリーム（`getServiceStream`）へ自動切り替え。
+- **エンコードおよびサムネイルログにおける不要な undefined 出力の抑止**:
+  - エンコード・サムネイル生成ログにおいて、空のパラメータが `undefined` として出力されていた表示ノイズを解消。
+- **リードオンリーモード（閲覧専用）時の UI 導線の最適化**:
+  - 閲覧専用モード有効時に、操作不能な導線（番組表モーダルの「ルール追加」、ルール一覧の「ルール追加」およびカードクリック遷移、ダッシュボードの「ルール編集」ボタン）を非表示化。個別予約モーダルで編集フォームの代わりに閲覧用カードを表示。
+- **動画プレイヤーシークバーのホバー時垂直位置ズレ解消**:
+  - シークバーにホバーした際、高さ変化アニメーション（`hover:h-2.5`）によって垂直位置がガタついていた挙動を解消。
+
+### Documentation
+- **ドキュメント全体の実装同期**:
+  - `packages/arib-probe`、放送追従（EIT・イベントリレー・短時間番組ストリーム切り替え）、オンデマンド WebVTT 字幕抽出、ドロップログ可視化、リードオンリーモード等の最新実装に合わせて `README.md`、`docs/manual/`、`docs/dev/` を同期。
+
 ## [0.2.0-beta.1] - 2026-10-04
 
 ### Added

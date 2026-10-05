@@ -28,8 +28,6 @@ export type DrizzleDB =
           schema: typeof mysqlSchema;
       };
 
-let drizzleInstance: DrizzleDB | null = null;
-
 export function createDrizzleClient(config: IConfigFile, customDbPath?: string): DrizzleDB {
     if (config.database.type === 'sqlite') {
         const appRootPath = path.join(__dirname, '..', '..');
@@ -73,11 +71,4 @@ export function createDrizzleClient(config: IConfigFile, customDbPath?: string):
     }
 
     throw new Error(`Unsupported dbtype: ${config.database.type}`);
-}
-
-export function getDrizzleInstance(config: IConfigFile): DrizzleDB {
-    if (!drizzleInstance) {
-        drizzleInstance = createDrizzleClient(config);
-    }
-    return drizzleInstance;
 }

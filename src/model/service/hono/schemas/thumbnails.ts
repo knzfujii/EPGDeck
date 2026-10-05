@@ -21,10 +21,3 @@ export const createThumbnailQuerySchema = z.object({
         }, z.boolean().optional())
         .optional(),
 });
-
-export const createThumbnailBodySchema = z
-    .object({
-        seconds: z.number().min(0).optional(),
-        replace: z.boolean().optional(),
-    })
-    .optional();

@@ -11,14 +11,6 @@ export interface IError {
     errors?: string;
 }
 
-export const responseJSON = (c: Context, code: number, body?: any): Response => {
-    return c.json(body ?? null, code as any, {
-        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
-        Expires: '-1',
-        Pragma: 'no-cache',
-    });
-};
-
 export const responseError = (c: Context, reason: IError): Response => {
     return c.json(
         {

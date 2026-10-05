@@ -122,20 +122,6 @@ export function formatSize(bytes: number | undefined | null): string {
 }
 
 /**
- * ビットレート（bps）を "kbps" または "Mbps" にフォーマット
- */
-export function formatBitrate(bps: number | undefined | null): string {
-    if (!bps || bps <= 0) return '0 bps';
-    if (bps >= 1_000_000) {
-        return `${(bps / 1_000_000).toFixed(2)} Mbps`;
-    }
-    if (bps >= 1_000) {
-        return `${(bps / 1_000).toFixed(0)} kbps`;
-    }
-    return `${bps} bps`;
-}
-
-/**
  * 番組タイトルから記号（[字], 【新】, 「」等）を除去し、検索に適した先頭の単語を抽出する（EPGStation互換）
  */
 export function extractFirstSearchWord(title: string | undefined | null): string {

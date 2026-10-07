@@ -195,7 +195,7 @@ describe('enc_helper.js', () => {
             expect(args).not.toContain('title=Sub');
         });
 
-        it('should build VAAPI hardware encoding arguments with 1440p scale_vaapi', () => {
+        it('should keep 1440x1080 resolution for VAAPI by default (fix1440to1920: false)', () => {
             const mediaInfo = {
                 duration: 1800,
                 width: 1440,
@@ -217,14 +217,37 @@ describe('enc_helper.js', () => {
             expect(args).toContain('-hwaccel');
             expect(args).toContain('vaapi');
             expect(args).toContain('-vf');
-            expect(args).toContain('deinterlace_vaapi,scale_vaapi=w=1920:h=1080,setsar=1/1');
+            expect(args).toContain('deinterlace_vaapi');
+            expect(args).not.toContain('scale_vaapi=w=1920:h=1080');
             expect(args).toContain('-c:v');
             expect(args).toContain('h264_vaapi');
             expect(args).toContain('-b:v');
             expect(args).toContain('4500k');
         });
 
-        it('should support VAAPI with CPU decode (vaapiHwaccel: false), maxrate, bufsize, and rcMode', () => {
+        it('should scale 1440x1080 to 1920x1080 for VAAPI when fix1440to1920 is true', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'h264_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    videoBitrate: '4500k',
+                    fix1440to1920: true,
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-vf');
+            expect(args).toContain('deinterlace_vaapi,scale_vaapi=w=1920:h=1080,setsar=1/1');
+        });
+
+        it('should support VAAPI with CPU decode (vaapiHwaccel: false), maxrate, bufsize, rcMode, and fix1440to1920', () => {
             const mediaInfo = {
                 duration: 1800,
                 width: 1440,
@@ -241,6 +264,7 @@ describe('enc_helper.js', () => {
                     maxrate: '6000k',
                     bufsize: '12000k',
                     rcMode: 'VBR',
+                    fix1440to1920: true,
                 },
                 mediaInfo,
             );

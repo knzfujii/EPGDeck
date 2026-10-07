@@ -207,6 +207,10 @@ private injectDefaultCaptionManagement(timeSec = 0): void {
   - `-fix_sub_duration` は直前のパケットの duration を `次のパケットの PTS - 直前のパケットの PTS` で動的に調整します。
   - そのため、**洋画劇場など「字幕が映像に焼き込まれたオープンキャプション作品（＜字幕スーパー＞）」** や長時間特番などで、冒頭にわずかに ARIB 字幕が出た後、次の字幕パケットが約 35.7 分（2,147 秒）以上届かない場合、計算された duration が MP4/MOV の符号付き 32bit 最大値 `INT_MAX`（2,147,483,647 マイクロ秒 ≒ 2,147 秒）を超過します。
   - この場合、MP4 muxer（`libavformat/movenc.c`）のバリデーションチェックにより `Application provided duration: ... in stream ... is invalid` が発生してエンコードが終了します。
+  - **注意点2（字幕なし番組でのダミー空パケット起因によるクラッシュ）**:
+    - ARIB 規格では、字幕放送を行っていない番組（紀行、音楽、スポーツ等）であっても、ストリーム内に「画面クリア」の空パケット（ダミー字幕信号）が常時送出されています。
+    - このような番組で `subtitle: true` にすると、番組終了直前の空パケットに対して FFmpeg が無期限（UINT32_MAX ≒ 約1194時間）の duration を割り振ってしまい、MP4 の `INT_MAX` を超過してエンコード末尾で異常終了（`Application provided duration is invalid` / exit code 234）します。
+    - したがって、通常は `subtitle: false` を基本運用とし、アニメやドラマなど確実に字幕が存在する番組に対してのみ個別プリセット（またはルール指定）で有効化することが推奨されます。
   - **自動回避策 (`skipSubtitleForSuperimpose: true`)**:
     - `config.yml` の `encode.skipSubtitleForSuperimpose: true` を設定すると、番組情報（タイトル・概要・詳細）に「字幕スーパー」が含まれている番組をエンコード開始時に自動検知し、字幕埋め込みを無効化（`subtitle: false` / `-sn`）してエンコードを実行します。
     - これにより、長時間のエンコード（例: 20〜30分間）が無駄に走った後にクラッシュする事態を完全にゼロにし、正常かつ高速にエンコードを完了させます。

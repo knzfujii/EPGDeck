@@ -148,8 +148,7 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         videoBitrate = null,
         scale = null, // '1080p' | '720p' | '540p' | '480p' | 'native' | 'W:H'
         maxHeight = 1080,
-        // fix1440to1920: デフォルト false (VAAPI は自動で true)
-        fix1440to1920 = isVAAPI ? true : false,
+        fix1440to1920 = false,
         deinterlace = true,
         dualMono = 'split', // 'split' | 'main' | 'sub'
         audioStreamMode = 'first', // 'first' (第1トラックのみ・標準) | 'all' (全トラック保持)
@@ -273,8 +272,7 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     // -------------------------------------------------------------
     // 映像フィルター・解像度スケーリング処理
     // -------------------------------------------------------------
-    const effectiveFix1440 = isVAAPI ? true : fix1440to1920;
-    const res = resolveResolution(scale, maxHeight, mediaInfo.width, mediaInfo.height, effectiveFix1440);
+    const res = resolveResolution(scale, maxHeight, mediaInfo.width, mediaInfo.height, fix1440to1920);
 
     if (isVAAPI) {
         const filters = [];

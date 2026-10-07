@@ -14,6 +14,7 @@ runEncode({
     // maxrate: '6000k',
     // bufsize: '12000k',
     maxHeight: 1080,
+    fix1440to1920: true, // 地デジ 1440x1080 を 1920x1080 に GPU 拡大補正
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映
 });

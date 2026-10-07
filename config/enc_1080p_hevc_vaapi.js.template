@@ -18,7 +18,8 @@ runEncode({
     bufsize: '12000k',
     rcMode: 'VBR',
     maxHeight: 1080,
+    fix1440to1920: true, // 地デジ 1440x1080 を 1920x1080 に拡大 (容量最少化・原画維持を優先する場合は false)
     dualMono: 'split',
     audioStreamMode: 'all',
-    subtitle: true,
+    subtitle: false,
 });

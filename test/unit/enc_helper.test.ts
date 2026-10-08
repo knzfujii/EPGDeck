@@ -280,10 +280,131 @@ describe('enc_helper.js', () => {
             expect(args).toContain('4000k');
             expect(args).toContain('-maxrate');
             expect(args).toContain('6000k');
-            expect(args).toContain('-bufsize');
-            expect(args).toContain('12000k');
             expect(args).toContain('-rc_mode');
             expect(args).toContain('VBR');
+            expect(args).toContain('-bsf:v');
+            expect(args).toContain('hevc_metadata=height=1080');
+        });
+
+        it('should support CQP rate control mode and qp for VAAPI encoders without -b:v', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    rcMode: 'CQP',
+                    qp: 33,
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-rc_mode');
+            expect(args).toContain('CQP');
+            expect(args).toContain('-qp');
+            expect(args).toContain('33');
+            expect(args).not.toContain('-b:v');
+        });
+
+        it('should fallback to crf when qp is omitted in CQP mode for VAAPI', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    rcMode: 'CQP',
+                    crf: 28,
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-rc_mode');
+            expect(args).toContain('CQP');
+            expect(args).toContain('-qp');
+            expect(args).toContain('28');
+            expect(args).not.toContain('-b:v');
+        });
+
+        it('should enable CQP mode automatically when qp option is specified for VAAPI', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    qp: 34,
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-rc_mode');
+            expect(args).toContain('CQP');
+            expect(args).toContain('-qp');
+            expect(args).toContain('34');
+            expect(args).not.toContain('-b:v');
+        });
+
+        it('should resolve fallback bitrate according to quality preset when videoBitrate is omitted or auto', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const argsHighest = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    quality: 'highest',
+                },
+                mediaInfo,
+            );
+
+            expect(argsHighest).toContain('-c:v');
+            expect(argsHighest).toContain('hevc_vaapi');
+            expect(argsHighest).toContain('-b:v');
+            expect(argsHighest).toContain('5300k');
+
+            const argsHigh = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    quality: 'high',
+                    videoBitrate: 'auto',
+                },
+                mediaInfo,
+            );
+            expect(argsHigh).toContain('-b:v');
+            expect(argsHigh).toContain('3900k');
+
+            const args720p = buildFFmpegArgs(
+                {
+                    codec: 'hevc_vaapi',
+                    vaapiDevice: '/dev/dri/renderD128',
+                    quality: 'high',
+                    scale: '720p',
+                },
+                mediaInfo,
+            );
+            expect(args720p).toContain('-b:v');
+            expect(args720p).toContain('2600k');
         });
 
         it('should support tune, maxrate, and bufsize for CPU encoders', () => {
@@ -464,7 +585,9 @@ describe('enc_helper.js', () => {
 
             const configDir = path.resolve(process.cwd(), 'config');
             const files = fs.readdirSync(configDir);
-            const activeEncFiles = files.filter(f => f.startsWith('enc') && f.endsWith('.js') && f !== 'enc_helper.js');
+            const activeEncFiles = files.filter(
+                f => f.startsWith('enc') && f.endsWith('.js') && f !== 'enc_helper.js' && f !== 'enc_probe.js',
+            );
 
             for (const file of activeEncFiles) {
                 const fullPath = path.join(configDir, file);

@@ -1,5 +1,6 @@
 import { spawn, execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { estimateOptimalBitrate, resolveQualityConfig } from './enc_probe.js';
 
 /**
  * ffprobe を用いてメディア情報（動画長、解像度、有効な音声ストリーム）を取得する
@@ -145,7 +146,10 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         codec = 'libx264',
         preset = 'medium',
         crf = 23,
+        qp = null,
         videoBitrate = null,
+        quality = null,
+        autoBitrate = false,
         scale = null, // '1080p' | '720p' | '540p' | '480p' | 'native' | 'W:H'
         maxHeight = 1080,
         fix1440to1920 = false,
@@ -314,10 +318,30 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     args.push('-aspect', '16:9', '-c:v', codec);
 
     if (isVAAPI) {
-        args.push('-b:v', videoBitrate || (res.targetH <= 720 ? '2500k' : '4500k'));
-        if (maxrate) args.push('-maxrate', maxrate);
-        if (bufsize) args.push('-bufsize', bufsize);
-        if (rcMode) args.push('-rc_mode', rcMode);
+        if (rcMode === 'CQP' || qp !== null) {
+            args.push('-rc_mode', 'CQP');
+            const effectiveQp = qp !== null ? qp : crf !== null ? crf : 33;
+            args.push('-qp', String(effectiveQp));
+        } else {
+            let defaultVb = res.targetH <= 720 ? '2500k' : '4500k';
+            if (quality) {
+                const qConf = resolveQualityConfig(quality);
+                const outPixels = res.targetW * res.targetH;
+                const resFactor = Math.pow(outPixels / (1440 * 1080), 0.75);
+                const baseBps = (qConf.minBps + qConf.maxBps) / 2;
+                defaultVb = `${Math.round((baseBps * resFactor) / 100) * 100}k`;
+            }
+            const effectiveVideoBitrate = videoBitrate && videoBitrate !== 'auto' ? videoBitrate : defaultVb;
+            args.push('-b:v', effectiveVideoBitrate);
+            if (maxrate) args.push('-maxrate', maxrate);
+            if (bufsize) args.push('-bufsize', bufsize);
+            if (rcMode) args.push('-rc_mode', rcMode);
+        }
+        if (codec === 'hevc_vaapi') {
+            // Mesa/radeonsi 等の VAAPI HEVC で 1080p を 1088 にパディングした際、
+            // SPS conformance window (crop_bottom) を書き忘れて下部に黒帯・緑線が出る不具合を bitstream filter で恒久修正
+            args.push('-bsf:v', `hevc_metadata=height=${res.targetH}`);
+        }
     } else if (isNVENC) {
         if (preset) args.push('-preset', preset);
         if (tune) args.push('-tune', tune);
@@ -452,15 +476,66 @@ async function runEncode(options = {}) {
     const analyzeduration = options.analyzeduration || '10M';
     const probesize = options.probesize || '32M';
 
-    // 1. メディア情報解析
+    // メディア情報解析
     const mediaInfo = await getMediaInfo(ffprobe, input, analyzeduration, probesize);
 
-    // 2. 引数構築
-    const args = buildFFmpegArgs(options, mediaInfo);
+    let effectiveOptions = { ...options };
+
+    // 出力解像度を事前算出 (解像度に応じたビットレート最適化に使用)
+    const res = resolveResolution(
+        effectiveOptions.scale,
+        effectiveOptions.maxHeight,
+        mediaInfo.width,
+        mediaInfo.height,
+        effectiveOptions.fix1440to1920
+    );
+
+    // コンテンツ適応型ビットレート自動推定 (Per-Content Adaptive Bitrate)
+    const isAutoBitrateRequested =
+        options.quality !== undefined ||
+        options.videoBitrate === 'auto' ||
+        options.autoBitrate === true;
+
+    const isVAAPI = (options.codec || '').includes('vaapi');
+    const isCQP = options.rcMode === 'CQP' || (options.qp !== null && options.qp !== undefined);
+
+    if (isAutoBitrateRequested && isVAAPI && !isCQP) {
+        try {
+            console.error('[enc_helper] Probing content complexity for adaptive bitrate estimation...');
+            const probeResult = await estimateOptimalBitrate(input, {
+                quality: options.quality || 'high',
+                ffmpegPath: ffmpeg,
+                ffprobePath: ffprobe,
+                vaapiDevice: options.vaapiDevice || '/dev/dri/renderD128',
+                targetWidth: res.targetW,
+                targetHeight: res.targetH,
+            });
+
+            effectiveOptions = {
+                ...effectiveOptions,
+                videoBitrate: probeResult.videoBitrate,
+                maxrate: effectiveOptions.maxrate || probeResult.maxrate,
+                bufsize: effectiveOptions.bufsize || probeResult.bufsize,
+            };
+
+            console.error(
+                `[enc_helper] Auto bitrate estimated: ${probeResult.videoBitrate} ` +
+                `(maxrate: ${effectiveOptions.maxrate}, bufsize: ${effectiveOptions.bufsize}, ` +
+                `complexity: ${probeResult.complexityKbps || 'N/A'} kbps, quality: ${options.quality || 'high'}, ` +
+                `samples: ${probeResult.probeCount}, percentile: ${probeResult.percentile || 'P75'}, ` +
+                `qSlope: ${probeResult.qSlope || 'N/A'}, scaleFactor: ${probeResult.resFactor || 1.0})`
+            );
+        } catch (e) {
+            console.error('[enc_helper] Auto bitrate estimation failed, falling back to defaults:', e?.message || e);
+        }
+    }
+
+    // 引数構築
+    const args = buildFFmpegArgs(effectiveOptions, mediaInfo);
 
     console.error('[enc_helper] FFmpeg command: ' + formatCommand(ffmpeg, args));
 
-    // 3. プロセス実行
+    // プロセス実行
     let child = null;
 
     process.on('SIGINT', () => {
@@ -508,7 +583,7 @@ async function runEncode(options = {}) {
             return;
         }
 
-        // 4. 出力ファイルの整合性・動画長検証 (ドロップによる短小破損ブロック)
+        // 出力ファイルの整合性・動画長検証 (ドロップによる短小破損ブロック)
         try {
             const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, options);
             if (!check.valid) {

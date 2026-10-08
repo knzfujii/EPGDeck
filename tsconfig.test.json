@@ -6,6 +6,7 @@
         "incremental": true,
         "tsBuildInfoFile": "./.tsbuildinfo.test"
     },
-    "include": ["src/**/*", "test/**/*"]
+    "include": ["src/**/*", "test/**/*"],
+    "exclude": ["test/**/test_hls_temp/**/*"]
 }
 

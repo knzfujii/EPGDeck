@@ -17,6 +17,7 @@ config/*
 !config/*.sample.yml
 !config/config.test.yml
 !config/enc_helper.js
+!config/enc_probe.js
 data/*.json
 data/upload/*
 drop/*.log

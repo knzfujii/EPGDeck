@@ -449,9 +449,26 @@ describe('enc_helper.js', () => {
             expect(args).toContain('0:s?');
             expect(args).toContain('-c:s');
             expect(args).toContain('mov_text');
+            expect(args).toContain('-time_base:s');
+            expect(args).toContain('1/1000');
             expect(args).toContain('-metadata:s:s:0');
             expect(args).toContain('language=jpn');
             expect(args).not.toContain('-sn');
+        });
+
+        it('should set subtitle timebase to 1/1000 to prevent 32-bit duration overflow in MP4 muxer', () => {
+            const mediaInfo = {
+                duration: 3600,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ subtitle: true }, mediaInfo);
+
+            const timeBaseIdx = args.indexOf('-time_base:s');
+            expect(timeBaseIdx).toBeGreaterThan(-1);
+            expect(args[timeBaseIdx + 1]).toBe('1/1000');
         });
 
         it('should enable subtitle streams when process.env.SUBTITLE is true', () => {

@@ -82,6 +82,212 @@ describe('enc_helper.js', () => {
             expect(argsCustom).toContain('yadif,scale=854:480,setsar=1/1');
         });
 
+        it('should automatically normalize horizontal resolution to 16:9 square pixels (1280x720) when scaling 1440x1080 with maxHeight', () => {
+            const mediaInfo1440 = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            // maxHeight: 720 を指定した場合、1440x1080 から 960x720 ではなく 1280x720 に自動正規化されること
+            const args720 = buildFFmpegArgs({ codec: 'libx264', maxHeight: 720 }, mediaInfo1440);
+            expect(args720).toContain('yadif,scale=1280:720,setsar=1/1');
+
+            // maxHeight: 540 を指定した場合も 960x540 に自動正規化されること
+            const args540 = buildFFmpegArgs({ codec: 'libx264', maxHeight: 540 }, mediaInfo1440);
+            expect(args540).toContain('yadif,scale=960:540,setsar=1/1');
+        });
+
+        it('should support tune, maxrate, and bufsize for CPU encoders and auto-fallback bufsize', () => {
+            const mediaInfo = {
+                duration: 1800,
+                width: 1920,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs(
+                {
+                    codec: 'libx264',
+                    preset: 'fast',
+                    tune: 'animation',
+                    crf: 23,
+                    videoBitrate: '2000k',
+                    maxrate: '3000k',
+                    bufsize: '6000k',
+                },
+                mediaInfo,
+            );
+
+            expect(args).toContain('-tune');
+            expect(args).toContain('animation');
+            // videoBitrate が指定された場合、crf は排他制御で除外されること
+            expect(args).toContain('-b:v');
+            expect(args).toContain('2000k');
+            expect(args).not.toContain('-crf');
+            expect(args).toContain('-maxrate');
+            expect(args).toContain('3000k');
+            expect(args).toContain('-bufsize');
+            expect(args).toContain('6000k');
+
+            // bufsize 省略時に maxrate の 2倍が自動補完されること
+            const argsAutoBuf = buildFFmpegArgs(
+                {
+                    codec: 'libx264',
+                    maxrate: '4000k',
+                },
+                mediaInfo,
+            );
+            expect(argsAutoBuf).toContain('-maxrate');
+            expect(argsAutoBuf).toContain('4000k');
+            expect(argsAutoBuf).toContain('-bufsize');
+            expect(argsAutoBuf).toContain('8000k');
+            expect(argsAutoBuf).toContain('-crf'); // videoBitrate なしなので crf 有効
+
+            // NVENC では CPU 向け tune (animation 等) が渡されないこと
+            const argsNvenc = buildFFmpegArgs(
+                {
+                    codec: 'h264_nvenc',
+                    tune: 'animation',
+                },
+                mediaInfo,
+            );
+            expect(argsNvenc).not.toContain('animation');
+        });
+
+        it('should attach setsar=4/3 for 1440x1080 when unscaled to preserve display aspect ratio', () => {
+            const mediaInfo1440 = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            const args = buildFFmpegArgs({ codec: 'libx264', fix1440to1920: false }, mediaInfo1440);
+            expect(args).toContain('yadif,setsar=4/3');
+            expect(args).toContain('-aspect');
+            expect(args).toContain('16:9');
+        });
+
+        describe('Parameter combinations', () => {
+            const mediaInfo1440 = {
+                duration: 1800,
+                width: 1440,
+                height: 1080,
+                audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
+            };
+
+            it('Combination 1: x265 with tune grain, crf 28, maxrate and explicit bufsize', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'libx265',
+                        preset: 'slow',
+                        tune: 'grain',
+                        crf: 28,
+                        maxrate: '2000k',
+                        bufsize: '3000k',
+                        maxHeight: 720,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-c:v');
+                expect(args).toContain('libx265');
+                expect(args).toContain('-preset');
+                expect(args).toContain('slow');
+                expect(args).toContain('-tune');
+                expect(args).toContain('grain');
+                expect(args).toContain('-crf');
+                expect(args).toContain('28');
+                expect(args).not.toContain('-b:v');
+                expect(args).toContain('-maxrate');
+                expect(args).toContain('2000k');
+                expect(args).toContain('-bufsize');
+                expect(args).toContain('3000k'); // 明示指定が優先されること
+                expect(args).toContain('yadif,scale=1280:720,setsar=1/1');
+            });
+
+            it('Combination 2: ABR mode with videoBitrate + maxrate + bufsize (CRF must be excluded)', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'libx264',
+                        preset: 'medium',
+                        videoBitrate: '2500k',
+                        maxrate: '4000k',
+                        bufsize: '8000k',
+                        maxHeight: 1080,
+                        fix1440to1920: true,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-b:v');
+                expect(args).toContain('2500k');
+                expect(args).not.toContain('-crf');
+                expect(args).toContain('-maxrate');
+                expect(args).toContain('4000k');
+                expect(args).toContain('-bufsize');
+                expect(args).toContain('8000k');
+                expect(args).toContain('yadif,scale=1920:1080,setsar=1/1');
+            });
+
+            it('Combination 3: QSV encoder with videoBitrate (global_quality must be excluded)', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'h264_qsv',
+                        preset: 'veryfast',
+                        videoBitrate: '3000k',
+                        crf: 23, // 指定されていても videoBitrate により除外されるべき
+                        maxrate: '4500k',
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-c:v');
+                expect(args).toContain('h264_qsv');
+                expect(args).toContain('-b:v');
+                expect(args).toContain('3000k');
+                expect(args).not.toContain('-global_quality');
+                expect(args).toContain('-maxrate');
+                expect(args).toContain('4500k');
+                expect(args).toContain('-bufsize');
+                expect(args).toContain('9000k'); // 2倍自動補完
+            });
+
+            it('Combination 4: NVENC encoder with CRF (converted to -cq, videoBitrate excluded, tune ignored)', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_nvenc',
+                        preset: 'p4',
+                        tune: 'animation', // CPU向けtuneは無視されるべき
+                        crf: 26,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-c:v');
+                expect(args).toContain('hevc_nvenc');
+                expect(args).toContain('-preset');
+                expect(args).toContain('p4');
+                expect(args).toContain('-cq');
+                expect(args).toContain('26');
+                expect(args).not.toContain('-tune');
+                expect(args).not.toContain('animation');
+                expect(args).not.toContain('-b:v');
+            });
+
+            it('Combination 5: 480p and 540p scaling normalization from 1440x1080', () => {
+                const args480 = buildFFmpegArgs({ maxHeight: 480 }, mediaInfo1440);
+                // 1440x1080 -> 16:9 480p は 854x480
+                expect(args480).toContain('yadif,scale=854:480,setsar=1/1');
+
+                const args540 = buildFFmpegArgs({ maxHeight: 540 }, mediaInfo1440);
+                // 1440x1080 -> 16:9 540p は 960x540
+                expect(args540).toContain('yadif,scale=960:540,setsar=1/1');
+            });
+        });
+
         it('should configure independent main and secondary audio bitrates', () => {
             process.env.AUDIOCOMPONENTTYPE = '2'; // デュアルモノ
 

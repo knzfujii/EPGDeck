@@ -2,13 +2,16 @@ import { runEncode } from './enc_helper.js';
 
 /**
  * 軽量 720p エンコード設定 (スマホ・外出先視聴向け)
- * - HD (1280x720) / CRF 23 / preset: fast
+ * - HD (1280x720 / 正方形ピクセル 16:9 へ自動正規化)
+ * - CRF 23 / preset: fast
  * - 主音声のみ抽出
  */
 runEncode({
     codec: 'libx264',
     preset: 'fast',
+    // tune: 'animation', // アニメ向け輪郭線・フラット領域の最適化
     crf: 23,
+    // maxrate: '2500k',  // 最大ビットレート制限 (bufsize は未指定時 maxrate*2 が自動設定)
     maxHeight: 720,
     dualMono: 'main',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

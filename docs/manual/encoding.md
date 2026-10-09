@@ -22,9 +22,10 @@ flowchart TD
 ```
 
 ### 主な特徴・改善点
-1. **地デジ 1440×1080 の柔軟な制御 (`fix1440to1920`)**:
-   - デフォルト（`false`）では、1440×1080 のまま `-aspect 16:9` メタデータをつけて出力し、**ファイルサイズを約 15〜25% 節約**。
-   - `fix1440to1920: true` を指定するか、VAAPI ハードウェアエンコード時は自動で **1920×1080（1:1 正方形ピクセル）** に拡大補正し、あらゆる再生環境での 4:3 潰れを完全に防止します。
+1. **地デジ 1440×1080 の柔軟なアスペクト比・解像度制御**:
+   - **原寸維持時（デフォルト）**: 1440×1080 のまま無駄なリサイズを排して CPU 負荷とファイルサイズを約 15〜25% 節約。さらにビットストリームに `-vf setsar=4/3`、コンテナに `-aspect 16:9` を明記することで、QuickTime やブラウザ等あらゆるプレイヤーでの 4:3 縦長表示バグを確実に防止。
+   - **縦解像度縮小時 (`maxHeight: 720` 等)**: 地デジ 1440×1080 等の非正方形 16:9 映像は、横解像度も正規 16:9（正方形ピクセル: `1280x720`, `960x540`, `854x480` 等）へ自動算出・正規化。
+   - **1080p 正方形拡大 (`fix1440to1920: true`)**: スケーリングを行わず 1080p のまま 1920×1080 正方形ピクセルへ拡大したい場合に指定（VAAPI ハードウェアエンコード時は GPU スケーラーにより自動有効化）。
 2. **多重音声・二重音声の柔軟なハンドリング**:
    - ニュース等の二重音声（デュアルモノ）を、**2トラック（Main / Sub）に分離** または **主音声のみ抽出** を選択可能。
    - スポーツ中継等のマルチ音声ストリームに対し、全トラック保持（`all`）または第1トラックのみ（`first`）を選択可能。主音声と副音声で個別のビットレート指定も可能。
@@ -45,11 +46,14 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **`codec`** | `string` | `'libx264'` | 映像コーデック (`libx264`, `libx265`, `h264_vaapi`, `h264_qsv`, `h264_nvenc` 等) |
 | **`preset`** | `string` | `'medium'` | エンコード速度プリセット (`veryfast`, `fast`, `medium`, `p4` 等) |
+| **`tune`** | `string \| null` | `null` | 映像チューニング (`'animation'`, `'film'`, `'grain'` 等。アニメの輪郭線・動き維持に有用) |
 | **`crf`** | `number \| null` | `23` | 画質係数 (CPU / NVENC / QSV)。ビットレート指定時は `null` |
 | **`videoBitrate`** | `string \| null` | `null` | 映像ビットレート（例: `'4500k'`, `'2500k'`） |
+| **`maxrate`** | `string \| null` | `null` | 最大ビットレート制限（例: `'6000k'`） |
+| **`bufsize`** | `string \| null` | `null` | VBV バッファサイズ（例: `'12000k'`） |
 | **`scale`** | `string \| null` | `null` | 解像度プリセット (`'1080p'`, `'720p'`, `'540p'`, `'480p'`, `'native'`, `'W:H'`) |
-| **`maxHeight`** | `number \| null` | `1080` | 最大縦解像度 (`1080`, `720`, `null` で元解像度維持) |
-| **`fix1440to1920`** | `boolean` | `false` (VAAPIは自動で `true`) | 地デジ 1440x1080 を 1920x1080 に拡大補正するかどうか |
+| **`maxHeight`** | `number \| null` | `1080` | 最大縦解像度 (`1080`, `720`, `null` で維持)。縦解像度を縮小する場合、地デジ 1440x1080 等の 16:9 ソースは横解像度も正規 16:9 (720なら 1280x720) に自動調整されます |
+| **`fix1440to1920`** | `boolean` | `false` (VAAPIは自動で `true`) | 地デジ 1440x1080 を 1920x1080 に拡大補正するかどうか (スケーリングなし時) |
 | **`dualMono`** | `'split' \| 'main' \| 'sub'` | `'split'` | **二重音声の扱い**: <br>・`'split'`: 主音声・副音声を2トラックに分離<br>・`'main'`: 主音声のみ抽出<br>・`'sub'`: 副音声のみ抽出 |
 | **`audioStreamMode`**| `'first' \| 'all'` | `'first'` | **複数音声ストリーム**: 第1トラックのみ (`first`) または全トラック保持 (`all`) |
 | **`mainAudioBitrate`** | `string` | `1080p: '192k', 720p: '128k'` | 主音声（第1トラック）のビットレート (`-b:a:0`) |
@@ -132,10 +136,12 @@ import { runEncode } from './enc_helper.js';
 runEncode({
     codec: 'libx264',
     preset: 'medium',
+    // tune: 'animation', // アニメ向け ('animation' | 'film' | 'grain' 等)
     crf: 23,
+    // maxrate: '4000k',  // 最大ビットレート制限 (bufsize は未指定時 maxrate*2 が自動設定)
     maxHeight: 1080,
     dualMono: 'split',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 
@@ -146,10 +152,12 @@ import { runEncode } from './enc_helper.js';
 runEncode({
     codec: 'libx264',
     preset: 'medium',
+    // tune: 'film',      // 実写向け
     crf: 21,
+    // maxrate: '5000k',  // 最大ビットレート制限
     maxHeight: 1080,
     dualMono: 'split',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 
@@ -160,10 +168,12 @@ import { runEncode } from './enc_helper.js';
 runEncode({
     codec: 'libx264',
     preset: 'fast',
+    // tune: 'animation',
     crf: 23,
-    maxHeight: 720,
-    dualMono: 'main', // 主音声のみ抽出
-    subtitle: false,
+    // maxrate: '2500k',  // 最大ビットレート制限
+    maxHeight: 720,       // 地デジ 1440x1080 は自動で 1280x720 (16:9 正方形) に正規化
+    dualMono: 'main',     // 主音声のみ抽出
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 
@@ -175,9 +185,10 @@ runEncode({
     codec: 'h264_vaapi',
     vaapiDevice: '/dev/dri/renderD128',
     videoBitrate: '4500k',
-    maxHeight: 1080, // 地デジ 1440x1080 を 1920x1080 に GPU 拡大補正
+    // maxrate: '6000k', // VBV 最大ビットレート制限
+    maxHeight: 1080,    // 地デジ 1440x1080 を 1920x1080 に GPU 拡大補正
     dualMono: 'split',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 
@@ -189,9 +200,10 @@ runEncode({
     codec: 'h264_qsv',
     preset: 'medium',
     crf: 23,
+    // maxrate: '5000k',
     maxHeight: 1080,
     dualMono: 'split',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 
@@ -203,9 +215,10 @@ runEncode({
     codec: 'h264_nvenc',
     preset: 'p4',
     crf: 23,
+    // maxrate: '5000k',
     maxHeight: 1080,
     dualMono: 'split',
-    subtitle: false,
+    subtitle: process.env.SUBTITLE === 'true' || false,
 });
 ```
 

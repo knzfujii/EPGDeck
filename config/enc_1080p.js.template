@@ -1,4 +1,4 @@
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 /**
  * 高品質 1080p エンコード設定

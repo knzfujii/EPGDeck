@@ -317,3 +317,20 @@ flowchart TD
      - `enc_helper.js` の `resolveResolution` を改修し、縦解像度縮小時に自動的に 16:9 正方形ピクセルを算出するよう統一。
   4. **CPU エンコーダ向け `tune` オプションの正式サポート**:
      - `libx264` / `libx265` において `options.tune`（`'animation'`, `'film'`, `'grain'` 等）を正式サポート。アニメ録画時に `tune: 'animation'` を指定できるようにし、輪郭線の鮮明化と動き耐性の向上を支援した。
+
+#### 3.10 エンコードヘルパーのパッケージ化 (`@epgdeck/enc-helper`) と関心事の分離 (ADR)
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `packages/enc-helper/*`, `config/enc_helper.js`, `config/*.js.template`, `package.json`, `Dockerfile`
+- **Why (意思決定理由と背景)**:
+  1. **Docker バインドマウントによる更新遮断問題の根絶**:
+     - ユーザーの多くは `docker-compose.yml` で `./config:/app/config` をバインドマウントして運用する。
+     - 従来の構成では、コア防衛ロジック（字幕オーバーフロー対策、SAR補正、破損検知）を含む `enc_helper.js` が `config/` 直下に置かれていたため、ユーザーがマウントするとコンテナ内の最新コードがホスト側の古いファイルで上書きされ、コンテナイメージを更新してもバグ修正が反映されないという深刻な地雷が存在していた。
+     - ヘルパーロジック本体を `packages/enc-helper`（`node_modules/@epgdeck/enc-helper`）へ隔離したことで、コンテナ更新時に最新のエンコードエンジンが確実に適用されるようになった。
+  2. **TypeScript 化による型安全性と開発体験 (DX) の向上**:
+     - 600行規模のエンコードエンジンを完全 TypeScript 化し、オプション定義（`EncodeOptions`, `MediaInfo` 等）をエクスポート。単体テストにおける `@ts-expect-error` を一掃し、スクリプト作成時の IDE 補完を可能にした。
+  3. **既存スクリプトとの 100% 後方互換性**:
+     - `config/enc_helper.js` を `@epgdeck/enc-helper` の薄い re-export プロキシ兼 CLI ラッパーとして残すことで、従来の `import { runEncode } from './enc_helper.js';` を使用している既存ユーザー環境のスクリプトも一切の変更なしで完全動作する互換性を担保した。
+  4. **ハードウェアエンコーダにおける H.264 / HEVC(H.265) 両対応とエイリアス正規化**:
+     - 従来のコードでは `runCli` が `vaapi` -> `h264_vaapi`、`hevc` -> `libx265`（CPU）と決め打ちされており、CLI やスクリプトで HW HEVC（`hevc_nvenc`, `hevc_vaapi`, `hevc_qsv`）を柔軟に呼び出せなかった。
+     - `normalizeCodec` および `parseCliArgs` を導入し、`hevc` と `h265` のどちらの表記（例: `hevc_nvenc` / `h265_nvenc`、CLI での `nvenc hevc` / `h265 nvenc`）でも FFmpeg 正式エンコーダ名へ自動正規化。また VAAPI HEVC における適切なデフォルトビットレート（1080p: 3000k / 720p: 1800k）を反映し、HW でも H.264 / HEVC をファーストクラスで選択できるようにした。

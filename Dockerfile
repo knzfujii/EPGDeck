@@ -9,6 +9,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY packages/arib-probe/package.json ./packages/arib-probe/
+COPY packages/enc-helper/package.json ./packages/enc-helper/
 
 # 全依存関係インストール（devDependencies含む、workspaces対応）
 RUN npm ci

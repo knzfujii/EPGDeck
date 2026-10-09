@@ -6,7 +6,7 @@ EPGDeck のエンコード機能は、録画完了後の TS ファイルを MP4 
 
 ## 1. アーキテクチャと特徴
 
-従来のエンコードスクリプトをモダンに刷新し、共通処理を `config/enc_helper.js` に集約しています。
+従来のエンコードスクリプトをモダンに刷新し、共通処理を公式共有パッケージ `@epgdeck/enc-helper`（`packages/enc-helper`）に集約しています（※従来の `config/enc_helper.js` からのインポートも 100% 互換性を維持しています）。
 
 ```mermaid
 flowchart TD
@@ -44,7 +44,7 @@ flowchart TD
 
 | オプション名 | 型 / 選択肢 | デフォルト値 | 説明 |
 | :--- | :--- | :--- | :--- |
-| **`codec`** | `string` | `'libx264'` | 映像コーデック (`libx264`, `libx265`, `h264_vaapi`, `h264_qsv`, `h264_nvenc` 等) |
+| **`codec`** | `string` | `'libx264'` | 映像コーデック。<br>・**CPU**: `libx264`, `libx265` (エイリアス: `h264`, `h265`, `x264`, `x265`, `hevc`)<br>・**NVENC**: `h264_nvenc`, `hevc_nvenc` (エイリアス: `h265_nvenc`, `nvenc`)<br>・**QSV**: `h264_qsv`, `hevc_qsv` (エイリアス: `h265_qsv`, `qsv`)<br>・**VAAPI**: `h264_vaapi`, `hevc_vaapi` (エイリアス: `h265_vaapi`, `vaapi`)<br>※`h265` と `hevc` のどちらの表記も自動解決されます |
 | **`preset`** | `string` | `'medium'` | エンコード速度プリセット (`veryfast`, `fast`, `medium`, `p4` 等) |
 | **`tune`** | `string \| null` | `null` | 映像チューニング (`'animation'`, `'film'`, `'grain'` 等。アニメの輪郭線・動き維持に有用) |
 | **`crf`** | `number \| null` | `23` | 画質係数 (CPU / NVENC / QSV)。ビットレート指定時は `null` |
@@ -142,7 +142,7 @@ encode:
 
 ### ① `enc.js` / `enc.js.template`（標準 CPU H.264）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'libx264',
@@ -158,7 +158,7 @@ runEncode({
 
 ### ② `enc_1080p.js.template`（高品質 1080p）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'libx264',
@@ -174,7 +174,7 @@ runEncode({
 
 ### ③ `enc_720p.js.template`（軽量 720p / 主音声のみ）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'libx264',
@@ -190,7 +190,7 @@ runEncode({
 
 ### ④ `enc_vaapi.js.template`（Linux VAAPI ハードウェア）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'h264_vaapi',
@@ -205,7 +205,7 @@ runEncode({
 
 ### ⑤ `enc_qsv.js.template`（Intel QuickSync Video）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'h264_qsv',
@@ -220,13 +220,70 @@ runEncode({
 
 ### ⑥ `enc_nvenc.js.template`（NVIDIA NVENC）
 ```javascript
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 runEncode({
     codec: 'h264_nvenc',
     preset: 'p4',
     crf: 23,
     // maxrate: '5000k',
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});
+```
+
+### ⑦ `enc_1080p_x265.js.template`（CPU libx265 / HEVC）
+```javascript
+import { runEncode } from '@epgdeck/enc-helper';
+
+runEncode({
+    codec: 'libx265', // 'h265', 'x265', 'hevc' も指定可能
+    preset: 'faster',
+    crf: 26,          // H.264 CRF 23 同等。アニメなら 25〜27、実写なら 26〜28 が目安
+    // tune: 'animation',
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});
+```
+
+### ⑧ `enc_nvenc_hevc.js.template`（NVIDIA NVENC H.265 / HEVC）
+```javascript
+import { runEncode } from '@epgdeck/enc-helper';
+
+runEncode({
+    codec: 'hevc_nvenc', // 'h265_nvenc' も指定可能
+    preset: 'p4',
+    crf: 26,             // NVENC は自動で -cq 26 に変換
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});
+```
+
+### ⑨ `enc_qsv_hevc.js.template`（Intel QSV H.265 / HEVC）
+```javascript
+import { runEncode } from '@epgdeck/enc-helper';
+
+runEncode({
+    codec: 'hevc_qsv',   // 'h265_qsv' も指定可能
+    preset: 'medium',
+    crf: 26,             // QSV は自動で -global_quality 26 に変換
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});
+```
+
+### ⑩ `enc_vaapi_hevc.js.template`（Linux VAAPI H.265 / HEVC）
+```javascript
+import { runEncode } from '@epgdeck/enc-helper';
+
+runEncode({
+    codec: 'hevc_vaapi', // 'h265_vaapi' も指定可能
+    vaapiDevice: '/dev/dri/renderD128',
+    videoBitrate: '3000k', // 未指定時も HEVC 最適値 3000k が自動設定
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false,

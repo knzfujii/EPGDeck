@@ -1,0 +1,17 @@
+import { runEncode } from '@epgdeck/enc-helper';
+
+/**
+ * Linux VAAPI ハードウェアアクセラレーション設定 (H.265 / HEVC)
+ * - Intel 第6世代以降 / AMD Radeon (Polaris/Raven以降) / 各種 GPU で対応
+ * - コーデック名は 'hevc_vaapi' または 'h265_vaapi' のどちらでも指定可能
+ * - GPU VRAM 内での一貫パイプライン処理 (高速・低CPU負荷)
+ */
+runEncode({
+    codec: 'hevc_vaapi', // 'hevc_vaapi' または 'h265_vaapi'
+    vaapiDevice: '/dev/dri/renderD128',
+    videoBitrate: '3000k', // 1080p HEVC の推奨ビットレート (未指定時は 3000k が自動設定)
+    // maxrate: '5000k',   // VBV 最大ビットレート制限
+    maxHeight: 1080, // 地デジ 1440x1080 を 1920x1080 に GPU 拡大補正
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});

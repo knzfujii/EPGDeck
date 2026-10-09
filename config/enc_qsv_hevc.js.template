@@ -1,0 +1,18 @@
+import { runEncode } from '@epgdeck/enc-helper';
+
+/**
+ * Intel QuickSync Video (QSV) ハードウェアアクセラレーション設定 (H.265 / HEVC)
+ * - Intel 第6世代 Core (Skylake) 以降の内蔵 GPU で対応
+ * - コーデック名は 'hevc_qsv' または 'h265_qsv' のどちらでも指定可能
+ * - -global_quality によるインテリジェントな可変品質エンコード
+ */
+runEncode({
+    codec: 'hevc_qsv', // 'hevc_qsv' または 'h265_qsv'
+    preset: 'medium', // veryfast, faster, fast, medium, slow, slower, veryslow
+    crf: 26, // QSV の場合は -global_quality に自動変換 (H.265 では 25〜28 が目安)
+    // videoBitrate: '3000k', // 固定/平均ビットレート指定 (crf と排他)
+    // maxrate: '5000k',
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});

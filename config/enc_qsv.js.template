@@ -1,4 +1,4 @@
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 /**
  * Intel QuickSync Video (QSV) ハードウェアアクセラレーション設定

@@ -120,17 +120,33 @@ encode:
       suffix: .mp4
       rate: 2.5
       # subtitle: false
+    # - name: H.265-1080p
+    #   script: enc_1080p_x265.js
+    #   suffix: .mp4
+    #   rate: 4.0
     # - name: H.264-VAAPI
     #   script: enc_vaapi.js
     #   suffix: .mp4
     #   rate: 4.0
     #   subtitle: false
+    # - name: H.265-VAAPI
+    #   script: enc_vaapi_hevc.js
+    #   suffix: .mp4
+    #   rate: 4.0
     # - name: H.264-QSV
     #   script: enc_qsv.js
     #   suffix: .mp4
     #   rate: 4.0
+    # - name: H.265-QSV
+    #   script: enc_qsv_hevc.js
+    #   suffix: .mp4
+    #   rate: 4.0
     # - name: H.264-NVENC
     #   script: enc_nvenc.js
+    #   suffix: .mp4
+    #   rate: 4.0
+    # - name: H.265-NVENC
+    #   script: enc_nvenc_hevc.js
     #   suffix: .mp4
     #   rate: 4.0
     # 外部コマンドやシェルスクリプトを直接実行する場合の例 (cmd を直接指定)

@@ -1,0 +1,17 @@
+import { runEncode } from '@epgdeck/enc-helper';
+
+/**
+ * 高圧縮・高品質 1080p エンコード設定 (CPU libx265 / HEVC)
+ * - コーデック名は 'libx265', 'h265', 'x265', 'hevc' のいずれでも指定可能
+ * - H.264 比で約 30〜50% のファイルサイズ削減
+ */
+runEncode({
+    codec: 'libx265', // 'libx265', 'h265', 'x265', 'hevc'
+    preset: 'faster', // ultrafast, superfast, veryfast, faster, fast, medium, slow
+    crf: 26, // H.264 の CRF 23 と同等以上の画質。アニメなら 25〜27、実写なら 26〜28 が目安
+    // tune: 'animation', // アニメ番組の輪郭線保持
+    // maxrate: '4000k',  // VBV 最大ビットレート制限
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});

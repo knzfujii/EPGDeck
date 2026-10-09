@@ -1,4 +1,4 @@
-import { runEncode } from './enc_helper.js';
+import { runEncode } from '@epgdeck/enc-helper';
 
 /**
  * 軽量 720p エンコード設定 (スマホ・外出先視聴向け)

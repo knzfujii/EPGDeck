@@ -234,8 +234,9 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     args.push('-ignore_unknown', '-max_muxing_queue_size', String(maxMuxingQueueSize));
 
     // 字幕ストリーム設定 (ARIB STD-B24 -> MP4 mov_text)
+    // 35分以上の長時間番組や疎な字幕での 32bit duration オーバーフロー (INT32_MAX > 2147秒) による MP4 muxer クラッシュ (error -22) を恒久防止
     if (subtitle) {
-        args.push('-map', '0:s?', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=jpn');
+        args.push('-map', '0:s?', '-c:s', 'mov_text', '-time_base:s', '1/1000', '-metadata:s:s:0', 'language=jpn');
     } else {
         args.push('-sn');
     }

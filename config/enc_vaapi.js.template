@@ -10,6 +10,7 @@ runEncode({
     codec: 'h264_vaapi',
     vaapiDevice: '/dev/dri/renderD128',
     videoBitrate: '4500k',
+    // maxrate: '6000k', // VBV 最大ビットレート (bufsize は未指定時 maxrate*2 が自動設定)
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

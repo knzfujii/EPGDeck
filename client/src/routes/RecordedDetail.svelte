@@ -28,6 +28,7 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
     import { getLastRecordedPath } from '../lib/navigationHistory';
+    import { resolveSourceVideoFile } from '../lib/utils/recording';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -75,10 +76,24 @@
         directory: string;
     }
     let isEncodeModalOpen = $state(false);
+    let selectedSourceVideoFileId = $state<number | null>(null);
     let encodeModes = $state<EncodeMode[]>([]);
     let recordedDirs = $state<string[]>([]);
     let encodeSelections = $state<Record<string, EncodePresetSelection>>({});
     let isRemoveOriginal = $state(false);
+
+    const currentTargetFile = $derived(
+        resolveSourceVideoFile(
+            recorded?.videoFiles,
+            selectedSourceVideoFileId !== null ? Number(selectedSourceVideoFileId) : null,
+        ),
+    );
+
+    function openEncodeModal(fileId?: number) {
+        const resolved = resolveSourceVideoFile(recorded?.videoFiles, fileId);
+        selectedSourceVideoFileId = resolved?.id ?? null;
+        isEncodeModalOpen = true;
+    }
 
     // ドロップログモーダル
     let isDropLogModalOpen = $state(false);
@@ -431,8 +446,7 @@
     // エンコード追加
     async function addEncode() {
         if (!recorded) return;
-        const targetFile =
-            (recorded.videoFiles || []).find((f: apid.VideoFile) => f.type === 'ts') || recorded.videoFiles?.[0];
+        const targetFile = currentTargetFile;
         if (!targetFile) {
             snackbar.open({ text: 'エンコード元の動画ファイルがありません', color: 'error' });
             return;
@@ -717,7 +731,7 @@
                         {#if !readOnlyStore.isReadOnly}
                             <Button
                                 variant="secondary"
-                                onclick={() => (isEncodeModalOpen = true)}
+                                onclick={() => openEncodeModal()}
                                 class="whitespace-nowrap shrink-0"
                             >
                                 <Sparkles size={16} class="text-amber-500" /> エンコード追加
@@ -1080,6 +1094,20 @@
                                     </Button>
                                 {/if}
 
+                                <!-- エンコード追加 -->
+                                {#if !readOnlyStore.isReadOnly}
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
+                                        onclick={() => openEncodeModal(file.id)}
+                                        class="whitespace-nowrap shrink-0 max-sm:px-2.5"
+                                        title="この動画ファイルからエンコード"
+                                    >
+                                        <Sparkles size={14} class="text-amber-500" />
+                                        <span class="hidden sm:inline">エンコード</span>
+                                    </Button>
+                                {/if}
+
                                 <!-- ファイル削除（安全ディバイダーで分離） -->
                                 {#if !readOnlyStore.isReadOnly && !recorded.isProtected}
                                     <Divider orientation="vertical" />
@@ -1119,7 +1147,7 @@
 {/if}
 
 <!-- エンコード追加モーダル -->
-{#if isEncodeModalOpen}
+{#if isEncodeModalOpen && recorded}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
         <button
             type="button"
@@ -1132,92 +1160,140 @@
         >
             <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">エンコード追加</h3>
 
-            <div class="space-y-3 text-xs">
-                <p class="font-bold text-slate-700 dark:text-slate-300">エンコードプリセット</p>
-
-                {#if encodeModes.length === 0}
-                    <p class="text-slate-400 py-4 text-center">設定にエンコードプリセットがありません</p>
-                {:else}
-                    <div class="space-y-2">
-                        {#each encodeModes as mode}
-                            {@const sel = encodeSelections[mode.name]}
-                            {#if sel}
-                                <!-- プリセット行 -->
-                                <div
-                                    class="rounded-xl border transition {sel.enabled
-                                        ? 'border-blue-400 bg-blue-50/40 dark:border-blue-600 dark:bg-blue-950/30'
-                                        : 'border-slate-200 dark:border-slate-700'}"
-                                >
-                                    <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
-                                    <div class="flex flex-wrap items-center gap-x-5 gap-y-3 p-3.5">
-                                        <!-- チェックボックス + 名前 -->
-                                        <div class="flex shrink-0 items-center gap-2.5 min-w-[140px] py-1">
-                                            <Checkbox bind:checked={sel.enabled}>
-                                                <span
-                                                    class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100"
-                                                >
-                                                    {mode.name}
-                                                </span>
-                                                {#if mode.suffix}
-                                                    <span class="text-xs text-slate-400 font-mono">
-                                                        ({mode.suffix})
-                                                    </span>
-                                                {/if}
-                                            </Checkbox>
-                                        </div>
-
-                                        {#if sel.enabled}
-                                            <!-- 元ファイルと同じ場所トグル -->
-                                            <div class="flex shrink-0 items-center gap-2 py-1">
-                                                <Checkbox
-                                                    bind:checked={sel.isSaveSameDirectory}
-                                                    label="元ファイルと同じ場所"
-                                                />
-                                            </div>
-
-                                            {#if !sel.isSaveSameDirectory}
-                                                <!-- 保存先ドロップダウン -->
-                                                <div class="flex items-center gap-2 min-w-[160px]">
-                                                    <span
-                                                        class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
-                                                    >
-                                                        保存先
-                                                    </span>
-                                                    <Select bind:value={sel.parentDir} class="flex-1">
-                                                        {#each recordedDirs as dir}
-                                                            <option value={dir}>{dir}</option>
-                                                        {/each}
-                                                    </Select>
-                                                </div>
-
-                                                <!-- サブディレクトリ入力 -->
-                                                <div class="flex items-center gap-2 min-w-[180px]">
-                                                    <span
-                                                        class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
-                                                    >
-                                                        ディレクトリ
-                                                    </span>
-                                                    <Input
-                                                        type="text"
-                                                        bind:value={sel.directory}
-                                                        placeholder="省略可"
-                                                        class="flex-1"
-                                                    />
-                                                </div>
-                                            {/if}
-                                        {/if}
-                                    </div>
-                                </div>
-                            {/if}
-                        {/each}
+            <div class="space-y-4 text-xs">
+                <!-- エンコード元ファイル選択 -->
+                {#if (recorded.videoFiles || []).length > 1}
+                    <div
+                        class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-3.5"
+                    >
+                        <label
+                            for="source-video-file-select"
+                            class="block font-bold text-xs text-slate-700 dark:text-slate-300 mb-1.5"
+                        >
+                            エンコード元ファイル
+                        </label>
+                        <Select id="source-video-file-select" bind:value={selectedSourceVideoFileId} class="w-full">
+                            {#each recorded.videoFiles || [] as file}
+                                <option value={file.id}>
+                                    [{file.type === 'ts' ? 'TS' : file.name}] {file.filename} ({formatSize(file.size)})
+                                </option>
+                            {/each}
+                        </Select>
+                    </div>
+                {:else if (recorded.videoFiles || []).length === 1 && recorded.videoFiles?.[0]}
+                    {@const file = recorded.videoFiles[0]}
+                    <div
+                        class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/20 p-3 flex items-center justify-between gap-3"
+                    >
+                        <div class="min-w-0">
+                            <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                                エンコード元ファイル
+                            </span>
+                            <span
+                                class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate block"
+                                title={file.filename}
+                            >
+                                [{file.type === 'ts' ? 'TS' : file.name}] {file.filename}
+                            </span>
+                        </div>
+                        <span class="text-xs font-bold text-slate-500 shrink-0">
+                            {formatSize(file.size)}
+                        </span>
                     </div>
                 {/if}
+
+                <div>
+                    <p class="font-bold text-slate-700 dark:text-slate-300 mb-2">エンコードプリセット</p>
+
+                    {#if encodeModes.length === 0}
+                        <p class="text-slate-400 py-4 text-center">設定にエンコードプリセットがありません</p>
+                    {:else}
+                        <div class="space-y-2">
+                            {#each encodeModes as mode}
+                                {@const sel = encodeSelections[mode.name]}
+                                {#if sel}
+                                    <!-- プリセット行 -->
+                                    <div
+                                        class="rounded-xl border transition {sel.enabled
+                                            ? 'border-blue-400 bg-blue-50/40 dark:border-blue-600 dark:bg-blue-950/30'
+                                            : 'border-slate-200 dark:border-slate-700'}"
+                                    >
+                                        <!-- 先頭行: チェックボックス + プリセット名 + 設定フィールド群 (横並び) -->
+                                        <div class="flex flex-wrap items-center gap-x-5 gap-y-3 p-3.5">
+                                            <!-- チェックボックス + 名前 -->
+                                            <div class="flex shrink-0 items-center gap-2.5 min-w-[140px] py-1">
+                                                <Checkbox bind:checked={sel.enabled}>
+                                                    <span
+                                                        class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100"
+                                                    >
+                                                        {mode.name}
+                                                    </span>
+                                                    {#if mode.suffix}
+                                                        <span class="text-xs text-slate-400 font-mono">
+                                                            ({mode.suffix})
+                                                        </span>
+                                                    {/if}
+                                                </Checkbox>
+                                            </div>
+
+                                            {#if sel.enabled}
+                                                <!-- 元ファイルと同じ場所トグル -->
+                                                <div class="flex shrink-0 items-center gap-2 py-1">
+                                                    <Checkbox
+                                                        bind:checked={sel.isSaveSameDirectory}
+                                                        label="元ファイルと同じ場所"
+                                                    />
+                                                </div>
+
+                                                {#if !sel.isSaveSameDirectory}
+                                                    <!-- 保存先ドロップダウン -->
+                                                    <div class="flex items-center gap-2 min-w-[160px]">
+                                                        <span
+                                                            class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
+                                                        >
+                                                            保存先
+                                                        </span>
+                                                        <Select bind:value={sel.parentDir} class="flex-1">
+                                                            {#each recordedDirs as dir}
+                                                                <option value={dir}>{dir}</option>
+                                                            {/each}
+                                                        </Select>
+                                                    </div>
+
+                                                    <!-- サブディレクトリ入力 -->
+                                                    <div class="flex items-center gap-2 min-w-[180px]">
+                                                        <span
+                                                            class="text-sm font-bold text-slate-600 dark:text-slate-400 shrink-0"
+                                                        >
+                                                            ディレクトリ
+                                                        </span>
+                                                        <Input
+                                                            type="text"
+                                                            bind:value={sel.directory}
+                                                            placeholder="省略可"
+                                                            class="flex-1"
+                                                        />
+                                                    </div>
+                                                {/if}
+                                            {/if}
+                                        </div>
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
 
                 <!-- 全体共通: 元ファイル削除 -->
                 <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800">
                     <Checkbox bind:checked={isRemoveOriginal}>
                         <span class="font-bold text-sm sm:text-base text-rose-700 dark:text-rose-400">
                             エンコード完了後に元ファイルを自動削除
+                            {#if currentTargetFile}
+                                <span class="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">
+                                    ({currentTargetFile.filename})
+                                </span>
+                            {/if}
                         </span>
                     </Checkbox>
                 </div>

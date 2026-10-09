@@ -2,13 +2,16 @@ import { runEncode } from './enc_helper.js';
 
 /**
  * 高品質 1080p エンコード設定
+ * - 地デジ 1440x1080 は原寸維持し、SAR 4:3 / DAR 16:9 で再生互換性を保護
  * - フルHD (1080p) / CRF 21 / preset: medium
  * - 二重音声の2トラック（Main / Sub）分離
  */
 runEncode({
     codec: 'libx264',
     preset: 'medium',
+    // tune: 'film',      // 実写映画・ドラマ向け ('film' | 'animation' | 'grain' 等)
     crf: 21,
+    // maxrate: '5000k',  // 最大ビットレート制限 (bufsize は未指定時 maxrate*2 が自動設定)
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

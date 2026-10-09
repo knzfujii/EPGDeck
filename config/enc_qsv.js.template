@@ -8,6 +8,7 @@ runEncode({
     codec: 'h264_qsv',
     preset: 'medium',
     crf: 23,
+    // maxrate: '5000k', // 最大ビットレート制限
     maxHeight: 1080,
     dualMono: 'split',
     subtitle: process.env.SUBTITLE === 'true' || false, // config.yml の preset.subtitle または環境変数 SUBTITLE を反映

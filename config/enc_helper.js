@@ -89,6 +89,7 @@ const timeStrToSeconds = (timeStr) => {
 const resolveResolution = (scale, maxHeight, srcWidth, srcHeight, fix1440) => {
     let targetW = srcWidth;
     let targetH = srcHeight;
+    const is1440 = srcWidth === 1440 || (srcHeight === 1080 && srcWidth < 1920);
 
     if (typeof scale === 'string') {
         const s = scale.toLowerCase();
@@ -114,11 +115,12 @@ const resolveResolution = (scale, maxHeight, srcWidth, srcHeight, fix1440) => {
         }
     } else if (maxHeight && srcHeight > maxHeight) {
         targetH = maxHeight;
-        targetW = Math.round((srcWidth * (maxHeight / srcHeight)) / 2) * 2;
+        // 縦解像度を変更する場合、地デジ 1440x1080 等の非正方形 16:9 映像は横解像度も正規 16:9 (正方形ピクセル) に自動調整
+        const effectiveBaseWidth = is1440 ? Math.round((srcHeight * 16) / 9) : srcWidth;
+        targetW = Math.round((effectiveBaseWidth * (maxHeight / srcHeight)) / 2) * 2;
     }
 
-    // 地デジ 1440x1080 の 1920 拡大補正フラグ
-    const is1440 = srcWidth === 1440 || (srcHeight === 1080 && srcWidth < 1920);
+    // 地デジ 1440x1080 の 1920 拡大補正フラグ (スケーリングなしで 1080p を維持する場合)
     if (fix1440 && is1440 && targetH >= 1080) {
         targetW = 1920;
         targetH = 1080;
@@ -130,6 +132,30 @@ const resolveResolution = (scale, maxHeight, srcWidth, srcHeight, fix1440) => {
 
 /**
  * FFmpeg 引数を構築する
+ * @param {Object} options エンコード設定オプション
+ * @param {string} [options.codec='libx264'] 映像コーデック ('libx264', 'libx265', 'h264_vaapi', 'h264_nvenc', 'h264_qsv')
+ * @param {string} [options.preset='medium'] エンコードプリセット
+ * @param {string|null} [options.tune=null] 映像チューニング ('animation', 'film', 'grain' 等、CPU エンコーダのみ)
+ * @param {number|null} [options.crf=23] 画質係数 (videoBitrate 未指定時に有効)
+ * @param {string|null} [options.videoBitrate=null] 固定/平均ビットレート (例: '2500k', 指定時は crf を排他除外)
+ * @param {string|null} [options.maxrate=null] 最大ビットレート制限 (例: '4000k')
+ * @param {string|null} [options.bufsize=null] VBV バッファサイズ (未指定時は maxrate の2倍を自動補完)
+ * @param {string|null} [options.scale=null] 解像度 ('1080p', '720p', '540p', '480p', 'native', 'W:H')
+ * @param {number|null} [options.maxHeight=1080] 最大縦解像度 (縮小時、地デジ 1440x1080 は 16:9 正方形ピクセルに自動正規化)
+ * @param {boolean} [options.fix1440to1920=false] 1440x1080 を 1920x1080 に拡大 (VAAPI は自動 true)
+ * @param {boolean} [options.deinterlace=true] インターレース解除を適用するかどうか
+ * @param {'split'|'main'|'sub'} [options.dualMono='split'] 二重音声の処理方式
+ * @param {'first'|'all'} [options.audioStreamMode='first'] 保持する音声ストリーム (第1トラックのみ / 全トラック)
+ * @param {string} [options.mainAudioBitrate] 主音声ビットレート
+ * @param {string} [options.secondaryAudioBitrate='128k'] 副音声ビットレート
+ * @param {boolean} [options.subtitle=false] 字幕を MP4 (mov_text) に保持するかどうか
+ * @param {boolean} [options.skipSubtitleForSuperimpose=false] 字幕スーパー時に字幕保持を自動スキップ
+ * @param {boolean} [options.faststart=true] Web 再生最適化 (-movflags faststart)
+ * @param {string} [options.vaapiDevice='/dev/dri/renderD128'] VAAPI レンダラーデバイスパス
+ * @param {string[]} [options.customArgs=[]] 追加の FFmpeg 引数
+ * @param {((args: string[]) => string[])|null} [options.modifyArgs=null] 引数配列書き換えコールバック
+ * @param {Object} mediaInfo ffprobe によるメディア解析情報
+ * @returns {string[]} FFmpeg コマンドライン引数配列
  */
 const buildFFmpegArgs = (options, mediaInfo) => {
     const input = process.env.INPUT;
@@ -144,8 +170,11 @@ const buildFFmpegArgs = (options, mediaInfo) => {
     const {
         codec = 'libx264',
         preset = 'medium',
+        tune = null,
         crf = 23,
         videoBitrate = null,
+        maxrate = null,
+        bufsize = null,
         scale = null, // '1080p' | '720p' | '540p' | '480p' | 'native' | 'W:H'
         maxHeight = 1080,
         // fix1440to1920: デフォルト false (VAAPI は自動で true)
@@ -286,6 +315,9 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         }
         if (res.isScaled) {
             filters.push(`scale=${res.targetW}:${res.targetH},setsar=1/1`);
+        } else if (res.is1440) {
+            // スケーリングなしで 1440x1080 を維持する場合、SAR 4:3 をビットストリームに明記して再生互換性を確保
+            filters.push('setsar=4/3');
         }
         if (filters.length > 0) {
             args.push('-vf', filters.join(','));
@@ -301,17 +333,46 @@ const buildFFmpegArgs = (options, mediaInfo) => {
         args.push('-b:v', videoBitrate || (res.targetH <= 720 ? '2500k' : '4500k'));
     } else if (isNVENC) {
         if (preset) args.push('-preset', preset);
-        if (crf !== null) args.push('-cq', String(crf));
-        if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (videoBitrate) {
+            args.push('-b:v', videoBitrate);
+        } else if (crf !== null) {
+            args.push('-cq', String(crf));
+        }
     } else if (isQSV) {
         if (preset) args.push('-preset', preset);
-        if (crf !== null) args.push('-global_quality', String(crf));
-        if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (videoBitrate) {
+            args.push('-b:v', videoBitrate);
+        } else if (crf !== null) {
+            args.push('-global_quality', String(crf));
+        }
     } else {
-        // CPU
+        // CPU (libx264, libx265 等)
         if (preset) args.push('-preset', preset);
-        if (crf !== null) args.push('-crf', String(crf));
-        if (videoBitrate) args.push('-b:v', videoBitrate);
+        if (tune) args.push('-tune', tune);
+        if (videoBitrate) {
+            args.push('-b:v', videoBitrate);
+        } else if (crf !== null) {
+            args.push('-crf', String(crf));
+        }
+    }
+
+    // VBV バッファ制御 (maxrate 指定時に bufsize がなければ 2秒分を自動補完)
+    if (maxrate) {
+        args.push('-maxrate', maxrate);
+        let effectiveBufsize = bufsize;
+        if (!effectiveBufsize) {
+            const match = String(maxrate).match(/^(\d+)(k|m)?$/i);
+            if (match) {
+                const val = parseInt(match[1], 10);
+                const unit = match[2] || 'k';
+                effectiveBufsize = `${val * 2}${unit}`;
+            }
+        }
+        if (effectiveBufsize) {
+            args.push('-bufsize', effectiveBufsize);
+        }
+    } else if (bufsize) {
+        args.push('-bufsize', bufsize);
     }
 
     // 音声共通オプション
@@ -409,7 +470,7 @@ const formatCommand = (bin, cmdArgs) => {
 
 /**
  * エンコードを実行するメイン関数
- * @param {Object} options エンコード設定オプション
+ * @param {Parameters<typeof buildFFmpegArgs>[0] & { verifyDuration?: boolean, minDurationSeconds?: number, minDurationRatio?: number }} [options={}] エンコード設定オプション
  */
 async function runEncode(options = {}) {
     const ffmpeg = process.env.FFMPEG || '/usr/bin/ffmpeg';

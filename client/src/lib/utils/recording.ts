@@ -109,3 +109,21 @@ export async function executeRecordingAction(
         return false;
     }
 }
+
+/**
+ * エンコード元ファイルとして推奨される動画ファイル（デフォルトは TS、なければ先頭）を解決する
+ * @param videoFiles 録画番組の動画ファイル一覧
+ * @param preferredFileId 明示指定されたファイルID（指定がある場合は優先）
+ */
+export function resolveSourceVideoFile<T extends { id: number; type: string }>(
+    videoFiles: T[] | undefined | null,
+    preferredFileId?: number | null,
+): T | null {
+    if (!videoFiles || videoFiles.length === 0) return null;
+    if (preferredFileId != null) {
+        const found = videoFiles.find(f => f.id === preferredFileId);
+        if (found) return found;
+    }
+    const tsFile = videoFiles.find(f => f.type === 'ts');
+    return tsFile ?? videoFiles[0];
+}

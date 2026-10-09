@@ -3,6 +3,7 @@ import api from '../../client/src/lib/apiClient.js';
 import {
     isReserveCurrentlyRecording,
     executeRecordingAction,
+    resolveSourceVideoFile,
     type ReserveLike,
     type RecordingLike,
 } from '../../client/src/lib/utils/recording.js';
@@ -200,6 +201,40 @@ describe('recording utility', () => {
                 text: '録画操作の実行に失敗しました',
                 color: 'error',
             });
+        });
+    });
+
+    describe('resolveSourceVideoFile', () => {
+        const tsFile = { id: 101, type: 'ts', filename: 'test.ts' };
+        const mp4File1 = { id: 102, type: 'encoded', filename: 'test_1080p.mp4' };
+        const mp4File2 = { id: 103, type: 'encoded', filename: 'test_720p.mp4' };
+
+        it('returns null when videoFiles is null, undefined, or empty', () => {
+            expect(resolveSourceVideoFile(null)).toBeNull();
+            expect(resolveSourceVideoFile(undefined)).toBeNull();
+            expect(resolveSourceVideoFile([])).toBeNull();
+        });
+
+        it('returns preferred file when preferredFileId matches', () => {
+            const files = [tsFile, mp4File1, mp4File2];
+            expect(resolveSourceVideoFile(files, 102)).toEqual(mp4File1);
+            expect(resolveSourceVideoFile(files, 103)).toEqual(mp4File2);
+            expect(resolveSourceVideoFile(files, 101)).toEqual(tsFile);
+        });
+
+        it('defaults to TS file when preferredFileId is not specified or does not match', () => {
+            // TS が先頭でない場合でも TS がデフォルトで選ばれること
+            const files = [mp4File1, tsFile, mp4File2];
+            expect(resolveSourceVideoFile(files)).toEqual(tsFile);
+            expect(resolveSourceVideoFile(files, null)).toEqual(tsFile);
+            expect(resolveSourceVideoFile(files, 999)).toEqual(tsFile); // 存在しないID指定時もTSにフォールバック
+        });
+
+        it('falls back to first file when no TS file exists', () => {
+            const files = [mp4File1, mp4File2];
+            expect(resolveSourceVideoFile(files)).toEqual(mp4File1);
+            expect(resolveSourceVideoFile(files, null)).toEqual(mp4File1);
+            expect(resolveSourceVideoFile(files, 999)).toEqual(mp4File1);
         });
     });
 });

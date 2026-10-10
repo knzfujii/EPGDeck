@@ -361,6 +361,116 @@ describe('enc_helper.js', () => {
                 expect(argsHevc).toContain('-c:v');
                 expect(argsHevc).toContain('libx265');
             });
+
+            it('Combination 7: VAAPI with CPU decode (vaapiHwaccel: false), maxrate, bufsize, rcMode, and hevc_metadata', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        vaapiHwaccel: false,
+                        videoBitrate: '4000k',
+                        maxrate: '6000k',
+                        bufsize: '12000k',
+                        rcMode: 'VBR',
+                        fix1440to1920: true,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-vaapi_device');
+                expect(args).toContain('/dev/dri/renderD128');
+                expect(args).not.toContain('-hwaccel');
+                expect(args).toContain('-vf');
+                expect(args).toContain('yadif,format=nv12,hwupload,scale_vaapi=w=1920:h=1080,setsar=1/1');
+                expect(args).toContain('-c:v');
+                expect(args).toContain('hevc_vaapi');
+                expect(args).toContain('-b:v');
+                expect(args).toContain('4000k');
+                expect(args).toContain('-maxrate');
+                expect(args).toContain('6000k');
+                expect(args).toContain('-rc_mode');
+                expect(args).toContain('VBR');
+                expect(args).toContain('-bsf:v');
+                expect(args).toContain('hevc_metadata=height=1080');
+            });
+
+            it('Combination 8: CQP mode and qp for VAAPI encoders without -b:v', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        rcMode: 'CQP',
+                        qp: 33,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-rc_mode');
+                expect(args).toContain('CQP');
+                expect(args).toContain('-qp');
+                expect(args).toContain('33');
+                expect(args).not.toContain('-b:v');
+            });
+
+            it('Combination 9: fallback to crf when qp is omitted in CQP mode for VAAPI', () => {
+                const args = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        rcMode: 'CQP',
+                        crf: 28,
+                    },
+                    mediaInfo1440,
+                );
+
+                expect(args).toContain('-rc_mode');
+                expect(args).toContain('CQP');
+                expect(args).toContain('-qp');
+                expect(args).toContain('28');
+                expect(args).not.toContain('-b:v');
+            });
+
+            it('Combination 10: fallback bitrate according to quality preset when videoBitrate is omitted or auto', () => {
+                const argsHighest = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        quality: 'highest',
+                    },
+                    mediaInfo1440,
+                );
+                expect(argsHighest).toContain('-c:v');
+                expect(argsHighest).toContain('hevc_vaapi');
+                expect(argsHighest).toContain('-b:v');
+                // 1920x1080 (fix1440to1920 defaults to true for VAAPI): (2000+8500)/2 * 1.242 ≈ 6520k -> 6500k
+                // または 1440x1080 の場合: 5250k -> 5300k
+                // fix1440to1920: true なので targetW=1920, targetH=1080
+                // (5250 * 1.242) = 6520k -> 6500k
+                expect(argsHighest.indexOf('-b:v')).toBeGreaterThan(-1);
+
+                const argsHigh = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        quality: 'high',
+                        videoBitrate: 'auto',
+                    },
+                    mediaInfo1440,
+                );
+                expect(argsHigh).toContain('-b:v');
+
+                const args720p = buildFFmpegArgs(
+                    {
+                        codec: 'hevc_vaapi',
+                        vaapiDevice: '/dev/dri/renderD128',
+                        quality: 'high',
+                        scale: '720p',
+                    },
+                    mediaInfo1440,
+                );
+                expect(args720p).toContain('-b:v');
+                expect(args720p).toContain('3200k');
+            });
         });
 
         it('should configure independent main and secondary audio bitrates', () => {
@@ -755,6 +865,24 @@ describe('enc_helper.js', () => {
             expect(parseCliArgs(['1080p', 'h265'])).toEqual({ scale: '1080p', codec: 'libx265' });
             expect(parseCliArgs(['1080p', 'x265'])).toEqual({ scale: '1080p', codec: 'libx265' });
             expect(parseCliArgs(['1080p', 'libx265'])).toEqual({ scale: '1080p', codec: 'libx265' });
+        });
+
+        it('should parse adaptive and quality arguments', () => {
+            expect(parseCliArgs(['1080p', 'vaapi', 'hevc', '--adaptive'])).toEqual({
+                scale: '1080p',
+                codec: 'hevc_vaapi',
+                adaptiveBitrate: true,
+            });
+            expect(parseCliArgs(['1080p', 'vaapi', 'hevc', '--quality=high'])).toEqual({
+                scale: '1080p',
+                codec: 'hevc_vaapi',
+                quality: 'high',
+            });
+            expect(parseCliArgs(['1080p', 'vaapi', 'hevc', 'highest'])).toEqual({
+                scale: '1080p',
+                codec: 'hevc_vaapi',
+                quality: 'highest',
+            });
         });
     });
 });

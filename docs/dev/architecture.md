@@ -147,7 +147,7 @@ OS のシャットダウンやサービス再起動（`systemctl stop` / `docker
 
 ### 内部共有パッケージ (npm workspaces) と Docker ビルド連携
 
-EPGDeck では、外部依存のないドメインロジック（例: ARIB TS ストリーム解析器 `packages/arib-probe`）をルート `package.json` の `workspaces: ["packages/*"]` で管理しています。
+EPGDeck では、外部依存のないドメインロジックや共通パイプライン（ARIB TS ストリーム解析器 `packages/arib-probe`、FFmpeg トランスコードエンジン `packages/enc-helper`）をルート `package.json` の `workspaces: ["packages/*"]` で管理しています。
 
 コンテナビルド（`Dockerfile`）におけるレイヤーキャッシュ効率化およびシンボリックリンク破損防止のため、以下の設計原則を遵守します：
 

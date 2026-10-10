@@ -13,7 +13,7 @@
   "scripts": {
     "start": "node --enable-source-maps dist/index.js",
     "build": "run-p build:server build:client",
-    "build:packages": "npm --prefix packages/arib-probe run build",
+    "build:packages": "npm --prefix packages/arib-probe run build && npm --prefix packages/enc-helper run build",
     "build:server": "npm run build:packages && npm run compile",
     "build:client": "npm --prefix client run build",
     "dev": "run-p dev:server dev:client",

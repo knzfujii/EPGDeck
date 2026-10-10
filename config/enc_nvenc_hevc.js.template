@@ -1,0 +1,18 @@
+import { runEncode } from '@epgdeck/enc-helper';
+
+/**
+ * NVIDIA NVENC ハードウェアアクセラレーション設定 (H.265 / HEVC)
+ * - GeForce GTX 960 (2nd Gen Maxwell) 以降、GTX 1050 (Pascal) 以降等で対応
+ * - コーデック名は 'hevc_nvenc' または 'h265_nvenc' のどちらでも指定可能
+ * - 高圧縮率かつ高速なハードウェアエンコードを実現
+ */
+runEncode({
+    codec: 'hevc_nvenc', // 'hevc_nvenc' または 'h265_nvenc'
+    preset: 'p4', // p1(最速) 〜 p7(最高品質)、デフォルトは p4 (バランス)
+    crf: 26, // NVENC の場合は -cq に自動変換 (H.265 では 26〜28 が標準的)
+    // videoBitrate: '3000k', // 固定/上限ビットレートを指定する場合はこちら (crf と排他)
+    // maxrate: '5000k',     // 最大ビットレート制限
+    maxHeight: 1080,
+    dualMono: 'split',
+    subtitle: process.env.SUBTITLE === 'true' || false,
+});

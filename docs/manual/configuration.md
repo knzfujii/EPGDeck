@@ -278,6 +278,29 @@ encode:
 | **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。録画実時間 × `rate` を超過した場合にハングアップとみなして強制終了します（例: 30分番組 × `rate: 4.0` = 120分でタイムアウト） |
 | **`subtitle`** | `boolean` | 任意 | このプリセットで MP4 内に ARIB 字幕（`mov_text`）を埋め込むかどうか（省略時: `encode.subtitle` の値に従う） |
 
+### スクリプト設定オプション (`@epgdeck/enc-helper`)
+
+`config/enc*.js` 内で `runEncode({ ... })` に渡す主な設定オプションです。詳細は [エンコードマニュアル (encoding.md)](./encoding.md) を参照してください。
+
+| オプション名 | 型 | デフォルト値 | 説明 |
+| :--- | :--- | :--- | :--- |
+| **`codec`** | `string` | `'libx264'` | コーデック名。CPU (`libx264`, `libx265`), VAAPI (`h264_vaapi`, `hevc_vaapi`), QSV (`h264_qsv`, `hevc_qsv`), NVENC (`h264_nvenc`, `hevc_nvenc`) を指定可能（`h265`, `hevc` 等のエイリアスも自動解決） |
+| **`quality`** | `string \| number` | - | コンテンツ適応型画質プリセット（`'highest'`, `'high'`, `'standard'`, `'economy'`）または CRF 等価数値（`20`〜`27`）。VAAPI 時に事前プローブにより最適ビットレートを自動推定 |
+| **`adaptiveBitrate`** | `boolean` | `false` | コンテンツ適応型ビットレート自動推定を有効化するかどうか |
+| **`videoBitrate`** | `string` | 自動 | 映像ビットレート（例: `'3000k'`）。明示指定時は自動プローブより優先 |
+| **`maxrate`** | `string` | - | VBV 最大ビットレート（例: `'5000k'`） |
+| **`bufsize`** | `string` | `maxrate * 2` | VBV バッファサイズ（省略時は `maxrate` の 2 倍を自動設定） |
+| **`crf`** | `number` | `23` | CPU / NVENC / QSV エンコード時の CRF / CQ 値 |
+| **`maxHeight`** | `number` | `1080` | 最大縦解像度（`1080`, `720`, `480` 等）。地デジ 1440x1080 は比率を維持して正規化 |
+| **`fix1440to1920`**| `boolean` | VAAPI: `true`<br>CPU: `false` | 地デジ 1440x1080 を 1920x1080（正方形ピクセル）に拡大補正するかどうか |
+| **`vaapiHwaccel`** | `boolean` | `true` | VAAPI デコードを GPU で行うか (`true`)、CPU デコード + hwupload (`false`) にするか |
+| **`rcMode`** | `string` | - | VAAPI レート制御モード（`'VBR'`, `'CBR'`, `'CQP'` 等） |
+| **`qp`** | `number` | - | VAAPI CQP モード時の固定量子化パラメータ |
+| **`dualMono`** | `string` | `'split'` | 二重音声の処理方式（`'split'`: 2トラック分離, `'main'`: 主音声のみ, `'sub'`: 副音声のみ） |
+| **`audioStreamMode`** | `string` | `'first'` | 音声ストリームの抽出モード（`'first'`: 第1音声のみ, `'all'`: 5.1chや解説等の全音声トラック保持） |
+| **`subtitle`** | `boolean` | 環境変数従属 | ARIB STD-B24 字幕を MP4 `mov_text` として多重化保存するかどうか |
+
+
 ---
 
 ## 7. 外部連携・フック設定 (`hooks`)

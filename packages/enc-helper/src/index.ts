@@ -1,8 +1,10 @@
 import { spawn, execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import type { AudioStreamInfo, EncodeOptions, MediaInfo, ResolutionResult, VerificationResult } from './types.js';
+import type { AudioStreamInfo, EncodeOptions, MediaInfo, ResolutionResult, VerificationResult, QualityPresetName } from './types.js';
+import { resolveQualityConfig, estimateOptimalBitrate } from './probe.js';
 
 export * from './types.js';
+export * from './probe.js';
 
 /**
  * ffprobe を用いてメディア情報（動画長、解像度、有効な音声ストリーム）を取得する
@@ -234,6 +236,9 @@ export const buildFFmpegArgs = (options: EncodeOptions, mediaInfo: MediaInfo): s
         probesize = '32M',
         maxMuxingQueueSize = 1024,
         vaapiDevice = '/dev/dri/renderD128',
+        vaapiHwaccel = true,
+        rcMode = null,
+        qp = null,
         customArgs = [],
         modifyArgs = null,
     } = options;
@@ -261,7 +266,10 @@ export const buildFFmpegArgs = (options: EncodeOptions, mediaInfo: MediaInfo): s
     }
 
     if (isVAAPI) {
-        args.push('-vaapi_device', vaapiDevice, '-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi');
+        args.push('-vaapi_device', vaapiDevice);
+        if (vaapiHwaccel) {
+            args.push('-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi');
+        }
     }
 
     if (input) {
@@ -356,11 +364,21 @@ export const buildFFmpegArgs = (options: EncodeOptions, mediaInfo: MediaInfo): s
 
     if (isVAAPI) {
         const filters: string[] = [];
-        if (deinterlace) {
-            filters.push('deinterlace_vaapi');
-        }
-        if (res.isScaled) {
-            filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+        if (vaapiHwaccel) {
+            if (deinterlace) {
+                filters.push('deinterlace_vaapi');
+            }
+            if (res.isScaled) {
+                filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+            }
+        } else {
+            if (deinterlace) {
+                filters.push('yadif');
+            }
+            filters.push('format=nv12', 'hwupload');
+            if (res.isScaled) {
+                filters.push(`scale_vaapi=w=${res.targetW}:h=${res.targetH},setsar=1/1`);
+            }
         }
         if (filters.length > 0) {
             args.push('-vf', filters.join(','));
@@ -386,14 +404,34 @@ export const buildFFmpegArgs = (options: EncodeOptions, mediaInfo: MediaInfo): s
     args.push('-aspect', '16:9', '-c:v', effectiveCodec);
 
     if (isVAAPI) {
-        const defaultBitrate = isHEVC
-            ? res.targetH <= 720
-                ? '1800k'
-                : '3000k'
-            : res.targetH <= 720
-              ? '2500k'
-              : '4500k';
-        args.push('-b:v', videoBitrate || defaultBitrate);
+        if (rcMode === 'CQP' || (qp !== null && qp !== undefined)) {
+            args.push('-rc_mode', 'CQP');
+            const effectiveQp = qp !== null && qp !== undefined ? qp : crf !== null && crf !== undefined ? crf : 33;
+            args.push('-qp', String(effectiveQp));
+        } else {
+            let defaultBitrate = isHEVC
+                ? res.targetH <= 720
+                    ? '1800k'
+                    : '3000k'
+                : res.targetH <= 720
+                  ? '2500k'
+                  : '4500k';
+            if (isHEVC && options.quality) {
+                const qConf = resolveQualityConfig(options.quality);
+                const outPixels = res.targetW * res.targetH;
+                const resFactor = Math.pow(outPixels / (1440 * 1080), 0.75);
+                const baseBps = (qConf.minBps + qConf.maxBps) / 2;
+                defaultBitrate = `${Math.round((baseBps * resFactor) / 100) * 100}k`;
+            }
+            const effectiveVb = videoBitrate && videoBitrate !== 'auto' ? videoBitrate : defaultBitrate;
+            args.push('-b:v', effectiveVb);
+            if (rcMode) {
+                args.push('-rc_mode', rcMode);
+            }
+        }
+        if (effectiveCodec === 'hevc_vaapi') {
+            args.push('-bsf:v', `hevc_metadata=height=${res.targetH}`);
+        }
     } else if (isNVENC) {
         if (preset) args.push('-preset', preset);
         if (videoBitrate) {
@@ -544,8 +582,62 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
     // 1. メディア情報解析
     const mediaInfo = await getMediaInfo(ffprobe, input, analyzeduration, probesize);
 
+    let effectiveOptions = { ...options };
+
+    const effectiveCodec = normalizeCodec(options.codec || 'libx264');
+    const isVaapiHevc = effectiveCodec === 'hevc_vaapi';
+    const isCQP = options.rcMode === 'CQP' || (options.qp !== null && options.qp !== undefined);
+
+    const isAutoBitrateRequested =
+        options.adaptiveBitrate === true ||
+        options.autoBitrate === true ||
+        options.quality !== undefined ||
+        options.videoBitrate === 'auto';
+
+    // VAAPI HEVC 専用: CRF のない VAAPI HEVC に対して事前プローブによる適応型ビットレート制御を実行
+    if (isAutoBitrateRequested && isVaapiHevc && !isCQP && (!options.videoBitrate || options.videoBitrate === 'auto')) {
+        try {
+            console.error('[enc_helper] Probing content complexity for VAAPI HEVC adaptive bitrate...');
+            const res = resolveResolution(
+                effectiveOptions.scale,
+                effectiveOptions.maxHeight,
+                mediaInfo.width,
+                mediaInfo.height,
+                effectiveOptions.fix1440to1920 ?? true,
+            );
+            const probeResult = await estimateOptimalBitrate(input, {
+                quality: options.quality || 'high',
+                ffmpegPath: ffmpeg,
+                ffprobePath: ffprobe,
+                vaapiDevice: options.vaapiDevice || '/dev/dri/renderD128',
+                targetWidth: res.targetW,
+                targetHeight: res.targetH,
+            });
+
+            effectiveOptions = {
+                ...effectiveOptions,
+                videoBitrate: probeResult.videoBitrate,
+                maxrate: effectiveOptions.maxrate || probeResult.maxrate,
+                bufsize: effectiveOptions.bufsize || probeResult.bufsize,
+            };
+
+            console.error(
+                `[enc_helper] VAAPI HEVC auto bitrate estimated: ${probeResult.videoBitrate} ` +
+                    `(maxrate: ${effectiveOptions.maxrate}, bufsize: ${effectiveOptions.bufsize}, ` +
+                    `complexity: ${probeResult.complexityKbps || 'N/A'} kbps, quality: ${options.quality || 'high'}, ` +
+                    `samples: ${probeResult.probeCount}, percentile: ${probeResult.percentile || 'P75'}, ` +
+                    `qSlope: ${probeResult.qSlope || 'N/A'}, scaleFactor: ${probeResult.resFactor || 1.0})`,
+            );
+        } catch (e) {
+            console.error(
+                '[enc_helper] VAAPI HEVC auto bitrate estimation failed, falling back to defaults:',
+                e instanceof Error ? e.message : e,
+            );
+        }
+    }
+
     // 2. 引数構築
-    const args = buildFFmpegArgs(options, mediaInfo);
+    const args = buildFFmpegArgs(effectiveOptions, mediaInfo);
 
     console.error('[enc_helper] FFmpeg command: ' + formatCommand(ffmpeg, args));
 
@@ -599,7 +691,7 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
 
         // 4. 出力ファイルの整合性・動画長検証
         try {
-            const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, options);
+            const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, effectiveOptions);
             if (!check.valid) {
                 console.error(`[enc_helper] CRITICAL ERROR: Corrupted output detected! ${check.reason}`);
                 console.error('[enc_helper] Aborting with exit code 1 to protect source TS from deletion.');
@@ -632,6 +724,15 @@ export const parseCliArgs = (args: string[]): EncodeOptions => {
         const lower = arg.toLowerCase().trim();
         if (lower === '1080p' || lower === '720p' || lower === '540p' || lower === '480p') {
             cliOptions.scale = lower;
+        } else if (lower === '--adaptive' || lower === 'adaptive' || lower === 'auto') {
+            cliOptions.adaptiveBitrate = true;
+        } else if (lower.startsWith('--quality=')) {
+            const qVal = lower.replace('--quality=', '');
+            cliOptions.quality = (['highest', 'high', 'standard', 'economy'].includes(qVal)
+                ? qVal
+                : parseInt(qVal, 10) || 'high') as QualityPresetName | number;
+        } else if (['highest', 'high', 'standard', 'economy'].includes(lower)) {
+            cliOptions.quality = lower as QualityPresetName;
         } else if (lower.includes('vaapi')) {
             isHw = true;
             hwType = 'vaapi';

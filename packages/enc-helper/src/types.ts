@@ -74,11 +74,49 @@ export interface EncodeOptions {
     probesize?: string;
     maxMuxingQueueSize?: number;
     vaapiDevice?: string;
+    vaapiHwaccel?: boolean;
+    rcMode?: string | null;
+    qp?: number | null;
     customArgs?: string[];
     modifyArgs?: ((args: string[]) => string[]) | null;
     verifyDuration?: boolean;
     minDurationSeconds?: number;
     minDurationRatio?: number;
+    adaptiveBitrate?: boolean;
+    autoBitrate?: boolean;
+    quality?: QualityPresetName | number;
+}
+
+export type QualityPresetName = 'highest' | 'high' | 'standard' | 'economy';
+
+export interface QualityConfig {
+    crfEquivalent: number;
+    minBps: number;
+    maxBps: number;
+    maxrateFactor: number;
+}
+
+export interface ProbeResult {
+    videoBitrate: string;
+    maxrate: string;
+    bufsize: string;
+    complexityKbps: number | null;
+    probeCount: number;
+    resFactor: number;
+    cv: number | null;
+    percentile: string;
+    qSlope: number | null;
+}
+
+export interface EstimateOptions {
+    quality?: QualityPresetName | number | string;
+    samples?: number | null;
+    sampleDuration?: number;
+    ffmpegPath?: string;
+    ffprobePath?: string;
+    vaapiDevice?: string;
+    targetWidth?: number;
+    targetHeight?: number;
 }
 
 export interface VerificationResult {

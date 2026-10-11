@@ -107,23 +107,21 @@ encode:
     ffprobe: /usr/bin/ffprobe
   maxProcesses: 4
   concurrency: 1
+  # stallTimeoutSeconds: 600          # 進捗ストール検知タイムアウト(秒)。進捗停止時に強制終了 (デフォルト: 600 = 10分)
   # subtitle: false                   # 全プリセット共通の字幕保存デフォルト (省略時: false)
   # skipSubtitleForSuperimpose: true  # "字幕スーパー" (焼き込み字幕) を含む番組は ARIB 字幕埋め込みを自動スキップ (省略時: false)
   presets:
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
-      rate: 4.0
       # subtitle: false               # true で MP4 内に ARIB 字幕 (mov_text) を保存 (省略時: false)
     - name: H.264-720p
       script: enc_720p.js
       suffix: .mp4
-      rate: 2.5
       # subtitle: false
     # - name: H.265-1080p
     #   script: enc_1080p_x265.js
     #   suffix: .mp4
-    #   rate: 4.0
     # - name: H.264-VAAPI
     #   script: enc_vaapi.js
     #   suffix: .mp4

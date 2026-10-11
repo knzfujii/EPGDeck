@@ -92,7 +92,7 @@ export class SubtitleManager {
             // 1. 通常字幕 (Caption)
             this.captionController = new aribb24.Controller();
             this.captionFeeder = new aribb24.MPEGTSFeeder({
-                recieve: { type: 'Caption' },
+                receive: { type: 'Caption' },
                 tokenizer: {},
                 offset: {},
             });
@@ -104,7 +104,7 @@ export class SubtitleManager {
             // 2. 文字スーパー (Superimpose)
             this.superimposeController = new aribb24.Controller();
             this.superimposeFeeder = new aribb24.MPEGTSFeeder({
-                recieve: { type: 'Superimpose' },
+                receive: { type: 'Superimpose' },
                 tokenizer: {},
                 offset: {},
             });

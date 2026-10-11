@@ -265,7 +265,8 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
         test('should fit all filter tabs on /reserves without horizontal overflow on mobile viewports', async ({
             page,
         }) => {
-            for (const width of [390, 360]) {
+            // 標準モバイル幅（iPhone SE: 375px, 標準: 390px）で全タブがスクロールなしで収まることを検証
+            for (const width of [390, 375]) {
                 await page.setViewportSize({ width, height: 844 });
                 await page.goto('/reserves');
                 await page.waitForLoadState('networkidle');

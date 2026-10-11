@@ -122,8 +122,14 @@ export const move = async (src: string, dest: string): Promise<void> => {
     }
 
     // 別デバイス・マウントポイント間の場合は copy + unlink にフォールバック
+    const srcStat = await fsp.stat(src);
+
     try {
         await FileUtil.copyFile(src, dest);
+        try {
+            await fsp.chmod(dest, srcStat.mode);
+        } catch {}
+        await fsp.utimes(dest, srcStat.atime, srcStat.mtime);
     } catch (err: any) {
         // コピー失敗時は不完全な dest ファイルを掃除
         await FileUtil.unlink(dest).catch(() => {});

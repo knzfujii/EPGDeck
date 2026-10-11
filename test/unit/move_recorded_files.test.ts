@@ -412,6 +412,36 @@ describe('MoveRecordedFiles', () => {
             expect(fs.existsSync(dstFile)).toBe(true);
         });
 
+        it('should preserve file timestamps (atime, mtime) and mode when moving across filesystems (EXDEV)', async () => {
+            const srcFile = path.join(srcDir, 'timestamp_test.mp4');
+            const dstFile = path.join(dstDir, 'timestamp_test.mp4');
+            await fs.promises.writeFile(srcFile, 'timestamp preservation test');
+
+            // 意図的に過去の特定日時を付与 (例: 2024-05-15 08:30:00 UTC)
+            const expectedTime = new Date('2024-05-15T08:30:00Z');
+            await fs.promises.utimes(srcFile, expectedTime, expectedTime);
+            const originalStat = await fs.promises.stat(srcFile);
+
+            // EXDEV エラーをシミュレート
+            const exdevErr = new Error('EXDEV: cross-device link not permitted') as any;
+            exdevErr.code = 'EXDEV';
+            const renameSpy = vi.spyOn(fs.promises, 'rename').mockRejectedValueOnce(exdevErr);
+
+            try {
+                await MoveRecordedFilesCore.moveFile(srcFile, dstFile);
+            } finally {
+                renameSpy.mockRestore();
+            }
+
+            expect(fs.existsSync(srcFile)).toBe(false);
+            expect(fs.existsSync(dstFile)).toBe(true);
+
+            const movedStat = await fs.promises.stat(dstFile);
+            // 秒単位（ファイルシステム精度）で mtime が保持されていることを確認
+            expect(Math.floor(movedStat.mtimeMs / 1000)).toBe(Math.floor(originalStat.mtimeMs / 1000));
+            expect(Math.floor(movedStat.atimeMs / 1000)).toBe(Math.floor(originalStat.atimeMs / 1000));
+        });
+
         it('should safely clean empty parent directories and stop at root or non-empty directory', async () => {
             // 構造:
             // srcDir/

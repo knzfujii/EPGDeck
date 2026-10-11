@@ -163,14 +163,16 @@ export class MoveRecordedFilesCore {
 
     /**
      * 高速 rename を優先し、別ドライブ間（EXDEV）なら進捗通知付きストリームコピーにフォールバックして移動
+     * 元ファイルのタイムスタンプ（更新日時 mtime, アクセス日時 atime）および属性 (mode) を確実に保持する
      */
     public static async moveFile(src: string, dst: string, onProgress?: ProgressCallback): Promise<void> {
+        const srcStat = await fs.promises.stat(src);
+
         try {
             // 同一ファイルシステム内なら rename で瞬時に完了
             await fs.promises.rename(src, dst);
             if (onProgress) {
-                const stat = await fs.promises.stat(dst);
-                onProgress(100, stat.size, stat.size);
+                onProgress(100, srcStat.size, srcStat.size);
             }
             return;
         } catch (err: any) {
@@ -180,7 +182,6 @@ export class MoveRecordedFilesCore {
         }
 
         // 異なるファイルシステム間の場合はストリームコピー + 進捗更新
-        const srcStat = await fs.promises.stat(src);
         const totalBytes = srcStat.size;
         let transferredBytes = 0;
 
@@ -201,6 +202,12 @@ export class MoveRecordedFilesCore {
             await fs.promises.unlink(dst).catch(() => {});
             throw copyErr;
         }
+
+        // タイムスタンプ（atime, mtime）および属性 (mode) を元ファイルと同一に復元
+        try {
+            await fs.promises.chmod(dst, srcStat.mode);
+        } catch {}
+        await fs.promises.utimes(dst, srcStat.atime, srcStat.mtime);
 
         // コピー成功後に移動元ファイルを安全に削除
         await fs.promises.unlink(src);

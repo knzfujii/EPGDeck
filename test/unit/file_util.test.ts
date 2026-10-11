@@ -144,6 +144,10 @@ describe('FileUtil Unit Tests', () => {
             const dest = path.join(testRoot, 'exdev_dest.txt');
             await FileUtil.writeFile(src, 'cross-device move test');
 
+            const expectedTime = new Date('2024-03-10T15:20:00Z');
+            await fs.promises.utimes(src, expectedTime, expectedTime);
+            const srcStat = await fs.promises.stat(src);
+
             const exdevErr = new Error('EXDEV: cross-device link not permitted') as any;
             exdevErr.code = 'EXDEV';
 
@@ -158,6 +162,10 @@ describe('FileUtil Unit Tests', () => {
 
             expect(fs.existsSync(src)).toBe(false);
             expect(fs.existsSync(dest)).toBe(true);
+
+            const destStat = await fs.promises.stat(dest);
+            expect(Math.floor(destStat.mtimeMs / 1000)).toBe(Math.floor(srcStat.mtimeMs / 1000));
+
             expect(await FileUtil.readFile(dest)).toBe('cross-device move test');
         });
 

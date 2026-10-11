@@ -244,26 +244,23 @@ encode:
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
-      rate: 4.0
       subtitle: true               # プリセット個別指定 (MP4 内に mov_text 字幕を保存)
     - name: H.264-720p
       script: enc_720p.js
       suffix: .mp4
-      rate: 2.5
 
     # 2. 独自コマンド・外部シェルスクリプト指定 (cmd を直接記述)
     # %NODE% (Node.js実行パス), %ROOT% (プロジェクトルート) などのマクロや外部バイナリが利用可能です
     # - name: Custom-Script
     #   cmd: '%NODE% %ROOT%/config/my_custom_encode.js'
     #   suffix: .mp4
-    #   rate: 3.0
     # - name: Shell-Script
     #   cmd: '/usr/local/bin/my_encode.sh'
     #   suffix: .mkv
-    #   rate: 4.0
 ```
 
 ### グローバル設定項目
+- **`stallTimeoutSeconds`**: エンコード進捗（`percent` または `time=`）が停止した際にハングアップ・無限ループと判定して強制終了するまでの**進捗ストール許容秒数**（デフォルト: `600` = 10分）。マルチプロセス（10並列等）で極端に低速化しても、進捗が少しずつ前進している限りは絶対にタイムアウトせず完走します。エラーログだけを垂れ流して映像が進まない異常ループも確実に検知して安全に回収します。
 - **`subtitle`**: 全プリセット共通の字幕保存デフォルトです（省略時: `false`）。`true` の場合、ARIB STD-B24 字幕を MP4 内部の `mov_text`（テキスト字幕トラック）として多重化保存します。内部でミリ秒タイムベース（`-time_base:s 1/1000`）および `-fix_sub_duration` が適用され、セリフや字幕が極端に少ない長時間の紀行番組などでも 32bit オーバーフローを起こさず安全に完走します。
 - **`skipSubtitleForSuperimpose`**: 番組情報に「字幕スーパー」が含まれる場合、映像自体に字幕が焼き込まれているため、ARIB 字幕埋め込み処理（`mov_text`）を自動的にスキップしてエンコードの失敗や字幕の重複描画を防ぎます（省略時: `false`）。
 
@@ -275,7 +272,8 @@ encode:
 | **`script`** | `string` | 任意 | `config/` ディレクトリ配下のエンコードスクリプト名（例: `enc_1080p.js`） |
 | **`cmd`** | `string` | 任意 | 独自コマンド・外部シェルスクリプトを実行する場合のコマンド文字列 |
 | **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
-| **`rate`** | `number` | 任意 | **タイムアウト倍率係数**（デフォルト: `4.0`）。録画実時間 × `rate` を超過した場合にハングアップとみなして強制終了します（例: 30分番組 × `rate: 4.0` = 120分でタイムアウト） |
+| **`stallTimeoutSeconds`** | `number` | 任意 | プリセット個別の進捗ストール許容秒数（省略時: `encode.stallTimeoutSeconds` の 600秒） |
+| ~~**`rate`**~~ | `number` | 非推奨 | **【完全廃止】** 旧 EPGStation の録画時間倍率タイムアウト。進捗ストール監視への移行に伴い完全廃止されました（既存設定に残っていても無視されます） |
 | **`subtitle`** | `boolean` | 任意 | このプリセットで MP4 内に ARIB 字幕（`mov_text`）を埋め込むかどうか（省略時: `encode.subtitle` の値に従う） |
 
 ### スクリプト設定オプション (`@epgdeck/enc-helper`)

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import EncoderModel from '../../src/model/service/encode/EncoderModel.js';
 import FileUtil from '../../src/util/FileUtil.js';
 import Util from '../../src/util/Util.js';
@@ -280,5 +280,161 @@ describe('EncoderModel', () => {
                 }),
             }),
         );
+    });
+
+    describe('Progress Stall Watchdog (forward progress monitoring)', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('should trigger cancel when encoding progress does not advance for stallTimeoutSeconds', async () => {
+            mockConfigure.getConfig.mockReturnValue({
+                encode: {
+                    presets: [
+                        {
+                            name: 'H264 crf23',
+                            cmd: 'node /path/to/enc.js',
+                            suffix: '_crf23.mp4',
+                            stallTimeoutSeconds: 60, // 60秒進捗が停止したらタイムアウト
+                        },
+                    ],
+                    binaries: {
+                        ffmpeg: '/opt/ffmpeg/bin/ffmpeg',
+                        ffprobe: '/opt/ffmpeg/bin/ffprobe',
+                    },
+                },
+            });
+
+            const cancelSpy = vi.spyOn(encoderModel, 'cancel').mockResolvedValue(undefined as any);
+
+            encoderModel.setOption({
+                encodeId: 10,
+                sourceVideoFileId: 1,
+                parentDir: 'recorded',
+                recordedId: 10,
+                mode: 'H264 crf23',
+                directory: '',
+                removeOriginal: false,
+            });
+
+            await encoderModel.start();
+
+            // 最初の進捗 (time=00:00:10, percent: 1.0)
+            mockChildProcess.stdout.emit(
+                'data',
+                Buffer.from(JSON.stringify({ type: 'progress', percent: 1.0, log: 'time=00:00:10.00' }) + '\n'),
+            );
+
+            // 30秒経過（まだタイムアウトしない）
+            await vi.advanceTimersByTimeAsync(30000);
+            expect(cancelSpy).not.toHaveBeenCalled();
+
+            // さらに40秒経過（合計70秒間、進捗が一切前進しない）
+            await vi.advanceTimersByTimeAsync(40000);
+            expect(cancelSpy).toHaveBeenCalledTimes(1);
+
+            const log = mockLogger.getLogger().encode;
+            expect(log.error).toHaveBeenCalledWith(
+                expect.stringContaining('encode process is stalled (no forward progress for'),
+            );
+        });
+
+        it('should trigger cancel when stderr outputs endless errors without advancing forward progress (error loop detection)', async () => {
+            mockConfigure.getConfig.mockReturnValue({
+                encode: {
+                    presets: [
+                        {
+                            name: 'H264 crf23',
+                            cmd: 'node /path/to/enc.js',
+                            suffix: '_crf23.mp4',
+                            stallTimeoutSeconds: 60,
+                        },
+                    ],
+                    binaries: {
+                        ffmpeg: '/opt/ffmpeg/bin/ffmpeg',
+                        ffprobe: '/opt/ffmpeg/bin/ffprobe',
+                    },
+                },
+            });
+
+            const cancelSpy = vi.spyOn(encoderModel, 'cancel').mockResolvedValue(undefined as any);
+
+            encoderModel.setOption({
+                encodeId: 11,
+                sourceVideoFileId: 1,
+                parentDir: 'recorded',
+                recordedId: 10,
+                mode: 'H264 crf23',
+                directory: '',
+                removeOriginal: false,
+            });
+
+            await encoderModel.start();
+
+            // 10秒ごとにエラーログが stderr から激しく出力され続けるが、エンコード進捗 (time= や percent) は一切進まない
+            for (let i = 0; i < 7; i++) {
+                await vi.advanceTimersByTimeAsync(10000);
+                mockChildProcess.stderr.emit('data', Buffer.from('[h264 @ 0x55] corrupt macroblock error loop!\n'));
+            }
+
+            // 文字列が出力されていても、進捗が進んでいないため確実にストール判定されて cancel されること！
+            expect(cancelSpy).toHaveBeenCalledTimes(1);
+
+            const log = mockLogger.getLogger().encode;
+            expect(log.error).toHaveBeenCalledWith(
+                expect.stringContaining('encode process is stalled (no forward progress for'),
+            );
+        });
+
+        it('should NOT trigger cancel when forward progress advances periodically (10-parallel simulation)', async () => {
+            mockConfigure.getConfig.mockReturnValue({
+                encode: {
+                    presets: [
+                        {
+                            name: 'H264 crf23',
+                            cmd: 'node /path/to/enc.js',
+                            suffix: '_crf23.mp4',
+                            stallTimeoutSeconds: 60, // 60秒進捗停止でタイムアウト
+                        },
+                    ],
+                    binaries: {
+                        ffmpeg: '/opt/ffmpeg/bin/ffmpeg',
+                        ffprobe: '/opt/ffmpeg/bin/ffprobe',
+                    },
+                },
+            });
+
+            const cancelSpy = vi.spyOn(encoderModel, 'cancel').mockResolvedValue(undefined as any);
+
+            encoderModel.setOption({
+                encodeId: 12,
+                sourceVideoFileId: 1,
+                parentDir: 'recorded',
+                recordedId: 10,
+                mode: 'H264 crf23',
+                directory: '',
+                removeOriginal: false,
+            });
+
+            await encoderModel.start();
+
+            // 10並列で超低速になり、何時間もかかっている状況をシミュレート
+            // 20秒ごとに少しずつ time= が前進し、合計 2時間 (7,200,000ms) 経過させる
+            for (let i = 1; i <= 360; i++) {
+                await vi.advanceTimersByTimeAsync(20000);
+                const s = i * 2;
+                const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+                const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+                const ss = String(s % 60).padStart(2, '0');
+                mockChildProcess.stderr.emit('data', Buffer.from(`frame=${i * 5} fps=0.5 time=${hh}:${mm}:${ss}.00\n`));
+            }
+
+            // 進捗が着実に前進しているため、2時間経っても絶対に cancel されないこと！
+            expect(cancelSpy).not.toHaveBeenCalled();
+        });
     });
 });

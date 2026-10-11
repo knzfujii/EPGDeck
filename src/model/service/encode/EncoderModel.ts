@@ -34,7 +34,10 @@ class EncoderModel implements IEncoderModel {
 
     private encodeOption: EncodeOption | null = null; // エンコード情報
     private childProcess: ChildProcess | null = null; // エンコードプロセス
-    private timerId: NodeJS.Timeout | null = null; // タイムアウト検知用タイマーid
+    private watchdogTimerId: NodeJS.Timeout | null = null; // 進捗ストール監視タイマー
+    private lastProgressAt: number = 0; // 最終進捗前進時刻
+    private lastProgressPercent: number = -1; // 前回の進捗パーセント
+    private lastEncodedSeconds: number = -1; // 前回のエンコード済み動画秒数 (time=)
     private isCanceled: boolean = false; // キャンセルが呼び出されたか?
     private progressInfo: EncodeProgressInfo | null = null;
     private ffmpegCommand: string | null = null; // 実行されたFFmpegコマンドライン
@@ -243,19 +246,33 @@ class EncoderModel implements IEncoderModel {
             },
         });
 
-        const timeoutRate = typeof encodeCmd.rate === 'undefined' ? EncoderModel.DEFAULT_TIMEOUT_RATE : encodeCmd.rate;
-        const rawTimeout = (recorded.duration > 0 ? recorded.duration : 3600000) * timeoutRate;
-        const safeTimeout = Math.min(Math.max(rawTimeout, 60000), 2147483647);
+        this.lastProgressAt = Date.now();
+        this.lastProgressPercent = -1;
+        this.lastEncodedSeconds = -1;
 
-        // タイムアウト設定
-        this.timerId = setTimeout(async () => {
-            if (this.encodeOption === null) {
+        // 進捗ストール監視（Progress Watchdog）
+        // 10並列エンコード等で極端に低速化しても、進捗（percent または time=）が前進している限り絶対にキャンセルしない。
+        // 進捗が一定時間（デフォルト: 10分）一度も前進しなくなった場合のみ、ハングアップまたは無限ループと判定して安全に回収。
+        const stallTimeoutSeconds =
+            encodeCmd.stallTimeoutSeconds ??
+            config.encode.stallTimeoutSeconds ??
+            EncoderModel.DEFAULT_STALL_TIMEOUT_MS / 1000;
+        const stallTimeoutMs = Math.max(stallTimeoutSeconds * 1000, 60000); // 最低1分保証
+
+        this.watchdogTimerId = setInterval(async () => {
+            if (this.encodeOption === null || this.isCanceled) {
                 return;
             }
 
-            this.log.encode.error(`encode process is time out: ${this.encodeOption.encodeId} ${outputFilePath}`);
-            await this.cancel();
-        }, safeTimeout);
+            const elapsedSinceProgress = Date.now() - this.lastProgressAt;
+            if (elapsedSinceProgress >= stallTimeoutMs) {
+                const elapsedMin = (elapsedSinceProgress / 60000).toFixed(1);
+                this.log.encode.error(
+                    `encode process is stalled (no forward progress for ${elapsedMin}min >= ${Math.round(stallTimeoutMs / 60000)}min, percent: ${this.progressInfo?.percent ?? 0}%, lastSeconds: ${this.lastEncodedSeconds}s): ${this.encodeOption.encodeId} ${outputFilePath}`,
+                );
+                await this.cancel();
+            }
+        }, EncoderModel.WATCHDOG_CHECK_INTERVAL_MS);
 
         /**
          * プロセスの設定
@@ -268,6 +285,12 @@ class EncoderModel implements IEncoderModel {
                 this.log.encode.debug(str);
                 stderrBuffer.push(str);
                 if (stderrBuffer.length > 50) stderrBuffer.shift();
+
+                // stderr からエンコード時間進捗 (time=) を検知して前進を記録
+                const sec = this.parseTimeSeconds(str);
+                if (sec !== null) {
+                    this.markProgressForward(undefined, sec);
+                }
 
                 // FFmpeg 実行コマンド行を検知して INFO ログに記録
                 if (str.includes('FFmpeg command:')) {
@@ -291,16 +314,17 @@ class EncoderModel implements IEncoderModel {
                 this.log.encode.error(`get encode vidoe file info: ${inputFilePath}`);
                 this.log.encode.error(err);
             }
-            if (videoInfo !== null) {
-                // エンコードプロセスの標準出力から進捗情報を取り出す
-                this.childProcess.stdout.on('data', data => {
+
+            // エンコードプロセスの標準出力から進捗情報を取り出す
+            this.childProcess.stdout.on('data', data => {
+                if (videoInfo !== null) {
                     try {
                         this.updateEncodingProgressInfo(data);
                     } catch (err: any) {
                         // error
                     }
-                });
-            }
+                }
+            });
         }
 
         // プロセス終了処理
@@ -343,6 +367,40 @@ class EncoderModel implements IEncoderModel {
     }
 
     /**
+     * FFmpeg ログ行から time=HH:MM:SS.ms を秒数(float)にパースする
+     */
+    private parseTimeSeconds(logText: string): number | null {
+        const match = logText.match(/time=\s*(\d+):(\d+):(\d+\.?\d*)/);
+        if (match) {
+            const h = parseFloat(match[1]) || 0;
+            const m = parseFloat(match[2]) || 0;
+            const s = parseFloat(match[3]) || 0;
+            return h * 3600 + m * 60 + s;
+        }
+        return null;
+    }
+
+    /**
+     * 進捗前進を検知してストール監視タイマーをリセット
+     * @param percent 進捗パーセント
+     * @param encodedSeconds エンコード済み動画秒数 (time=)
+     */
+    private markProgressForward(percent?: number, encodedSeconds?: number | null): void {
+        let isForward = false;
+        if (typeof percent === 'number' && percent > this.lastProgressPercent) {
+            this.lastProgressPercent = percent;
+            isForward = true;
+        }
+        if (typeof encodedSeconds === 'number' && encodedSeconds > this.lastEncodedSeconds) {
+            this.lastEncodedSeconds = encodedSeconds;
+            isForward = true;
+        }
+        if (isForward) {
+            this.lastProgressAt = Date.now();
+        }
+    }
+
+    /**
      * エンコード進捗情報更新
      * @param data: エンコードプロセスの標準出力
      * @param encodeId: apid.EncodeId
@@ -355,16 +413,23 @@ class EncoderModel implements IEncoderModel {
         const logs = String(data).split('\n');
         for (let j = 0; j < logs.length; j++) {
             if (logs[j] != '') {
-                const log = JSON.parse(String(logs[j]));
-                this.log.encode.debug(log);
-                if (log.type === 'progress' && typeof log.percent === 'number' && typeof log.log === 'string') {
-                    this.progressInfo = {
-                        percent: log.percent,
-                        log: log.log,
-                    };
+                try {
+                    const log = JSON.parse(String(logs[j]));
+                    this.log.encode.debug(log);
+                    if (log.type === 'progress' && typeof log.percent === 'number' && typeof log.log === 'string') {
+                        this.progressInfo = {
+                            percent: log.percent,
+                            log: log.log,
+                        };
 
-                    // エンコード進捗変更通知
-                    this.encodeEvent.emitUpdateEncodeProgress();
+                        // 進捗パーセントまたは time= の前進を検知してストールタイマーをリセット
+                        this.markProgressForward(log.percent, this.parseTimeSeconds(log.log));
+
+                        // エンコード進捗変更通知
+                        this.encodeEvent.emitUpdateEncodeProgress();
+                    }
+                } catch {
+                    // JSON parse error
                 }
             }
         }
@@ -387,9 +452,7 @@ class EncoderModel implements IEncoderModel {
         this.log.encode.info(`exit code: ${code}, signal: ${signal}`);
 
         // タイムアウトタイマークリア
-        if (this.timerId !== null) {
-            clearTimeout(this.timerId);
-        }
+        this.clearTimers();
 
         // ファイルパスの登録を削除
         if (outputFilePath !== null) {
@@ -450,6 +513,7 @@ class EncoderModel implements IEncoderModel {
             return;
         }
 
+        this.clearTimers();
         this.log.encode.info(`cancel encode: ${this.encodeOption.encodeId}`);
 
         // プロセスが実行されていれば削除する
@@ -463,6 +527,16 @@ class EncoderModel implements IEncoderModel {
                 this.log.encode.error(`kill encode process failed: ${this.encodeOption?.encodeId}`);
                 this.log.encode.error(err);
             });
+        }
+    }
+
+    /**
+     * 動作中の監視タイマー (ストール監視・絶対時間上限) を解除する
+     */
+    private clearTimers(): void {
+        if (this.watchdogTimerId !== null) {
+            clearInterval(this.watchdogTimerId);
+            this.watchdogTimerId = null;
         }
     }
 
@@ -494,7 +568,10 @@ class EncoderModel implements IEncoderModel {
 namespace EncoderModel {
     export const ENCODE_FINISH_EVENT = 'encodeFinishEvent';
     export const ENCODE_PRIPORITY = 10;
-    export const DEFAULT_TIMEOUT_RATE = 4.0;
+    /** 進捗ストール検知のデフォルト閾値 (ミリ秒): 10分 */
+    export const DEFAULT_STALL_TIMEOUT_MS = 10 * 60 * 1000;
+    /** ウォッチドッグの監視チェック周期 (ミリ秒): 30秒 */
+    export const WATCHDOG_CHECK_INTERVAL_MS = 30 * 1000;
 }
 
 export default EncoderModel;

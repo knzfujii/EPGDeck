@@ -130,7 +130,9 @@ export interface EncodePresetConfig {
     script?: string;
     cmd: string;
     suffix?: string;
+    /** @deprecated rate は完全廃止されました。進捗ストール監視 (stallTimeoutSeconds) が自動適用されます */
     rate?: number;
+    stallTimeoutSeconds?: number;
     subtitle?: boolean;
 }
 
@@ -139,6 +141,7 @@ export interface EncodeConfig {
     maxProcesses: number;
     concurrency: number;
     presets: EncodePresetConfig[];
+    stallTimeoutSeconds?: number;
     skipSubtitleForSuperimpose?: boolean;
 }
 

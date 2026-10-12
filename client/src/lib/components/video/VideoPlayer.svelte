@@ -137,15 +137,90 @@
         }
     }
 
-    function handleOverlayClick(e: MouseEvent) {
-        e.stopPropagation();
+    // 連続シーク（インクリメント）累積状態 & タップ操作用状態
+    let seekAccumulated = $state<{
+        side: 'left' | 'right';
+        seconds: number;
+        baseTime: number; // 連続タップ開始前の再生時刻
+    } | null>(null);
+    let seekResetTimer: ReturnType<typeof setTimeout> | null = null;
+    let seekDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let doubleTapFeedback = $state<{
+        side: 'left' | 'right';
+        seconds: number;
+    } | null>(null);
+    let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let tapTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastTapSide: 'left' | 'right' | null = null;
+    let lastTapTime = 0;
+
+    function triggerToggleControls() {
         if (!showControls) {
-            // コントロール非表示時：動画の再生・停止は行わず、コントロールを表示するのみ
             resetHideControlsTimer();
         } else {
-            // コントロール表示時：背景タップでコントロールを即座に隠す
             showControls = false;
             pauseHideControlsTimer();
+        }
+    }
+
+    // 中央タップ: コントロール表示/非表示を即座にトグル (遅延0ms)
+    function handleCenterTap(e: MouseEvent) {
+        e.stopPropagation();
+        if (tapTimer) {
+            clearTimeout(tapTimer);
+            tapTimer = null;
+        }
+        lastTapSide = null;
+        lastTapTime = 0;
+        triggerToggleControls();
+    }
+
+    // 左右タップ: コントロール非表示時はダブルタップでシーク / コントロール表示時は即座に非表示
+    function handleSideTap(e: MouseEvent, side: 'left' | 'right') {
+        e.stopPropagation();
+
+        // ライブ配信中やシーク不能な場合はコントロールトグルのみ
+        if (!canSeek) {
+            triggerToggleControls();
+            return;
+        }
+
+        const now = Date.now();
+        const isDoubleTap = lastTapSide === side && now - lastTapTime < 320;
+
+        if (isDoubleTap) {
+            // ダブルタップ成立
+            if (tapTimer) {
+                clearTimeout(tapTimer);
+                tapTimer = null;
+            }
+
+            const step = side === 'left' ? -10 : 30;
+            seekRelative(step);
+
+            lastTapTime = now;
+            lastTapSide = side;
+        } else {
+            // コントロールが表示されている時は、背景タップで遅延なく即座に閉じる
+            if (showControls) {
+                lastTapSide = side;
+                lastTapTime = now;
+                showControls = false;
+                pauseHideControlsTimer();
+                return;
+            }
+
+            // コントロールが隠れている時: 1回目のタップ (280ms 待ってダブルタップが来なければコントロール表示)
+            lastTapSide = side;
+            lastTapTime = now;
+
+            if (tapTimer) clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => {
+                tapTimer = null;
+                lastTapSide = null;
+                lastTapTime = 0;
+                triggerToggleControls();
+            }, 280);
         }
     }
 
@@ -214,7 +289,59 @@
     }
 
     function seekRelative(offsetSeconds: number) {
-        seekTo(currentTime + offsetSeconds);
+        if (!canSeek) return;
+
+        const side: 'left' | 'right' = offsetSeconds < 0 ? 'left' : 'right';
+        const absStep = Math.abs(offsetSeconds);
+
+        if (seekAccumulated && seekAccumulated.side === side) {
+            seekAccumulated.seconds += absStep;
+        } else {
+            seekAccumulated = {
+                side,
+                seconds: absStep,
+                baseTime: currentTime,
+            };
+        }
+
+        const totalOffset = seekAccumulated.side === 'left' ? -seekAccumulated.seconds : seekAccumulated.seconds;
+        const targetTime = Math.max(0, Math.min(displayDuration, seekAccumulated.baseTime + totalOffset));
+
+        // UI 上の currentTime を即座に目標時刻へ追従
+        currentTime = targetTime;
+
+        // OSD フィードバック表示
+        doubleTapFeedback = {
+            side,
+            seconds: seekAccumulated.seconds,
+        };
+        if (feedbackTimer) clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => {
+            doubleTapFeedback = null;
+        }, 650);
+
+        if (seekResetTimer) clearTimeout(seekResetTimer);
+        seekResetTimer = setTimeout(() => {
+            seekAccumulated = null;
+        }, 650);
+
+        // トランスコードストリーム判定
+        const isTranscodeStream =
+            !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
+
+        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+
+        if (isTranscodeStream && props.onHlsSeekRestart) {
+            // トランスコード配信時は連続タップが落ち着いた後に 1 回だけシーク要求を発行
+            seekDebounceTimer = setTimeout(() => {
+                seekDebounceTimer = null;
+                seekTo(targetTime);
+            }, 280);
+        } else {
+            // Direct 再生等の場合は低遅延で即時反映
+            seekTo(targetTime);
+        }
+        resetHideControlsTimer();
     }
 
     function handleSeekChange(e: Event) {
@@ -631,6 +758,10 @@
                 playerState.clearPosition(recordedId);
             }
         }
+        if (tapTimer) clearTimeout(tapTimer);
+        if (feedbackTimer) clearTimeout(feedbackTimer);
+        if (seekResetTimer) clearTimeout(seekResetTimer);
+        if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
         cleanupEngines();
     });
 </script>
@@ -679,7 +810,7 @@
             }
         }}
         ontimeupdate={() => {
-            if (videoElement && !isLoading) {
+            if (videoElement && !isLoading && !seekAccumulated) {
                 const isTranscodeStream =
                     !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
                 currentTime = isTranscodeStream ? playbackOffset + videoElement.currentTime : videoElement.currentTime;
@@ -726,17 +857,63 @@
         aria-hidden="true"
     ></div>
 
-    <!-- タップ / クリック判定用オーバーレイ (非表示時はコントロール表示、表示時は非表示化) -->
-    <button
-        type="button"
-        onclick={handleOverlayClick}
-        class="absolute inset-0 z-10 h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation {!showControls &&
-        isPlaying
-            ? 'cursor-none'
-            : 'cursor-pointer'}"
-        tabindex="-1"
-        aria-label={showControls ? 'コントロールを非表示' : 'コントロールを表示'}
-    ></button>
+    <!-- タップ / クリック判定用 3分割グリッドオーバーレイ (左1/3戻し・中央トグル・右1/3送り) -->
+    <div class="absolute inset-0 z-10 grid grid-cols-3 {!showControls && isPlaying ? 'cursor-none' : 'cursor-pointer'}">
+        <!-- 左 1/3: 10秒戻る (ダブルタップ) -->
+        <button
+            type="button"
+            onclick={e => handleSideTap(e, 'left')}
+            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
+            tabindex="-1"
+            aria-label="10秒戻る"
+        >
+            {#if doubleTapFeedback?.side === 'left'}
+                <div
+                    class="pointer-events-none absolute inset-y-0 left-0 w-full flex items-center justify-center rounded-r-[100px] bg-white/10 backdrop-blur-2xs transition-all duration-200"
+                    aria-live="polite"
+                >
+                    <div class="flex flex-col items-center gap-1.5 text-white drop-shadow-lg select-none">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-black/40">
+                            <RotateCcw size={28} class="animate-pulse" />
+                        </div>
+                        <span class="text-xs font-black tracking-tight sm:text-sm">-{doubleTapFeedback.seconds}秒</span>
+                    </div>
+                </div>
+            {/if}
+        </button>
+
+        <!-- 中央 1/3: コントロール表示/非表示切替 -->
+        <button
+            type="button"
+            onclick={handleCenterTap}
+            class="h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation"
+            tabindex="-1"
+            aria-label={showControls ? 'コントロールを非表示' : 'コントロールを表示'}
+        ></button>
+
+        <!-- 右 1/3: 30秒進む (ダブルタップ) -->
+        <button
+            type="button"
+            onclick={e => handleSideTap(e, 'right')}
+            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
+            tabindex="-1"
+            aria-label="30秒進む"
+        >
+            {#if doubleTapFeedback?.side === 'right'}
+                <div
+                    class="pointer-events-none absolute inset-y-0 right-0 w-full flex items-center justify-center rounded-l-[100px] bg-white/10 backdrop-blur-2xs transition-all duration-200"
+                    aria-live="polite"
+                >
+                    <div class="flex flex-col items-center gap-1.5 text-white drop-shadow-lg select-none">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-black/40">
+                            <RotateCw size={28} class="animate-pulse" />
+                        </div>
+                        <span class="text-xs font-black tracking-tight sm:text-sm">+{doubleTapFeedback.seconds}秒</span>
+                    </div>
+                </div>
+            {/if}
+        </button>
+    </div>
 
     <!-- ローディングスピナー -->
     {#if isLoading && !errorMessage}
@@ -805,13 +982,19 @@
     {/if}
 
     {#snippet seekButton(offset: number, iconType: 'ccw' | 'cw', label: string, title: string)}
+        {@const side = offset < 0 ? 'left' : 'right'}
+        {@const isAccumulated = seekAccumulated?.side === side}
+        {@const displaySeconds = isAccumulated && seekAccumulated ? seekAccumulated.seconds : Math.abs(offset)}
+        {@const displayLabel = `${displaySeconds}s`}
         <button
             type="button"
             onclick={e => {
                 e.stopPropagation();
                 seekRelative(offset);
             }}
-            class="pointer-events-auto relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-black/20 text-white/75 shadow-lg backdrop-blur-xs transition hover:scale-110 hover:bg-black/40 hover:text-white active:scale-95 cursor-pointer touch-manipulation drop-shadow-sm"
+            class="pointer-events-auto relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full text-white shadow-lg backdrop-blur-xs transition-all duration-150 cursor-pointer touch-manipulation drop-shadow-sm {isAccumulated
+                ? 'bg-blue-600/80 scale-110 ring-2 ring-blue-400'
+                : 'bg-black/20 text-white/75 hover:scale-110 hover:bg-black/40 hover:text-white active:scale-95'}"
             {title}
             aria-label={title}
         >
@@ -823,7 +1006,7 @@
             <span
                 class="absolute inset-0 flex items-center justify-center text-[10px] sm:text-[11px] font-black tracking-tighter select-none pt-0.5"
             >
-                {label}
+                {displayLabel}
             </span>
         </button>
     {/snippet}

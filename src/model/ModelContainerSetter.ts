@@ -456,7 +456,15 @@ export const set = (container: ModelContainer): void => {
     );
     container.registerSingleton<IReserveApiModel>(
         'IReserveApiModel',
-        c => new ReserveApiModel(c.ipcClient, c.reserveDB),
+        c =>
+            new ReserveApiModel(
+                c.ipcClient,
+                c.reserveDB,
+                c.recordedDB,
+                c.recordedHistoryDB,
+                c.ruleDB,
+                c.recordedItemUtil,
+            ),
     );
     container.registerSingleton<IRecordedApiModel>(
         'IRecordedApiModel',

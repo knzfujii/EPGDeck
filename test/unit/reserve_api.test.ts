@@ -5,6 +5,10 @@ import ReserveApiModel from '../../src/model/api/reserve/ReserveApiModel.js';
 describe('ReserveApiModel Tests', () => {
     let dummyIPC: any;
     let dummyReserveDB: any;
+    let dummyRecordedDB: any;
+    let dummyRecordedHistoryDB: any;
+    let dummyRuleDB: any;
+    let dummyRecordedItemUtil: any;
     let model: ReserveApiModel;
 
     beforeEach(() => {
@@ -23,7 +27,32 @@ describe('ReserveApiModel Tests', () => {
             findAll: vi.fn(),
             findLists: vi.fn(),
         };
-        model = new ReserveApiModel(dummyIPC, dummyReserveDB);
+        dummyRecordedDB = {
+            findDuplicates: vi.fn().mockResolvedValue([]),
+        };
+        dummyRecordedHistoryDB = {
+            findDuplicates: vi.fn().mockResolvedValue([]),
+        };
+        dummyRuleDB = {
+            findId: vi.fn().mockResolvedValue(null),
+        };
+        dummyRecordedItemUtil = {
+            convertRecordedToRecordedItem: vi.fn((r: any) => ({
+                id: r.id,
+                name: r.name,
+                channelId: r.channelId,
+                startAt: r.startAt,
+                endAt: r.endAt,
+            })),
+        };
+        model = new ReserveApiModel(
+            dummyIPC,
+            dummyReserveDB,
+            dummyRecordedDB,
+            dummyRecordedHistoryDB,
+            dummyRuleDB,
+            dummyRecordedItemUtil,
+        );
     });
 
     const createDummyReserve = (id: number): Reserve => {
@@ -183,6 +212,58 @@ describe('ReserveApiModel Tests', () => {
                 skips: 1,
                 overlaps: 0,
             });
+        });
+
+        it('getDuplicates returns past recorded files and histories for overlapping reserve', async () => {
+            const rOverlap = createDummyReserve(10);
+            rOverlap.channelId = 101;
+            rOverlap.name = 'アニメタイトル [字]';
+            rOverlap.halfWidthName = 'アニメタイトル [字]';
+            rOverlap.isOverlap = true;
+            rOverlap.ruleId = 5;
+
+            dummyReserveDB.findId.mockResolvedValue(rOverlap);
+            dummyRuleDB.findId.mockResolvedValue({
+                id: 5,
+                reserveOption: { periodToAvoidDuplicate: 30 },
+            });
+
+            const fakeRecorded = {
+                id: 201,
+                name: 'アニメタイトル #01 [字]',
+                halfWidthName: 'アニメタイトル #01 [字]',
+                channelId: 101,
+                startAt: 1000000,
+                endAt: 1001800,
+            };
+            dummyRecordedDB.findDuplicates.mockResolvedValue([fakeRecorded]);
+
+            const fakeHistory = {
+                id: 301,
+                name: 'アニメタイトル',
+                channelId: 101,
+                endAt: 1001800,
+            };
+            dummyRecordedHistoryDB.findDuplicates.mockResolvedValue([fakeHistory]);
+
+            const result = await model.getDuplicates(10, true);
+
+            expect(dummyReserveDB.findId).toHaveBeenCalledWith(10);
+            expect(dummyRuleDB.findId).toHaveBeenCalledWith(5);
+            expect(dummyRecordedDB.findDuplicates).toHaveBeenCalledWith(
+                'アニメタイトル',
+                101,
+                30 * 24 * 60 * 60 * 1000,
+            );
+            expect(result.records).toHaveLength(1);
+            expect(result.records[0].id).toBe(201);
+            expect(result.histories).toHaveLength(1);
+            expect(result.histories[0].name).toBe('アニメタイトル');
+        });
+
+        it('getDuplicates throws error when reserve is not found', async () => {
+            dummyReserveDB.findId.mockResolvedValue(null);
+            await expect(model.getDuplicates(999, true)).rejects.toThrow('ReserveIsNotFound');
         });
     });
 });

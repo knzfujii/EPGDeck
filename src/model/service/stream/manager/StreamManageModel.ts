@@ -30,34 +30,37 @@ class StreamManageModel implements IStreamManageModel {
     public async start(stream: IStreamBaseModel<any>): Promise<apid.StreamId> {
         // 実行権取得
         const exeId = await this.executeManagementModel.getExecution(StreamManageModel.START_STREAM_PRIORITY);
-        const finalize = () => {
-            this.executeManagementModel.unLockExecution(exeId);
-        };
 
         // stream id 割当
         const streamId = this.getEmptyStreamId();
         this.streams[streamId] = stream;
         this.log.stream.info(`start stream: ${streamId.toString(10)}`);
 
+        let isStartFailed = false;
         try {
-            await stream.start(streamId);
-        } catch (err: any) {
-            this.log.stream.error('start stream error');
-            this.log.stream.error(err);
-            finalize();
-            await this.stop(streamId);
-            throw err;
+            try {
+                await stream.start(streamId);
+            } catch (err: any) {
+                isStartFailed = true;
+                this.log.stream.error('start stream error');
+                this.log.stream.error(err);
+                throw err;
+            }
+
+            // stream 停止時に停止させる
+            stream.setExitStream(async () => {
+                await this.stop(streamId).catch(err => {
+                    this.log.stream.error(`exit stream stop error: ${streamId}`);
+                    this.log.stream.error(err);
+                });
+            });
+        } finally {
+            this.executeManagementModel.unLockExecution(exeId);
+            if (isStartFailed) {
+                await this.stop(streamId);
+            }
         }
 
-        // stream 停止時に停止させる
-        stream.setExitStream(async () => {
-            await this.stop(streamId).catch(err => {
-                this.log.stream.error(`exit stream stop error: ${streamId}`);
-                this.log.stream.error(err);
-            });
-        });
-
-        finalize();
         this.socketIO.notifyClient();
 
         return streamId;
@@ -89,10 +92,8 @@ class StreamManageModel implements IStreamManageModel {
         const exeId = await this.executeManagementModel.getExecution(
             isForce ? StreamManageModel.FOURCE_STOP_STREAM_PRIORITY : StreamManageModel.STOP_STREAM_PRIORITY,
         );
-        const finalize = () => {
-            this.executeManagementModel.unLockExecution(exeId);
-        };
 
+        let isStopped: boolean | undefined;
         try {
             if (typeof this.streams[streamId] === 'undefined') {
                 return;
@@ -107,10 +108,14 @@ class StreamManageModel implements IStreamManageModel {
                 delete this.streams[streamId];
             }
 
+            isStopped = true;
+        } finally {
+            this.executeManagementModel.unLockExecution(exeId);
+        }
+
+        if (isStopped === true) {
             this.socketIO.notifyClient();
             this.log.stream.info(`stop stream ${streamId}`);
-        } finally {
-            finalize();
         }
     }
 

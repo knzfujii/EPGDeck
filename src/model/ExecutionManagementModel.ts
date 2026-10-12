@@ -65,27 +65,34 @@ class ExecutionManagementModel implements IExecutionManagementModel {
             this.exeEventEmitter.on(ExecutionManagementModel.UNLOCK_EVENT, onDone);
 
             /**
-             * UNLOCK_EVENT を発行させる
-             * はじめての実行の場合 queue に積んだ自分の id で UNLOCK_EVENT が呼ばれ
-             * 実行権が取得できる
+             * キューからタスクを取り出して実行権を割り当てる
              */
-            this.unLockExecution(exeQueueData.id);
+            this.dispatch();
         });
     }
 
     public unLockExecution(id: ExecutionId): void {
-        if (this.lockId === id) {
-            // アンロック
-            this.lockId = null;
+        if (this.lockId !== id) {
+            return;
         }
 
-        if (this.lockId === null) {
-            // 次の操作に実行権を渡す
-            const q = this.exeQueue.shift();
-            if (typeof q !== 'undefined') {
-                this.lockId = q.id;
-                this.exeEventEmitter.emit(ExecutionManagementModel.UNLOCK_EVENT, q.id);
-            }
+        // アンロック
+        this.lockId = null;
+        this.dispatch();
+    }
+
+    /**
+     * キューの先頭タスクを取り出し、ロックを割り当てて実行を通知する
+     */
+    private dispatch(): void {
+        if (this.lockId !== null) {
+            return;
+        }
+
+        const q = this.exeQueue.shift();
+        if (typeof q !== 'undefined') {
+            this.lockId = q.id;
+            this.exeEventEmitter.emit(ExecutionManagementModel.UNLOCK_EVENT, q.id);
         }
     }
 }

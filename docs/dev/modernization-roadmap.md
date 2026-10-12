@@ -352,3 +352,19 @@ flowchart TD
   3. **超長時間エンコードの完全完走と異常プロセスの迅速回収の両立**:
      - 進捗が少しずつでも前進している限りは、10並行で 24時間・48時間かかろうが一切邪魔せず 100% 完走を保証。
      - 万が一の完全フリーズやエラー無限ループ時は、録画時間に関係なく 10分 で確実に検知・キャンセルしてエンコードスロットを解放する、現代的で無駄のないアーキテクチャを確立した。
+
+#### 3.12 実行権管理 (`ExecutionManagementModel`) の二重解放防止ガードと予約制御の例外安全 (`try...finally`) 統一 (ADR)
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `src/model/ExecutionManagementModel.ts`, `src/model/operator/reservation/ReservationManageModel.ts`, `src/model/service/stream/manager/StreamManageModel.ts`, `test/unit/execution_management_model.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **二重アンロックに対する構造的防衛**:
+     - 従来の `ExecutionManagementModel.unLockExecution(id)` は、引数 `id` が現在の `lockId` と一致しない場合でも `if (this.lockId === null)` の判定を通過して `this.exeQueue.shift()` を実行してしまう構造になっていた。
+     - キューからのディスパッチ処理を `private dispatch()` へ分離し、`unLockExecution` では `if (this.lockId !== id) return;` で自身が保持しているロック以外の解除要求を無視することで、重複アンロックや古い ID による誤ディスパッチを構造的に遮断した。
+  2. **手動 `finalize()` の点在を廃止し `try...finally` による例外安全を確立**:
+     - `ReservationManageModel` の各メソッド（`addManualReserve`, `update`, `updateRule`, `cancel`, `removeSkip`, `removeOverlap`, `edit`, `cleanup`）に散らばっていた手動 `finalize()` や `.catch(err => { finalize(); throw err; })` を全廃。
+     - すべて `try { ... } finally { this.executeManagementModel.unLockExecution(exeId); }` に統一し、同期待ち・DB例外・バリデーションエラー等いかなるパスでも 100% 確実に実行権が解放される構造を確立した。
+  3. **ロック解放後イベント通知（非ブロッキングライフサイクル）の厳格な維持**:
+     - `ReservationManageModel` の `emitUpdated`（IPC通知、録画タイマー更新、外部コマンド起動）および `StreamManageModel` の `socketIO.notifyClient` は、ロックを保持したまま実行するとロック保持時間が不必要に延伸され後続の予約・手動操作を遅延させる原因となる。
+     - そのため、DB更新・差分計算等の排他クリティカルセクションのみを `try...finally` で保護して確実にアンロックし、**アンロックが完了した直後にイベントを発行するライフサイクル順序** を全メソッドで厳格に維持・統一した。これにより、例外安全性を完全確保しつつ、正常系の実行性能・振る舞いへの弊害をゼロとした。
+

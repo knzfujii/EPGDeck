@@ -89,6 +89,18 @@ export interface Reserves {
 }
 
 /**
+ * 予約の重複元録画情報
+ */
+export interface ReserveDuplicates {
+    records: RecordedItem[];
+    histories: {
+        name: string;
+        channelId: ChannelId;
+        endAt: UnixtimeMS;
+    }[];
+}
+
+/**
  * 予約番組情報
  */
 export interface ReserveItem {

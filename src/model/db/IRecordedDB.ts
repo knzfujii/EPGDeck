@@ -43,5 +43,6 @@ export default interface IRecordedDB {
     findGenreList(): Promise<apid.RecordedGenreListItem[]>;
     findOld(): Promise<Recorded | null>;
     findReserveId(reserveId: apid.ReserveId): Promise<Recorded[]>;
+    findDuplicates(name: string, channelId: apid.ChannelId, period?: number): Promise<Recorded[]>;
     removeDropLogFileId(dropLogFileId: apid.DropLogFileId): Promise<void>;
 }

@@ -10,5 +10,6 @@ export default interface IReserveApiModel {
     cancel(reserveId: apid.ReserveId): Promise<void>;
     removeSkip(reserveId: apid.ReserveId): Promise<void>;
     removeOverlap(reserveId: apid.ReserveId): Promise<void>;
+    getDuplicates(reserveId: apid.ReserveId, isHalfWidth: boolean): Promise<apid.ReserveDuplicates>;
     updateAll(): Promise<void>;
 }

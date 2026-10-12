@@ -1,17 +1,36 @@
 import * as apid from '../../../../api.js';
 import Reserve from '../../../db/entities/Reserve.js';
 import StrUtil from '../../../util/StrUtil.js';
+import IRecordedDB from '../../db/IRecordedDB.js';
+import IRecordedHistoryDB from '../../db/IRecordedHistoryDB.js';
 import IReserveDB from '../../db/IReserveDB.js';
+import IRuleDB from '../../db/IRuleDB.js';
 import IIPCClient from '../../ipc/IIPCClient.js';
+import IRecordedItemUtil from '../IRecordedItemUtil.js';
 import IReserveApiModel from './IReserveApiModel.js';
 
 export default class ReserveApiModel implements IReserveApiModel {
     private ipc: IIPCClient;
     private reserveDB: IReserveDB;
+    private recordedDB: IRecordedDB;
+    private recordedHistoryDB: IRecordedHistoryDB;
+    private ruleDB: IRuleDB;
+    private recordedItemUtil: IRecordedItemUtil;
 
-    constructor(ipc: IIPCClient, reserveDB: IReserveDB) {
+    constructor(
+        ipc: IIPCClient,
+        reserveDB: IReserveDB,
+        recordedDB: IRecordedDB,
+        recordedHistoryDB: IRecordedHistoryDB,
+        ruleDB: IRuleDB,
+        recordedItemUtil: IRecordedItemUtil,
+    ) {
         this.ipc = ipc;
         this.reserveDB = reserveDB;
+        this.recordedDB = recordedDB;
+        this.recordedHistoryDB = recordedHistoryDB;
+        this.ruleDB = ruleDB;
+        this.recordedItemUtil = recordedItemUtil;
     }
 
     /**
@@ -302,5 +321,44 @@ export default class ReserveApiModel implements IReserveApiModel {
      */
     public updateAll(): Promise<void> {
         return this.ipc.reservation.updateAll(false);
+    }
+
+    /**
+     * 予約の重複元となった過去の録画情報を取得する
+     */
+    public async getDuplicates(reserveId: apid.ReserveId, isHalfWidth: boolean): Promise<apid.ReserveDuplicates> {
+        const reserve = await this.reserveDB.findId(reserveId);
+        if (reserve === null) {
+            throw new Error('ReserveIsNotFound');
+        }
+
+        const shortName = StrUtil.deleteBrackets(reserve.halfWidthName);
+        let period: number | undefined;
+
+        if (reserve.ruleId !== null) {
+            const rule = await this.ruleDB.findId(reserve.ruleId);
+            if (
+                rule !== null &&
+                rule.reserveOption &&
+                typeof rule.reserveOption.periodToAvoidDuplicate === 'number' &&
+                rule.reserveOption.periodToAvoidDuplicate > 0
+            ) {
+                period = rule.reserveOption.periodToAvoidDuplicate * 24 * 60 * 60 * 1000;
+            }
+        }
+
+        const [records, histories] = await Promise.all([
+            this.recordedDB.findDuplicates(shortName, reserve.channelId, period),
+            this.recordedHistoryDB.findDuplicates(shortName, reserve.channelId, period),
+        ]);
+
+        return {
+            records: records.map(r => this.recordedItemUtil.convertRecordedToRecordedItem(r, isHalfWidth)),
+            histories: histories.map(h => ({
+                name: StrUtil.getHalfOrFull(h.name, h.name, isHalfWidth),
+                channelId: h.channelId,
+                endAt: h.endAt,
+            })),
+        };
     }
 }

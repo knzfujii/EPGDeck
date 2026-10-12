@@ -549,4 +549,181 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should inspect duplicate origin recordings and restore overlap reservation', async ({ page }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const futureTime = Date.now() + 3600000;
+        const mockReserves = [
+            {
+                id: 104,
+                programId: 204,
+                channelId: 1,
+                name: '重複スキップ映画',
+                description: '二重録画防止でスキップされた映画',
+                startAt: futureTime + 10800000,
+                endAt: futureTime + 12600000,
+                isHalfWidth: true,
+                isSkip: false,
+                isConflict: false,
+                isOverlap: true,
+                ruleId: 10,
+                allowEndLack: true,
+            },
+        ];
+
+        const mockDuplicates = {
+            records: [
+                {
+                    id: 901,
+                    ruleId: 10,
+                    programId: 199,
+                    channelId: 1,
+                    startAt: futureTime - 86400000 * 7,
+                    endAt: futureTime - 86400000 * 7 + 7200000,
+                    name: '重複スキップ映画 [字]',
+                    description: '先週録画された元番組',
+                    extended: {},
+                    genre1: 6,
+                    subGenre1: 0,
+                    videoType: 'ts',
+                    videoResolution: '1080p',
+                    videoStreamContent: 1,
+                    videoComponentType: 179,
+                    audioSamplingRate: 48000,
+                    audioComponentType: 3,
+                    isRecording: false,
+                    thumbnails: [1001],
+                    videoFiles: [
+                        {
+                            id: 2001,
+                            name: 'TS',
+                            filename: 'movie.m2ts',
+                            type: 'ts',
+                            size: 4500000000,
+                        },
+                    ],
+                    dropLogFile: {
+                        id: 3001,
+                        errorCnt: 0,
+                        dropCnt: 0,
+                        scramblingCnt: 0,
+                    },
+                    hasDuplicateHistory: true,
+                },
+            ],
+            histories: [],
+        };
+
+        let duplicatesApiCalled = false;
+        let deleteOverlapCalled = false;
+
+        await page.route(/\/api\/reserves/, async route => {
+            const url = route.request().url();
+            const method = route.request().method();
+            if (url.includes('/104/duplicates') && method === 'GET') {
+                duplicatesApiCalled = true;
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockDuplicates),
+                });
+                return;
+            }
+            if (url.includes('/104/overlap') && method === 'DELETE') {
+                deleteOverlapCalled = true;
+                const target = mockReserves.find(r => r.id === 104);
+                if (target) target.isOverlap = false;
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({}),
+                });
+                return;
+            }
+            if (method === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ reserves: mockReserves, total: mockReserves.length }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/recording*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ records: [] }),
+            });
+        });
+
+        await page.route('**/api/thumbnails/*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'image/jpeg',
+                body: Buffer.from([]),
+            });
+        });
+
+        // 1. 予約一覧ページアクセス
+        await page.goto('/reserves');
+        await page.waitForLoadState('networkidle');
+
+        const table = page.locator('table');
+        const overlapRow = table.locator('tr').filter({ hasText: '重複スキップ映画' });
+        await expect(overlapRow).toBeVisible();
+
+        // 2. 行の「重複確認」ボタンをクリックして専用モーダルを開く
+        const checkDuplicateBtn = overlapRow.getByRole('button', { name: '重複確認' });
+        await expect(checkDuplicateBtn).toBeVisible();
+        await checkDuplicateBtn.click();
+
+        const modal = page.getByRole('dialog');
+        await expect(modal).toBeVisible();
+
+        // 3. 専用モーダル内の表示確認
+        await expect.poll(() => duplicatesApiCalled).toBe(true);
+        await expect(modal.getByRole('heading', { name: '重複元の録画確認' })).toBeVisible();
+        await expect(modal.getByText(/該当する過去の録画（1件）/)).toBeVisible();
+        await expect(modal.getByText('最新の録画')).toBeVisible();
+        await expect(modal.getByRole('heading', { name: '重複スキップ映画 [字]' })).toBeVisible();
+        await expect(modal.getByText(/ドロップなし/)).toBeVisible();
+        await expect(modal.getByText(/TS \(4\.19 GB\)/)).toBeVisible();
+        const detailLink = modal.getByRole('link', { name: /録画詳細を確認/ });
+        await expect(detailLink).toBeVisible();
+        await expect(detailLink).toHaveAttribute('target', '_blank');
+
+        // 4. モーダル内の「この回を録画」ボタンをクリック
+        const forceRecordBtn = modal.getByRole('button', { name: 'この回を録画' });
+        await expect(forceRecordBtn).toBeVisible();
+        await forceRecordBtn.click();
+
+        // 確認ダイアログの「録画する」をクリック
+        const confirmBtn = page.getByRole('button', { name: '録画する' });
+        await expect(confirmBtn).toBeVisible();
+        await confirmBtn.click();
+
+        // トーストと API 呼び出しの確認
+        await expect.poll(() => deleteOverlapCalled).toBe(true);
+        await expect(page.getByText('重複を解除し、この回の録画予約を有効化しました')).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

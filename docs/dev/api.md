@@ -229,6 +229,17 @@ const createRes = await api.reserves.$post({
 
 ---
 
+## 録画予約重複・重複解除 API (`/api/reserves`)
+
+二重録画防止（重複判定）によってスキップされた予約枠の重複原因（過去録画および履歴）の調査と、重複状態の手動解除を行うための API です。
+
+| メソッド | パス | 説明 | 主なパラメータ / レスポンス |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/reserves/:reserveId/duplicates` | 指定予約が重複判定される原因となった過去の録画（オリジナル）および履歴を取得 | クエリ: `isHalfWidth` (タイトル半角化フラグ)。レスポンス: `ReserveDuplicates` (`records`: サムネイル・動画ファイル・ドロップログを含む過去録画一覧, `histories`: 削除済み履歴一覧) |
+| `DELETE` | `/api/reserves/:reserveId/overlap` | 指定予約の重複フラグ（`isOverlap = true`）を手動解除し、強制録画予約（`isIgnoreOverlap = true`）として有効化 | レスポンス: `{}` (成功時 HTTP 200) |
+
+---
+
 ## 録画番組重複判定履歴 API (`/api/recorded/:recordedId/history`)
 
 二重録画防止（重複判定）の対象から特定録画番組を除外・追加するための API です。

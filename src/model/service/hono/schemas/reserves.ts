@@ -20,5 +20,9 @@ export const reserveIdParamSchema = z.object({
     reserveId: integerParam(),
 });
 
+export const getReserveDuplicatesQuerySchema = z.object({
+    isHalfWidth: booleanQuery(true),
+});
+
 export const editReserveJsonSchema = z.record(z.string(), z.any());
 export const createReserveJsonSchema = z.record(z.string(), z.any());

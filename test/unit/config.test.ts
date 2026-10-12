@@ -75,6 +75,36 @@ describe('Structured Config Schema', () => {
         expect(conf.urlscheme!.download.ios).toBe(Configuration.DEFAULT_URL_SCHEME.download.ios);
     });
 
+    it('should safely deep-merge partial streaming configuration without dropping defaults', () => {
+        const conf = Configuration.formatAndValidateConfig({
+            server: { port: 8888, mirakurun: 'http://localhost:40772' },
+            database: { type: 'sqlite' },
+            recording: { directories: [{ name: 'rec', path: '/path' }] },
+            streaming: {
+                recorded: {
+                    ts: {
+                        hls: [{ name: 'Custom-TS-HLS', cmd: 'custom_hls_cmd' }],
+                    },
+                },
+            },
+        } as any);
+
+        expect(conf.streaming).toBeDefined();
+        // recorded.ts: カスタム指定された hls が適用され、他形式（webm, mp4等）はデフォルトを保持
+        expect(conf.streaming!.recorded?.ts?.hls).toEqual([{ name: 'Custom-TS-HLS', cmd: 'custom_hls_cmd' }]);
+        expect(conf.streaming!.recorded?.ts?.mp4).toBeDefined();
+        expect(conf.streaming!.recorded?.ts?.webm).toBeDefined();
+
+        // recorded.encoded: 未指定でもデフォルトが保持される
+        expect(conf.streaming!.recorded?.encoded).toBeDefined();
+        expect(conf.streaming!.recorded?.encoded?.hls).toBeDefined();
+        expect(conf.streaming!.recorded?.encoded?.mp4).toBeDefined();
+
+        // live.ts: 未指定でもデフォルトが保持される
+        expect(conf.streaming!.live?.ts?.m2tsll).toBeDefined();
+        expect(conf.streaming!.live?.ts?.hls).toBeDefined();
+    });
+
     it('should automatically resolve script property in presets to cmd', () => {
         const conf = Configuration.formatAndValidateConfig({
             server: { port: 8888, mirakurun: 'http://localhost:40772' },

@@ -313,14 +313,36 @@ class Configuration implements IConfiguration {
             },
         };
 
-        // 8. ストリーミング設定 (内部デフォルトとマージ)
+        // 8. ストリーミング設定 (内部デフォルトとディープマージ)
         const rawStream = raw.streaming || raw.stream || {};
+        const defLive = Configuration.DEFAULT_STREAMING.live;
+        const defRec = Configuration.DEFAULT_STREAMING.recorded;
+        const rawLive = rawStream.live || {};
+        const rawLiveTs = rawLive.ts || {};
+        const rawRec = rawStream.recorded || {};
+        const rawRecTs = rawRec.ts || {};
+        const rawRecEnc = rawRec.encoded || {};
+
         const streaming: StreamingConfig = {
             tempDir: Configuration.directoryFormatting(
                 rawStream.tempDir || raw.streamFilePath || path.join(Configuration.ROOT_PATH, 'data', 'streamfiles'),
             ),
-            live: rawStream.live || Configuration.DEFAULT_STREAMING.live,
-            recorded: rawStream.recorded || Configuration.DEFAULT_STREAMING.recorded,
+            live: {
+                ts: {
+                    ...(defLive?.ts || {}),
+                    ...rawLiveTs,
+                },
+            },
+            recorded: {
+                ts: {
+                    ...(defRec?.ts || {}),
+                    ...rawRecTs,
+                },
+                encoded: {
+                    ...(defRec?.encoded || {}),
+                    ...rawRecEnc,
+                },
+            },
         };
 
         const config: IConfigFile = {

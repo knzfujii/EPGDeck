@@ -865,7 +865,7 @@
             onclick={e => handleSideTap(e, 'left')}
             class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
             tabindex="-1"
-            aria-label="10秒戻る"
+            aria-hidden="true"
         >
             {#if doubleTapFeedback?.side === 'left'}
                 <div
@@ -897,7 +897,7 @@
             onclick={e => handleSideTap(e, 'right')}
             class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
             tabindex="-1"
-            aria-label="30秒進む"
+            aria-hidden="true"
         >
             {#if doubleTapFeedback?.side === 'right'}
                 <div

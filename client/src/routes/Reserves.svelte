@@ -7,7 +7,7 @@
     import { socketStore } from '../lib/stores/socket.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { configStore } from '../lib/stores/config.svelte';
-    import { formatDate, formatTime, formatTimeRange, formatDuration } from '../lib/utils/format';
+    import { formatDate, formatTime, formatTimeRange, formatDuration, formatSize } from '../lib/utils/format';
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
@@ -34,6 +34,11 @@
         RotateCcw,
         Play,
         Square,
+        History,
+        ExternalLink,
+        Film,
+        Loader2,
+        Search,
     } from '@lucide/svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
@@ -262,6 +267,70 @@
         }
     }
 
+    // 重複確認専用モーダル状態
+    let duplicatesData = $state<apid.ReserveDuplicates | null>(null);
+    let isLoadingDuplicates = $state(false);
+    let isDuplicateModalOpen = $state(false);
+    let duplicateModalReserve = $state<apid.ReserveItem | null>(null);
+    let restoringOverlapReserveId = $state<number | null>(null);
+
+    async function loadDuplicates(reserveId: number) {
+        isLoadingDuplicates = true;
+        duplicatesData = null;
+        try {
+            const res = await api.reserves[':reserveId'].duplicates.$get({
+                param: { reserveId: String(reserveId) },
+                query: { isHalfWidth: 'true' },
+            });
+            if (res.ok) {
+                duplicatesData = await res.json();
+            }
+        } catch (e) {
+            console.error('Failed to load duplicates', e);
+        } finally {
+            isLoadingDuplicates = false;
+        }
+    }
+
+    function openDuplicateModal(reserve: apid.ReserveItem, e?: MouseEvent) {
+        if (e) e.stopPropagation();
+        duplicateModalReserve = reserve;
+        isDuplicateModalOpen = true;
+        loadDuplicates(reserve.id);
+    }
+
+    // 重複解除（この回を録画）
+    async function restoreOverlap(item: apid.ReserveItem, e?: MouseEvent) {
+        if (e) e.stopPropagation();
+
+        const timeStr = formatTimeRange(item.startAt, item.endAt);
+        const ok = await confirmDialog({
+            title: 'この回を録画',
+            message: `「${item.name}」（${timeStr}）の重複スキップを解除し、この回を録画しますか？（過去の録画履歴や他の重複予約には影響しません）`,
+            confirmText: '録画する',
+            cancelText: 'キャンセル',
+            isDestructive: false,
+        });
+        if (!ok) return;
+
+        restoringOverlapReserveId = item.id;
+        try {
+            await api.reserves[':reserveId'].overlap.$delete({ param: { reserveId: String(item.id) } });
+            snackbar.open({
+                text: `「${item.name}」の重複を解除し、この回の録画予約を有効化しました`,
+                color: 'success',
+            });
+            if (isDuplicateModalOpen) isDuplicateModalOpen = false;
+            if (isDetailModalOpen) isDetailModalOpen = false;
+            await fetchReserves(true);
+        } catch (e) {
+            console.error('Failed to restore overlap', e);
+            snackbar.open({ text: '重複の解除に失敗しました', color: 'error' });
+        } finally {
+            restoringOverlapReserveId = null;
+        }
+    }
+
     function openReserveDetail(item: apid.ReserveItem) {
         selectedReserve = item;
         loadReserveForm(item);
@@ -463,6 +532,15 @@
                                     >
                                         <RotateCcw size={13} /> 復活
                                     </Button>
+                                {:else if item.isOverlap}
+                                    <Button
+                                        variant="secondary"
+                                        size="compact"
+                                        onclick={e => openDuplicateModal(item, e)}
+                                        class="bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                                    >
+                                        <Search size={13} /> 重複確認
+                                    </Button>
                                 {:else}
                                     {#if item.isRecording && readOnlyStore.canLiveStream}
                                         <Divider orientation="vertical" />
@@ -630,6 +708,16 @@
                                                     title="スキップを解除して予約を復活"
                                                 >
                                                     <RotateCcw size={14} /> 復活
+                                                </Button>
+                                            {:else if item.isOverlap}
+                                                <Button
+                                                    variant="secondary"
+                                                    size="compact"
+                                                    onclick={e => openDuplicateModal(item, e)}
+                                                    class="bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                                                    title="重複元の過去録画を確認"
+                                                >
+                                                    <Search size={14} /> 重複確認
                                                 </Button>
                                             {:else}
                                                 {#if item.isRecording && readOnlyStore.canLiveStream}
@@ -925,6 +1013,25 @@
                             >
                                 予約復活
                             </Button>
+                        {:else if item.isOverlap}
+                            <Button
+                                variant="secondary"
+                                size="compact"
+                                onclick={() => {
+                                    isDetailModalOpen = false;
+                                    openDuplicateModal(item);
+                                }}
+                            >
+                                <Search size={14} /> 重複確認
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="compact"
+                                disabled={restoringOverlapReserveId === item.id}
+                                onclick={() => restoreOverlap(item)}
+                            >
+                                <RotateCcw size={14} /> この回を録画
+                            </Button>
                         {:else}
                             <Button
                                 variant="danger-outline"
@@ -957,3 +1064,276 @@
     }}
     onAction={handleRecordingAction}
 />
+
+<!-- 重複元の録画確認専用モーダル -->
+{#if isDuplicateModalOpen && duplicateModalReserve}
+    {@const item = duplicateModalReserve}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
+        <!-- バックドロップ -->
+        <button
+            type="button"
+            class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+            onclick={() => (isDuplicateModalOpen = false)}
+            aria-label="背景をクリックして閉じる"
+        ></button>
+
+        <!-- モーダル本体 -->
+        <div
+            class="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
+        >
+            <!-- モーダルヘッダー -->
+            <div class="flex items-start justify-between border-b border-slate-100 p-4 sm:p-5 dark:border-slate-800">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        >
+                            {channelStore.getChannelName(item.channelId)}
+                        </span>
+                        {#if item.ruleId}
+                            <span
+                                class="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                            >
+                                自動録画ルール予約 (Rule #{item.ruleId})
+                            </span>
+                        {/if}
+                    </div>
+                    <h2
+                        class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-1.5 flex items-center gap-2"
+                    >
+                        <History size={18} class="text-amber-500 shrink-0" />
+                        重複元の録画確認
+                    </h2>
+                </div>
+                <button
+                    type="button"
+                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                    onclick={() => (isDuplicateModalOpen = false)}
+                    aria-label="モーダルを閉じる"
+                >
+                    <X size={18} />
+                </button>
+            </div>
+
+            <!-- モーダルコンテンツ -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                <!-- 対象予約番組サマリー -->
+                <div
+                    class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/30"
+                >
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-1 text-xs text-amber-800 dark:text-amber-300 font-bold mb-1"
+                    >
+                        <span>
+                            対象予約枠: {formatTimeRange(item.startAt, item.endAt)} ({formatDuration(
+                                item.endAt - item.startAt,
+                            )})
+                        </span>
+                        <span class="rounded bg-amber-200/80 dark:bg-amber-900/80 px-1.5 py-0.5 text-[11px]">
+                            重複スキップ対象
+                        </span>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {item.name}
+                    </h3>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        二重録画防止（ルール重複判定）によってスキップ対象となっている番組です。過去に録画された同一番組（オリジナル）の状態を確認できます。
+                    </p>
+                </div>
+
+                <!-- 過去の録画（オリジナル一覧） -->
+                <div>
+                    {#if isLoadingDuplicates}
+                        <div
+                            class="flex flex-col items-center justify-center py-10 text-xs text-slate-500 dark:text-slate-400"
+                        >
+                            <Loader2 size={24} class="animate-spin text-amber-600 dark:text-amber-400 mb-2" />
+                            過去の録画情報を取得中...
+                        </div>
+                    {:else if duplicatesData}
+                        {#if duplicatesData.records.length > 0}
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                        該当する過去の録画（{duplicatesData.records.length}件）
+                                    </h4>
+                                    <span class="text-[11px] text-slate-500">※新しい順に表示</span>
+                                </div>
+
+                                {#each duplicatesData.records as record, idx}
+                                    <div
+                                        class="flex flex-col sm:flex-row gap-3 rounded-xl bg-slate-50/80 p-3.5 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-800"
+                                    >
+                                        <!-- サムネイル (クリックで録画詳細を別タブで開く) -->
+                                        <a
+                                            href={`/recorded/detail?recordedId=${record.id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="relative w-full sm:w-36 aspect-video bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden shrink-0 group block"
+                                            title="録画詳細を別タブで開く"
+                                        >
+                                            {#if record.thumbnails && record.thumbnails.length > 0}
+                                                <img
+                                                    src={`/api/thumbnails/${record.thumbnails[0]}`}
+                                                    alt={record.name}
+                                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                    loading="lazy"
+                                                />
+                                            {:else}
+                                                <div
+                                                    class="w-full h-full flex items-center justify-center text-slate-400 group-hover:scale-105 transition-transform duration-200"
+                                                >
+                                                    <Film size={24} />
+                                                </div>
+                                            {/if}
+                                            <div
+                                                class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                                            >
+                                                <div class="rounded-full bg-white/90 text-slate-900 p-1.5 shadow-md">
+                                                    <ExternalLink size={14} />
+                                                </div>
+                                            </div>
+                                        </a>
+
+                                        <!-- 録画詳細情報 -->
+                                        <div class="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
+                                            <div>
+                                                <div class="flex flex-wrap items-center gap-1.5 text-xs mb-1">
+                                                    {#if idx === 0}
+                                                        <span
+                                                            class="rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold px-1.5 py-0.5 text-[10px]"
+                                                        >
+                                                            最新の録画
+                                                        </span>
+                                                    {/if}
+                                                    <span class="font-bold text-slate-700 dark:text-slate-300">
+                                                        {formatTimeRange(record.startAt, record.endAt)}
+                                                    </span>
+                                                    <span class="text-slate-500">
+                                                        ({channelStore.getChannelName(record.channelId)})
+                                                    </span>
+                                                </div>
+                                                <h5
+                                                    class="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-2"
+                                                >
+                                                    {record.name}
+                                                </h5>
+                                                {#if record.description}
+                                                    <p
+                                                        class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5"
+                                                    >
+                                                        {record.description}
+                                                    </p>
+                                                {/if}
+                                            </div>
+
+                                            <!-- ドロップログ状態 & 動画ファイル情報 -->
+                                            <div
+                                                class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px]"
+                                            >
+                                                {#if record.dropLogFile}
+                                                    {#if record.dropLogFile.dropCnt === 0 && record.dropLogFile.errorCnt === 0}
+                                                        <span
+                                                            class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60"
+                                                        >
+                                                            <CheckCircle2 size={12} />
+                                                            ドロップなし (Drop: 0 / Error: 0)
+                                                        </span>
+                                                    {:else}
+                                                        <span
+                                                            class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+                                                        >
+                                                            <AlertTriangle size={12} />
+                                                            ドロップ検知 (Drop: {record.dropLogFile.dropCnt} / Error: {record
+                                                                .dropLogFile.errorCnt}{record.dropLogFile
+                                                                .scramblingCnt > 0
+                                                                ? ` / Scramble: ${record.dropLogFile.scramblingCnt}`
+                                                                : ''})
+                                                        </span>
+                                                    {/if}
+                                                {:else}
+                                                    <span class="text-slate-400">ドロップログなし</span>
+                                                {/if}
+
+                                                {#if record.videoFiles && record.videoFiles.length > 0}
+                                                    <div
+                                                        class="flex flex-wrap items-center gap-1 text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        {#each record.videoFiles as vf}
+                                                            <span
+                                                                class="rounded bg-slate-100 px-1 py-0.5 text-[10px] dark:bg-slate-800 font-mono"
+                                                            >
+                                                                {vf.name} ({formatSize(vf.size)})
+                                                            </span>
+                                                        {/each}
+                                                    </div>
+                                                {/if}
+                                            </div>
+
+                                            <!-- アクションボタン -->
+                                            <div class="flex items-center gap-3 pt-1">
+                                                <a
+                                                    href={`/recorded/detail?recordedId=${record.id}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    class="inline-flex items-center gap-1.5 rounded bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+                                                >
+                                                    <ExternalLink size={13} /> 録画詳細を確認（別タブ）
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/each}
+                            </div>
+                        {:else if duplicatesData.histories.length > 0}
+                            <div
+                                class="rounded-xl bg-slate-50 p-4 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400 border border-slate-200 dark:border-slate-800"
+                            >
+                                <p class="font-bold text-slate-800 dark:text-slate-200">
+                                    過去の録画履歴に該当します（動画ファイルは削除済み）
+                                </p>
+                                <p class="mt-1 text-[11px] text-slate-500">
+                                    録画終了日時: {formatDate(duplicatesData.histories[0].endAt)}
+                                    {formatTime(duplicatesData.histories[0].endAt)}
+                                </p>
+                            </div>
+                        {:else}
+                            <div
+                                class="rounded-xl bg-slate-50 p-6 text-center text-xs text-slate-500 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800"
+                            >
+                                該当する過去の録画は見つかりませんでした。
+                            </div>
+                        {/if}
+                    {/if}
+                </div>
+            </div>
+
+            <!-- モーダルフッター -->
+            <div
+                class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
+            >
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                    ※この予約枠（{formatTime(
+                        item.startAt,
+                    )}〜）のみ重複スキップを解除して録画します。過去の録画ファイルや履歴には影響しません。
+                </p>
+
+                <div class="flex items-center justify-end gap-2 shrink-0">
+                    <Button variant="secondary" size="compact" onclick={() => (isDuplicateModalOpen = false)}>
+                        閉じる
+                    </Button>
+                    {#if !readOnlyStore.isReadOnly}
+                        <Button
+                            variant="primary"
+                            size="compact"
+                            disabled={restoringOverlapReserveId === item.id}
+                            onclick={() => restoreOverlap(item)}
+                        >
+                            <RotateCcw size={14} /> この回を録画
+                        </Button>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}

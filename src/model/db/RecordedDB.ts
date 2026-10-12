@@ -540,6 +540,52 @@ export default class RecordedDB implements IRecordedDB {
         return map;
     }
 
+    /**
+     * 指定された shortName と channelId に合致する過去の録画番組を取得
+     */
+    public async findDuplicates(name: string, channelId: apid.ChannelId, period?: number): Promise<Recorded[]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            const conditions: any[] = [
+                eq(schema.recorded.channelId, channelId),
+                eq(schema.recorded.isRecording, false),
+            ];
+
+            if (typeof period !== 'undefined' && period > 0) {
+                const now = Date.now();
+                conditions.push(gte(schema.recorded.endAt, now - period));
+            }
+
+            const rows: any[] = await (db as any)
+                .select()
+                .from(schema.recorded)
+                .where(and(...conditions))
+                .orderBy(desc(schema.recorded.startAt));
+
+            // 正規化タイトル（StrUtil.deleteBrackets(r.halfWidthName)）で一致するものを抽出
+            const matchedRows = rows.filter(r => StrUtil.deleteBrackets(r.halfWidthName) === name);
+            if (matchedRows.length === 0) return [];
+
+            const idList = matchedRows.map(r => r.id);
+            const videoFileMap = await this.fetchVideoFiles(client, idList);
+            const thumbnailMap = await this.fetchThumbnails(client, idList);
+            const dropLogFileIds = matchedRows.map(r => r.dropLogFileId).filter(Boolean);
+            const dropLogMap = await this.fetchDropLogs(client, dropLogFileIds);
+            const tagsMap = await this.fetchTags(client, idList);
+
+            return matchedRows.map(r => {
+                const entity = this.toEntity(r);
+                entity.videoFiles = videoFileMap.get(entity.id) || [];
+                entity.thumbnails = thumbnailMap.get(entity.id) || [];
+                entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+                entity.tags = tagsMap.get(entity.id) || [];
+                return entity;
+            });
+        });
+    }
+
     private toRow(entity: Partial<Recorded>): any {
         const row: any = { ...entity };
         delete row.videoFiles;

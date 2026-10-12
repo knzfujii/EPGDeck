@@ -7,6 +7,7 @@ import { NotFoundError } from '../../../error/ApiError.js';
 import {
     createReserveJsonSchema,
     editReserveJsonSchema,
+    getReserveDuplicatesQuerySchema,
     getReserveListsQuerySchema,
     getReservesQuerySchema,
     reserveIdParamSchema,
@@ -93,6 +94,19 @@ const app = new Hono()
         const { reserveId } = c.req.valid('param');
         const result = await reserveApiModel.removeOverlap(reserveId);
         return c.json(result);
-    });
+    })
+    // GET /api/reserves/:reserveId/duplicates
+    .get(
+        '/:reserveId/duplicates',
+        zValidator('param', reserveIdParamSchema),
+        zValidator('query', getReserveDuplicatesQuerySchema),
+        async c => {
+            const reserveApiModel = container.get<IReserveApiModel>('IReserveApiModel');
+            const { reserveId } = c.req.valid('param');
+            const { isHalfWidth } = c.req.valid('query');
+            const result = await reserveApiModel.getDuplicates(reserveId, isHalfWidth);
+            return c.json(result);
+        },
+    );
 
 export default app;

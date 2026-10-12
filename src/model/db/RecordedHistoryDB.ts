@@ -1,4 +1,4 @@
-import { and, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, lte } from 'drizzle-orm';
 import * as apid from '../../../api.js';
 import RecordedHistory from '../../db/entities/RecordedHistory.js';
 import IPromiseRetry from '../IPromiseRetry.js';
@@ -138,6 +138,39 @@ export default class RecordedHistoryDB implements IRecordedHistoryDB {
                     });
                 }
             });
+        });
+    }
+
+    /**
+     * 指定された shortName と channelId に合致する録画履歴を取得
+     */
+    public async findDuplicates(name: string, channelId: apid.ChannelId, period?: number): Promise<RecordedHistory[]> {
+        const client = this.drizzleOp.getDB();
+
+        return await this.promiseRetry.run(async () => {
+            const { db, schema } = client;
+            const conditions: any[] = [
+                eq(schema.recordedHistory.name, name),
+                eq(schema.recordedHistory.channelId, channelId),
+            ];
+
+            if (typeof period !== 'undefined' && period > 0) {
+                const now = Date.now();
+                conditions.push(
+                    gte(schema.recordedHistory.endAt, now - period),
+                    lte(schema.recordedHistory.endAt, now),
+                );
+            } else {
+                conditions.push(lte(schema.recordedHistory.endAt, Date.now()));
+            }
+
+            const rows: any[] = await (db as any)
+                .select()
+                .from(schema.recordedHistory)
+                .where(and(...conditions))
+                .orderBy(desc(schema.recordedHistory.endAt));
+
+            return rows.map((r: any) => this.toEntity(r));
         });
     }
 

@@ -110,11 +110,8 @@ class EncoderModel implements IEncoderModel {
             throw new Error('RecordedIsNotFound');
         }
 
-        // 放送局情報を取得する
+        // 放送局情報を取得する (見つからない場合でもエンコードは続行)
         const channel = await this.channelDB.findId(recorded.channelId);
-        if (channel === null) {
-            throw new Error('ChannelIsNotFound');
-        }
 
         // ソースビデオファイルのファイルパスを生成する
         const inputFilePath = await this.videoUtil.getFullFilePathFromId(this.encodeOption.sourceVideoFileId);
@@ -225,8 +222,9 @@ class EncoderModel implements IEncoderModel {
                     AUDIOCOMPONENTTYPE:
                         typeof recorded.audioComponentType === 'number' ? recorded.audioComponentType.toString(10) : '',
                     CHANNELID: typeof recorded.channelId === 'number' ? recorded.channelId.toString(10) : '',
-                    CHANNELNAME: typeof channel.name === 'string' ? channel.name : '',
-                    HALF_WIDTH_CHANNELNAME: typeof channel.halfWidthName === 'string' ? channel.halfWidthName : '',
+                    CHANNELNAME: channel !== null && typeof channel.name === 'string' ? channel.name : '',
+                    HALF_WIDTH_CHANNELNAME:
+                        channel !== null && typeof channel.halfWidthName === 'string' ? channel.halfWidthName : '',
                     GENRE1: typeof recorded.genre1 === 'number' ? recorded.genre1.toString(10) : '',
                     SUBGENRE1: typeof recorded.subGenre1 === 'number' ? recorded.subGenre1.toString(10) : '',
                     GENRE2: typeof recorded.genre2 === 'number' ? recorded.genre2.toString(10) : '',

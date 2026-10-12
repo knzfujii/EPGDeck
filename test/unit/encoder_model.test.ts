@@ -437,4 +437,33 @@ describe('EncoderModel', () => {
             expect(cancelSpy).not.toHaveBeenCalled();
         });
     });
+
+    it('should safely start encode even when channel is not found in channelDB (fallback to empty channel name)', async () => {
+        // channelDB が null を返す状況（過去のチャンネル再編前の録画や閉局チャンネル）
+        mockChannelDB.findId.mockResolvedValue(null);
+
+        encoderModel.setOption({
+            encodeId: 99,
+            sourceVideoFileId: 1,
+            parentDir: 'recorded',
+            recordedId: 10,
+            mode: 'H264 crf23',
+            directory: '映画',
+            removeOriginal: false,
+        });
+
+        await expect(encoderModel.start()).resolves.not.toThrow();
+
+        // processManager.create に CHANNELNAME: '' が渡されて正常にプロセス生成されること
+        expect(mockProcessManager.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                spawnOption: expect.objectContaining({
+                    env: expect.objectContaining({
+                        CHANNELNAME: '',
+                        HALF_WIDTH_CHANNELNAME: '',
+                    }),
+                }),
+            }),
+        );
+    });
 });

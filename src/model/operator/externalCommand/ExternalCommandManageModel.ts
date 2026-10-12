@@ -351,11 +351,8 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
             throw new Error('RecordedIsNotFound');
         }
 
-        // 局を取得する
+        // 局を取得する (見つからない場合でも外部コマンドは実行)
         const channel = await this.channelDB.findId(recorded.channelId);
-        if (channel === null) {
-            throw new Error('ChannelIsNotFound');
-        }
 
         const outputFilePath =
             info.videoFileId === null ? null : await this.videoUtil.getFullFilePathFromId(info.videoFileId);
@@ -376,8 +373,9 @@ export default class ExternalCommandManageModel implements IExternalCommandManag
                     EXTENDED: recorded.extended || '',
                     HALF_WIDTH_EXTENDED: recorded.halfWidthExtended || '',
                     CHANNELID: typeof recorded.channelId === 'number' ? recorded.channelId.toString(10) : '',
-                    CHANNELNAME: typeof channel.name === 'string' ? channel.name : '',
-                    HALF_WIDTH_CHANNELNAME: typeof channel.halfWidthName === 'string' ? channel.halfWidthName : '',
+                    CHANNELNAME: channel !== null && typeof channel.name === 'string' ? channel.name : '',
+                    HALF_WIDTH_CHANNELNAME:
+                        channel !== null && typeof channel.halfWidthName === 'string' ? channel.halfWidthName : '',
                 },
             } as any);
 

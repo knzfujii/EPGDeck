@@ -65,6 +65,7 @@
         Camera,
         CopyX,
         CopyCheck,
+        MoreVertical,
         X,
     } from '@lucide/svelte';
     import RecreateThumbnailModal from '../lib/components/recording/RecreateThumbnailModal.svelte';
@@ -74,6 +75,7 @@
     let isStreamModalOpen = $state(false);
     let streamModalVideoFileId = $state<number | undefined>(undefined);
     let isThumbnailModalOpen = $state(false);
+    let isActionMenuOpen = $state(false);
     let thumbnailRefreshKey = $state(Date.now());
     const isMobileDevice = isMobileOrTabletDevice();
 
@@ -867,32 +869,7 @@
         {#if recorded}
             <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {#if !readOnlyStore.isReadOnly}
-                    <!-- 重複判定除外 / 追加ボタン -->
-                    {#if recorded.hasDuplicateHistory === false}
-                        <Button
-                            variant="secondary"
-                            size="compact"
-                            onclick={includeInDuplicate}
-                            class="whitespace-nowrap shrink-0 px-2.5 sm:px-3.5"
-                            title="重複判定履歴に登録し、二重録画防止の対象に戻します"
-                        >
-                            <CopyCheck size={15} class="text-slate-400 dark:text-slate-400" />
-                            <span>重複判定追加</span>
-                        </Button>
-                    {:else}
-                        <Button
-                            variant="secondary"
-                            size="compact"
-                            onclick={excludeFromDuplicate}
-                            class="whitespace-nowrap shrink-0 px-2.5 sm:px-3.5"
-                            title="二重録画防止（重複判定）の履歴から削除し、次回放送を録画できるようにします"
-                        >
-                            <CopyX size={15} class="text-slate-400 dark:text-slate-400" />
-                            <span>重複判定除外</span>
-                        </Button>
-                    {/if}
-
-                    <!-- 保護トグルボタン -->
+                    <!-- 保護トグルボタン (保護中か一目で把握でき、ワンタップで切り替え) -->
                     <Button
                         variant="secondary"
                         size="compact"
@@ -910,21 +887,142 @@
                             <span>保護</span>
                         {/if}
                     </Button>
-
-                    <!-- 削除ボタン（パーティションで明確に分離し、押し間違いを防止する控えめなアウトライン） -->
-                    {#if !recorded.isProtected}
-                        <Divider orientation="vertical" />
-                        <Button
-                            variant="danger-outline"
-                            size="compact"
-                            onclick={deleteRecorded}
-                            class="whitespace-nowrap shrink-0 px-3 sm:px-4"
-                            title="録画を削除"
-                        >
-                            <Trash2 size={15} /> 削除
-                        </Button>
-                    {/if}
                 {/if}
+
+                <!-- その他メニュー (サブメニュー) -->
+                <div class="relative">
+                    {#if isActionMenuOpen}
+                        <div
+                            class="fixed inset-0 z-40 cursor-default"
+                            onclick={() => (isActionMenuOpen = false)}
+                            role="presentation"
+                        ></div>
+                    {/if}
+
+                    <IconButton
+                        variant="secondary"
+                        size="compact"
+                        onclick={() => (isActionMenuOpen = !isActionMenuOpen)}
+                        title="その他の操作"
+                        aria-label="その他の操作"
+                        aria-expanded={isActionMenuOpen}
+                    >
+                        <MoreVertical size={16} />
+                    </IconButton>
+
+                    {#if isActionMenuOpen}
+                        <div
+                            class="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-slate-200 bg-white py-2 shadow-xl z-50 dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-100"
+                            role="menu"
+                        >
+                            {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        isActionMenuOpen = false;
+                                        handleDetailPlay();
+                                    }}
+                                    class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                    role="menuitem"
+                                >
+                                    <Play size={16} class="text-blue-500 shrink-0" />
+                                    <span>再生オプション</span>
+                                </button>
+                            {/if}
+
+                            {#if !readOnlyStore.isReadOnly}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        isActionMenuOpen = false;
+                                        openEncodeModal();
+                                    }}
+                                    class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                    role="menuitem"
+                                >
+                                    <Sparkles size={16} class="text-amber-500 shrink-0" />
+                                    <span>エンコード追加</span>
+                                </button>
+                            {/if}
+
+                            {#if recorded.dropLogFile}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        isActionMenuOpen = false;
+                                        openDropLog();
+                                    }}
+                                    class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                    role="menuitem"
+                                >
+                                    <FileText size={16} class="text-slate-400 shrink-0" />
+                                    <span>ドロップログ確認</span>
+                                </button>
+                            {/if}
+
+                            {#if !readOnlyStore.isReadOnly && (recorded.videoFiles?.length ?? 0) > 0}
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        isActionMenuOpen = false;
+                                        isThumbnailModalOpen = true;
+                                    }}
+                                    class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                    role="menuitem"
+                                >
+                                    <Camera size={16} class="text-slate-400 shrink-0" />
+                                    <span>サムネイル再作成</span>
+                                </button>
+                            {/if}
+
+                            {#if !readOnlyStore.isReadOnly}
+                                {#if recorded.hasDuplicateHistory === false}
+                                    <button
+                                        type="button"
+                                        onclick={() => {
+                                            isActionMenuOpen = false;
+                                            includeInDuplicate();
+                                        }}
+                                        class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                        role="menuitem"
+                                    >
+                                        <CopyCheck size={16} class="text-slate-400 shrink-0" />
+                                        <span>重複判定に追加</span>
+                                    </button>
+                                {:else}
+                                    <button
+                                        type="button"
+                                        onclick={() => {
+                                            isActionMenuOpen = false;
+                                            excludeFromDuplicate();
+                                        }}
+                                        class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer text-left transition-colors min-h-[44px]"
+                                        role="menuitem"
+                                    >
+                                        <CopyX size={16} class="text-slate-400 shrink-0" />
+                                        <span>重複判定から除外</span>
+                                    </button>
+                                {/if}
+                            {/if}
+
+                            {#if !readOnlyStore.isReadOnly && !recorded.isProtected}
+                                <div class="my-1.5 border-t border-slate-100 dark:border-slate-800"></div>
+                                <button
+                                    type="button"
+                                    onclick={() => {
+                                        isActionMenuOpen = false;
+                                        deleteRecorded();
+                                    }}
+                                    class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-3 text-sm font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 cursor-pointer text-left transition-colors min-h-[44px]"
+                                    role="menuitem"
+                                >
+                                    <Trash2 size={16} class="shrink-0" />
+                                    <span>録画を削除</span>
+                                </button>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
             </div>
         {/if}
     </div>
@@ -967,7 +1065,6 @@
                             {totalDuration}
                             {vttSrc}
                             {dropMarkers}
-                            onClose={handleStopPlayback}
                             onHlsSeekRestart={restartHlsAtPosition}
                         />
                     </div>
@@ -1004,20 +1101,6 @@
                     {:else}
                         <div class="flex h-full w-full items-center justify-center text-slate-600">
                             <Tv size={48} />
-                        </div>
-                    {/if}
-
-                    {#if !readOnlyStore.isReadOnly && (recorded.videoFiles?.length ?? 0) > 0}
-                        <div class="absolute top-3 right-3 z-10">
-                            <button
-                                type="button"
-                                onclick={() => (isThumbnailModalOpen = true)}
-                                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-xs transition hover:scale-110 hover:bg-black/80 cursor-pointer shadow-md"
-                                aria-label="サムネイルを再作成"
-                                title="サムネイルを再作成"
-                            >
-                                <Camera size={18} />
-                            </button>
                         </div>
                     {/if}
 
@@ -1066,6 +1149,16 @@
                                 <CopyCheck size={12} class="text-slate-400" /> 重複判定対象
                             </span>
                         {/if}
+                        {#if recorded.dropLogFile}
+                            <button
+                                type="button"
+                                onclick={openDropLog}
+                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700/60 cursor-pointer transition-colors"
+                                title="ドロップログを確認"
+                            >
+                                <FileText size={12} class="text-slate-400" /> ドロップログ
+                            </button>
+                        {/if}
                     </div>
 
                     <h1 class="program-title-hero">
@@ -1085,36 +1178,6 @@
                             )})
                         </span>
                     </div>
-                </div>
-
-                <!-- 再生 & アクションボタン列 -->
-                <div class="flex items-center gap-2 sm:gap-3 flex-wrap pt-1">
-                    {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
-                        <Button
-                            variant="primary"
-                            onclick={handleDetailPlay}
-                            class="whitespace-nowrap shrink-0"
-                            title="再生方法や画質を選択して再生"
-                        >
-                            <Play size={16} fill="currentColor" /> 詳細再生
-                        </Button>
-                    {/if}
-
-                    {#if !readOnlyStore.isReadOnly}
-                        <Button
-                            variant="secondary"
-                            onclick={() => openEncodeModal()}
-                            class="whitespace-nowrap shrink-0"
-                        >
-                            <Sparkles size={16} class="text-amber-500" /> エンコード追加
-                        </Button>
-                    {/if}
-
-                    {#if recorded.dropLogFile}
-                        <Button variant="secondary" onclick={openDropLog} class="whitespace-nowrap shrink-0">
-                            <FileText size={16} /> ドロップログ
-                        </Button>
-                    {/if}
                 </div>
             </div>
 
@@ -1539,11 +1602,25 @@
             aria-label="閉じる"
         ></button>
         <div
-            class="relative w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            class="relative flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
         >
-            <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">エンコード追加</h3>
+            <!-- ヘッダー (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-between border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800"
+            >
+                <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">エンコード追加</h3>
+                <button
+                    type="button"
+                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer transition"
+                    onclick={() => (isEncodeModalOpen = false)}
+                    aria-label="閉じる"
+                >
+                    <X size={18} />
+                </button>
+            </div>
 
-            <div class="space-y-4 text-xs">
+            <!-- 本文設定領域 (縦スクロール可能) -->
+            <div class="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6 text-xs">
                 <!-- エンコード元ファイル選択 -->
                 {#if (recorded.videoFiles || []).length > 1}
                     <div
@@ -1682,7 +1759,10 @@
                 </div>
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <!-- アクションフッター (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50 p-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900/50"
+            >
                 <Button variant="secondary" onclick={() => (isEncodeModalOpen = false)}>キャンセル</Button>
                 <Button variant="primary" onclick={addEncode}>登録</Button>
             </div>
@@ -1700,114 +1780,135 @@
             aria-label="閉じる"
         ></button>
         <div
-            class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            class="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
         >
-            <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">ドロップログ</h3>
+            <!-- ヘッダー (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-between border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800"
+            >
+                <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">ドロップログ</h3>
+                <button
+                    type="button"
+                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer transition"
+                    onclick={() => (isDropLogModalOpen = false)}
+                    aria-label="閉じる"
+                >
+                    <X size={18} />
+                </button>
+            </div>
 
-            {#if recorded?.dropLogFile}
-                <div class="space-y-4 text-xs">
-                    <div class="grid grid-cols-3 gap-3 text-center">
-                        <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                            <p class="text-slate-400 text-[11px]">ドロップ</p>
-                            <p class="text-base font-black text-rose-600">{recorded.dropLogFile.dropCnt || 0}</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                            <p class="text-slate-400 text-[11px]">エラー</p>
-                            <p class="text-base font-black text-amber-600">{recorded.dropLogFile.errorCnt || 0}</p>
-                        </div>
-                        <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                            <p class="text-slate-400 text-[11px]">スクランブル</p>
-                            <p class="text-base font-black text-slate-700 dark:text-slate-300">
-                                {recorded.dropLogFile.scramblingCnt || 0}
-                            </p>
-                        </div>
-                    </div>
-
-                    {#if recorded.dropLogFile.dropCnt === 0 && recorded.dropLogFile.errorCnt === 0 && recorded.dropLogFile.scramblingCnt === 0}
-                        <div
-                            class="rounded-xl bg-emerald-50/70 p-3 text-center text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                        >
-                            ドロップ・エラーは検出されませんでした（正常）
-                        </div>
-                    {:else if isLoadingDropLog}
-                        <p class="py-4 text-center text-xs text-slate-400">詳細ログを読み込み中...</p>
-                    {:else if dropLogContent}
-                        {#if parsedDropMarkers.length > 0}
-                            <div>
-                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
-                                    発生タイムライン
-                                </p>
-                                <div
-                                    class="max-h-48 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950 flex flex-col gap-1.5"
-                                >
-                                    {#each parsedDropMarkers as marker}
-                                        <div
-                                            class="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 shadow-2xs dark:bg-slate-900 border border-slate-100/60 dark:border-slate-800/60"
-                                        >
-                                            <div class="flex items-center gap-2 min-w-0">
-                                                <span
-                                                    class="font-mono text-xs font-bold {marker.type === 'drop'
-                                                        ? 'text-rose-600 dark:text-rose-400'
-                                                        : marker.type === 'error'
-                                                          ? 'text-amber-600 dark:text-amber-400'
-                                                          : 'text-purple-600 dark:text-purple-400'}"
-                                                >
-                                                    {marker.timecode}
-                                                </span>
-                                                <span
-                                                    class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.category ===
-                                                    'video'
-                                                        ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
-                                                        : marker.category === 'audio'
-                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
-                                                          : marker.category === 'subtitle'
-                                                            ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400'
-                                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}"
-                                                >
-                                                    {getDropCategoryLabel(marker.category)}
-                                                </span>
-                                                <span
-                                                    class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.type ===
-                                                    'drop'
-                                                        ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
-                                                        : marker.type === 'error'
-                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
-                                                          : 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400'}"
-                                                >
-                                                    {marker.type === 'drop'
-                                                        ? 'ドロップ'
-                                                        : marker.type === 'error'
-                                                          ? 'エラー'
-                                                          : 'スクランブル'}
-                                                </span>
-                                                <span class="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                                                    {marker.description}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    {/each}
-                                </div>
+            <!-- 本文領域 (縦スクロール可能) -->
+            <div class="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6 text-xs">
+                {#if recorded?.dropLogFile}
+                    <div class="space-y-4 text-xs">
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                                <p class="text-slate-400 text-[11px]">ドロップ</p>
+                                <p class="text-base font-black text-rose-600">{recorded.dropLogFile.dropCnt || 0}</p>
                             </div>
-                        {/if}
+                            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                                <p class="text-slate-400 text-[11px]">エラー</p>
+                                <p class="text-base font-black text-amber-600">{recorded.dropLogFile.errorCnt || 0}</p>
+                            </div>
+                            <div class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                                <p class="text-slate-400 text-[11px]">スクランブル</p>
+                                <p class="text-base font-black text-slate-700 dark:text-slate-300">
+                                    {recorded.dropLogFile.scramblingCnt || 0}
+                                </p>
+                            </div>
+                        </div>
 
-                        <details class="text-xs">
-                            <summary
-                                class="cursor-pointer font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-1 select-none"
+                        {#if recorded.dropLogFile.dropCnt === 0 && recorded.dropLogFile.errorCnt === 0 && recorded.dropLogFile.scramblingCnt === 0}
+                            <div
+                                class="rounded-xl bg-emerald-50/70 p-3 text-center text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
                             >
-                                生ログテキストを表示
-                            </summary>
-                            <pre
-                                class="mt-2 max-h-40 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300 whitespace-pre-wrap border border-slate-100 dark:border-slate-800">{dropLogContent}</pre>
-                        </details>
-                    {:else}
-                        <p class="py-2 text-center text-xs text-slate-400">詳細ログファイルは存在しません</p>
-                    {/if}
-                </div>
-            {:else}
-                <p class="py-8 text-center text-xs text-slate-400">ドロップログ情報がありません</p>
-            {/if}
+                                ドロップ・エラーは検出されませんでした（正常）
+                            </div>
+                        {:else if isLoadingDropLog}
+                            <p class="py-4 text-center text-xs text-slate-400">詳細ログを読み込み中...</p>
+                        {:else if dropLogContent}
+                            {#if parsedDropMarkers.length > 0}
+                                <div>
+                                    <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                        発生タイムライン
+                                    </p>
+                                    <div
+                                        class="max-h-48 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950 flex flex-col gap-1.5"
+                                    >
+                                        {#each parsedDropMarkers as marker}
+                                            <div
+                                                class="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 shadow-2xs dark:bg-slate-900 border border-slate-100/60 dark:border-slate-800/60"
+                                            >
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <span
+                                                        class="font-mono text-xs font-bold {marker.type === 'drop'
+                                                            ? 'text-rose-600 dark:text-rose-400'
+                                                            : marker.type === 'error'
+                                                              ? 'text-amber-600 dark:text-amber-400'
+                                                              : 'text-purple-600 dark:text-purple-400'}"
+                                                    >
+                                                        {marker.timecode}
+                                                    </span>
+                                                    <span
+                                                        class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.category ===
+                                                        'video'
+                                                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                            : marker.category === 'audio'
+                                                              ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                                              : marker.category === 'subtitle'
+                                                                ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400'
+                                                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}"
+                                                    >
+                                                        {getDropCategoryLabel(marker.category)}
+                                                    </span>
+                                                    <span
+                                                        class="rounded px-1.5 py-0.5 text-[10px] font-bold {marker.type ===
+                                                        'drop'
+                                                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'
+                                                            : marker.type === 'error'
+                                                              ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                                              : 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400'}"
+                                                    >
+                                                        {marker.type === 'drop'
+                                                            ? 'ドロップ'
+                                                            : marker.type === 'error'
+                                                              ? 'エラー'
+                                                              : 'スクランブル'}
+                                                    </span>
+                                                    <span
+                                                        class="truncate text-[11px] text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        {marker.description}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
 
-            <div class="mt-6 flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
+                            <details class="text-xs">
+                                <summary
+                                    class="cursor-pointer font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 py-1 select-none"
+                                >
+                                    生ログテキストを表示
+                                </summary>
+                                <pre
+                                    class="mt-2 max-h-40 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300 whitespace-pre-wrap border border-slate-100 dark:border-slate-800">{dropLogContent}</pre>
+                            </details>
+                        {:else}
+                            <p class="py-2 text-center text-xs text-slate-400">詳細ログファイルは存在しません</p>
+                        {/if}
+                    </div>
+                {:else}
+                    <p class="py-8 text-center text-xs text-slate-400">ドロップログ情報がありません</p>
+                {/if}
+            </div>
+
+            <!-- アクションフッター (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-end border-t border-slate-100 bg-slate-50/50 p-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900/50"
+            >
                 <Button variant="secondary" onclick={() => (isDropLogModalOpen = false)}>閉じる</Button>
             </div>
         </div>

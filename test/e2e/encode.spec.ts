@@ -56,8 +56,9 @@ test.describe('Encode Feature & Recorded Detail Encode Modal', () => {
             await firstLink.click();
             await page.waitForURL(/\/recorded\/detail/);
 
-            // 録画詳細の「エンコード追加」ボタンをクリック
-            const encodeAddBtn = page.getByRole('button', { name: /エンコード追加/ });
+            // 録画詳細の「その他の操作」メニューから「エンコード追加」をクリック
+            await page.getByRole('button', { name: /その他の操作/ }).click();
+            const encodeAddBtn = page.getByRole('menuitem', { name: /エンコード追加/ });
             await expect(encodeAddBtn).toBeVisible();
             await encodeAddBtn.click();
 

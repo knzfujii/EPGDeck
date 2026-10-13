@@ -60,18 +60,19 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         const videoRegion = await openFirstRecordedWatchPage(page);
         if (videoRegion) {
             const centerPlayButton = videoRegion.getByRole('button', { name: /^(再生|一時停止)$/ }).first();
-            await expect(centerPlayButton).toBeVisible();
+            // 再生開始時はコントロールが非表示であることを確認
+            await expect(centerPlayButton).not.toBeVisible();
 
-            // 背景オーバーレイをクリックするとコントロールが非表示になる
+            // 背景オーバーレイをクリックするとコントロールが表示される
             const overlay = videoRegion.locator('button[aria-label*="コントロール"]').first();
             await expect(overlay).toBeVisible();
             await overlay.click();
 
-            await expect(centerPlayButton).not.toBeVisible();
-
-            // コントロール非表示時に画面をクリックするとコントロールが再表示される
-            await overlay.click();
             await expect(centerPlayButton).toBeVisible();
+
+            // コントロール表示時に画面をクリックするとコントロールが非表示に戻る
+            await overlay.click();
+            await expect(centerPlayButton).not.toBeVisible();
         }
 
         expect(pageErrors).toEqual([]);
@@ -85,10 +86,15 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         const videoRegion = await openFirstRecordedWatchPage(page);
         if (videoRegion) {
             const centerPlayButton = videoRegion.getByRole('button', { name: /^(再生|一時停止)$/ }).first();
+            // 再生開始時はコントロールが非表示であることを確認
+            await expect(centerPlayButton).not.toBeVisible();
+
+            // スマホタップでコントロールを表示/非表示
+            const overlay = videoRegion.locator('button[aria-label*="コントロール"]').first();
+            await overlay.tap();
             await expect(centerPlayButton).toBeVisible();
 
-            // スマホタップでコントロールを非表示/再表示
-            const overlay = videoRegion.locator('button[aria-label*="コントロール"]').first();
+            // 再度タップして非表示
             await overlay.tap();
             await expect(centerPlayButton).not.toBeVisible();
 
@@ -424,16 +430,12 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         const playerContainer = page.getByTestId('inline-player-container');
         await expect(playerContainer).toHaveClass(/sticky/);
 
-        // 3. プレイヤー停止（サムネイルに戻る）ボタンをクリック
+        // 3. タイトルバーに紛らわしい閉じる（サムネイルに戻る）✕ボタンが存在しないことを確認
+        await videoRegion.hover();
         const stopBtn = page.locator('button[aria-label="再生を終了してサムネイルへ戻る"]');
-        await expect(stopBtn).toBeVisible();
-        await stopBtn.click();
+        await expect(stopBtn).toHaveCount(0);
 
-        // プレイヤーが消え、サムネイル再生ボタンが再表示されること
-        await expect(videoRegion).toHaveCount(0);
-        await expect(thumbnailPlayBtn).toBeVisible();
-
-        // 4. ファイル一覧の再生ボタンから再生開始
+        // 4. ファイル一覧の再生ボタンから再生切り替え
         const filePlayBtn = page.getByRole('button', { name: '再生' }).first();
         await expect(filePlayBtn).toBeVisible();
         await filePlayBtn.click();

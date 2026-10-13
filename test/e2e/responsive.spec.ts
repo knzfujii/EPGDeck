@@ -231,35 +231,66 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             await expect(backBtn.locator('.sm\\:hidden')).toHaveText('戻る');
             await expect(backBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
 
-            // 2. 重複除外ボタンが「重複判定除外」と表示されていることを確認
-            const duplicateBtn = page.getByRole('button', { name: /重複判定除外/ });
-            await expect(duplicateBtn).toBeVisible();
-            await expect(duplicateBtn).toContainText('重複判定除外');
-
-            // 3. 保護ボタンが「保護」と表示されていることを確認
+            // 2. 保護ボタンが「保護」と表示されていることを確認
             const protectBtn = page.getByRole('button', { name: /保護/ });
             await expect(protectBtn).toBeVisible();
             await expect(protectBtn).toContainText('保護');
 
-            // 4. 削除ボタンが表示され、各ボタンの高さ（h-9: 36px）が揃っていることを確認
-            const deleteBtn = page.getByRole('button', { name: '削除', exact: true });
-            await expect(deleteBtn).toBeVisible();
+            // 3. その他の操作（…）ボタンが表示されていることを確認
+            const moreBtn = page.getByRole('button', { name: 'その他の操作' });
+            await expect(moreBtn).toBeVisible();
 
             const backBox = await backBtn.boundingBox();
-            const duplicateBox = await duplicateBtn.boundingBox();
             const protectBox = await protectBtn.boundingBox();
-            const deleteBox = await deleteBtn.boundingBox();
+            const moreBox = await moreBtn.boundingBox();
 
             expect(backBox).not.toBeNull();
-            expect(duplicateBox).not.toBeNull();
             expect(protectBox).not.toBeNull();
-            expect(deleteBox).not.toBeNull();
+            expect(moreBox).not.toBeNull();
 
             // 高さが36px（誤差1px以内）で揃っていることを検証
-            expect(Math.round(duplicateBox!.height)).toBe(36);
             expect(Math.round(protectBox!.height)).toBe(36);
-            expect(Math.round(deleteBox!.height)).toBe(36);
+            expect(Math.round(moreBox!.height)).toBe(36);
             expect(Math.round(backBox!.height)).toBe(36);
+
+            // 4. メニューを開くと「重複判定から除外」や「録画を削除」が存在することを確認
+            await moreBtn.click();
+            await expect(page.getByRole('menuitem', { name: /重複判定から除外/ })).toBeVisible();
+            await expect(page.getByRole('menuitem', { name: /録画を削除/ })).toBeVisible();
+
+            // 5. 再生オプションモーダルがモバイル縦幅に収まり、スクロール可能かつボタンが画面内に表示されることを確認
+            await page.getByRole('menuitem', { name: /再生オプション/ }).click();
+            const modal = page.getByRole('dialog');
+            await expect(modal).toBeVisible();
+
+            const cancelBtn = modal.getByRole('button', { name: 'キャンセル' });
+            const playStartBtn = modal.getByRole('button', { name: /再生開始|閲覧制限中/ });
+            await expect(cancelBtn).toBeVisible();
+            await expect(playStartBtn).toBeVisible();
+
+            // 内部スクロール領域が存在すること
+            const scrollArea = modal.locator('div.overflow-y-auto');
+            await expect(scrollArea).toBeVisible();
+
+            await cancelBtn.click();
+            await expect(modal).not.toBeVisible();
+
+            // 6. エンコード追加モーダルもモバイル縦幅に収まり、内部スクロール可能かつボタンが画面内に表示されることを確認
+            await moreBtn.click();
+            await page.getByRole('menuitem', { name: /エンコード追加/ }).click();
+            const encodeModal = page.getByRole('dialog');
+            await expect(encodeModal).toBeVisible();
+
+            const encodeCancelBtn = encodeModal.getByRole('button', { name: 'キャンセル' });
+            const encodeSubmitBtn = encodeModal.getByRole('button', { name: '登録' });
+            await expect(encodeCancelBtn).toBeVisible();
+            await expect(encodeSubmitBtn).toBeVisible();
+
+            const encodeScrollArea = encodeModal.locator('div.overflow-y-auto');
+            await expect(encodeScrollArea).toBeVisible();
+
+            await encodeCancelBtn.click();
+            await expect(encodeModal).not.toBeVisible();
         });
 
         test('should fit all filter tabs on /reserves without horizontal overflow on mobile viewports', async ({

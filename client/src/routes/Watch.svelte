@@ -253,99 +253,17 @@
                 }
             }
         } else if (recordedId !== null && !isNaN(recordedId)) {
-            // ================= 録画再生 =================
-            isLive = false;
-
-            try {
-                const recRes = await api.recorded[':recordedId'].$get({
-                    param: { recordedId: String(recordedId) },
-                    query: { isHalfWidth: true },
-                });
-                if (!recRes.ok) throw new Error('Recorded data not found');
-                recordedData = await recRes.json();
-                programTitle = recordedData.name;
-                channelName = channelStore.getChannelName(recordedData.channelId);
-                description = recordedData.description || '';
-                extended = recordedData.extended || '';
-                const start = new Date(recordedData.startAt);
-                const end = new Date(recordedData.endAt);
-                timeRange = `${start.getMonth() + 1}/${start.getDate()} ${formatTime(start)} - ${formatTime(end)}`;
-
-                // ドロップログの取得とマーカー生成
-                if (recordedData.dropLogFile?.id) {
-                    void fetchDropLog(recordedData.dropLogFile.id, recordedData.startAt);
-                } else {
-                    dropMarkers = [];
-                }
-            } catch (e) {
-                console.error('Failed to fetch recorded detail', e);
-                snackbar.open({ text: '録画情報の取得に失敗しました', color: 'error' });
-                isLoadingInfo = false;
-                return;
+            // ================= 録画再生: /recorded/detail (一体化画面) へリダイレクト =================
+            const params = new URLSearchParams();
+            for (const [k, v] of Object.entries(router.current.query)) {
+                if (v) params.set(k, v);
             }
-
-            try {
-                const requestedFile = videoId ? (recordedData.videoFiles?.find(f => f.id === videoId) ?? null) : null;
-                const requestedStreamFile = videoFileId
-                    ? (recordedData.videoFiles?.find(f => f.id === videoFileId) ?? null)
-                    : null;
-
-                if (requestedFile) {
-                    // 直接再生 (MP4 / WebM)
-                    startDirectPlay(requestedFile);
-                } else if (requestedStreamFile) {
-                    currentVideoFile = requestedStreamFile;
-                    vttSrc = undefined;
-                    currentStreamMode = mode;
-                    if (reqType === 'mp4' || reqType === 'webm') {
-                        // トランスコード MP4/WebM 直接ストリーム
-                        streamType = reqType;
-                        videoSrc = withAuthToken(
-                            `/api/streams/recorded/${requestedStreamFile.id}/${reqType}?mode=${mode}`,
-                        );
-                        isHls = false;
-                    } else {
-                        // トランスコード HLS ストリーミング
-                        await startHlsStream(async () => {
-                            const res = await api.streams.recorded[':videoFileId'].hls.$get({
-                                param: { videoFileId: String(requestedStreamFile.id) },
-                                query: { mode, ss: 0 },
-                            });
-                            if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
-                            const data = await res.json();
-                            return Number(data.streamId);
-                        }, 'トランスコード配信を生成中...');
-                    }
-                } else if (recordedData.videoFiles?.[0]) {
-                    // デフォルト: 最上位MP4ファイルを最優先して直接再生
-                    const topMp4 = getTopMp4File(recordedData.videoFiles);
-                    if (topMp4) {
-                        startDirectPlay(topMp4);
-                    } else if (readOnlyStore.canRecordedStream) {
-                        const firstFile = recordedData.videoFiles[0];
-                        currentVideoFile = firstFile;
-                        currentStreamMode = 0;
-                        await startHlsStream(async () => {
-                            const res = await api.streams.recorded[':videoFileId'].hls.$get({
-                                param: { videoFileId: String(firstFile.id) },
-                                query: { mode: 0, ss: 0 },
-                            });
-                            if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
-                            const data = await res.json();
-                            return Number(data.streamId);
-                        }, 'トランスコード配信を生成中...');
-                    } else {
-                        statusText = '閲覧専用モードのため、トランスコード配信は制限されています。';
-                        snackbar.open({ text: statusText, color: 'error' });
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to start recorded stream', e);
-                snackbar.open({ text: '録画ストリームの開始に失敗しました', color: 'error' });
-            } finally {
-                isLoadingInfo = false;
-                isPreparingStream = false;
-            }
+            params.set('play', '1');
+            router.replace(`/recorded/detail?${params.toString()}`);
+            return;
+        } else {
+            router.replace('/onair');
+            return;
         }
     }
 

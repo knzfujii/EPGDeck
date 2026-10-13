@@ -29,7 +29,7 @@ async function openFirstRecordedWatchPage(page: Page): Promise<Locator | null> {
         return null;
     }
     await streamChoice.click();
-    await page.waitForURL(/\/recorded\/watch/);
+    await page.waitForURL(/\/recorded\/(detail|watch)/);
 
     const videoRegion = page.locator('div[role="region"][aria-label="動画プレーヤー"]');
     await expect(videoRegion).toBeVisible();
@@ -339,6 +339,185 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
 
         // 時間表示テキストも 00:00 ではなく 00:30 以上が表示されていること
         await expect(videoRegion.locator('span:has-text("00:30")').first()).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+    });
+
+    test('should play inline on recorded detail page, stop playback, and switch files seamlessly', async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', err => pageErrors.push(err.message));
+
+        const mockRecorded = {
+            id: 9902,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800,
+            name: '動画プレーヤー操作テスト番組',
+            description: '再生速度・音量・ショートカット検証用',
+            extended: '',
+            genre1: 0,
+            isProtected: false,
+            videoFiles: [
+                {
+                    id: 9002,
+                    name: 'MP4',
+                    filename: 'test_player.mp4',
+                    type: 'encoded',
+                    size: 1024 * 1024 * 300,
+                },
+                {
+                    id: 9003,
+                    name: 'TS',
+                    filename: 'test_player.ts',
+                    type: 'ts',
+                    size: 1024 * 1024 * 900,
+                },
+            ],
+        };
+
+        await page.route(/\/api\/recorded\/9902/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockRecorded),
+            });
+        });
+
+        await page.route(/\/api\/videos\/9002\/duration/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ duration: 1800 }),
+            });
+        });
+
+        await page.addInitScript(() => {
+            HTMLMediaElement.prototype.play = () => Promise.resolve();
+            const origAdd = HTMLMediaElement.prototype.addEventListener;
+            HTMLMediaElement.prototype.addEventListener = function (
+                type: string,
+                listener: EventListenerOrEventListenerObject,
+                options?: boolean | AddEventListenerOptions,
+            ) {
+                if (type === 'error') return;
+                return origAdd.call(this, type, listener, options);
+            };
+        });
+
+        // 1. 詳細画面を開く（自動再生なしの確認）
+        await page.goto('/recorded/detail?recordedId=9902');
+        await page.waitForLoadState('networkidle');
+
+        // 最初はプレイヤーが表示されず、サムネイル＋再生ボタンがあること
+        const videoRegion = page.locator('div[role="region"][aria-label="動画プレーヤー"]');
+        await expect(videoRegion).toHaveCount(0);
+
+        const thumbnailPlayBtn = page.locator('button[aria-label="動画を再生"]');
+        await expect(thumbnailPlayBtn).toBeVisible();
+
+        // 2. サムネイル再生ボタンをクリックしてインライン再生開始
+        await thumbnailPlayBtn.click();
+        await expect(videoRegion).toBeVisible();
+
+        // スクロール時に吸着する sticky クラスが付与されていること
+        const playerContainer = page.getByTestId('inline-player-container');
+        await expect(playerContainer).toHaveClass(/sticky/);
+
+        // 3. プレイヤー停止（サムネイルに戻る）ボタンをクリック
+        const stopBtn = page.locator('button[aria-label="再生を終了してサムネイルへ戻る"]');
+        await expect(stopBtn).toBeVisible();
+        await stopBtn.click();
+
+        // プレイヤーが消え、サムネイル再生ボタンが再表示されること
+        await expect(videoRegion).toHaveCount(0);
+        await expect(thumbnailPlayBtn).toBeVisible();
+
+        // 4. ファイル一覧の再生ボタンから再生開始
+        const filePlayBtn = page.getByRole('button', { name: '再生' }).first();
+        await expect(filePlayBtn).toBeVisible();
+        await filePlayBtn.click();
+
+        await expect(videoRegion).toBeVisible();
+        // ファイル行に「再生中」バッジが表示されていること
+        await expect(page.locator('span:has-text("再生中")').first()).toBeVisible();
+
+        // 5. 動画終了（ended）イベント発生時もプレイヤーを維持（サムネイルに戻らない）
+        await page.evaluate(() => {
+            const video = document.querySelector('video');
+            if (video) video.dispatchEvent(new Event('ended'));
+        });
+        await expect(videoRegion).toBeVisible();
+
+        expect(pageErrors).toEqual([]);
+    });
+
+    test('should auto-redirect legacy /recorded/watch URL to /recorded/detail with play=1', async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', err => pageErrors.push(err.message));
+
+        const mockRecorded = {
+            id: 9902,
+            channelId: 1,
+            startAt: Date.now() - 3600000,
+            endAt: Date.now() - 1800000,
+            duration: 1800,
+            name: '動画プレーヤー操作テスト番組',
+            description: '再生速度・音量・ショートカット検証用',
+            extended: '',
+            genre1: 0,
+            isProtected: false,
+            videoFiles: [
+                {
+                    id: 9002,
+                    name: 'MP4',
+                    filename: 'test_player.mp4',
+                    type: 'encoded',
+                    size: 1024 * 1024 * 300,
+                },
+            ],
+        };
+
+        await page.route(/\/api\/recorded\/9902/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockRecorded),
+            });
+        });
+
+        await page.route(/\/api\/videos\/9002\/duration/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ duration: 1800 }),
+            });
+        });
+
+        await page.addInitScript(() => {
+            HTMLMediaElement.prototype.play = () => Promise.resolve();
+            const origAdd = HTMLMediaElement.prototype.addEventListener;
+            HTMLMediaElement.prototype.addEventListener = function (
+                type: string,
+                listener: EventListenerOrEventListenerObject,
+                options?: boolean | AddEventListenerOptions,
+            ) {
+                if (type === 'error') return;
+                return origAdd.call(this, type, listener, options);
+            };
+        });
+
+        // レガシー再生URLへアクセス
+        await page.goto('/recorded/watch?recordedId=9902&videoId=9002');
+        await page.waitForLoadState('networkidle');
+
+        // /recorded/detail へのリダイレクトが行われ、URLに play=1 が含まれること
+        await expect.poll(() => page.url()).toContain('/recorded/detail');
+        await expect.poll(() => page.url()).toContain('play=1');
+
+        // 動画プレイヤーが自動起動していること
+        const videoRegion = page.locator('div[role="region"][aria-label="動画プレーヤー"]');
+        await expect(videoRegion).toBeVisible();
 
         expect(pageErrors).toEqual([]);
     });

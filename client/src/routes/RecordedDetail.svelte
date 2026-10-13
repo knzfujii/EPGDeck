@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -13,11 +13,19 @@
         formatSize,
         getGenreName,
         getGenreBadgeClass,
+        formatPlayerTime,
     } from '../lib/utils/format';
-    import { isMp4VideoFile, getSmartWatchUrl, getWatchUrl, getTotalVideoFileSize } from '../lib/utils/video';
+    import {
+        isMp4VideoFile,
+        getSmartWatchUrl,
+        getWatchUrl,
+        getTotalVideoFileSize,
+        getTopMp4File,
+    } from '../lib/utils/video';
     import { parseDropLog, getDropCategoryLabel, type DropMarker } from '../lib/utils/dropLog';
     import { openWithExternalPlayer, isMobileOrTabletDevice } from '../lib/utils/urlScheme';
-    import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
+    import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
+    import StreamSelectModal, { type StreamSelectPlayParams } from '../lib/components/video/StreamSelectModal.svelte';
     import Badge from '../lib/components/common/Badge.svelte';
     import Button from '../lib/components/common/Button.svelte';
     import IconButton from '../lib/components/common/IconButton.svelte';
@@ -57,6 +65,7 @@
         Camera,
         CopyX,
         CopyCheck,
+        X,
     } from '@lucide/svelte';
     import RecreateThumbnailModal from '../lib/components/recording/RecreateThumbnailModal.svelte';
 
@@ -67,6 +76,43 @@
     let isThumbnailModalOpen = $state(false);
     let thumbnailRefreshKey = $state(Date.now());
     const isMobileDevice = isMobileOrTabletDevice();
+
+    // プレイヤー状態
+    let isPlaying = $state(false);
+    let videoSrc = $state<string>('');
+    let vttSrc = $state<string | undefined>(undefined);
+    let streamType = $state<'m2tsll' | 'm2ts' | 'webm' | 'mp4' | 'hls' | 'direct'>('direct');
+    let isHls = $state(false);
+    let playbackOffset = $state(0);
+    let dropMarkers = $state<DropMarker[]>([]);
+    let currentStreamMode = $state(0);
+    let streamId = $state<number | null>(null);
+    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+    let isPreparingStream = $state(false);
+    let statusText = $state('ストリームを準備中...');
+    let statusMessage = $state('');
+    let currentVideoFile = $state<apid.VideoFile | null>(null);
+    let videoFileDuration = $state<number | null>(null);
+    let isRestartingHls = false;
+    let pendingSeekTarget: number | null = null;
+
+    let totalDuration = $derived.by(() => {
+        if (videoFileDuration !== null && videoFileDuration > 0) {
+            return videoFileDuration;
+        }
+        if (!recorded) return 0;
+        if (recorded.duration && recorded.duration > 0) {
+            return Math.max(0, Math.floor(recorded.duration / 1000));
+        }
+        if (recorded.startAt && recorded.endAt) {
+            return Math.max(0, Math.floor((recorded.endAt - recorded.startAt) / 1000));
+        }
+        return 0;
+    });
+
+    let activeVideoFile = $derived(
+        currentVideoFile ?? getTopMp4File(recorded?.videoFiles) ?? recorded?.videoFiles?.[0] ?? null,
+    );
 
     // エンコード追加モーダル
     interface EncodePresetSelection {
@@ -181,6 +227,10 @@
 
             recorded = (await res.json()) as apid.RecordedItem;
 
+            if (!isSilent) {
+                checkInitialPlay(recorded);
+            }
+
             if (recorded?.ruleId) {
                 const isSameRule = recorded.ruleId === currentFetchedRuleId;
                 fetchSameRuleRecords(recorded.ruleId, isSameRule);
@@ -223,6 +273,262 @@
         }
     }
 
+    function withAuthToken(url: string): string {
+        if (!readOnlyStore.token) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}token=${encodeURIComponent(readOnlyStore.token)}`;
+    }
+
+    async function fetchVideoFileDuration(fileId: number) {
+        try {
+            const res = await api.videos[':videoFileId'].duration.$get({
+                param: { videoFileId: String(fileId) },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (typeof data?.duration === 'number' && data.duration > 0) {
+                    videoFileDuration = Math.floor(data.duration);
+                }
+            }
+        } catch {
+            // ignore error
+        }
+    }
+
+    async function fetchDropMarkersForPlayer(dropLogFileId: number, startAtMs?: number) {
+        try {
+            const res = await api.dropLogs[':dropLogFileId'].$get({
+                param: { dropLogFileId: String(dropLogFileId) },
+                query: {},
+            });
+            if (res.ok) {
+                const text = await res.text();
+                dropMarkers = parseDropLog(text, startAtMs);
+            }
+        } catch {
+            dropMarkers = [];
+        }
+    }
+
+    $effect(() => {
+        if (!isPlaying) return;
+        const fileId = activeVideoFile?.id;
+        if (fileId) {
+            untrack(() => {
+                fetchVideoFileDuration(fileId);
+            });
+        }
+    });
+
+    async function waitForStreamReady(id: number): Promise<boolean> {
+        for (let i = 1; i <= 100; i++) {
+            const sec = (i * 0.3).toFixed(1);
+            statusText = `HLS 配信を準備中... (${sec}秒)`;
+            if (statusMessage) {
+                statusMessage = statusMessage.replace(/\s*\([\d.]+秒\)$/, '') + ` (${sec}秒)`;
+            }
+            try {
+                const infoRes = await api.streams.$get({ query: { isHalfWidth: true } });
+                if (infoRes.ok) {
+                    const infoData = await infoRes.json();
+                    const items = infoData?.items || [];
+                    const stream = items.find(item => Number(item.streamId) === Number(id));
+                    if (stream?.isEnable === true) return true;
+                }
+                if (i >= 5) {
+                    try {
+                        const m3u8Res = await fetch(`/streamfiles/stream${id}.m3u8`);
+                        if (m3u8Res.ok && (await m3u8Res.text()).includes('#EXTM3U')) return true;
+                    } catch {}
+                }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        return false;
+    }
+
+    async function startHlsStream(startFn: () => Promise<number>, preparingMessage: string): Promise<boolean> {
+        streamType = 'hls';
+        isPreparingStream = true;
+        statusText = preparingMessage;
+
+        const sId = await startFn();
+        streamId = sId;
+        startKeepAlive(sId);
+
+        const isReady = await waitForStreamReady(sId);
+        if (isReady) {
+            videoSrc = `/streamfiles/stream${sId}.m3u8?t=${Date.now()}`;
+            isHls = true;
+            return true;
+        }
+        throw new Error('Stream timed out waiting for manifest');
+    }
+
+    function startDirectPlay(file: apid.VideoFile) {
+        void stopStream();
+        streamType = 'direct';
+        currentVideoFile = file;
+        videoSrc = withAuthToken(`/api/videos/${file.id}`);
+        vttSrc = withAuthToken(`/api/videos/${file.id}/vtt`);
+        isHls = false;
+        isPlaying = true;
+        isPreparingStream = false;
+        if (recorded?.dropLogFile?.id && dropMarkers.length === 0) {
+            void fetchDropMarkersForPlayer(recorded.dropLogFile.id, recorded.startAt);
+        }
+    }
+
+    async function startRecordedStream(file: apid.VideoFile, mode: number, reqType: 'hls' | 'mp4' | 'webm' = 'hls') {
+        void stopStream();
+        currentVideoFile = file;
+        vttSrc = undefined;
+        currentStreamMode = mode;
+        isPlaying = true;
+        if (recorded?.dropLogFile?.id && dropMarkers.length === 0) {
+            void fetchDropMarkersForPlayer(recorded.dropLogFile.id, recorded.startAt);
+        }
+
+        try {
+            if (reqType === 'mp4' || reqType === 'webm') {
+                streamType = reqType;
+                videoSrc = withAuthToken(`/api/streams/recorded/${file.id}/${reqType}?mode=${mode}`);
+                isHls = false;
+            } else {
+                await startHlsStream(async () => {
+                    const res = await api.streams.recorded[':videoFileId'].hls.$get({
+                        param: { videoFileId: String(file.id) },
+                        query: { mode, ss: 0 },
+                    });
+                    if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
+                    const data = await res.json();
+                    return Number(data.streamId);
+                }, 'トランスコード配信を生成中...');
+            }
+        } catch (e) {
+            console.error('Failed to start recorded stream', e);
+            snackbar.open({ text: '録画ストリームの開始に失敗しました', color: 'error' });
+            isPlaying = false;
+        } finally {
+            isPreparingStream = false;
+        }
+    }
+
+    function startKeepAlive(id: number | null) {
+        if (id === null || isNaN(id)) return;
+        if (keepAliveInterval) clearInterval(keepAliveInterval);
+        keepAliveInterval = setInterval(async () => {
+            try {
+                await api.streams[':streamId'].keep.$put({
+                    param: { streamId: String(id) },
+                });
+            } catch (e) {
+                console.error('KeepAlive ping failed', e);
+            }
+        }, 10000);
+    }
+
+    async function stopStream() {
+        if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+        }
+        if (streamId !== null && !isNaN(streamId)) {
+            const currentId = streamId;
+            streamId = null;
+            try {
+                await api.streams[':streamId'].$delete({
+                    param: { streamId: String(currentId) },
+                });
+            } catch (e) {
+                console.error('Failed to stop stream', e);
+            }
+        }
+        videoSrc = '';
+        vttSrc = undefined;
+    }
+
+    function handleStopPlayback() {
+        void stopStream();
+        isPlaying = false;
+        isPreparingStream = false;
+        statusMessage = '';
+    }
+
+    async function restartHlsAtPosition(targetTime: number) {
+        if (!currentVideoFile) return;
+        const targetFile = currentVideoFile;
+        const seekSecond = Math.max(0, Math.floor(targetTime));
+        pendingSeekTarget = seekSecond;
+
+        if (isRestartingHls) return;
+        isRestartingHls = true;
+
+        try {
+            while (pendingSeekTarget !== null) {
+                const currentTarget = pendingSeekTarget;
+                pendingSeekTarget = null;
+
+                if (isHls || streamType === 'hls') {
+                    statusMessage = `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`;
+                    await stopStream();
+                    playbackOffset = currentTarget;
+
+                    await startHlsStream(
+                        async () => {
+                            const res = await api.streams.recorded[':videoFileId'].hls.$get({
+                                param: { videoFileId: String(targetFile.id) },
+                                query: { mode: currentStreamMode, ss: currentTarget },
+                            });
+                            if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
+                            const data = await res.json();
+                            return Number(data.streamId);
+                        },
+                        `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`,
+                    );
+                } else if (streamType === 'webm' || streamType === 'mp4') {
+                    statusMessage = `${formatPlayerTime(currentTarget)} からストリームを再開中...`;
+                    playbackOffset = currentTarget;
+                    videoSrc = withAuthToken(
+                        `/api/streams/recorded/${currentVideoFile.id}/${streamType}?mode=${currentStreamMode}&ss=${currentTarget}&t=${Date.now()}`,
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('Failed to restart HLS stream at position', e);
+            snackbar.open({ text: 'シーク先でのストリーム再生成に失敗しました', color: 'error' });
+        } finally {
+            isRestartingHls = false;
+            pendingSeekTarget = null;
+            isPreparingStream = false;
+            statusMessage = '';
+        }
+    }
+
+    function checkInitialPlay(item: apid.RecordedItem) {
+        const q = router.current.query;
+        if (q.play === '1' || q.videoId || q.videoFileId) {
+            const videoId = q.videoId ? parseInt(q.videoId, 10) : null;
+            const videoFileId = q.videoFileId ? parseInt(q.videoFileId, 10) : null;
+            const reqType = (q.type as 'hls' | 'mp4' | 'webm') || 'hls';
+            const mode = q.mode ? parseInt(q.mode, 10) : 0;
+
+            const targetFile =
+                (videoId ? item.videoFiles?.find(f => f.id === videoId) : null) ??
+                (videoFileId ? item.videoFiles?.find(f => f.id === videoFileId) : null) ??
+                getTopMp4File(item.videoFiles) ??
+                item.videoFiles?.[0];
+
+            if (targetFile) {
+                if (isMp4VideoFile(targetFile) && (!q.type || q.type === 'direct')) {
+                    startDirectPlay(targetFile);
+                } else {
+                    void startRecordedStream(targetFile, mode, reqType);
+                }
+            }
+        }
+    }
+
     $effect(() => {
         if (recordedId) {
             fetchRecordedDetail();
@@ -238,6 +544,7 @@
 
     onDestroy(() => {
         unsubscribeSocket?.();
+        void stopStream();
     });
 
     // 番組保護トグル
@@ -500,9 +807,9 @@
     // サムネイル再生: 最上位MP4があれば直接再生、なければ再生方法選択モーダル
     function handleThumbnailPlay() {
         if (!recorded) return;
-        const watchUrl = getSmartWatchUrl(recorded.id, recorded.videoFiles);
-        if (watchUrl) {
-            router.push(watchUrl);
+        const topMp4 = getTopMp4File(recorded.videoFiles);
+        if (topMp4) {
+            startDirectPlay(topMp4);
         } else {
             streamModalVideoFileId = undefined;
             isStreamModalOpen = true;
@@ -519,10 +826,26 @@
     function handleFilePlay(file: apid.VideoFile) {
         if (!recorded) return;
         if (isMp4VideoFile(file)) {
-            router.push(getWatchUrl({ recordedId: recorded.id, videoId: file.id }));
+            startDirectPlay(file);
         } else {
             streamModalVideoFileId = file.id;
             isStreamModalOpen = true;
+        }
+    }
+
+    // StreamSelectModal からのインライン再生ハンドラ
+    function handleStreamSelectPlay(params: StreamSelectPlayParams) {
+        if (!recorded) return;
+        const targetFile =
+            (params.videoId ? recorded.videoFiles?.find(f => f.id === params.videoId) : null) ??
+            (params.videoFileId ? recorded.videoFiles?.find(f => f.id === params.videoFileId) : null) ??
+            recorded.videoFiles?.[0];
+        if (!targetFile) return;
+
+        if (params.streamType === 'direct') {
+            startDirectPlay(targetFile);
+        } else {
+            void startRecordedStream(targetFile, params.mode, params.streamType as 'hls' | 'mp4' | 'webm');
         }
     }
 </script>
@@ -621,13 +944,57 @@
             <Button variant="primary" onclick={goBackToRecordedList} class="mt-4">録画一覧へ戻る</Button>
         </div>
     {:else}
-        <!-- メイン詳細カード -->
+        <!-- 統合動画プレーヤー / サムネイル領域 (動画は角丸禁止・シャープな直角 rounded-none 厳守) -->
         <div
-            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+            data-testid="inline-player-container"
+            class="w-full overflow-hidden rounded-none bg-slate-900 shadow-md transition-shadow {isPlaying
+                ? 'sticky top-0 z-30 shadow-2xl'
+                : ''}"
         >
-            <div class="grid grid-cols-1 md:grid-cols-3">
-                <!-- 左側: サムネイル & クイック再生 -->
-                <div class="relative aspect-video w-full bg-slate-900 md:aspect-auto">
+            {#if isPlaying}
+                {#if videoSrc}
+                    <div class="relative w-full">
+                        <VideoPlayer
+                            src={videoSrc}
+                            {streamType}
+                            videoFileType={activeVideoFile?.type}
+                            {isHls}
+                            isLive={false}
+                            {playbackOffset}
+                            {statusMessage}
+                            title={recorded.name}
+                            recordedId={recorded.id}
+                            {totalDuration}
+                            {vttSrc}
+                            {dropMarkers}
+                            onClose={handleStopPlayback}
+                            onHlsSeekRestart={restartHlsAtPosition}
+                        />
+                    </div>
+                {:else}
+                    <div
+                        class="flex aspect-video w-full flex-col items-center justify-center rounded-none bg-slate-900 text-xs text-slate-300 p-6 text-center shadow-xl relative"
+                    >
+                        <Loader2 size={36} class="animate-spin text-blue-500 mb-3" />
+                        <p class="font-bold">{statusText}</p>
+                        {#if statusMessage}
+                            <p class="text-xs text-slate-400 mt-1">{statusMessage}</p>
+                        {:else}
+                            <p class="text-xs text-slate-500 mt-1">数秒お待ちください...</p>
+                        {/if}
+                        <button
+                            type="button"
+                            onclick={handleStopPlayback}
+                            class="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/80 hover:text-white backdrop-blur-xs transition hover:bg-black/90 cursor-pointer"
+                            title="キャンセル"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                {/if}
+            {:else}
+                <!-- サムネイル部 & クイック再生トリガー（自動再生なし） -->
+                <div class="relative aspect-video w-full bg-slate-900">
                     {#if recorded.thumbnails?.[0]}
                         <img
                             src={`/api/thumbnails/${recorded.thumbnails[0]}?t=${thumbnailRefreshKey}`}
@@ -668,82 +1035,86 @@
                         </button>
                     </div>
                 </div>
+            {/if}
+        </div>
 
-                <!-- 右側: 番組メタデータ -->
-                <div class="p-6 md:col-span-2 flex flex-col gap-4">
-                    <div>
-                        <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <Badge variant="channel" text={channelStore.getChannelName(recorded.channelId)} size="md" />
-                            {#if typeof recorded.genre1 === 'number'}
-                                <span
-                                    class="rounded-lg border px-2.5 py-1 text-xs font-bold {getGenreBadgeClass(
-                                        recorded.genre1,
-                                    )}"
-                                >
-                                    {getGenreName(recorded.genre1)}
-                                </span>
-                            {/if}
-                            {#if recorded.isProtected}
-                                <Badge variant="protected" size="md" />
-                            {/if}
-                            {#if recorded.hasDuplicateHistory !== false}
-                                <span
-                                    class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400"
-                                    title="二重録画防止（重複判定）の対象として履歴に記録されています"
-                                >
-                                    <CopyCheck size={12} class="text-slate-400" /> 重複判定対象
-                                </span>
-                            {/if}
-                        </div>
-
-                        <h1 class="program-title-hero">
-                            {recorded.name}
-                        </h1>
-
-                        <div
-                            class="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400"
-                        >
-                            <Clock size={16} />
-                            <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
-                            <span>
-                                ({formatDuration(
-                                    recorded.duration && recorded.duration > 0
-                                        ? recorded.duration
-                                        : recorded.endAt - recorded.startAt,
-                                )})
+        <!-- メイン詳細カード -->
+        <div
+            class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+        >
+            <div class="p-6 flex flex-col gap-4">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                        <Badge variant="channel" text={channelStore.getChannelName(recorded.channelId)} size="md" />
+                        {#if typeof recorded.genre1 === 'number'}
+                            <span
+                                class="rounded-lg border px-2.5 py-1 text-xs font-bold {getGenreBadgeClass(
+                                    recorded.genre1,
+                                )}"
+                            >
+                                {getGenreName(recorded.genre1)}
                             </span>
-                        </div>
+                        {/if}
+                        {#if recorded.isProtected}
+                            <Badge variant="protected" size="md" />
+                        {/if}
+                        {#if recorded.hasDuplicateHistory !== false}
+                            <span
+                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400"
+                                title="二重録画防止（重複判定）の対象として履歴に記録されています"
+                            >
+                                <CopyCheck size={12} class="text-slate-400" /> 重複判定対象
+                            </span>
+                        {/if}
                     </div>
 
-                    <!-- 再生 & アクションボタン列 -->
-                    <div class="flex items-center gap-2 sm:gap-3 flex-wrap pt-2">
-                        {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
-                            <Button
-                                variant="primary"
-                                onclick={handleDetailPlay}
-                                class="whitespace-nowrap shrink-0"
-                                title="再生方法や画質を選択して再生"
-                            >
-                                <Play size={16} fill="currentColor" /> 詳細再生
-                            </Button>
-                        {/if}
+                    <h1 class="program-title-hero">
+                        {recorded.name}
+                    </h1>
 
-                        {#if !readOnlyStore.isReadOnly}
-                            <Button
-                                variant="secondary"
-                                onclick={() => openEncodeModal()}
-                                class="whitespace-nowrap shrink-0"
-                            >
-                                <Sparkles size={16} class="text-amber-500" /> エンコード追加
-                            </Button>
-                        {/if}
-
-                        {#if recorded.dropLogFile}
-                            <Button variant="secondary" onclick={openDropLog} class="whitespace-nowrap shrink-0">
-                                <FileText size={16} /> ドロップログ
-                            </Button>
-                        {/if}
+                    <div
+                        class="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 flex-wrap"
+                    >
+                        <Clock size={16} />
+                        <span>{formatTimeRange(recorded.startAt, recorded.endAt)}</span>
+                        <span>
+                            ({formatDuration(
+                                recorded.duration && recorded.duration > 0
+                                    ? recorded.duration
+                                    : recorded.endAt - recorded.startAt,
+                            )})
+                        </span>
                     </div>
+                </div>
+
+                <!-- 再生 & アクションボタン列 -->
+                <div class="flex items-center gap-2 sm:gap-3 flex-wrap pt-1">
+                    {#if readOnlyStore.canPlayRecorded(recorded.videoFiles)}
+                        <Button
+                            variant="primary"
+                            onclick={handleDetailPlay}
+                            class="whitespace-nowrap shrink-0"
+                            title="再生方法や画質を選択して再生"
+                        >
+                            <Play size={16} fill="currentColor" /> 詳細再生
+                        </Button>
+                    {/if}
+
+                    {#if !readOnlyStore.isReadOnly}
+                        <Button
+                            variant="secondary"
+                            onclick={() => openEncodeModal()}
+                            class="whitespace-nowrap shrink-0"
+                        >
+                            <Sparkles size={16} class="text-amber-500" /> エンコード追加
+                        </Button>
+                    {/if}
+
+                    {#if recorded.dropLogFile}
+                        <Button variant="secondary" onclick={openDropLog} class="whitespace-nowrap shrink-0">
+                            <FileText size={16} /> ドロップログ
+                        </Button>
+                    {/if}
                 </div>
             </div>
 
@@ -937,11 +1308,22 @@
             {:else}
                 <div class="flex flex-col gap-3">
                     {#each recorded.videoFiles || [] as file}
+                        {@const isCurrentPlaying = isPlaying && activeVideoFile?.id === file.id}
                         <div
-                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 sm:p-4 transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40"
+                            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3.5 sm:p-4 transition {isCurrentPlaying
+                                ? 'border-blue-500 ring-2 ring-blue-500/40 bg-blue-50/40 dark:border-blue-500 dark:bg-blue-950/40'
+                                : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 dark:border-slate-800 dark:bg-slate-800/40'}"
                         >
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap mb-1">
+                                    {#if isCurrentPlaying}
+                                        <span
+                                            class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs"
+                                        >
+                                            <Play size={11} fill="currentColor" />
+                                            再生中
+                                        </span>
+                                    {/if}
                                     <span
                                         class="inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide shrink-0 whitespace-nowrap {file.type ===
                                         'encoded'
@@ -982,14 +1364,14 @@
                                 <!-- 直接再生 / トランスコード再生 -->
                                 {#if isMp4VideoFile(file) || readOnlyStore.canRecordedStream}
                                     <Button
-                                        variant="primary"
+                                        variant={isCurrentPlaying ? 'secondary' : 'primary'}
                                         size="compact"
                                         onclick={() => handleFilePlay(file)}
                                         class="whitespace-nowrap shrink-0"
-                                        title="再生"
+                                        title={isCurrentPlaying ? '再生中（再度選択でリロード）' : 'このファイルで再生'}
                                     >
                                         <Play size={14} fill="currentColor" />
-                                        <span>再生</span>
+                                        <span>{isCurrentPlaying ? '再生中' : '再生'}</span>
                                     </Button>
                                 {/if}
 
@@ -1143,6 +1525,7 @@
             isStreamModalOpen = false;
             streamModalVideoFileId = undefined;
         }}
+        onPlay={handleStreamSelectPlay}
     />
 {/if}
 

@@ -54,7 +54,7 @@ export interface WatchUrlParams {
 }
 
 /**
- * 録画再生画面（/recorded/watch）への URL を生成
+ * 録画詳細・再生画面（/recorded/detail）への URL を生成（自動再生フラグ play=1 付き）
  */
 export function getWatchUrl(params: WatchUrlParams): string {
     const searchParams = new URLSearchParams();
@@ -72,8 +72,9 @@ export function getWatchUrl(params: WatchUrlParams): string {
     if (params.mode != null) {
         searchParams.set('mode', String(params.mode));
     }
+    searchParams.set('play', '1');
 
-    return `/recorded/watch?${searchParams.toString()}`;
+    return `/recorded/detail?${searchParams.toString()}`;
 }
 
 /**

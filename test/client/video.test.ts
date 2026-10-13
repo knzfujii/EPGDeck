@@ -6,6 +6,8 @@ import {
     getAvailableStreamModes,
     parseStreamResolution,
     getStreamModeDescription,
+    getWatchUrl,
+    getSmartWatchUrl,
     PREF_KEY_PREFIX,
     type PlaybackPreference,
 } from '../../client/src/lib/utils/video.js';
@@ -246,6 +248,40 @@ describe('video.ts playback preference tests', () => {
                 desc: '中画質・節約',
                 numericRes: 480,
             });
+        });
+    });
+
+    describe('getWatchUrl', () => {
+        it('generates URL pointing to /recorded/detail with play=1 and params', () => {
+            const url = getWatchUrl({
+                recordedId: 100,
+                videoId: 200,
+                type: 'mp4',
+                mode: 1,
+            });
+            expect(url).toBe('/recorded/detail?recordedId=100&videoId=200&type=mp4&mode=1&play=1');
+        });
+
+        it('handles minimal params', () => {
+            const url = getWatchUrl({ recordedId: 50 });
+            expect(url).toBe('/recorded/detail?recordedId=50&play=1');
+        });
+    });
+
+    describe('getSmartWatchUrl', () => {
+        it('returns /recorded/detail URL with play=1 when MP4 exists', () => {
+            const files = [
+                { id: 1, name: 'TS', type: 'ts', filename: 'rec.ts' },
+                { id: 2, name: 'MP4 720p', type: 'encoded', filename: 'rec.mp4' },
+            ];
+            const url = getSmartWatchUrl(10, files as any);
+            expect(url).toBe('/recorded/detail?recordedId=10&videoId=2&play=1');
+        });
+
+        it('returns null when no MP4 exists', () => {
+            const files = [{ id: 1, name: 'TS', type: 'ts', filename: 'rec.ts' }];
+            const url = getSmartWatchUrl(10, files as any);
+            expect(url).toBeNull();
         });
     });
 });

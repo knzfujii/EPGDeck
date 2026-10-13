@@ -17,6 +17,13 @@
         type PlaybackStreamType,
     } from '../../utils/video';
 
+    export interface StreamSelectPlayParams {
+        videoId?: number;
+        videoFileId?: number;
+        streamType: PlaybackStreamType;
+        mode: number;
+    }
+
     interface Props {
         isOpen: boolean;
         title: string;
@@ -26,6 +33,7 @@
         videoFiles?: apid.VideoFile[];
         defaultVideoFileId?: number;
         onClose: () => void;
+        onPlay?: (params: StreamSelectPlayParams) => void;
     }
 
     let {
@@ -37,6 +45,7 @@
         videoFiles = [],
         defaultVideoFileId,
         onClose,
+        onPlay,
     }: Props = $props();
 
     // 選択状態
@@ -145,7 +154,14 @@
                 mode: selectedMode,
             });
 
-            if (selectedStreamType === 'direct') {
+            if (onPlay) {
+                onPlay({
+                    videoId: selectedStreamType === 'direct' ? selectedFileId : undefined,
+                    videoFileId: selectedStreamType !== 'direct' ? selectedFileId : undefined,
+                    streamType: selectedStreamType,
+                    mode: selectedMode,
+                });
+            } else if (selectedStreamType === 'direct') {
                 // 直接再生
                 router.push(getWatchUrl({ recordedId, videoId: selectedFileId }));
             } else {

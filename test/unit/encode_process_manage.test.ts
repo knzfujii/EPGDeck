@@ -144,4 +144,23 @@ describe('EncodeProcessManageModel Tests', () => {
             expect((model as any).childs.length).toBe(0);
         });
     });
+
+    describe('buildProcess', () => {
+        it('replaces %FFMPEG% and %FFPROBE% with configured binaries', () => {
+            dummyConfig.encode.binaries = {
+                ffmpeg: process.argv[0],
+                ffprobe: process.argv[0],
+            };
+            const parseCmdSpy = vi.spyOn(ProcessUtil, 'parseCmdStr');
+
+            (model as any).buildProcess({
+                cmd: '%FFMPEG% -i %INPUT% %OUTPUT%',
+                priority: 1,
+                input: '/path/input.ts',
+                output: '/path/output.mp4',
+            });
+
+            expect(parseCmdSpy).toHaveBeenCalledWith(`${process.argv[0]} -i %INPUT% %OUTPUT%`);
+        });
+    });
 });

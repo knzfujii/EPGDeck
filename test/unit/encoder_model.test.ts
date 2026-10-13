@@ -282,6 +282,42 @@ describe('EncoderModel', () => {
         );
     });
 
+    it('replaces %FFMPEG% and %FFPROBE% macros in cmd passed to processManager.create', async () => {
+        mockConfigure.getConfig.mockReturnValue({
+            encode: {
+                presets: [
+                    {
+                        name: 'Direct Command Preset',
+                        cmd: '%FFMPEG% -y -i %INPUT% -c:v copy %OUTPUT%',
+                        suffix: '.mp4',
+                    },
+                ],
+                binaries: {
+                    ffmpeg: '/usr/local/bin/ffmpeg',
+                    ffprobe: '/usr/local/bin/ffprobe',
+                },
+            },
+        });
+
+        encoderModel.setOption({
+            encodeId: 4,
+            sourceVideoFileId: 1,
+            parentDir: 'recorded',
+            recordedId: 10,
+            mode: 'Direct Command Preset',
+            directory: '',
+            removeOriginal: false,
+        });
+
+        await encoderModel.start();
+
+        expect(mockProcessManager.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                cmd: '/usr/local/bin/ffmpeg -y -i %INPUT% -c:v copy %OUTPUT%',
+            }),
+        );
+    });
+
     describe('Progress Stall Watchdog (forward progress monitoring)', () => {
         beforeEach(() => {
             vi.useFakeTimers();

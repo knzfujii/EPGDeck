@@ -33,6 +33,22 @@ describe('ProcessUtil Unit Tests', () => {
             expect(parsed.bin).toBe(nodeBin);
             expect(parsed.args).toEqual([`${ProcessUtil.ROOT_PATH}/test.js`, 'hello world', 'extra', 'args']);
         });
+
+        it('replaces %ROOT% inside bin when bin contains %ROOT%', () => {
+            // package.json exists in ROOT_PATH
+            const cmd = `%ROOT%/package.json arg1`;
+            const parsed = ProcessUtil.parseCmdStr(cmd);
+            expect(parsed.bin).toBe(`${ProcessUtil.ROOT_PATH}/package.json`);
+            expect(parsed.args).toEqual(['arg1']);
+        });
+
+        it('resolves binary from PATH when bin has no path separator', () => {
+            // 'node' is guaranteed to exist on PATH
+            const cmd = `node arg1`;
+            const parsed = ProcessUtil.parseCmdStr(cmd);
+            expect(parsed.bin.endsWith('node')).toBe(true);
+            expect(parsed.args).toEqual(['arg1']);
+        });
     });
 
     describe('kill', () => {

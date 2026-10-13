@@ -14,12 +14,14 @@ interface ChildProcessInfo {
 
 class EncodeProcessManageModel implements IEncodeProcessManageModel {
     private log: ILogger;
+    private configure: IConfiguration;
     private maxEncode: number;
     private childs: ChildProcessInfo[] = [];
     private listener: events.EventEmitter = new events.EventEmitter();
 
     constructor(logeer: ILoggerModel, configure: IConfiguration) {
         this.log = logeer.getLogger();
+        this.configure = configure;
         this.maxEncode = configure.getConfig().encode.maxProcesses;
     }
 
@@ -202,11 +204,17 @@ class EncodeProcessManageModel implements IEncodeProcessManageModel {
      * @return ChildProcessInfo
      */
     private buildProcess(option: CreateProcessOption): ChildProcessInfo {
+        let cmd = option.cmd;
+        const binaries = this.configure?.getConfig()?.encode?.binaries;
+        if (binaries) {
+            cmd = cmd.replace(/%FFMPEG%/g, binaries.ffmpeg).replace(/%FFPROBE%/g, binaries.ffprobe);
+        }
+
         let cmds: ProcessUtil.Cmds;
         try {
-            cmds = ProcessUtil.parseCmdStr(option.cmd);
+            cmds = ProcessUtil.parseCmdStr(cmd);
         } catch (err: any) {
-            this.log.encode.error(`build process error: ${option.cmd}`);
+            this.log.encode.error(`build process error: ${cmd}`);
             throw err;
         }
 

@@ -1,7 +1,7 @@
 # ==========================================
 # 1. ビルド用ステージ (Builder)
 # ==========================================
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN npm prune --omit=dev
 # ==========================================
 # 2. 本番ランタイムステージ (Runner)
 # ==========================================
-FROM node:22-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 
 # 必要なシステムパッケージのインストール
 # - tini: PID 1 でのゾンビプロセス回収とシグナル中継

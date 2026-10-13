@@ -6,7 +6,7 @@
     import VideoControls from './VideoControls.svelte';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
-    import { Play, Pause, RotateCcw, RotateCw, Loader2, AlertCircle, X } from '@lucide/svelte';
+    import { Play, Pause, RotateCcw, RotateCw, Loader2, AlertCircle } from '@lucide/svelte';
 
     interface Props {
         src: string;
@@ -21,7 +21,6 @@
         playbackOffset?: number;
         statusMessage?: string;
         dropMarkers?: import('../../utils/dropLog').DropMarker[];
-        onClose?: () => void;
         onStreamEnded?: () => void;
         onHlsSeekRestart?: (targetTime: number) => void | Promise<void>;
     }
@@ -48,7 +47,7 @@
     let duration = $state(0);
     let bufferedEnd = $state(0);
     let isFullscreen = $state(false);
-    let showControls = $state(true);
+    let showControls = $state(false);
     let errorMessage = $state<string | null>(null);
     let resumeNotice = $state<{ position: number; visible: boolean } | null>(null);
     let hlsFinalDuration = $state<number | null>(null);
@@ -786,7 +785,9 @@
             if (videoElement) {
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
-            resetHideControlsTimer();
+            // 再生開始時はコントロールを表示せず非表示のままにする
+            showControls = false;
+            pauseHideControlsTimer();
         }}
         onpause={() => {
             isPlaying = false;
@@ -973,26 +974,12 @@
         </div>
     {/if}
 
-    <!-- タイトルバー & クローズボタン (上部オーバーレイ: コントロール表示時のみ連動表示) -->
-    {#if (title || props.onClose) && showControls}
+    <!-- タイトルバー (上部オーバーレイ: コントロール表示時のみ連動表示) -->
+    {#if title && showControls}
         <div
             class="pointer-events-none absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
         >
             <h2 class="truncate text-sm font-bold text-white drop-shadow-md">{title}</h2>
-            {#if props.onClose}
-                <button
-                    type="button"
-                    onclick={e => {
-                        e.stopPropagation();
-                        props.onClose?.();
-                    }}
-                    class="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/70 backdrop-blur-xs transition hover:scale-105 active:scale-95 cursor-pointer touch-manipulation drop-shadow-md"
-                    title="再生を終了してサムネイルへ戻る"
-                    aria-label="再生を終了してサムネイルへ戻る"
-                >
-                    <X size={18} />
-                </button>
-            {/if}
         </div>
     {/if}
 

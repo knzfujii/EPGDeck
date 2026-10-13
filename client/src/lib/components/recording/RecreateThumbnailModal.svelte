@@ -107,10 +107,12 @@
         onkeydown={e => e.key === 'Escape' && onClose()}
     >
         <div
-            class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            class="relative flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
         >
-            <!-- ヘッダー -->
-            <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <!-- ヘッダー (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-between border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800"
+            >
                 <div class="flex items-center gap-2 text-slate-800 dark:text-slate-100">
                     <div
                         class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
@@ -132,8 +134,8 @@
                 </button>
             </div>
 
-            <!-- フォーム内容 -->
-            <div class="space-y-4 py-4">
+            <!-- フォーム内容 (縦スクロール可能) -->
+            <div class="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6 text-xs">
                 <!-- 対象動画ファイル選択 -->
                 {#if videoFiles.length > 1}
                     <div>
@@ -195,8 +197,10 @@
                 </div>
             </div>
 
-            <!-- アクションボタン -->
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <!-- アクションボタン (固定) -->
+            <div
+                class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/50 p-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900/50"
+            >
                 <Button variant="secondary" onclick={onClose} disabled={isSubmitting}>キャンセル</Button>
                 <Button
                     variant="primary"

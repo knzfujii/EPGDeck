@@ -190,12 +190,14 @@
             aria-label="閉じる"
         ></button>
 
-        <!-- モーダルコンテンツ -->
+        <!-- モーダルコンテンツ (高さを90dvhに制限し、ヘッダー・フッター固定で内部スクロール) -->
         <div
-            class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
+            class="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-900"
         >
-            <!-- ヘッダー -->
-            <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+            <!-- ヘッダー (固定) -->
+            <div
+                class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6 dark:border-slate-800"
+            >
                 <div>
                     <span
                         class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
@@ -216,13 +218,15 @@
                 <button
                     type="button"
                     onclick={onClose}
-                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                    aria-label="閉じる"
                 >
                     <X size={18} />
                 </button>
             </div>
 
-            <div class="mt-5 space-y-5 text-xs">
+            <!-- スクロール可能な本文領域 -->
+            <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
                 <!-- 動画ファイル選択 (録画の場合) -->
                 {#if videoFiles.length > 0}
                     <div>
@@ -369,8 +373,10 @@
                 {/if}
             </div>
 
-            <!-- アクションボタン -->
-            <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <!-- アクションボタン (固定フッター) -->
+            <div
+                class="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
+            >
                 <Button variant="secondary" onclick={onClose}>キャンセル</Button>
                 <Button variant="primary" disabled={!canStartPlayback} onclick={startPlayback}>
                     {#if !canStartPlayback}

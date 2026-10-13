@@ -48,7 +48,7 @@ test.describe('Recorded List Page (/recorded)', () => {
             // 詳細ページの要素確認
             await expect(page.locator('h1')).toBeVisible();
             await expect(page.getByRole('button', { name: /再生する/ })).toBeVisible();
-            await expect(page.getByRole('button', { name: /エンコード追加/ })).toBeVisible();
+            await expect(page.getByRole('button', { name: /その他の操作/ })).toBeVisible();
         }
 
         // 5. エラーゼロの検証
@@ -614,12 +614,17 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.goto('/recorded/detail?recordedId=601');
         await page.waitForLoadState('networkidle');
 
-        // 初期表示: 重複判定履歴が存在するため「重複判定除外」ボタンと「重複判定対象」バッジが表示される
-        const excludeBtn = page.getByRole('button', { name: /重複判定除外/ });
-        await expect(excludeBtn).toBeVisible();
+        // 初期表示: 「その他の操作」メニューを開いて「重複判定から除外」が表示されることを確認
         await expect(page.getByText('重複判定対象')).toBeVisible();
 
-        // 「重複判定除外」をクリック -> 確認ダイアログが表示される
+        const moreBtn = page.getByRole('button', { name: 'その他の操作' });
+        await expect(moreBtn).toBeVisible();
+        await moreBtn.click();
+
+        const excludeBtn = page.getByRole('menuitem', { name: /重複判定から除外/ });
+        await expect(excludeBtn).toBeVisible();
+
+        // 「重複判定から除外」をクリック -> 確認ダイアログが表示される
         await excludeBtn.click();
         await expect(page.getByRole('heading', { name: '重複判定からの除外' })).toBeVisible();
         await expect(page.getByText('二重録画防止（重複判定）の対象から除外しますか？')).toBeVisible();
@@ -628,21 +633,20 @@ test.describe('Recorded List Page (/recorded)', () => {
         const confirmBtn = page.getByRole('button', { name: '除外する' });
         await confirmBtn.click();
 
-        // DELETE API が呼ばれ、トーストが表示され、ボタンが「重複判定追加」に切り替わり、バッジは非表示になる
+        // DELETE API が呼ばれ、トーストが表示され、バッジは非表示になる
         await expect(page.getByText('重複判定から除外しました')).toBeVisible();
         expect(historyDeleteCalled).toBe(true);
-
-        const addBtn = page.getByRole('button', { name: /重複判定追加/ });
-        await expect(addBtn).toBeVisible();
         await expect(page.getByText('重複判定対象')).toHaveCount(0);
 
-        // 「重複判定追加」をクリック
+        // 「その他の操作」メニューを開き「重複判定に追加」をクリック
+        await moreBtn.click();
+        const addBtn = page.getByRole('menuitem', { name: /重複判定に追加/ });
+        await expect(addBtn).toBeVisible();
         await addBtn.click();
 
-        // POST API が呼ばれ、トーストが表示され、ボタンが元に戻り、バッジが再表示される
+        // POST API が呼ばれ、トーストが表示され、バッジが再表示される
         await expect(page.getByText('重複判定の対象に追加しました')).toBeVisible();
         expect(historyPostCalled).toBe(true);
-        await expect(page.getByRole('button', { name: /重複判定除外/ })).toBeVisible();
         await expect(page.getByText('重複判定対象')).toBeVisible();
 
         expect(pageErrors).toEqual([]);
@@ -729,10 +733,14 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.goto('/recorded/detail?recordedId=701');
         await page.waitForLoadState('networkidle');
 
-        // サムネイル上のカメラボタン「サムネイルを再作成」をクリック
-        const cameraBtn = page.getByRole('button', { name: 'サムネイルを再作成' });
-        await expect(cameraBtn).toBeVisible({ timeout: 5000 });
-        await cameraBtn.click();
+        // 「その他の操作」メニューから「サムネイル再作成...」をクリック
+        const moreBtn = page.getByRole('button', { name: 'その他の操作' });
+        await expect(moreBtn).toBeVisible({ timeout: 5000 });
+        await moreBtn.click();
+
+        const recreateItem = page.getByRole('menuitem', { name: /サムネイル再作成/ });
+        await expect(recreateItem).toBeVisible();
+        await recreateItem.click();
 
         // モーダルが表示されること
         const modal = page.getByRole('dialog');
@@ -861,31 +869,40 @@ test.describe('Recorded List Page (/recorded)', () => {
         const protectBtn = page.getByRole('button', { name: '保護', exact: true });
         await expect(protectBtn).toBeVisible();
 
-        // 削除ボタンが表示されていること
-        const deleteBtn = page.locator('button[title="録画を削除"]');
+        // 「その他の操作」メニュー内に削除ボタンが表示されていること
+        const moreBtn = page.getByRole('button', { name: 'その他の操作' });
+        await expect(moreBtn).toBeVisible();
+        await moreBtn.click();
+        const deleteBtn = page.getByRole('menuitem', { name: '録画を削除' });
         await expect(deleteBtn).toBeVisible();
+
+        // メニュー外クリックで閉じる
+        await page.mouse.click(10, 10);
+        await expect(deleteBtn).not.toBeVisible();
 
         // 2. 保護ボタンをクリック -> 保護状態へ
         await protectBtn.click();
         await expect.poll(() => protectCalled).toBe(true);
         await expect(page.getByText('番組を保護しました')).toBeVisible();
 
-        // ボタンが「保護中」に変わり、保護中は削除ボタンが非表示になること
+        // ボタンが「保護中」に変わり、保護中はメニュー内に削除ボタンが存在しないこと
         const unprotectBtn = page.getByRole('button', { name: '保護中' });
         await expect(unprotectBtn).toBeVisible();
-        await expect(deleteBtn).not.toBeVisible();
+        await moreBtn.click();
+        await expect(page.getByRole('menuitem', { name: '録画を削除' })).not.toBeVisible();
+        await page.mouse.click(10, 10);
 
         // 3. 「保護中」をクリック -> 保護解除へ
         await unprotectBtn.click();
         await expect.poll(() => unprotectCalled).toBe(true);
         await expect(page.getByText('保護を解除しました')).toBeVisible();
 
-        // 再び「保護する」と「削除」ボタンが表示されること
-        await expect(protectBtn).toBeVisible();
-        await expect(deleteBtn).toBeVisible();
+        // 4. メニューを開いて「録画を削除」をクリック -> 確認モーダル -> 削除実行
+        await moreBtn.click();
+        const finalDeleteBtn = page.getByRole('menuitem', { name: '録画を削除' });
+        await expect(finalDeleteBtn).toBeVisible();
+        await finalDeleteBtn.click();
 
-        // 4. 「削除」ボタンをクリック -> 確認モーダル -> 削除実行
-        await deleteBtn.click();
         const confirmModal = page.getByRole('dialog');
         await expect(confirmModal.getByRole('heading', { name: '録画番組の削除' })).toBeVisible();
         await expect(confirmModal.getByText(/テスト特番「保護と削除の検証」.*を削除しますか/)).toBeVisible();
@@ -1070,10 +1087,14 @@ test.describe('Recorded List Page (/recorded)', () => {
         // 1. 詳細画面の表示確認
         await expect(page.locator('h1')).toContainText('複数ファイル保持録画番組');
 
-        // 2. 「詳細再生」ボタンをクリックして再生方法選択モーダルが開くことを確認
-        const playBtn = page.getByRole('button', { name: '詳細再生' });
-        await expect(playBtn).toBeVisible();
-        await playBtn.click();
+        // 2. 「その他の操作」メニューから「再生オプション...」をクリックして再生方法選択モーダルが開くことを確認
+        const moreBtn = page.getByRole('button', { name: 'その他の操作' });
+        await expect(moreBtn).toBeVisible();
+        await moreBtn.click();
+
+        const playOptionItem = page.getByRole('menuitem', { name: /再生オプション/ });
+        await expect(playOptionItem).toBeVisible();
+        await playOptionItem.click();
 
         const streamModal = page.getByRole('dialog');
         await expect(streamModal).toBeVisible();

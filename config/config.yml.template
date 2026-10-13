@@ -148,10 +148,13 @@ encode:
     #   suffix: .mp4
     #   rate: 4.0
     # 外部コマンドやシェルスクリプトを直接実行する場合の例 (cmd を直接指定)
+    # %FFMPEG%, %FFPROBE%, %INPUT%, %OUTPUT%, %NODE%, %ROOT% などのマクロが利用可能です
+    # - name: Direct-FFmpeg
+    #   cmd: '%FFMPEG% -y -i %INPUT% -c:v libx265 -crf 26 -preset faster -c:a copy -movflags faststart %OUTPUT%'
+    #   suffix: .mp4
     # - name: Custom-Script
     #   cmd: '%NODE% %ROOT%/config/my_encode.js'
     #   suffix: .mp4
-    #   rate: 4.0
 
 # ------------------------------------------------------------------------------
 # 7. 外部連携・フック設定 (Hooks)

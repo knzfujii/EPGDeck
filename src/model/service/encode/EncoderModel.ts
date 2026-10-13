@@ -189,11 +189,16 @@ class EncoderModel implements IEncoderModel {
             }
         }
 
+        // cmd 内の %FFMPEG%, %FFPROBE% マクロを置換
+        const cmd = encodeCmd.cmd
+            .replace(/%FFMPEG%/g, config.encode.binaries.ffmpeg)
+            .replace(/%FFPROBE%/g, config.encode.binaries.ffprobe);
+
         // プロセスの生成
         this.childProcess = await this.processManager.create({
             input: inputFilePath,
             output: outputFilePath,
-            cmd: encodeCmd.cmd,
+            cmd,
             priority: EncoderModel.ENCODE_PRIPORITY,
             spawnOption: {
                 env: {

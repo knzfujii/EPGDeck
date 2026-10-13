@@ -250,7 +250,11 @@ encode:
       suffix: .mp4
 
     # 2. 独自コマンド・外部シェルスクリプト指定 (cmd を直接記述)
-    # %NODE% (Node.js実行パス), %ROOT% (プロジェクトルート) などのマクロや外部バイナリが利用可能です
+    # %FFMPEG% (設定されたffmpegパス), %FFPROBE% (設定されたffprobeパス), %INPUT% (入力ファイルパス),
+    # %OUTPUT% (出力ファイルパス), %NODE% (Node.js実行パス), %ROOT% (プロジェクトルート) などのマクロが利用可能です
+    # - name: Direct-FFmpeg
+    #   cmd: '%FFMPEG% -y -i %INPUT% -c:v libx265 -crf 26 -preset faster -c:a copy -movflags faststart %OUTPUT%'
+    #   suffix: .mp4
     # - name: Custom-Script
     #   cmd: '%NODE% %ROOT%/config/my_custom_encode.js'
     #   suffix: .mp4

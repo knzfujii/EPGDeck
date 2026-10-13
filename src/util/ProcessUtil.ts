@@ -106,13 +106,37 @@ export const parseCmdStr = (cmd: string): Cmds => {
         throw new Error('CmdBinIsNotFound');
     }
 
-    // %NODE% の replace
-    bin = bin.replace(/%NODE%/g, process.argv[0]);
+    // %NODE% と %ROOT% の replace
+    bin = bin.replace(/%NODE%/g, process.argv[0]).replace(/%ROOT%/g, ROOT_PATH);
 
-    // bin の存在確認
+    // bin の存在確認 (絶対/相対パス、または PATH から検索)
+    let isFound = false;
     try {
         fs.statSync(bin);
+        isFound = true;
     } catch {
+        // パス区切り文字が含まれていない場合、PATH 環境変数から検索
+        if (!bin.includes(path.sep)) {
+            const envPath = process.env.PATH || '';
+            const dirs = envPath.split(path.delimiter);
+            for (const dir of dirs) {
+                if (!dir) continue;
+                const full = path.join(dir, bin);
+                try {
+                    const stat = fs.statSync(full);
+                    if (stat.isFile() || stat.isSymbolicLink()) {
+                        bin = full;
+                        isFound = true;
+                        break;
+                    }
+                } catch {
+                    // continue
+                }
+            }
+        }
+    }
+
+    if (!isFound) {
         throw new Error('CmdBinIsNotFound');
     }
 

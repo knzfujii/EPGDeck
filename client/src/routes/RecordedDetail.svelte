@@ -711,6 +711,10 @@
             });
             if (!res.ok) throw new Error(`Status ${res.status}`);
             snackbar.open({ text: `「${kodiName}」へ再生リクエストを送信しました`, color: 'success' });
+            // Kodi再生開始に伴い、インライン再生中であれば停止してストリームリソースを解放
+            if (isPlaying) {
+                handleStopPlayback();
+            }
         } catch (e: unknown) {
             console.error('Failed to send to Kodi', e);
             const msg = e instanceof Error ? e.message : '';
@@ -1045,8 +1049,8 @@
         <!-- 統合動画プレーヤー / サムネイル領域 (動画は角丸禁止・シャープな直角 rounded-none 厳守) -->
         <div
             data-testid="inline-player-container"
-            class="w-full overflow-hidden rounded-none bg-slate-900 shadow-md transition-shadow {isPlaying
-                ? 'sticky top-0 z-30 shadow-2xl'
+            class="sticky-player w-full overflow-hidden rounded-none bg-slate-900 shadow-md transition-shadow {isPlaying
+                ? 'is-sticky z-30 shadow-2xl'
                 : ''}"
         >
             {#if isPlaying}
@@ -1929,3 +1933,17 @@
         }}
     />
 {/if}
+
+<style>
+    .sticky-player.is-sticky {
+        position: sticky;
+        top: 0;
+    }
+
+    /* 横向きかつ高さが狭いモバイル端末では、画面全体がプレイヤーで埋まるのを防ぐためスティッキー吸着を解除 */
+    @media (orientation: landscape) and (max-height: 500px) {
+        .sticky-player.is-sticky {
+            position: static;
+        }
+    }
+</style>

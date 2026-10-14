@@ -45,51 +45,33 @@ EPGDeck は以下のストリーミング配信方式をサポートしていま
 - FFmpeg は字幕ストリームを無効化（`-sn`）しつつ、データストリームをコピー（`-map 0 -c:d copy`）して TS セグメントを出力します。
 - クライアント側（`hls.js`）は、セグメントから ID3 メタデータを抽出し、`Hls.Events.FRAG_PARSING_METADATA` イベントを発火します。
 - クライアントの `SubtitleManager.ts` が ID3 ペイロードを受け取り、`feeder.feedID3()` に渡して描画します。
-- ※ 過去に使用していた外部パッケージ `arib-subtitle-timedmetadater`（CJS形式・外部依存あり）は完全に廃止され、Pure TypeScript / ゼロ依存の `packages/arib-probe` に統合されました。
 
 ---
 
-## 3. aribb24.js v2 と字幕データグループ仕様の解決策
+## 3. ARIB STD-B24 字幕データグループ仕様と ID3 Timed Metadata 多重化
 
-### 3.1 発生した問題
-EPGDeck において、M2TS-LL では字幕が表示できる一方、HLS 配信では動画再生が成功しても字幕が一切表示されない問題が発生しました。
+### 3.1 ARIB STD-B24 データ構造と aribb24.js v2 デコード要件
+1. **CaptionManagement と CaptionStatement**:
+   - ARIB STD-B24 の規格上、データグループ ID（`data_group_id & 0x0F`）において `0` は **CaptionManagement（字幕管理データ：言語・文字コード定義）**、`1` は **CaptionStatement（字幕本文データ）** です。
+   - `aribb24.js` v2 は放送規格に厳密に準拠しており、Feeder（`decoding-feeder.ts`）内部で CaptionManagement が先行して存在しない場合、後続の CaptionStatement（本文）をデコードせず破棄（スキップ）します。
+   - したがって、HLS の ID3 Timed Metadata には本文だけでなく管理データ（Group 0）も確実にカプセル化する必要があります。
 
-### 3.2 根本原因の特定
-1. **上流ライブラリ `node-arib-subtitle-timedmetadater` の FIXME バグ**:
-   - 以前利用していた外部ライブラリの内部実装（`src/index.ts`）では以下のように記述されていました：
-     ```typescript
-     if ((data_group_id & 0x0F) != 1) { // FIXME!
-       continue;
-     }
-     ```
-   - ARIB STD-B24 の規格上、`data_group_id & 0x0F` が `0` は **CaptionManagement（字幕管理データ：言語・文字コード定義）**、`1` は **CaptionStatement（字幕本文データ）** です。
-   - ライブラリが `data_group_id != 1` を破棄していたため、**HLS の ID3 メタデータには CaptionStatement（本文）しか含まれず、CaptionManagement（管理データ）が一切含まれませんでした**。
-2. **`aribb24.js` v1 と v2 の仕様差**:
-   - 本家 EPGStation が使用している `aribb24.js` **v1** (1.11.2) は、CaptionManagement が届かなくてもデフォルトの文字コード体系（JIS8）で直接本文をレンダリングする設計（`CanvasProvider`）でした。
-   - しかし、EPGDeck で採用している `aribb24.js` **v2** (2.0.25) は規格に厳密に従って再設計されており、Feeder（`decoding-feeder.ts`）内部で：
-     ```typescript
-     // Caption
-     if (this.priviousManagementData == null) { continue; }
-     ```
-     **CaptionManagement を受信していない場合、すべての CaptionStatement をスキップ（破棄）する** 仕様になっています。
-   - このため、HLS から ID3 メタデータを受信しても、管理データが存在しないため `aribb24.js` v2 が全て読み飛ばしてしまっていました。
-
-### 3.3 二重防衛による解決策（内製 `TsSubtitleId3Muxer` ＋ `SubtitleManager.ts` 動的補完）
-この問題に対し、EPGDeck では以下の二重防衛アーキテクチャを確立しています：
+### 3.2 二重防衛アーキテクチャ（サーバー多重化 ＋ クライアント動的補完）
+EPGDeck では、放送波の開始途中からの受信やシーク時でも字幕が欠落しないよう、以下の二重防衛アーキテクチャを確立しています：
 
 1. **サーバー側での完全な ID3 変換 (`TsSubtitleId3Muxer`)**:
-   - 内製化した `packages/arib-probe` の `TsSubtitleId3Muxer` では、`data_group_id != 1` の破棄コードを排除し、CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方を漏れなく ID3 PRIV パケットにカプセル化して再多重化します。
+   - 内製パッケージ `packages/arib-probe` の `TsSubtitleId3Muxer` では、CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方を漏れなく ID3 PRIV パケットにカプセル化して再多重化します。
 2. **クライアント側での動的補完とシーク保護 (`SubtitleManager.ts`)**:
-   - 放送波の途中で CaptionManagement が間引かれた場合や、プレイヤーのシークによって `aribb24.js` 内部の管理状態がリセット（`disappearance()`）された場合に備え、`SubtitleManager.ts` でも標準的な CaptionManagement パケットを動的先行注入するフォールバックを備えています。
-日本の地上波・BS・CS デジタル放送における字幕規格は一意に定まっています（第1言語: `jpn`, 文字コード体系: `JIS8`）。
-そこで、`SubtitleManager.ts` において標準的な CaptionManagement パケット（Group 0: Aプロファイル、Group 1: Bプロファイル）を合成し、`feeder.feedB24()` で注入する設計を採用しています。
+   - 放送波の途中で CaptionManagement が間引かれた場合や、プレイヤーのシークによってデコーダー内部の管理状態がリセット（`disappearance()`）された場合に備え、`SubtitleManager.ts` で標準的な CaptionManagement パケットを動的先行注入するフォールバックを備えています。
+   - 日本の地上波・BS・CS デジタル放送における字幕規格（第1言語: `jpn`, 文字コード体系: `JIS8`）に基づき、標準的な CaptionManagement パケット（Group 0: Aプロファイル、Group 1: Bプロファイル）を合成し、`feeder.feedB24()` で注入します。
 
-#### 初回初期化注入から「動的注入＋シーク保護」への発展
-単にプレイヤー初期化時に 1 度だけ `PTS: 0` で注入するだけでは、以下の理由で字幕が表示されなくなる問題が発生しました：
-1. **シーク時の状態リセット**: `aribb24.js` の `onSeeking` ハンドラは、プレイヤーのシーク時に `disappearance()` を呼び出し、内部の `priviousManagementData` を `null` に破棄・リセットする。
-2. **PTS 不整合**: シーク先やセグメントの PTS と初期注入時刻（0秒）が乖離していると、レンダラーの表示区間外とみなされ管理データが有効化されない。
+### 3.3 動的先行注入とシーク保護 (`SubtitleManager.ts`)
 
-このため、以下の動的注入アーキテクチャを実装しています：
+シーク時やセグメント境界での字幕途切れを防止するため、以下の動的注入仕様を実装しています：
+- **シーク時の状態保持**: `aribb24.js` の `onSeeking` ハンドラが `disappearance()` を呼び出して管理状態をリセットするため、シーク直後の再注入が必要となる。
+- **PTS 整合性の維持**: セグメントの PTS に同期させて管理データを注入する。
+
+具体的には以下の機構で動作します：
 - **各セグメント先頭での動的先行注入 (`feedHlsMetadata`)**:
   HLS の ID3 メタデータ（`FRAG_PARSING_METADATA`）を受信した際、各セグメント内の最初のサンプルの PTS（`dtsSec`）直前（`dtsSec - 0.001`）をタイムスタンプとして `injectDefaultCaptionManagement(timeSec)` を先行注入する。
 - **シーク時の即時再注入復元 (`hookFeederOnSeeking` / `notifySeek`)**:

@@ -119,12 +119,10 @@ encode:
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
-      rate: 4.0
       subtitle: true    # MP4 内に字幕 (mov_text) を保存
     - name: H.264-720p
       script: enc_720p.js
       suffix: .mp4
-      rate: 2.5
       subtitle: false   # 字幕を保存しない
 ```
 

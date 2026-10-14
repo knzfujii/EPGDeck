@@ -126,7 +126,6 @@ encode:
     - name: H.264-1080p
       script: enc_1080p.js
       suffix: .mp4
-      rate: 4.0
       subtitle: true    # libaribb24 により MP4 内に ARIB 字幕 (mov_text) が正常に保持されます
 
 recording:

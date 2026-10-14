@@ -43,6 +43,7 @@ flowchart TD
         T9["log4js から軽量非同期ロガーへの刷新<br>(rotating-file-stream 移行)"]
 
         T10["巨大 Svelte コンポーネントの関心事分離<br>(Runes クラス抽出 & モジュール分割)"]
+        T11["録画詳細インライン動画プレイヤー統合<br>(スティッキー吸着 & 操作設計)"]
     end
 
     Phase1 --> Phase2
@@ -167,11 +168,11 @@ flowchart TD
   2. **`node:fs/promises` への完全移行**:
      - 手動コールバックラップ（`fs.readFile`, `fs.writeFile`, `fs.rename`, `fs.copyFile`, `fs.stat`, `fs.readdir`, `fs.rmdir` 等）を全廃し、Node.js 22 標準の `node:fs/promises`（`fsp`）に置換。
      - `node:*` プレフィックスを全インポート（`node:fs`, `node:fs/promises`, `node:path`, `node:child_process`）に適用。
-  3. **エッジケースの批判的検証と不要コードの撤廃・王道設計への刷新**:
-     - **`FileUtil.rename` 失敗時 unlink の撤廃（有害コードの排除）**: 旧コードに存在した「`rename` 失敗時に `dest` を unlink する」処理は、POSIX `rename` がアトミックであるため不要なだけでなく、`src` 不在時や EXDEV 発生時に無関係な既存の `dest` ファイルを破壊・誤消去する潜在的危険があったため完全撤廃しました。
-     - **`FileUtil.move` のデファクトスタンダード化**: 旧コードの愚直な全バイト `copyFile` + `unlink` を改め、まず `rename` を試みて同一ファイルシステムなら一瞬でアトミック移動し、クロスデバイス（`EXDEV`）時のみ `copyFile` + `unlink(src)` にフォールバックする業界標準パターン（`fs-extra` 等と同様）に刷新。コピー中断時のみ不完全な `dest` をクリーンアップする安全策を実装しました。
-     - **`ProcessUtil.isExited` のシグナル検知漏れ修正（真に意味のあるエッジケース）**: Node.js の `ChildProcess` は SIGKILL / SIGTERM 等で強制停止された場合、`exitCode` は `null` のままで `signalCode` に値が入る仕様です。旧コードは `child.exitCode !== null` のみ判定していたため、シグナル停止されたプロセスが「未終了」と誤判定され続けるバグがあり、これを `child.exitCode !== null || (typeof child.signalCode !== 'undefined' && child.signalCode !== null)` に修正しました。
-     - **`FileUtil.getFileSize` のエラー契約維持**: ファイル不在時に `throw new Error('FileIsNotFound')` を投げる既存契約を維持し、呼び出し側や単体テストとの整合性を担保しました。
+  3. **ファイル操作・プロセス状態判定の安全性向上**:
+     - **`FileUtil.rename` 失敗時 unlink の撤廃**: POSIX `rename` はアトミックであり、旧処理の失敗時 `unlink(dest)` は `src` 不在時等に既存の `dest` ファイルを誤削除する危険があったため廃止。
+     - **`FileUtil.move` の標準化**: 同一ファイルシステムは `rename` で高速移動し、`EXDEV`（クロスデバイス）時のみ `copyFile` + `unlink(src)` にフォールバックする業界標準パターンに統一。コピー中断時のみ不完全な `dest` をクリーンアップ。
+     - **`ProcessUtil.isExited` のシグナル検知漏れ修正**: SIGKILL / SIGTERM 等による停止時に `child.exitCode` が `null` かつ `signalCode` が非 null となる仕様に対応し、シグナル停止時の未終了誤判定を解消。
+     - **`FileUtil.getFileSize` のエラー契約維持**: ファイル不在時に `throw new Error('FileIsNotFound')` を投げる既存契約を維持。
 
 ---
 
@@ -236,135 +237,126 @@ flowchart TD
 
 - **対象ファイル**: `packages/arib-probe/*`, `src/model/operator/recording/DropCheckerModel.ts`, `src/model/operator/recording/IDropCheckerModel.ts`, `test/unit/arib_probe.test.ts`
 - **Why (意思決定理由と背景)**:
-  1. **外部パッケージの更新停止とバージョンのねじれ**:
-     - 本家 `aribts` は 2018 年の `v2.1.12` を最後にメンテナンスが停止しており、npm の `latest` タグが旧系 `1.3.5` を指すなど semver 上のねじれが発生していた。
-     - Mirakurun 側が利用するフォーク版 `@chinachu/aribts` は `1.x` 系ベースの `TsStream` のみを提供しており、EPGStation / EPGDeck が依存する 2.x 系のパケットドロップ監視クラス群（`TsPacketAnalyzer`, `TsSectionParser` 等）が存在しないため移行不能だった。
-  2. **不要な間接依存・C++ 残骸の排除**:
-     - `aribts` の package.json には過去の試作残骸（`nan`, `bindings`, `eventemitter3@2.x`, `crc@3.x`）が含まれており、依存ツリーの健全性を損ねていた。
-  3. **責務の局所化とパイプラインの劇的な簡素化**:
-     - EPGDeck が必要としていたのは「ドロップ・エラー・スクランブル監視」「PMT 音声/映像 PID 解析」「TOT 放送時刻取得」のごく一部の機能。
-     - 7 つの中間クラスをパイプ接続する過剰設計を排し、単一の `TsProbe`（Transform stream）に集約することで、コード行数を大幅に削減し、ゼロ依存（Node.js 標準ライブラリのみ）かつ Pure TypeScript / ESM の高信頼・高速な内部パッケージとして確立した。
-  4. **規格準拠の PID 名称解決と PCR タイムコード解析の統合**:
-     - ARIB STD-B10 / ISO 13818-1 規格の Well-known PID および Stream Type 定義をパッケージ側へ集約し、`DropCheckerModel.ts` 内に散乱していた約 120 行の冗長な switch 文を完全撤廃。
-     - TS アダプテーションフィールドの PCR（Program Clock Reference）デコードにより、ドロップ発生時に放送時刻だけでなく動画プレイヤー基準の再生位置（`timecode: HH:MM:SS.mmm`）をドロップログへ記録可能とした。
+  1. **外部パッケージの更新停止と依存ツリー健全化**:
+     - 本家 `aribts` は 2018 年で更新停止し不要な間接依存（`nan`, `bindings` 等）を内包。フォーク版 `@chinachu/aribts` は 1.x 系ベースでドロップ監視クラス群が欠落。
+  2. **責務の局所化とゼロ依存 Pure TS 化**:
+     - 必要な機能（ドロップ監視、PMT PID 解析、TOT 時刻取得）のみを単一の `TsProbe`（Transform stream）に集約し、Node.js 標準ライブラリのみの Pure TS / ESM パッケージとして内製化。
+  3. **規格準拠の PID 名称解決と PCR タイムコード解析の統合**:
+     - ARIB STD-B10 / ISO 13818-1 定義をパッケージ側へ集約し、`DropCheckerModel` の switch 文を一掃。TS アダプテーションフィールドの PCR デコードにより、再生位置（`timecode`）をドロップログへ記録可能とした。
 - **将来の巻き戻し禁止**:
-  - `aribts` や `@chinachu/aribts` への再依存は厳禁。追加の TS 解析機能（EIT 番組追従など）が必要になった場合は、`packages/arib-probe` 内に純粋な TypeScript としてモジュールを追加・拡張すること。
+  - `aribts` 等の外部ライブラリへの再依存は厳禁。TS 解析機能の拡張は `packages/arib-probe` 内で完結させること。
 
 #### 3.5 字幕 PES パース & ID3 Timed Metadata 多重化の内製化 (`TsSubtitleId3Muxer`)
 > **ステータス**: 実装完了 (`v0.1.0-beta.4`)
 
 - **対象ファイル**: `packages/arib-probe/src/TsSubtitleId3Muxer.ts`, `packages/arib-probe/src/pes/TsPesParser.ts`, `packages/arib-probe/src/section/TsPacketizer.ts`, `packages/arib-probe/src/id3/id3.ts`, `src/model/service/stream/base/StreamBaseModel.ts`, `test/unit/arib_probe.test.ts`
 - **Why (意思決定理由と背景)**:
-  1. **外部パッケージの CJS / ESM 相互運用性の負債解消**:
-     - `arib-subtitle-timedmetadater` は CJS でビルドされており、Node.js ネイティブ ESM 環境で `(module as any).default ?? module` という防衛的アンラップコードが必要であった。また、間接依存として `arib-mpeg2ts-parser` や `commander`（CLI ライブラリ）を含むなど不要な依存が混入していた。
-  2. **上流ライブラリの潜在的バグ（FIXME）の根本解消**:
-     - `node-arib-subtitle-timedmetadater` は内部で `if ((data_group_id & 0x0F) != 1) continue; // FIXME!` とハードコードしており、CaptionManagement（字幕管理データ：言語・文字コード定義）を破棄していた。
-     - これが原因で厳格な `aribb24.js v2` で字幕本文がスキップされる不具合を引き起こしていた。内製化により CaptionManagement（Group 0）と CaptionStatement（Group 1）の双方が漏れなく ID3 化され、根本解決に至った。
-  3. **ゼロ依存・超軽量な ID3v2 PRIV & TS パケタイザーの実装**:
-     - ID3v2 PRIV フレーム生成、33bit 90kHz PTS デコーダー、可変長 PES アセンブラ、PMT 書換器（`metadata_pointer_descriptor` / `metadata_elementary_stream`）、188B TS パケタイザー（Adaptation Field スタッフィング対応）を完全ゼロ依存（Pure TS）で `arib-probe` 内に実装。
-     - 外部パッケージ 3 つ（`arib-subtitle-timedmetadater`, `arib-mpeg2ts-parser`, `commander`）をプロジェクトから完全アンインストールし、依存ツリーの極小化を達成した。
+  1. **外部パッケージの CJS/ESM 負債と不要依存の排除**:
+     - `arib-subtitle-timedmetadater` 等の外部 3 パッケージを完全アンインストール。
+  2. **上流ライブラリの CaptionManagement 破棄バグ解消**:
+     - 上流のハードコードによる言語・文字コード定義（Group 0）破棄を解消し、`aribb24.js v2` での字幕スキップ不具合を根本解決。
+  3. **ゼロ依存 ID3v2 PRIV & TS パケタイザーの実装**:
+     - ID3v2 PRIV 生成、PTS デコード、PES アセンブラ、PMT 書換器、188B TS パケタイザーを `arib-probe` 内に Pure TS で実装。
 - **将来の巻き戻し禁止**:
-  - `arib-subtitle-timedmetadater` や外部の PES パーサーライブラリへの再依存は厳禁。HLS 字幕処理は `packages/arib-probe` 内の `TsSubtitleId3Muxer` を継続保守すること。
+  - 外部 PES パーサーへの再依存は厳禁。HLS 字幕処理は `packages/arib-probe` 内の `TsSubtitleId3Muxer` を継続保守すること。
 
 #### 3.6 放送波 EIT リアルタイム監視・繰り下げ保護・チューナー競合即時再調停
 > **ステータス**: 実装完了 (`v0.2.0-beta.1`)
 
 - **対象ファイル**: `packages/arib-probe/src/section/TsSectionAssembler.ts`, `packages/arib-probe/src/section/TsEitDecoder.ts`, `src/model/operator/recording/RecorderModel.ts`, `src/model/operator/recording/RecordingManageModel.ts`, `src/model/operator/reservation/ReservationManageModel.ts`
 - **Why (意思決定理由と背景)**:
-  1. **Mirakurun の定期 EPG 更新の遅延限界**:
-     - スポーツ中継の延長や特別番組の繰り下げは放送直前・放送中に発生するため、Mirakurun からの定期 EPG 更新（10分間隔）では検知が間に合わず、録画終了タイマーの打ち切りや後続番組の頭欠けが発生していた。
-  2. **TS セクションアセンブラの堅牢化と EIT[p/f] 直接監視**:
-     - `packages/arib-probe` に ARIB TR-B14/TR-B15 準拠の EIT デコーダー（短形式イベント記述子、イベントリレー記述子対応）を実装。録画ストリームから直接 EIT[p/f]（PID: 0x0012）を解析し、番組延長を数秒以内にリアルタイム検知。
-  3. **多重防御（延長タイマー自動更新・開始繰り下げ待機・チューナー競合即時再調停）**:
-     - 番組延長検知時に録画終了タイマーを即時延長。前番組延長に伴う後続番組の開始繰り下げ（Delay）時もタイマーをリスケジュール。
-     - 延長によって同一チューナー枠の後続予約と衝突した際は、該当時間枠のチューナー競合判定（`recheckConflicts`）を即座に再実行し、手動/優先度ルールに従って安全に割り振りを更新する。
+  1. **Mirakurun 定期 EPG 更新（10分）の遅延限界**:
+     - 放送直前・放送中の突発的な延長・繰り下げに追従できない問題を解消。
+  2. **TS セクションアセンブラと EIT[p/f] 直接監視**:
+     - 録画ストリームから直接 EIT[p/f]（PID: 0x0012）を解析し、番組延長を数秒以内にリアルタイム検知。
+  3. **多重防御（終了延長・開始繰り下げ・チューナー競合再調停）**:
+     - 延長検知時に終了タイマーを即時延長し、前番組延長に伴う後続番組の開始遅延時もリスケジュール。延長により後続予約と衝突した際は、チューナー競合判定（`recheckConflicts`）を即座に再実行して優先度順に再割り振りを適用。
 
 #### 3.7 短時間番組（PR枠・ミニ番組）のサービスストリーム自動切替
 > **ステータス**: 実装完了 (`v0.2.0-beta.1`)
 
 - **対象ファイル**: `src/model/operator/recording/RecorderModel.ts`, `src/model/Configuration.ts`
 - **Why (意思決定理由と背景)**:
-  1. **放送局設備の EIT[p/f] 未送出によるタイムアウト**:
-     - 1〜5分程度のミニ番組やPR枠では、放送局送出設備の都合で放送波の EIT[p/f] が番組切り替わり時に更新されず、録画開始時のストリーム待機（`checkStreamTimeout`）がタイムアウトして録画失敗・頭欠けになるトラブルが発生していた。
+  1. **局送出設備の EIT[p/f] 未送出によるタイムアウト防止**:
+     - 1〜5分程度のミニ番組では局側設備が EIT[p/f] を更新せず、録画開始時のストリーム待機がタイムアウトする事故が発生していた。
   2. **サービスストリームへの自動切替**:
-     - 予約枠の長さが閾値（`shortProgramDurationThresholdSeconds`、デフォルト: 300秒 / 5分）以下の短時間番組は、Mirakurun の番組指定ストリーム（`getProgramStream`）ではなくサービス指定ストリーム（`getServiceStream`）へ自動切替して接続。
-     - EIT の更新待機を行わずに即時録画を開始することで、PR枠やミニ番組を 100% 確実に録画保護する。
+     - 予約枠長が閾値（`shortProgramDurationThresholdSeconds`、デフォルト: 300秒 / 5分）以下の番組は、番組指定（`getProgramStream`）ではなくサービス指定（`getServiceStream`）へ自動切替し、EIT 更新待機なしで即時録画を開始して欠落を防止。
 
 #### 3.8 オンデマンド WebVTT 字幕抽出とファイルレス・インメモリ LRU 配信
 > **ステータス**: 実装完了
 
 - **対象ファイル**: `src/model/service/api/video/VideoApiModel.ts`, `src/model/service/hono/routes/videos.ts`, `client/src/routes/Watch.svelte`, `client/src/lib/components/video/VideoPlayer.svelte`
 - **Why (意思決定理由と背景)**:
-  1. **Chrome 等における MP4 内部字幕 (`mov_text`) のシーク遅延バグ回避**:
-     - MP4 内のテキスト字幕を Chrome がデコードする際、シーク時に数十秒フリーズする問題に対し、ディスクを汚染しないオンデマンド抽出（`ffmpeg -i <mp4> -f webvtt pipe:1`）を採用。
+  1. **ブラウザの MP4 内部字幕 (`mov_text`) シーク遅延バグ回避**:
+     - Chrome 等でのシークフリーズを回避するため、ディスクを汚染しないオンデマンド抽出（`ffmpeg -i <mp4> -f webvtt pipe:1`）を採用。
   2. **LRU インメモリキャッシュによる高速応答**:
-     - 抽出結果をメモリ上（最大 100 件）にキャッシュし、同一動画の視聴・リロード時の FFmpeg 起動コストを排除。
-     - プレイヤーの `<track>` 要素連携により、Chrome/Firefox/Safari 等あらゆるブラウザでシーク遅延ゼロの字幕表示を達成。
+     - 抽出結果をメモリ上（最大 100 件）にキャッシュし、同一動画視聴時の FFmpeg 起動コストを排除。`<track>` 要素連携により全ブラウザでシーク遅延ゼロの字幕表示を実現。
+
 #### 3.9 ハードウェア (VAAPI HEVC) のレート制御限界と解像度正規化・チューニング (ADR)
 > **ステータス**: 実装・ナレッジ記録完了
 
 - **対象ファイル**: `config/enc_helper.js`, `config/enc_720p.js.template`, `test/unit/enc_helper.test.ts`, `docs/manual/encoding.md`
 - **Why (意思決定理由と背景)**:
-  1. **GPU ハードウェアエンコーダ (Radeon VCN / VAAPI) のレート制御（VBR）と動き耐性の限界**:
-     - GPU 内蔵エンコーダ（VCN）はリアルタイム処理を最優先とした固定機能ハードウェアであるため、CPU（`libx264` / `libx265`）のような高度な先読み（Lookahead）、マクロブロック適応量子化（AQ）、動き適応予測（mb-tree）が大幅に簡略化されている。
-     - 実機検証の結果、低ビットレート領域（720p / 1.0 Mbps 前後）において、静止シーンは HEVC の高圧縮効率で良好なものの、カメラのパンや激しいアクションなど動きが入った瞬間にビットレート不足・QP 追従遅延によるブロックノイズやディテール崩れが顕著化することが判明。
-     - 一方で `libx264 CRF 23` は Psychovisual tuning が効いているため、同等容量でも人間の目に破綻が目立たない。日常の録画保存における信頼性と画質バランスの観点から、VAAPI HEVC のプローブ自動ビットレート最適化の標準採用は見送り、トピックブランチ（`feat/encode-genre-optimization-and-vaapi-hevc`）に完全な技術資産・実験コードとして保存した。
-  2. **Mesa/radeonsi の 1088px パディング問題と `hevc_metadata` bitstream filter の知見**:
-     - AMD Radeon の Mesa radeonsi ドライバは、1080p をマクロブロック境界（16の倍数: 1088px）にパディングしてエンコードするが、ビットストリームの SPS Conformance Window（`crop_bottom=4` 等の表示クロッピング情報）を書き忘れるバグが存在し、デコード時に下部に 8px の黒帯や緑色のノイズ線が生じる。
-     - これを解決するには、FFmpeg の bitstream filter `-bsf:v "hevc_metadata=height=${res.targetH}"` を付与することで、再エンコード負荷ゼロでビットストリームメタデータを直接補正し、下部黒帯を 100% 根絶できることを解明・記録した。
-  3. **非正方形ピクセル地デジ（1440x1080）のスケーリング正規化**:
-     - 地デジ（1440x1080 / DAR 16:9）を `maxHeight: 720` 等で縮小する場合、元が非正方形ピクセルであっても、縦解像度を変更（リサンプル）する以上は横解像度も正規 16:9（正方形ピクセル: 1280x720 や 960x540）に自動正規化するのが標準的な挙動である。
-     - `enc_helper.js` の `resolveResolution` を改修し、縦解像度縮小時に自動的に 16:9 正方形ピクセルを算出するよう統一。
-  4. **CPU エンコーダ向け `tune` オプションの正式サポート**:
-     - `libx264` / `libx265` において `options.tune`（`'animation'`, `'film'`, `'grain'` 等）を正式サポート。アニメ録画時に `tune: 'animation'` を指定できるようにし、輪郭線の鮮明化と動き耐性の向上を支援した。
+  1. **GPU (VAAPI) のレート制御限界**:
+     - 固定機能 HW（VCN）は Lookahead や適応量子化が簡略化されており、低ビットレートかつ動きの激しいシーンでブロックノイズが出やすい。一方 `libx264` は同容量でも破綻が目立たないため、VAAPI HEVC 自動最適化の標準採用は見送り（資産はブランチ保持）。
+  2. **Radeon 1088px パディング問題と `hevc_metadata` BSF**:
+     - 1080p を 1088px にパディングする Mesa radeonsi の Conformance Window 欠落バグに対し、`-bsf:v "hevc_metadata=height=${res.targetH}"` で下部 8px 黒帯を負荷ゼロで解消。
+  3. **非正方形ピクセル（1440x1080）の正規化**:
+     - 縦解像度変更（リサンプル）時は自動的に 16:9 正方形ピクセル（1280x720 等）へ正規化するよう統一。
+  4. **CPU 向け `tune` サポート**:
+     - `libx264` / `libx265` で `options.tune`（`animation` 等）を正式サポート。
 
 #### 3.10 エンコードヘルパーのパッケージ化 (`@epgdeck/enc-helper`) と関心事の分離 (ADR)
 > **ステータス**: 実装完了
 
 - **対象ファイル**: `packages/enc-helper/*`, `config/enc_helper.js`, `config/*.js.template`, `package.json`, `Dockerfile`
 - **Why (意思決定理由と背景)**:
-  1. **Docker バインドマウントによる更新遮断問題の根絶**:
-     - ユーザーの多くは `docker-compose.yml` で `./config:/app/config` をバインドマウントして運用する。
-     - 従来の構成では、コア防衛ロジック（字幕オーバーフロー対策、SAR補正、破損検知）を含む `enc_helper.js` が `config/` 直下に置かれていたため、ユーザーがマウントするとコンテナ内の最新コードがホスト側の古いファイルで上書きされ、コンテナイメージを更新してもバグ修正が反映されないという深刻な地雷が存在していた。
-     - ヘルパーロジック本体を `packages/enc-helper`（`node_modules/@epgdeck/enc-helper`）へ隔離したことで、コンテナ更新時に最新のエンコードエンジンが確実に適用されるようになった。
-  2. **TypeScript 化による型安全性と開発体験 (DX) の向上**:
-     - 600行規模のエンコードエンジンを完全 TypeScript 化し、オプション定義（`EncodeOptions`, `MediaInfo` 等）をエクスポート。単体テストにおける `@ts-expect-error` を一掃し、スクリプト作成時の IDE 補完を可能にした。
-  3. **既存スクリプトとの 100% 後方互換性**:
-     - `config/enc_helper.js` を `@epgdeck/enc-helper` の薄い re-export プロキシ兼 CLI ラッパーとして残すことで、従来の `import { runEncode } from './enc_helper.js';` を使用している既存ユーザー環境のスクリプトも一切の変更なしで完全動作する互換性を担保した。
-  4. **ハードウェアエンコーダにおける H.264 / HEVC(H.265) 両対応とエイリアス正規化**:
-     - 従来のコードでは `runCli` が `vaapi` -> `h264_vaapi`、`hevc` -> `libx265`（CPU）と決め打ちされており、CLI やスクリプトで HW HEVC（`hevc_nvenc`, `hevc_vaapi`, `hevc_qsv`）を柔軟に呼び出せなかった。
-     - `normalizeCodec` および `parseCliArgs` を導入し、`hevc` と `h265` のどちらの表記（例: `hevc_nvenc` / `h265_nvenc`、CLI での `nvenc hevc` / `h265 nvenc`）でも FFmpeg 正式エンコーダ名へ自動正規化。また VAAPI HEVC における適切なデフォルトビットレート（1080p: 3000k / 720p: 1800k）を反映し、HW でも H.264 / HEVC をファーストクラスで選択できるようにした。
-
+  1. **Docker バインドマウントによる更新遮断の解消**:
+     - `./config:/app/config` のマウント時にコンテナ内コードが古いホストファイルで上書きされる問題を、エンジン本体を `packages/enc-helper` へ移管して解決。
+  2. **TypeScript 化と型安全性**:
+     - エンコードエンジンを TS 化しオプション型（`EncodeOptions`, `MediaInfo` 等）をエクスポート。
+  3. **既存スクリプトの後方互換性**:
+     - `config/enc_helper.js` を再エクスポートプロキシとして残し、既存スクリプトを無変更で動作可能に。
+  4. **HW エンコーダの両対応とエイリアス正規化**:
+     - `hevc`/`h265` の表記揺れを FFmpeg 正式名へ自動正規化し、VAAPI HEVC 等の適正ビットレートを反映。
 
 #### 3.11 エンコードプロセスの進捗ストール監視（Progress Stall Watchdog）への刷新と `rate` の完全廃止 (ADR)
 > **ステータス**: 実装完了
 
 - **対象ファイル**: `src/model/service/encode/EncoderModel.ts`, `src/model/IConfigFile.ts`, `config/config.yml.template`, `docs/manual/configuration.md`, `test/unit/encoder_model.test.ts`
 - **Why (意思決定理由と背景)**:
-  1. **従来の `rate`（録画時間 × rate）という前提の見直しと廃止**:
-     - 初代 EPGStation より引き継がれた「録画時間 × `rate`（デフォルト 4.0）」による固定タイマーは、詳細な進捗解析を行わず全体の処理時間に上限を設けるための設計であった。
-     - しかし、エンコード所要時間はマシンスペック、並列数（1〜10並列）、エンコーダ種別、画質設定によって大きく変動するため、**「録画実時間の長さ」と「プロセスが正常か・フリーズしているか」には相関がない**。
-     - 多数の並行エンコード等で低速化した際、正常に処理が進行しているにもかかわらず固定時間を超過して強制終了（誤検知）される課題を解消するため、`rate`（および録画時間倍率タイマー）を廃止した。
-  2. **文字出力の有無ではなく「進捗の前進 (Forward Progress)」を直接監視**:
-     - 単に stdout / stderr に文字が出力されているか（無通信監視）を見るだけでは、破損 TS 等で FFmpeg がエラーログを毎秒垂れ流し続ける無限ループに陥った際に「文字が出ているから正常」と誤認して見逃してしまう。
-     - エンコードが正常であることの真の定義は、**「エンコード済み動画再生位置（`time=`）またはパーセント（`percent`）が着実に前進していること」** に尽きる。
-     - 10並行の極限的な低速エンコード（0.05倍速等）であっても、数秒〜数十秒に1回は確実に進捗が進む。したがって、進捗が 10分間（設定値: `stallTimeoutSeconds`、デフォルト 600秒）一度も前進しない状態は、フリーズまたは無限ループの確実な証拠である。
-  3. **超長時間エンコードの完全完走と異常プロセスの迅速回収の両立**:
-     - 進捗が少しずつでも前進している限りは、10並行で 24時間・48時間かかろうが一切邪魔せず 100% 完走を保証。
-     - 万が一の完全フリーズやエラー無限ループ時は、録画時間に関係なく 10分 で確実に検知・キャンセルしてエンコードスロットを解放する、現代的で無駄のないアーキテクチャを確立した。
+  1. **録画時間 × `rate` 前提の廃止**:
+     - マシンスペックや並列数で所要時間は大きく変動するため、録画時間とプロセスの正常性・フリーズに相関はない。低速時の誤終了を防ぐため `rate` を廃止。
+  2. **進捗の前進（Forward Progress）の直接監視**:
+     - 単なる stdout/stderr 出力監視ではエラーログ無限ループを見逃す。再生位置（`time=`）やパーセントの前進を監視し、10分間（`stallTimeoutSeconds`）前進がない場合のみフリーズと判定。
+  3. **超長時間エンコード完走と異常プロセスの回収両立**:
+     - 進捗が進む限り時間無制限で完走を保証し、完全停止時のみ 10分 でスロットを安全に回収。
 
 #### 3.12 実行権管理 (`ExecutionManagementModel`) の二重解放防止ガードと予約制御の例外安全 (`try...finally`) 統一 (ADR)
 > **ステータス**: 実装完了
 
 - **対象ファイル**: `src/model/ExecutionManagementModel.ts`, `src/model/operator/reservation/ReservationManageModel.ts`, `src/model/service/stream/manager/StreamManageModel.ts`, `test/unit/execution_management_model.test.ts`
 - **Why (意思決定理由と背景)**:
-  1. **二重アンロックに対する構造的防衛**:
-     - 従来の `ExecutionManagementModel.unLockExecution(id)` は、引数 `id` が現在の `lockId` と一致しない場合でも `if (this.lockId === null)` の判定を通過して `this.exeQueue.shift()` を実行してしまう構造になっていた。
-     - キューからのディスパッチ処理を `private dispatch()` へ分離し、`unLockExecution` では `if (this.lockId !== id) return;` で自身が保持しているロック以外の解除要求を無視することで、重複アンロックや古い ID による誤ディスパッチを構造的に遮断した。
-  2. **手動 `finalize()` の点在を廃止し `try...finally` による例外安全を確立**:
-     - `ReservationManageModel` の各メソッド（`addManualReserve`, `update`, `updateRule`, `cancel`, `removeSkip`, `removeOverlap`, `edit`, `cleanup`）に散らばっていた手動 `finalize()` や `.catch(err => { finalize(); throw err; })` を全廃。
-     - すべて `try { ... } finally { this.executeManagementModel.unLockExecution(exeId); }` に統一し、同期待ち・DB例外・バリデーションエラー等いかなるパスでも 100% 確実に実行権が解放される構造を確立した。
-  3. **ロック解放後イベント通知（非ブロッキングライフサイクル）の厳格な維持**:
-     - `ReservationManageModel` の `emitUpdated`（IPC通知、録画タイマー更新、外部コマンド起動）および `StreamManageModel` の `socketIO.notifyClient` は、ロックを保持したまま実行するとロック保持時間が不必要に延伸され後続の予約・手動操作を遅延させる原因となる。
-     - そのため、DB更新・差分計算等の排他クリティカルセクションのみを `try...finally` で保護して確実にアンロックし、**アンロックが完了した直後にイベントを発行するライフサイクル順序** を全メソッドで厳格に維持・統一した。これにより、例外安全性を完全確保しつつ、正常系の実行性能・振る舞いへの弊害をゼロとした。
+  1. **二重アンロックの構造的遮断**:
+     - 現在の `lockId` と一致しない解除要求を無視し、重複アンロックや古い ID による誤ディスパッチを排除。
+  2. **`try...finally` による例外安全の確立**:
+     - 手動 `finalize()` を全廃し、DB 例外等のいかなるパスでも実行権が 100% 解放される構造に統一。
+  3. **ロック解放後の非ブロッキングイベント通知**:
+     - 排他セクションのみをアンロックし、IPC 通知や外部コマンド起動はアンロック完了直後に発行して後続操作の待機遅延を防止。
+
+#### 3.13 録画詳細画面へのインライン動画プレイヤー統合とスティッキー吸着・操作設計 (ADR)
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `client/src/routes/RecordedDetail.svelte`, `client/src/lib/components/video/VideoPlayer.svelte`, `client/src/lib/stores/playerState.svelte.ts`, `docs/dev/ui_spec.md`
+- **Why (意思決定理由と背景)**:
+  1. **1画面完結型インライン常設への統合**:
+     - 別画面遷移（`/recorded/watch`）を廃止し、サムネイル領域にインラインプレイヤーを統合。再生後もサムネイルに戻さず常設。
+  2. **コントロール内ピン留めボタントグルの採用**:
+     - スクロール連動フローティングボタンは境界判定のチラつきや視覚ノイズが生じるため不採用。プレイヤーコントロール右端のピン留めボタン（`Pin`/`PinOff`）で `localStorage` 永続化する方式を採用。
+  3. **番組切り替え時の自動初期化**:
+     - `recordedId` 変化時は前ストリームを即時解放し、未再生サムネイルへ初期化（意図しない自動再生を防止）。
+  4. **外部プレイヤー（Kodi）連携時のリソース解放**:
+     - Kodi 連携リクエスト時にインライン再生を停止し、二重再生とサーバープロセスの浪費を防止。
+  5. **狭小ランドスケープ時のスティッキー自動解除**:
+     - 横向き表示かつ画面高 500px 以下の端末ではスティッキー吸着を解除し、情報閲覧性を確保。
 

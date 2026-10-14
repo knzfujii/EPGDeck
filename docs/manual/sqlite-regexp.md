@@ -1,9 +1,8 @@
 # SQLite3 使用時の正規表現検索について
 
 > [!WARNING]
-> **現在 EPGDeck では本設定は非推奨・非対応です**:
-> EPGDeck ではモダンなアーキテクチャへの刷新に伴い、データベースドライバに `@libsql/client` (LibSQL) および Drizzle ORM を採用しています。
-> そのため、旧 EPGStation 時代の `sqlite.extensions` および `sqlite.regexp` 設定は現在廃止されており、`config.yml` に指定しても読み込まれません。
+> **SQLite における正規表現拡張について**:
+> EPGDeck ではデータベースドライバに `@libsql/client` (LibSQL) および Drizzle ORM を採用しており、外部 C 拡張ライブラリ（`sqlite.extensions` / `sqlite.regexp`）のロード設定は行いません。
 > 
 > ルール予約や番組検索で高度な正規表現検索（`REGEXP`）を活用したい場合は、標準で正規表現に対応し、大量録画でも高いパフォーマンスを発揮する **MySQL (MariaDB)** のご利用を推奨します（詳細は [セットアップマニュアル](./setup.md#mysql-mariadb-使用時の注意) を参照してください）。
 

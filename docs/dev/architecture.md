@@ -52,74 +52,44 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - アプリケーション定義: `src/model/service/hono/createHonoApp.ts`
 - Swagger UI / OpenAPI ドキュメント: `@hono/swagger-ui` により `/api-docs` および `/api/docs` で提供
 - 各エンドポイントは DI コンテナから各種 `*ApiModel` を呼び出し、型安全かつ低レイテンシでレスポンスを返却します。
-- **予約・競合エラーハンドリングの適正化**:
-    - `POST /api/reserves`
-      において、二重予約やチューナー競合時に 500 ではなく適切な HTTP ステータス（`409 Conflict`、`404 Not Found`、`400 Bad Request`）と日本語メッセージを返却し、画面側（Snackbar）で失敗理由を明確にフィードバックします。
+- **予約・競合エラーハンドリング**: `POST /api/reserves` での重複予約やチューナー競合時に適切な HTTP ステータス（`409 Conflict`, `404 Not Found`, `400 Bad Request`）を返却し、UI（Snackbar）で理由を明示。
 - **録画中番組のライフサイクル制御 (途中完了 / 中断 / 取り消し)**:
-    - `POST /api/recording/:reserveId/finish`: 録画ストリームを EOF 切断し、実時間確定・サムネイル・エンコード・録画履歴（`RecordedHistory`）登録・予約消化の通常完了シーケンスを実行。
-    - `POST /api/recording/:reserveId/stop`: ファイルは保存・エンコードするが未完了扱い（履歴未登録）とし、再放送時などに重複録画の判定対象（録画済み扱い）にならないよう維持。
-    - `POST /api/recording/:reserveId/discard` (または
-      `DELETE /api/recording/:reserveId`): 録画ストリーム停止後に書きかけの TS ファイルや DB レコードを物理削除し、予約を安全にクリーンアップ。
-- **大容量動画アップロードのストリーム処理**:
-    - `POST /api/videos/upload` では、マルチパートリクエストをメモリ上にバッファリングせず、`file.stream()`
-      を用いて直接ディスクへパイプ書き込みすることで、大容量 TS /
-      MP4 ファイルアップロード時のメモリ枯渇（OOM）を防止しています。
-- **実録画時間（duration）の保存原則**:
-    - `recorded.duration`
-      は番組表の予定枠時間ではなく、「チューナー受信開始〜終了の実測ミリ秒」を保存します。これにより、途中終了やドロップ、放送時間延長・短縮時でも実際のファイル再生時間と完全一致します。
-- **データのライフサイクルとキャッシュ戦略 (オンデマンド vs 永続化)**:
-    - **字幕 (WebVTT)**: 動画再生時のみ単発で要求されるため、ディスク上に `.vtt` を永続化保存せず、FFmpeg
-      pipe ＋ LRU インメモリキャッシュ（ファイルレス）でオンデマンド配信します。
-    - **サムネイル (シャーディング & 永続化)**: 録画一覧等で高頻度アクセスされるためディスクへ永続化（WebP/JPEG）して静的配信します。10万件規模の大規模アーカイブ運用に耐えるため、`recordedId % 100`
-      による2桁サブディレクトリ（`00/`〜`99/`）への分散配置を採用。DB に相対パスを保持させることで既存のルート直下ファイルともハイブリッド共存できます。
-    - **ドロップログ (不要ファイル自動削除 &
-      DB履歴永続保持)**: ドロップ・エラー0件の正常録画時はログ実ファイルを自動削除（`deleteOnNoDrop: true`）し、ディレクトリ肥大化を防止。実ファイル不在時でも DB 上のエラー・ドロップ数履歴は一切削除せず永続保持し、クリーンアップ走査も
-      `Set` による O(1) 走査で高速化されています。
+  - `POST /api/recording/:reserveId/finish`: 録画ストリームを EOF 切断し、実時間確定・サムネイル・エンコード・録画履歴（`RecordedHistory`）登録・予約消化を実行。
+  - `POST /api/recording/:reserveId/stop`: ファイル保存・エンコードを行うが未完了扱い（履歴未登録）とし、再放送時に重複除外されないよう維持。
+  - `POST /api/recording/:reserveId/discard` (または `DELETE /api/recording/:reserveId`): 録画停止後に書きかけ TS や DB レコードを物理削除。
+- **大容量アップロードのストリーム処理**: `POST /api/videos/upload` はメモリ展開せず `file.stream()` から直接ディスクへパイプ書き込みし OOM を防止。
+- **実録画時間（duration）の保存原則**: `recorded.duration` は予定枠時間ではなくチューナー受信開始〜終了の実測ミリ秒を保存。
+- **データライフサイクルとキャッシュ戦略**:
+  - **字幕 (WebVTT)**: ディスク永続化せず、FFmpeg pipe ＋ LRU インメモリキャッシュでオンデマンド配信。
+  - **サムネイル (シャーディング & 永続化)**: ディスク永続化し、大規模アーカイブ対応として `recordedId % 100` の 2 桁サブディレクトリ（`00/`〜`99/`）へ分散配置。
+  - **ドロップログ**: 0 件時は実ファイルを自動削除（`deleteOnNoDrop: true`）し、DB 履歴のみ永続保持。
 
 ### ORM: Drizzle ORM & DrizzleHelper
 
-データベースアクセスには **Drizzle ORM**（および `@libsql/client` /
-`mysql2`）を採用し、軽量・高速かつ型安全なクエリ実行を行っています。
+データベースアクセスには **Drizzle ORM**（`@libsql/client` / `mysql2`）を採用しています。
 
-- Schema 定義: `src/db/schema/**/*.ts` (SQLite / MySQL)
-- DTO 定義: `src/db/entities/**/*.ts`
-- **EPGStation (v2.10.0) 互換性と自動マイグレーション**: データベーステーブル・カラム構造は EPGStation v2.10.0 を完全踏襲し、既存の
-  `database.db` / MySQL からの直接移行に対応。EPGDeck 独自の優先度制御カラム `priority`（デフォルト: 5）は起動時に非破壊で自動追加（`ALTER TABLE ... ADD COLUMN`）されるため、手動作業なしで既存環境から安全に運用開始できます。
-- **方言別クエリの集約 (`DrizzleHelper`)**:
-    - 方言（SQLite / MySQL）によって構文が異なるバルク UPSERT（`ON CONFLICT DO UPDATE` vs
-      `ON DUPLICATE KEY UPDATE`）やタグ関連付け処理を `src/model/db/DrizzleHelper.ts`
-      に集約し、DAO 層の重複コードを排除しています。
-- **マルチプロセス接続最適化 (SQLite)**:
-    - 3プロセス（Operator / Service / EPGUpdater）が同時に SQLite を読み書きする構成に対応するため、接続オプションで
-      `timeout: 10000`（`PRAGMA busy_timeout = 10000;`）を設定し、`PRAGMA journal_mode = WAL;` および
-      `PRAGMA synchronous = NORMAL;` を自動適用しています。
-    - EPG 更新のトランザクションと予約登録・参照クエリが同一ミリ秒で衝突しても `SQLITE_BUSY: database is locked`
-      にならず、最大10秒間自動リトライ待機して安全に並行処理されます。
+- **Schema / DTO**: `src/db/schema/**/*.ts`, `src/db/entities/**/*.ts`
+- **EPGStation 互換性**: テーブル・カラム構造は EPGStation v2.10.0 を踏襲。EPGDeck 独自の優先度カラム `priority`（デフォルト: 5）は起動時に非破壊で自動追加。
+- **方言別クエリの集約 (`DrizzleHelper`)**: SQLite / MySQL の構文差異（UPSERT 等）を `DrizzleHelper.ts` に集約。
+- **マルチプロセス接続最適化 (SQLite)**: Operator / Service / EPGUpdater の 3 プロセス並行読み書きに対し、WAL モード・NORMAL 同期・`timeout: 10000`（`busy_timeout`）を適用し、ロック競合を自動待機リトライ。
 
-### Node.js 標準 API への移行と依存パッケージの最小化
+### Node.js 標準組み込み API とゼロ依存アーキテクチャ
 
-長年の運用によるレガシー依存や C++ ネイティブアドオンを排除し、モダン Node.js（Node
-22+）の組み込み API へ積極的に移行しています。
+Node.js 22+ のモダンな組み込み API を活用し、外部依存や C++ ネイティブアドオンを排除しています。
 
-- `diskusage-ng`（C++ネイティブアドオン） $\rightarrow$ `fs.promises.statfs`（node-gyp ビルド不要化）
-- `lodash` $\rightarrow$ 組み込み `structuredClone`
-- `mkdirp` $\rightarrow$ `fs.promises.mkdir({ recursive: true })`
-- `axios` $\rightarrow$ グローバル `fetch` + `new URL`
-- `minimist` $\rightarrow$ `node:util.parseArgs`
-- `url-join` $\rightarrow$ 自作の堅牢な `StrUtil.urlJoin`
-- `eventsource` $\rightarrow$ Node.js 22.3+ グローバル `EventSource`
-- `aribts`（C++ バインディング残骸、未保守） $\rightarrow$ 自前 `packages/arib-probe`（ゼロ依存、Pure TS/ESM、PCR タイムコード追跡、規格準拠 PID 名称解決）
+- **ファイルシステム・容量**: `node:fs/promises` (`statfs`, `mkdir({ recursive: true })`)
+- **オブジェクト複製**: `structuredClone`
+- **HTTP 通信・ストリーム**: `fetch`, `EventSource`, Web Streams API
+- **CLI 引数パース**: `node:util.parseArgs`
+- **放送波解析**: ゼロ依存・Pure TypeScript の自製パッケージ `packages/arib-probe`
 
 ### 非同期排他制御と直列化キュー (`PromiseQueue`)
 
-同時 API 呼び出しやバックグラウンドタスクの競合を防ぐため、レガシーな手動フラグ（`isRunning`）や即時エラー拒絶（Fail-Fast）を排し、**`PromiseQueue`（FIFO 直列化キュー）** を標準採用しています。
+同時 API 呼び出しやバックグラウンドタスクの競合を防ぐため、**`PromiseQueue`（FIFO 直列化キュー）** を標準採用しています。
 
-- **ルールの排他制御 (`RuleManageModel`)**:
-  ルール追加・更新・削除・有効化/無効化リクエストを `queue.add(async () => { ... })` で直列化。競合時でもエラーでリクエストを弾くことなく、自動的に順次安全に処理を完了します。例外発生時も Promise チェーンにより後続キューが自動的に継続されます。
-- **サムネイル生成・外部コマンド実行 (`ThumbnailManageModel`, `ExternalCommandManageModel`)**:
-  重い画像処理や外部プロセス呼び出しの多重起動を防止し、システム負荷を平準化しています。
-- **定期バックグラウンドジョブのガード (`StorageManageModel`)**:
-  定期実行ジョブが重なった場合の重複実行抑止には `isRunning` ガードを用いつつ、`try-finally` により例外発生時も確実にロック解除を保証しています。
+- **ルール排他制御 (`RuleManageModel`)**: 追加・更新・削除・有効化/無効化を `queue.add()` で直列化し、競合エラーによるリクエスト失敗を排除。
+- **重処理の平準化**: サムネイル生成や外部コマンド呼び出しの多重起動を抑止。
+- **定期ジョブのガード (`StorageManageModel`)**: `isRunning` ガードと `try...finally` により二重実行を抑止しつつロック解除を保証。
 
 ### プロセス停止と Graceful Shutdown 設計 (録画中ストリーム・ファイル保護)
 
@@ -183,18 +153,16 @@ EPGDeck では、外部依存のないドメインロジックや共通パイプ
     - 各画面（Dashboard, Guide, Reserves）に分散していた「予約が現在録画中であるか」の判定を
       `client/src/lib/utils/recording.ts`（`isReserveCurrentlyRecording`）に集約。`isConflict`（チューナー競合）除外を含め、完全な単体テストで保証。
 - **UI ベースの非同期ダイアログ (`confirmDialog`)**:
-    - ブラウザネイティブの `window.confirm()` を排除し、Svelte 5 `$state`
-      を用いた非同期 Promise ベースの共通モーダル（`ConfirmModal.svelte`）を導入。ダークモードやキーボード操作（ESC/Enter）に対応。
+    - Svelte 5 `$state` を用いた非同期 Promise ベースの共通モーダル（`ConfirmModal.svelte`）を採用。ダークモードやキーボード操作（ESC/Enter）に対応。
 - **非ブロッキング通信と状態整合性**:
     - 画面遷移時やデータ取得時に直列 `await` で待機せず、`Promise.all`
       による並列フェッチや補助データのバックグラウンド非同期取得を徹底し、UI 描画のブロックを排除。
-- **HTTP / API クライアント & キャッシュ一元化**:
-    - レガシーな `axios` および `httpClient.ts` を完全廃止。型安全な Hono RPC クライアント（`hono/client` の
-      `hc`）に完全一本化（`client/src/lib/apiClient.ts`）。
+- **型安全な Hono RPC クライアント & キャッシュ一元化**:
+    - バックエンドと型同期された Hono RPC クライアント（`hono/client` の `hc`）を採用（`client/src/lib/apiClient.ts`）。
     - 認証トークン管理を `client/src/lib/authStorage.ts` に独立化し、`apiClient`
       のカスタム fetch で Bearer トークンを透過的に自動注入。
     - サーバー設定データのキャッシュと取得を一元化する
-      `configStore`（`client/src/lib/stores/config.svelte.ts`）を導入し、画面遷移時の重複 API フェッチを完全抑止。
+      `configStore`（`client/src/lib/stores/config.svelte.ts`）により、画面遷移時の重複 API フェッチを抑止。
 
 ---
 

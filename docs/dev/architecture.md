@@ -96,19 +96,16 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
     - EPG 更新のトランザクションと予約登録・参照クエリが同一ミリ秒で衝突しても `SQLITE_BUSY: database is locked`
       にならず、最大10秒間自動リトライ待機して安全に並行処理されます。
 
-### Node.js 標準 API への移行と依存パッケージの最小化
+### Node.js 標準組み込み API とゼロ依存アーキテクチャ
 
-長年の運用によるレガシー依存や C++ ネイティブアドオンを排除し、モダン Node.js（Node
-22+）の組み込み API へ積極的に移行しています。
+外部依存や C++ ネイティブアドオン（node-gyp）に依存せず、Node.js 22+ のモダンな組み込み API を最大限活用して高い可搬性と保守性を実現しています。
 
-- `diskusage-ng`（C++ネイティブアドオン） $\rightarrow$ `fs.promises.statfs`（node-gyp ビルド不要化）
-- `lodash` $\rightarrow$ 組み込み `structuredClone`
-- `mkdirp` $\rightarrow$ `fs.promises.mkdir({ recursive: true })`
-- `axios` $\rightarrow$ グローバル `fetch` + `new URL`
-- `minimist` $\rightarrow$ `node:util.parseArgs`
-- `url-join` $\rightarrow$ 自作の堅牢な `StrUtil.urlJoin`
-- `eventsource` $\rightarrow$ Node.js 22.3+ グローバル `EventSource`
-- `aribts`（C++ バインディング残骸、未保守） $\rightarrow$ 自前 `packages/arib-probe`（ゼロ依存、Pure TS/ESM、PCR タイムコード追跡、規格準拠 PID 名称解決）
+- **ファイルシステム・容量取得**: `node:fs/promises` (`statfs`, `mkdir({ recursive: true })`)
+- **オブジェクト複製**: グローバル `structuredClone`
+- **HTTP 通信・ストリーム**: グローバル `fetch`, `EventSource`, Web Streams API
+- **CLI 引数パース**: `node:util.parseArgs`
+- **URL 結合**: 堅牢な自作ユーティリティ `StrUtil.urlJoin`
+- **放送波解析**: ゼロ依存・Pure TypeScript の自製パッケージ `packages/arib-probe`（PCR タイムコード追跡、規格準拠 PID 名称解決）
 
 ### 非同期排他制御と直列化キュー (`PromiseQueue`)
 
@@ -183,18 +180,16 @@ EPGDeck では、外部依存のないドメインロジックや共通パイプ
     - 各画面（Dashboard, Guide, Reserves）に分散していた「予約が現在録画中であるか」の判定を
       `client/src/lib/utils/recording.ts`（`isReserveCurrentlyRecording`）に集約。`isConflict`（チューナー競合）除外を含め、完全な単体テストで保証。
 - **UI ベースの非同期ダイアログ (`confirmDialog`)**:
-    - ブラウザネイティブの `window.confirm()` を排除し、Svelte 5 `$state`
-      を用いた非同期 Promise ベースの共通モーダル（`ConfirmModal.svelte`）を導入。ダークモードやキーボード操作（ESC/Enter）に対応。
+    - Svelte 5 `$state` を用いた非同期 Promise ベースの共通モーダル（`ConfirmModal.svelte`）を採用。ダークモードやキーボード操作（ESC/Enter）に対応。
 - **非ブロッキング通信と状態整合性**:
     - 画面遷移時やデータ取得時に直列 `await` で待機せず、`Promise.all`
       による並列フェッチや補助データのバックグラウンド非同期取得を徹底し、UI 描画のブロックを排除。
-- **HTTP / API クライアント & キャッシュ一元化**:
-    - レガシーな `axios` および `httpClient.ts` を完全廃止。型安全な Hono RPC クライアント（`hono/client` の
-      `hc`）に完全一本化（`client/src/lib/apiClient.ts`）。
+- **型安全な Hono RPC クライアント & キャッシュ一元化**:
+    - バックエンドと型同期された Hono RPC クライアント（`hono/client` の `hc`）を採用（`client/src/lib/apiClient.ts`）。
     - 認証トークン管理を `client/src/lib/authStorage.ts` に独立化し、`apiClient`
       のカスタム fetch で Bearer トークンを透過的に自動注入。
     - サーバー設定データのキャッシュと取得を一元化する
-      `configStore`（`client/src/lib/stores/config.svelte.ts`）を導入し、画面遷移時の重複 API フェッチを完全抑止。
+      `configStore`（`client/src/lib/stores/config.svelte.ts`）により、画面遷移時の重複 API フェッチを抑止。
 
 ---
 

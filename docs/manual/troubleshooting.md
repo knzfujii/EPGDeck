@@ -11,8 +11,7 @@ EPGDeck の利用中やセットアップ時に発生しやすい問題とその
 - **原因**: EPGDeck が Mirakurun に接続できていません。
 - **対処法**:
     1. Mirakurun サービスが正常に稼働しているか確認してください（`curl http://<MirakurunIP>:<Port>/api/version`）。
-    2. `config/config.yml` の `server.mirakurun` の指定が正しいか確認してください（従来の `server.mirakurunPath`
-       も後方互換で対応）。
+    2. `config/config.yml` の `server.mirakurun` の指定が正しいか確認してください（`server.mirakurunPath` も互換対応）。
         - Unix ドメインソケットの場合: `http+unix://%2Fvar%2Frun%2Fmirakurun.sock/`
         - HTTP ポートの場合: `http://127.0.0.1:40772` 等
 

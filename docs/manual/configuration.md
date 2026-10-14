@@ -277,7 +277,6 @@ encode:
 | **`cmd`** | `string` | 任意 | 独自コマンド・外部シェルスクリプトを実行する場合のコマンド文字列 |
 | **`suffix`** | `string` | 任意 | 出力ファイルの拡張子（例: `.mp4`, `.mkv`）。省略時は元ファイルの拡張子 |
 | **`stallTimeoutSeconds`** | `number` | 任意 | プリセット個別の進捗ストール許容秒数（省略時: `encode.stallTimeoutSeconds` の 600秒） |
-| ~~**`rate`**~~ | `number` | 非推奨 | **【完全廃止】** 旧 EPGStation の録画時間倍率タイムアウト。進捗ストール監視への移行に伴い完全廃止されました（既存設定に残っていても無視されます） |
 | **`subtitle`** | `boolean` | 任意 | このプリセットで MP4 内に ARIB 字幕（`mov_text`）を埋め込むかどうか（省略時: `encode.subtitle` の値に従う） |
 
 ### スクリプト設定オプション (`@epgdeck/enc-helper`)

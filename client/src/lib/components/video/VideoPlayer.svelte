@@ -6,7 +6,7 @@
     import VideoControls from './VideoControls.svelte';
     import { playerState } from '../../stores/playerState.svelte';
     import { formatPlayerTime } from '../../utils/format';
-    import { Play, Pause, RotateCcw, RotateCw, Loader2, AlertCircle } from '@lucide/svelte';
+    import { Play, Pause, RotateCcw, RotateCw, Loader2, AlertCircle, Pin, PinOff } from '@lucide/svelte';
 
     interface Props {
         src: string;
@@ -21,6 +21,7 @@
         playbackOffset?: number;
         statusMessage?: string;
         dropMarkers?: import('../../utils/dropLog').DropMarker[];
+        showStickyToggle?: boolean;
         onStreamEnded?: () => void;
         onHlsSeekRestart?: (targetTime: number) => void | Promise<void>;
     }
@@ -980,6 +981,28 @@
             class="pointer-events-none absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
         >
             <h2 class="truncate text-sm font-bold text-white drop-shadow-md">{title}</h2>
+            {#if props.showStickyToggle}
+                <button
+                    type="button"
+                    onclick={e => {
+                        e.stopPropagation();
+                        playerState.toggleStickyEnabled();
+                    }}
+                    class="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/40 hover:bg-black/70 text-white/80 hover:text-white backdrop-blur-xs transition cursor-pointer shrink-0 border border-white/10 active:scale-95"
+                    title={playerState.isStickyEnabled
+                        ? 'スクロール時の上部固定: 有効（クリックで無効化）'
+                        : 'スクロール時の上部固定: 無効（クリックで有効化）'}
+                    aria-label={playerState.isStickyEnabled
+                        ? 'スクロール時の上部固定を無効にする'
+                        : 'スクロール時の上部固定を有効にする'}
+                >
+                    {#if playerState.isStickyEnabled}
+                        <Pin size={15} class="text-blue-400" />
+                    {:else}
+                        <PinOff size={15} class="text-white/50" />
+                    {/if}
+                </button>
+            {/if}
         </div>
     {/if}
 

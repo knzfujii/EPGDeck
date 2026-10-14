@@ -34,6 +34,7 @@
     import Select from '../lib/components/common/Select.svelte';
     import Input from '../lib/components/common/Input.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
+    import { playerState } from '../lib/stores/playerState.svelte';
     import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
     import { getLastRecordedPath } from '../lib/navigationHistory';
     import { resolveSourceVideoFile } from '../lib/utils/recording';
@@ -531,8 +532,19 @@
         }
     }
 
+    let prevRecordedId: number | null = null;
     $effect(() => {
         if (recordedId) {
+            untrack(() => {
+                if (prevRecordedId !== null && prevRecordedId !== recordedId) {
+                    // 番組が切り替わった場合、前回の再生状態とストリームを確実に停止・初期化
+                    handleStopPlayback();
+                    currentVideoFile = null;
+                    videoFileDuration = null;
+                    dropMarkers = [];
+                }
+                prevRecordedId = recordedId;
+            });
             fetchRecordedDetail();
         }
     });
@@ -1049,7 +1061,8 @@
         <!-- 統合動画プレーヤー / サムネイル領域 (動画は角丸禁止・シャープな直角 rounded-none 厳守) -->
         <div
             data-testid="inline-player-container"
-            class="sticky-player w-full overflow-hidden rounded-none bg-slate-900 shadow-md transition-shadow {isPlaying
+            class="sticky-player w-full overflow-hidden rounded-none bg-slate-900 shadow-md transition-shadow {isPlaying &&
+            playerState.isStickyEnabled
                 ? 'is-sticky z-30 shadow-2xl'
                 : ''}"
         >
@@ -1066,6 +1079,7 @@
                             {statusMessage}
                             title={recorded.name}
                             recordedId={recorded.id}
+                            showStickyToggle={true}
                             {totalDuration}
                             {vttSrc}
                             {dropMarkers}

@@ -426,9 +426,30 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         await thumbnailPlayBtn.click();
         await expect(videoRegion).toBeVisible();
 
-        // スクロール時に吸着する sticky クラスが付与されていること
+        // スクロール時に吸着する sticky クラスが付与されていること（デフォルト有効）
         const playerContainer = page.getByTestId('inline-player-container');
-        await expect(playerContainer).toHaveClass(/sticky/);
+        await expect(playerContainer).toHaveClass(/is-sticky/);
+
+        // コントロールを表示するためにプレーヤー上をホバー
+        await videoRegion.hover();
+
+        // タイトルバー右上のピン留めボタン（上部固定トグル）をクリックして無効化できること
+        const pinToggleBtn = page.locator('button[aria-label="スクロール時の上部固定を無効にする"]');
+        await expect(pinToggleBtn).toBeVisible();
+        await pinToggleBtn.click();
+
+        // 上部固定が無効化され、コンテナから is-sticky クラスが除去され、localStorage に false が保存されること
+        await expect(playerContainer).not.toHaveClass(/is-sticky/);
+        const savedStickyDisabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
+        expect(savedStickyDisabled).toBe('false');
+
+        // 再度クリックして有効化に戻せること
+        const pinEnableBtn = page.locator('button[aria-label="スクロール時の上部固定を有効にする"]');
+        await expect(pinEnableBtn).toBeVisible();
+        await pinEnableBtn.click();
+        await expect(playerContainer).toHaveClass(/is-sticky/);
+        const savedStickyEnabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
+        expect(savedStickyEnabled).toBe('true');
 
         // 3. タイトルバーに紛らわしい閉じる（サムネイルに戻る）✕ボタンが存在しないことを確認
         await videoRegion.hover();
@@ -450,6 +471,27 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
             if (video) video.dispatchEvent(new Event('ended'));
         });
         await expect(videoRegion).toBeVisible();
+
+        // 6. 別番組（recordedId 変更）へ遷移した際は自動再生されず、未再生のサムネイル画面へ初期化されること
+        const mockRecorded2 = {
+            ...mockRecorded,
+            id: 9903,
+            name: '別の録画番組',
+        };
+        await page.route(/\/api\/recorded\/9903/, async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(mockRecorded2),
+            });
+        });
+        await page.evaluate(() => {
+            window.history.pushState({}, '', '/recorded/detail?recordedId=9903');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        });
+        // プレイヤーが閉じられ、サムネイル＋再生ボタンに戻っていること
+        await expect(videoRegion).toHaveCount(0);
+        await expect(thumbnailPlayBtn).toBeVisible();
 
         expect(pageErrors).toEqual([]);
     });

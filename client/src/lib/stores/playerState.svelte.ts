@@ -7,6 +7,7 @@ class PlayerState {
     isMuted = $state(false);
     playbackRate = $state(1.0);
     isSubtitleEnabled = $state(false);
+    isStickyEnabled = $state(true);
     defaultStreamMode = $state<number>(0);
     defaultStreamType = $state<'hls' | 'mp4' | 'webm'>('hls');
 
@@ -24,6 +25,9 @@ class PlayerState {
 
                 const savedSub = localStorage.getItem('epgdeck_subtitle_enabled');
                 if (savedSub !== null) this.isSubtitleEnabled = savedSub === 'true';
+
+                const savedSticky = localStorage.getItem('epgdeck_sticky_player_enabled');
+                if (savedSticky !== null) this.isStickyEnabled = savedSticky === 'true';
             } catch (e) {
                 console.error('Failed to load player settings', e);
             }
@@ -56,6 +60,17 @@ class PlayerState {
         if (typeof window !== 'undefined') {
             localStorage.setItem('epgdeck_playback_rate', this.playbackRate.toString());
         }
+    }
+
+    setStickyEnabled(val: boolean) {
+        this.isStickyEnabled = val;
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('epgdeck_sticky_player_enabled', this.isStickyEnabled.toString());
+        }
+    }
+
+    toggleStickyEnabled() {
+        this.setStickyEnabled(!this.isStickyEnabled);
     }
 
     // レジューム位置（秒）の保存

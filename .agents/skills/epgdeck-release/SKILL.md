@@ -51,9 +51,9 @@ git checkout -b chore/release-v<NEW_VERSION>
 
 ### ステップ 2: CHANGELOG.md の起草 & バージョン更新
 
-1. **`package.json` の更新**:
-   - ルート `package.json` の `"version"` を新バージョン（例: `0.2.0-beta.2`）に更新。
-   - （`client/package.json` も同期）。
+1. **`package.json` 等の更新**:
+   - ルート `package.json` の `"version"` を新バージョン（例: `0.3.0-beta.3`）に更新。
+   - `client/package.json`、`package-lock.json`（ルート・`""`・`"client"` の3箇所）、および `test/unit/version.test.ts` の期待バージョンも同期。
 2. **`CHANGELOG.md` の更新**:
    - コミットログを分析し、以下のカテゴリに分類して最上部に追記する：
      - `### Added`: 新機能・新画面・新 API
@@ -82,7 +82,7 @@ docker rmi epgdeck:release-check
 ```bash
 # 1. 変更をステージング & フォーマット
 mise exec -- npm run format
-git add package.json client/package.json CHANGELOG.md
+git add package.json client/package.json package-lock.json test/unit/version.test.ts CHANGELOG.md
 git commit -m "chore(release): bump version to <NEW_VERSION>"
 git push -u origin chore/release-v<NEW_VERSION>
 

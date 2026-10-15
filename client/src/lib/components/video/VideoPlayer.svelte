@@ -746,6 +746,7 @@
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
             window.removeEventListener('keydown', handleKeyDown);
             if (hideControlsTimer) clearTimeout(hideControlsTimer);
         };
@@ -981,7 +982,7 @@
             class="pointer-events-none absolute top-0 left-0 right-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300"
         >
             <h2 class="truncate text-sm font-bold text-white drop-shadow-md">{title}</h2>
-            {#if props.showStickyToggle}
+            {#if props.showStickyToggle && !isFullscreen}
                 <button
                     type="button"
                     onclick={e => {

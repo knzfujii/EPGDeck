@@ -451,6 +451,28 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         const savedStickyDisabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
         expect(savedStickyDisabled).toBe('false');
 
+        // フルスクリーン時はピン留めボタンが非表示になり、解除時に再表示されること
+        await page.evaluate(() => {
+            const player = document.querySelector('div[role="region"][aria-label="動画プレーヤー"]');
+            Object.defineProperty(document, 'fullscreenElement', {
+                value: player,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event('fullscreenchange'));
+        });
+        await videoRegion.hover();
+        await expect(pinEnableBtn).toHaveCount(0);
+
+        await page.evaluate(() => {
+            Object.defineProperty(document, 'fullscreenElement', {
+                value: null,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event('fullscreenchange'));
+        });
+        await videoRegion.hover();
+        await expect(pinEnableBtn).toBeVisible();
+
         // 3. タイトルバーに紛らわしい閉じる（サムネイルに戻る）✕ボタンが存在しないことを確認
         await videoRegion.hover();
         const stopBtn = page.locator('button[aria-label="再生を終了してサムネイルへ戻る"]');

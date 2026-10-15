@@ -126,9 +126,9 @@ Node.js + Hono + Drizzle ORM のバックエンドと、Svelte 5 + Tailwind CSS 
 - **安全な操作設計**: 家族共有や公共端末での誤操作を防ぐ**リードオンリーモード**、破壊的操作の物理的分離。
 
 ### ⚙️ エンコード機能 ＆ 運用の安定性
-- **柔軟なエンコード処理 (`config/enc_helper.js`)**:
+- **柔軟なエンコード処理 (`@epgdeck/enc-helper` / `config/enc_helper.js`)**:
   - 二重音声（Dual-mono）の自動判定とステレオ分離。
-  - 地デジ 1440x1080 のアスペクト比（16:9）自動補正（`setdar=16/9`）。
+  - 地デジ 1440x1080 のアスペクト比（16:9）自動補正（`setsar=4/3` / `16:9` 正方形リサイズ）。
   - 動画長検証（`verifyDuration`）による元 TS 誤削除防止・保護安全機構。
   - ハードウェア支援プリセット（VAAPI, Intel QSV, NVIDIA NVENC）同梱。
 - **安定した録画・配信基盤**:
@@ -165,7 +165,7 @@ EPGDeck は **EPGStation (v2.10.0) のデータベース構造に対応** して
 * **既存データ移行**: 既存の EPGStation の SQLite（`data/database.db`）や MySQL をそのまま指定して起動するだけで、録画・予約・ルールを保持したまま移行できます。
 
 ### 設定ファイル (`config/config.yml`)
-EPGDeck では、システム構成に合わせて設定ファイルを機能別（`server`, `database`, `log`, `epg`, `recording`, `encode`, `hooks`, `urlscheme`, `streaming`, `kodi`）にカテゴリ分けした構造を採用しています。
+EPGDeck では、システム構成に合わせて設定ファイルを機能別（`server`, `database`, `log`, `epg`, `recording`, `encode`, `hooks`, `urlscheme`, `streaming`, `kodi`, `readOnly`）にカテゴリ分けした構造を採用しています。
 * EPGStation 形式の `config.yml` とは設定キーの階層構造が異なります。
 * セットアップ時は、同梱されている `config/config.yml.template` を `config/config.yml` にコピーして設定を行ってください。
 * 設定の詳細は **[設定ファイル詳細マニュアル](docs/manual/configuration.md)** を参照してください。
@@ -180,10 +180,11 @@ EPGDeck では、システム構成に合わせて設定ファイルを機能別
 │   └── src/
 │       ├── lib/         # 共通コンポーネント、状態管理ストア、ユーティリティ
 │       └── routes/      # 各画面ルート（ダッシュボード、番組表、録画一覧、ログ等）
-├── config/              # 設定ファイルテンプレート、エンコード支援スクリプト
+├── config/              # 設定ファイルテンプレート、エンコードプリセットスクリプト
 ├── docs/                # 利用者向けマニュアル（manual/）および開発者ガイド（dev/）
-├── packages/            # 内部共有パッケージ
-│   └── arib-probe/      # 高速・堅牢な ARIB STD-B24/TR-B14/TR-B15 TS ストリーム解析器
+├── packages/            # 内部共有パッケージ（npm workspaces）
+│   ├── arib-probe/      # ゼロ依存・Pure TS の ARIB STD-B24/TR-B14/TR-B15 TS ストリーム解析器
+│   └── enc-helper/      # 型安全な FFmpeg トランスコード・メディア解析エンジン (@epgdeck/enc-helper)
 ├── src/                 # バックエンド（Node.js + Hono + Drizzle ORM）
 │   ├── db/              # Drizzle ORM スキーマ定義（SQLite / MySQL）
 │   └── model/           # ドメインモデル、録画・配信制御、Hono API ルート

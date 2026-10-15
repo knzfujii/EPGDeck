@@ -15,7 +15,7 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
 - **[設定ファイル詳細マニュアル](manual/configuration.md)**
   - `config/config.yml` の各設定項目（ポート、録画先、エンコード、Mirakurun接続等）の解説。
 - **[エンコードシステム仕様書 & 設定マニュアル](manual/encoding.md)**
-  - `config/enc_helper.js` によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
+  - `@epgdeck/enc-helper`（`packages/enc-helper`）によるメディア解析・二重音声分離・ハードウェア支援エンコードの設定と運用。
 - **[FFmpeg カスタムビルドガイド](manual/ffmpeg-build.md)**
   - ARIB 字幕（`libaribb24`）、VAAPI、高品質エンコードに対応した FFmpeg を `/opt/ffmpeg-custom` に隔離ビルドする参考手順。
 - **[録画機能マニュアル](manual/recording.md)**
@@ -31,8 +31,8 @@ EPGDeck のインストール、設定、日常の運用に関するドキュメ
   - aribb24.js / mpegts.js を用いた Web での字幕表示と低遅延ライブ配信の設定。
 - **[RAM ディスク (/dev/shm) 活用ガイド](manual/ramdisk.md)**
   - HLS 配信・エンコード一時ファイルを RAM 上に配置し、SSD への書き込み負荷を抑える高速化ガイド。
-- **[SQLite3 正規表現検索の有効化](manual/sqlite-regexp.md)**
-  - SQLite3 使用時に正規表現検索を利用可能にする手順。
+- **[SQLite / MySQL における検索仕様と正規表現検索](manual/sqlite-regexp.md)**
+  - データベース種別ごとのキーワード検索・正規表現検索（`REGEXP`）・大文字小文字区別（`CS`）の対応仕様。
 - **[トラブルシューティング / FAQ](manual/troubleshooting.md)**
   - 起動エラー（`check mirakurun` 待機、ポート衝突等）やよくある問題の対処法。
 
@@ -65,6 +65,8 @@ EPGDeck の機能開発、コードベースの変更、API 利用、および U
   - Drizzle ORM の Schema 設計、Entity 構造、EPGStation データベース互換仕様。
 - **[WebAPI 仕様・利用ガイド](dev/api.md)**
   - Hono / Swagger UI を利用した RESTful API の仕様と確認方法。
+- **[ARIB TR-B14 / TR-B15 実装仕様リファレンスガイド](../packages/arib-probe/docs/arib-standards-reference.md)**
+  - 日本のデジタル放送規格における PSI/SI テーブル、記述子、NHK/民放運用差異、エンジニアリングノウハウ。
 - **[テスト & CI/CD アーキテクチャ仕様書](dev/testing.md)**
   - Vitest 単体テスト、MariaDB/MySQL 実機結合テスト、Playwright E2E（先行シード・スタンドアロンサーバー）、GitHub Actions 最適化。
 - **[開発環境セットアップガイド](dev/getting-started.md)**

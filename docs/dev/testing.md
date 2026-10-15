@@ -35,13 +35,13 @@ graph TD
 
 ### 2.1 設計原則
 - **高速なテスト実行の維持**:
-  全単体テスト（640+ テストケース、79テストファイル）を 2〜4 秒台で実行完了することを目標としています。テストを高速に保つことで、開発者がコード保存時やコミット前に躊躇なく実行できる環境（`npm run test:watch`）を実現しています。
+  全単体テスト（920+ テストケース、92 テストファイル）を 2〜4 秒台で実行完了することを目標としています。テストを高速に保つことで、開発者がコード保存時やコミット前に躊躇なく実行できる環境（`npm run test:watch`）を実現しています。
 - **インメモリ SQLite の活用**:
   データベースアクセスを伴うテストでは、ディスク I/O を発生させない `:memory:` 接続（またはテスト専用の一時 DB）を使用し、テスト間で状態が汚染されない完全独立環境を担保しています。
 - **本番・開発環境の完全不可侵（DB 分離原則）**:
   テスト実行時、本番およびローカル開発用 DB（`data/database.db`）や設定ファイル（`config/config.yml`）には**絶対にアクセス・変更を行いません**。
 - **Web 標準 API の網羅的検証**:
-  `authStorage`（`localStorage` ラッパー）、`StrUtil.urlJoin`、`node:util.parseArgs`、組み込み `structuredClone` 等、Node.js / Web 標準 API へ移行した各モジュールの堅牢性を保証するテストを永続配備しています。
+  `authStorage`（`localStorage` ラッパー）、`StrUtil.urlJoin`、`node:util.parseArgs`、組み込み `structuredClone` 等、Node.js / Web 標準 API を採用する各モジュールの堅牢性を保証するテストを永続配備しています。
 
 ### 2.2 クライアント純粋ロジック単体テスト (`test/client/`)
 UI コンポーネントに結合させるとテストが重厚化・不安定化しやすい複雑な計算・判定ロジックは、`client/src/lib/utils/` に純粋関数として集約し、Vitest で直接・網羅的に境界値テストを実施します。
@@ -52,7 +52,7 @@ UI コンポーネントに結合させるとテストが重厚化・不安定�
   - スクロール位置計算、タイムライン表示範囲（Unixtime）判定
 - **フォーマット処理 (`test/client/format.test.ts`)**:
   - 日時フォーマット、時間差分表記、ファイルサイズ単位変換（MB/GB/TB）
-- **HTTP / API クライアント (`test/client/http_client.test.ts`)**:
+- **HTTP / API クライアント (`test/client/api_client.test.ts`)**:
   - 認証トークン自動付与、クエリパラメータ構築、リードオンリーエラー時の例外ハンドリング
 
 ### 2.3 テストコードのタイムゾーン中立性原則 (Timezone Agnostic)
@@ -135,7 +135,7 @@ webServer: {
   ボタンクリック前に、対象データ（例: `NHK総合1`）が UI 上にレンダリングされていることを `toBeVisible()` で明示的に待機し、ネットワーク揺らぎによるテスト失敗を防止しています。
 
 ### 4.4 ブラウザ `<video>` メディアモックとエラーオーバーレイ抑止
-動画再生（`/recorded/watch` や `VideoPlayer.svelte`）の E2E テストにおいて、`page.route` で空バッファ（`Buffer.from([])`）をモック返却すると、Chromium ネイティブのメディアデコーダがデコードエラーを発火させます。
+動画再生（`/recorded/detail` のインライン再生や `/onair/watch` の `VideoPlayer.svelte`）の E2E テストにおいて、`page.route` で空バッファ（`Buffer.from([])`）をモック返却すると、Chromium ネイティブのメディアデコーダがデコードエラーを発火させます。
 これにより Svelte コンポーネント側の `<video onerror={...}>` ➔ `addEventListener('error')` が作動し、UI 前面に「動画の再生に失敗しました」というエラーオーバーレイが被さり、コントロールボタンのクリックが遮断（pointer-events 阻害）されます。
 
 この問題を根本防止するため、以下の**ブラウザ初期化スクリプト（`page.addInitScript`）パターン**を採用します：

@@ -15,8 +15,6 @@ iOS Safari を含むフルプラットフォームに対応しています。
 
 サーバー側で内部モジュール（`packages/arib-probe` の `TsSubtitleId3Muxer`）により字幕ストリームを ID3 Timed Metadata に変換して TS セグメント内に多重化するため、クライアント側（hls.js 等）で高品位な ARIB STD-B24 字幕が表示されます。
 
-そのため、`config.yml` の `useSubtitleUnrecognizerCmd` オプションは不要です。
-
 なお、HLS 配信時の文字スーパー表示は未対応です（文字スーパーも必要な場合は M2TS-LL をご利用ください）。
 
 ### FFmpeg パラメータの指定時の注意点 (HLS)
@@ -52,7 +50,7 @@ iOS 及び iPadOS(PWA モード時のみ) でフルスクリーン再生した�
 
 ## M2TS-LL 低遅延配信の設定および字幕表示の設定
 
-`config.yml` にて stream/live/ts/m2tsll に FFmpeg パラメータを正しく入れる必要があります。
+`config.yml` の `streaming.live.ts.m2tsll` には標準で低遅延・字幕対応の FFmpeg パラメータが内蔵されています。独自にカスタマイズする場合は以下のパラメータ構成を推奨します。
 
 なお、mpegts.js による低遅延視聴機能は iPadOS に対応しますが、iOS は非対応です。
 

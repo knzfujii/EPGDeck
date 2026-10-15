@@ -1,76 +1,16 @@
-# SQLite3 使用時の正規表現検索について
+# データベース種別ごとの検索仕様（正規表現・大小文字区別）
 
-> [!WARNING]
-> **SQLite における正規表現拡張について**:
-> EPGDeck ではデータベースドライバに `@libsql/client` (LibSQL) および Drizzle ORM を採用しており、外部 C 拡張ライブラリ（`sqlite.extensions` / `sqlite.regexp`）のロード設定は行いません。
-> 
-> ルール予約や番組検索で高度な正規表現検索（`REGEXP`）を活用したい場合は、標準で正規表現に対応し、大量録画でも高いパフォーマンスを発揮する **MySQL (MariaDB)** のご利用を推奨します（詳細は [セットアップマニュアル](./setup.md#mysql-mariadb-使用時の注意) を参照してください）。
+EPGDeck ではデータベースドライバに `@libsql/client`（SQLite）および `mysql2`（MySQL / MariaDB）と Drizzle ORM を採用しており、外部 C 拡張ライブラリの動的ロードは行いません。
 
-以下は、レガシーな C 拡張ライブラリを用いた過去の参考手順です。
+## データベース別の検索機能対応表
 
-## shared library の作成
+| 検索機能 | SQLite (`@libsql/client`) | MySQL / MariaDB (`mysql2`) | 備考 |
+| :--- | :---: | :---: | :--- |
+| **あいまい検索 (`LIKE`)** | 対応 | 対応 | 全角・半角正規化（`halfWidth*` カラム）およびスペース区切り AND 検索に対応 |
+| **除外キーワード検索** | 対応 | 対応 | `NOT (...)` による条件反転 |
+| **正規表現検索 (`REGEXP`)** | 非推奨（拡張なし） | **標準対応** | 正規表現ルールを多用する場合は **MySQL / MariaDB** の利用を推奨 |
+| **大小文字区別 (`keyCS` / `ignoreKeyCS`)** | 非対応（常時区別なし） | **対応 (`CAST AS BINARY`)** | SQLite の `LIKE` 仕様に合わせ、大小文字区別は MySQL 使用時のみ有効 |
 
-### 1. ソースコードのダウンロード
+> [!TIP]
+> ルール予約や番組検索で正規表現検索（`REGEXP`）や大小文字区別（`CS`）を活用したい場合、および大規模録画アーカイブを運用する場合は、標準で正規表現に対応し高い並行性能を持つ **MySQL (MariaDB)** の利用を推奨します。接続設定の詳細は [セットアップマニュアル](./setup.md#mysql-mariadb-使用時の注意) および [config.yml 詳細マニュアル](./configuration.md#2-データベース設定-database) を参照してください。
 
-[SQLite Download Page](https://www.sqlite.org/download.html) から `sqlite-amalgamation-*.zip` と `sqlite-src-*.zip` をダ
-ウンロードし、適当な場所に解凍する
-
-### 2. ソースコードの配置
-
-`sqlite-src-*/ext/misc/regexp.c` を `sqlite-amalgamation-*` へコピーする
-
-### 3. ビルド
-
-`sqlite-amalgamation-*` へ移動し以下のコマンドを実行する
-
--   Linux の場合
-
-```
-gcc -g -fPIC -shared regexp.c -o regexp.so
-```
-
--   macOS の場合
-
-```
-gcc -g -fPIC -dynamiclib regexp.c -o regexp.dylib
-```
-
--   Windows (64bit) の場合
-
-スタートメニュー -> Visual C++ Build Tools -> Visual C++ 2015 x64 Native Build Tools Command Prompt を開き
-`sqlite-amalgamation-*` へ移動し以下のコマンドを実行する
-
-```
-cl regexp.c -link -dll -out:regexp.dll
-```
-
-### ファイルの配置
-
-生成された regexp.so (Linux), regexp.dylib (macOS), regexp.dll (Windows) を適当な場所へ配置する
-
-## EPGDeck の修正
-
-config.yml に以下の項目を追加します。
-
-```yaml
-sqlite:
-    extensions:
-        - '/hoge/regexp.so'
-    regexp: true
-```
-
-Windows でのファイルパス指定は
-
-```
-C:\\hoge\\regexp.dll
-```
-
-ではなく
-
-```
-C:/hoge/regexp.dll
-```
-
-となるので注意しましょう
-
-EPGDeck を再起動したら完了です

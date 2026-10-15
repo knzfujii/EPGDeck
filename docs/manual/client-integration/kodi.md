@@ -52,7 +52,7 @@ streaming:
 http://host:port/api/iptv/channel.m3u8?mode=1
 ```
 
-`?mode=1` の 1 は `stream/live/ts/m2ts` の指定をしています。0 から数えるので上記の設定では `無変換` が指定されます
+`?mode=1` の `1` は `streaming.live.ts.m2ts` のプリセット配列インデックス（0始まり）を指定しています。上記の設定例では `無変換` が選択されます。
 
 #### XMLTV URL
 

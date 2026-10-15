@@ -93,7 +93,7 @@ gh pr create --title "chore(release): bump version to <NEW_VERSION>" \
 # 3. PR 上の GitHub Actions CI（全テスト & Docker ビルドチェック）の完了を待機
 gh pr checks <PR_NUMBER> --watch
 
-# 4. ユーザー承認を得た上で Rebase and Merge を実行
+# 4. リリース一気通貫の指示がある場合はそのまま Rebase and Merge を実行（事前確認を求められている場合のみ承認を待つ）
 gh pr merge <PR_NUMBER> --rebase --delete-branch
 ```
 

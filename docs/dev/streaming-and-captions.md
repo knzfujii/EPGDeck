@@ -182,46 +182,38 @@ private injectDefaultCaptionManagement(timeSec = 0): void {
 - `tx3g` は実質的に「MP4 規格に適合させたバイナリ版 SRT」であり、Apple 製品（iOS / iPadOS / macOS / Safari）、モダンブラウザ（HTML5 `<video>` の `textTracks`）、各種メディアプレイヤー（VLC / Kodi / Infuse）でネイティブに認識・描画されます。
 - 外部 SRT ファイルが必要な場合も、`ffmpeg -i file.mp4 -map 0:s:0 file.srt` でいつでも無劣化・一瞬でテキスト抽出が可能です。
 
-### 6.2 `-fix_sub_duration` の必須性と字幕パケット間隔の注意点（`INT_MAX` 制限）
-- **課題**: 放送波（ARIB STD-B24）の字幕パケットは表示終了時刻（duration）が明示されておらず、未指定（UINT32_MAX）として渡されます。これをそのまま MP4 muxer（`mov_text`）に流すと、FFmpeg が `Application provided duration in stream is invalid` (error `-22`) を吐いて即座にエンコードが異常終了します。
-- **解決策**: FFmpeg 起動オプションに **`-fix_sub_duration`** を指定します。これにより、FFmpeg が後続のパケット PTS から自動的に字幕の表示期間を計算して MP4 に正常に書き込みます。
-- **注意点（字幕間隔が約35.7分以上空く番組でのクラッシュ）**:
-  - `-fix_sub_duration` は直前のパケットの duration を `次のパケットの PTS - 直前のパケットの PTS` で動的に調整します。
-  - そのため、**洋画劇場など「字幕が映像に焼き込まれたオープンキャプション作品（＜字幕スーパー＞）」** や長時間特番などで、冒頭にわずかに ARIB 字幕が出た後、次の字幕パケットが約 35.7 分（2,147 秒）以上届かない場合、計算された duration が MP4/MOV の符号付き 32bit 最大値 `INT_MAX`（2,147,483,647 マイクロ秒 ≒ 2,147 秒）を超過します。
-  - この場合、MP4 muxer（`libavformat/movenc.c`）のバリデーションチェックにより `Application provided duration: ... in stream ... is invalid` が発生してエンコードが終了します。
-  - **自動回避策 (`skipSubtitleForSuperimpose: true`)**:
-    - `config.yml` の `encode.skipSubtitleForSuperimpose: true` を設定すると、番組情報（タイトル・概要・詳細）に「字幕スーパー」が含まれている番組をエンコード開始時に自動検知し、字幕埋め込みを無効化（`subtitle: false` / `-sn`）してエンコードを実行します。
-    - これにより、長時間のエンコード（例: 20〜30分間）が無駄に走った後にクラッシュする事態を完全にゼロにし、正常かつ高速にエンコードを完了させます。
+### 6.2 エンコード字幕保持（`subtitle: true`）の三段階防衛アーキテクチャ
+`@epgdeck/enc-helper`（`packages/enc-helper`）および `EncoderModel` では、ARIB STD-B24 字幕を MP4（`mov_text`）へ多重化する際のエラーを以下の 3 段階制御で防止します。
 
-### 6.3 制御フローとコマンドログ記録（`config.yml` ⇄ `EncoderModel` ⇄ `enc_helper.js`）
-1. `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）、および `encode.skipSubtitleForSuperimpose: true` を設定。
-2. `src/model/service/encode/EncoderModel.ts` が開始時に `encodeCmd.cmd` を INFO ログに出力。さらに「字幕スーパー」を検出した場合は自動で `SUBTITLE: 'false'` に切り替え、環境変数 `SKIP_SUBTITLE_FOR_SUPERIMPOSE: 'true'` も子プロセスに伝搬。
-3. `config/enc_helper.js` が実行時に組み立てた FFmpeg コマンド（シェルクォート整形済み）を `[enc_helper] FFmpeg command: ...` として出力。
-4. `EncoderModel` がこのコマンド行を検知して INFO ログに記録し、万一エンコードが異常終了した場合にもエラーログの先頭に `failed ffmpeg command: ...` を自動出力して障害調査を容易にします。
-5. 生成された MP4 は、クライアント側（`VideoPlayer.svelte`）で直接再生時にも `video.textTracks` の ON/OFF 切替（字幕ボタン / `C` キー）と完全連動します。
+| 防御層 | 指定オプション / 機構 | 解決する仕様上の制約・動作 |
+| :--- | :--- | :--- |
+| **未確定 duration 補正** | `-fix_sub_duration` | ARIB 字幕パケットは表示終了時刻（duration）が未指定（`UINT32_MAX`）で送出されるため、後続パケットの PTS から表示期間を自動算出し、MP4 muxer の `Invalid argument (-22)` を防止。 |
+| **32bit オーバーフロー防止** | `-time_base:s 1/1000` | デフォルトのマイクロ秒タイムベース（`1/1000000`）では字幕間隔が約 35.7 分（`INT32_MAX` = 2,147秒）以上空くと 32bit 符号付き整数オーバーフローでクラッシュする。ミリ秒タイムベース（`1/1000`）の明示により上限を **約 596 時間（約24日間）** へ拡大し、疎な字幕でも 1ms 精度を維持して完走。 |
+| **ストリーム欠落・字幕スーパー保護** | `-map 0:s?` / `skipSubtitleForSuperimpose` | 字幕ストリーム不在時は `-map 0:s?` で自動無視。また `encode.skipSubtitleForSuperimpose: true` 設定時は、番組情報（タイトル・概要・詳細）に「字幕スーパー」を含む番組を検知して自動で `-sn`（字幕除外）に切り替え、焼き込み字幕との二重描画を防止。 |
+
+### 6.3 制御フローとコマンドログ記録（`config.yml` ⇄ `EncoderModel` ⇄ `@epgdeck/enc-helper`）
+- **設定伝搬**: `config.yml` の `encode.presets[]` または `encode.subtitle` で `subtitle: true`（省略時 `false`）、および `encode.skipSubtitleForSuperimpose` を参照し、`EncoderModel.ts` が環境変数 `SUBTITLE`（`'true'` / `'false'`）を子プロセスへ渡します。
+- **コマンドロギング**: `@epgdeck/enc-helper` が実行時に組み立てた FFmpeg コマンド（シェルクォート整形済み）を `[enc_helper] FFmpeg command: ...` として出力し、`EncoderModel` が INFO ログおよび異常終了時のエラーログ（`failed ffmpeg command: ...`）に記録します。
+- **言語メタデータ**: 日本の放送波標準仕様（第1言語: 日本語）に準拠し、`language=jpn` として多重化されます。
 
 ### 6.4 FFmpeg の `--enable-libaribb24` 依存性
-- **ストリーミング（HLS / M2TS-LL）との決定的な違い**:
-  - HLS 配信はサーバー側 Node.js（`arib-probe` の `TsSubtitleId3Muxer`）が ID3 化し、ブラウザ側（`aribb24.js`）がデコードします。
-  - M2TS-LL は FFmpeg が `-c:s copy` でパススルーし、ブラウザ側（`aribb24.js`）がデコードします。
-  - したがって、**ストリーミング視聴機能には FFmpeg の libaribb24 は一切不要（libaribb24 非対応の通常 FFmpeg であっても完全動作）** です。
-- **MP4 字幕保持時の必須性**:
-  - MP4 にテキスト字幕（`mov_text`）を多重化するには、FFmpeg 自身が ARIB STD-B24 パケットをデコードしてテキスト化する必要があります。
-  - FFmpeg 内で ARIB 字幕のデコーダーは `libaribb24` のみ（標準組み込みデコーダーは存在しない）であるため、`subtitle: true` を動作させるには **`--enable-libaribb24` を有効化してビルドされた FFmpeg が必須** となります。
-  - 非対応 FFmpeg で `subtitle: true` を指定すると、`Decoder (codec arib_caption) not found for input stream` エラーでエンコードが失敗します（`subtitle: false` の場合は `-sn` となるため非対応 FFmpeg でも安全に完了します）。
+- **ストリーミング（HLS / M2TS-LL）**:
+  - HLS 配信はサーバー側 Node.js（`arib-probe` の `TsSubtitleId3Muxer`）が ID3 化し、M2TS-LL は `-c:s copy` でパススルーしてブラウザ側（`aribb24.js`）がデコードするため、**FFmpeg の `libaribb24` は不要**です。
+- **MP4 字幕保持（`subtitle: true`）**:
+  - FFmpeg 自身が ARIB STD-B24 パケットをデコードして `mov_text` へ変換するため、**`--enable-libaribb24` を有効化してビルドされた FFmpeg が必須**です（`subtitle: false` の場合は `-sn` となるため不要）。
 
 ---
 
-## 7. MP4 オンデマンド WebVTT 字幕配信 API (`GET /api/videos/:id/vtt`)
+## 7. オンデマンド WebVTT 字幕抽出・配信 API (`GET /api/videos/:videoFileId/vtt`)
 
-MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブラウザ標準の `<track>` タグでオーバーレイ表示するための API 構成です。
+MP4 内に埋め込まれた字幕（`mov_text` / `tx3g`）を、Chrome 等のブラウザでシーク遅延（MP4 内部テキストトラック走査による 18〜27秒のフリーズ）を起こさずに `<track>` 要素で高速表示するための API 構成です。
 
-- **ファイルレス（オンデマンド抽出）**:
-  - ディスク上に `.vtt` ファイルを永続化保存せず、リクエスト時に FFmpeg pipe（`ffmpeg -i input.mp4 -f webvtt pipe:1`）経由でメモリ上にストリーム抽出します。
-- **LRU インメモリキャッシュ**:
-  - 同一動画・同一セッションでのシークや再取得による FFmpeg 多重起動を防ぐため、サーバー側で LRU インメモリキャッシュを保持します。
+- **ファイルレス・オンデマンド抽出 (`VideoApiModel.getVtt`)**:
+  - ディスク上に `.vtt` ファイルを永続化せず、リクエスト時に `ffmpeg -i <mp4> -map 0:s:0 -f webvtt pipe:1` を実行して標準出力から WebVTT テキストを動的抽出します（字幕ストリーム不在時は空の `WEBVTT\n\n` を返却）。
+- **インメモリキャッシュ**:
+  - 抽出結果を標準 `Map` によるインメモリキャッシュ（最大 100 件、`fs.stat` の `mtimeMs` によるファイル更新検証付き）に保持し、同一動画の再取得やシーク時は FFmpeg を起動せず即時応答します。
 - **クライアント連携**:
-  - `VideoPlayer.svelte` 内で `<track kind="subtitles" src="/api/videos/:id/vtt" default>` としてバインドされ、ネイティブな字幕レンダリングと完全連動します。
+  - `VideoPlayer.svelte` 内で `<track kind="subtitles" src="/api/videos/{videoFileId}/vtt" srclang="ja" label="日本語" default>` として読み込まれ、字幕 ON/OFF トグル（字幕ボタン / `C` キー）と連動します。
 
 ---
 
@@ -243,44 +235,31 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
 ### 8.3 モバイル・タッチデバイスでのイベント処理とコントロール制御
 - **ポインターイベント（Pointer Events）によるタッチ合成イベントの分離**:
   - タッチ端末では、タップ操作時にブラウザが `mousemove` イベントを合成して先行発火させます。
-  - `onmousemove` でコントロール表示タイマーをリセットしていると、タップ前にコントロールが表示状態へ強制変更され、意図しないパーツ押下や背景トグルの不整合を引き起こします。
   - `onpointermove` / `onpointerleave` を使用し、`if (e.pointerType === 'touch') return;` でタッチ移動を明示的に除外することで、PC のマウスホバー時のみ自動表示を有効化します。
 - **全画面透過オーバーレイによるタップ判定**:
   - `<video>` 直結のクリックイベント（再生トグル）を排し、前面に透明な `<button>`（`z-10`）をオーバーレイ配置します。
   - 非表示時のタップは「コントロール表示のみ（再生継続）」とし、表示時の空き領域タップは「即時非表示」とする 2 段階トグルを実現します。
 - **非表示状態の完全無効化 (`inert` 属性の活用)**:
-  - コントロール非表示時、下部コントロールバーに `inert={!showControls || undefined}` および `pointer-events-none` を付与します。
-  - これにより、CSS の透過（`opacity-0`）だけでなく、ブラウザのヒットテスト・キーボードフォーカス・スクリーンリーダーから完全に除外され、不可視パーツの誤爆を防止します。
+  - コントロール非表示時、下部コントロールバーに `inert={!showControls || undefined}` および `pointer-events-none` を付与し、ブラウザのヒットテスト・キーボードフォーカス・スクリーンリーダーから除外して不可視パーツの誤操作を防止します。
 - **シーク・スライダー操作中のタイマー保護**:
-  - シークバーや音量スライダーのドラッグ中（`onpointerdown` から `onpointerup` / `onchange` まで）は、自動非表示タイマーを一時停止（`pauseHideControlsTimer()`）し、指を離すまでコントロールが勝手に消えないよう保護します。
+  - シークバーや音量スライダーのドラッグ中（`onpointerdown` から `onpointerup` / `onchange` まで）は、自動非表示タイマーを一時停止（`pauseHideControlsTimer()`）します。
 
 ### 8.4 録画 HLS のシーク最適化とエンコードバッファ表示（即時シークとストリーム再起動）
-- **課題（未エンコード領域へのシークでの巻き戻り）**:
-  - 録画番組の HLS 配信は、リクエスト開始時に先頭から順次リアルタイムエンコード・セグメント化されます。
-  - 再生開始後数分の段階でユーザーがシークバーで 10 分以降などの未生成領域を指定すると、`hls.js` はプレイリスト（m3u8）内に存在する最新セグメントの末尾（2分など）に再生位置を強制吸着（スナップ）させてしまい、意図した位置へシークできません。
-- **解決策（バッファ内即時シーク ＋ バッファ外ストリーム再起動）**:
-  - **エンコード済みバッファ管理 (`bufferedEnd`)**:
-    - `VideoPlayer.svelte` は `hls.on(Hls.Events.LEVEL_UPDATED)` および `FRAG_BUFFERED` を監視し、現在サーバー側で生成完了している最大セグメント時刻（`playbackOffset + level.details.totalduration`）をリアルタイムに算出します。
-  - **シーク分岐判定と即時ローディング遷移 (`seekTo`)**:
-    - 指定時刻が生成済みバッファ内の場合: `<video>` の通常シーク（`videoElement.currentTime = targetTime - playbackOffset`）を実行し、ロード済みセグメントから即時再生。
-    - 指定時刻が生成済みバッファ外の場合:
-      - `<video>` の再生を即時一時停止（`videoElement.pause()`）し、旧 HLS インスタンスを破棄（`cleanupEngines()`）して旧ストリームのセグメント取得を完全停止。
-      - 再生表示時刻をシーク先時刻へ即座に移動（`currentTime = clampedTime`）させ、シークバーのつまみと時間をジャンプ。
-      - `isLoading = true` に即座に切り替え、中央にスピナー（くるくる）を表示して「XX:XX から HLS 配信を再生成中... (○秒)」とリアルタイム経過を表示。
-      - `onHlsSeekRestart(targetTime)` コールバックを発火。
-      - 再生成待機中は `ontimeupdate` / `onseeked` に `!isLoading` ガードを設けることで、旧要素の遅延イベントによる意図しないタイムスタンプ巻き戻りを完全防止。
-  - **サーバー連携によるストリーム再起動と多重シーク制御 (`restartHlsAtPosition`)**:
-    - `Watch.svelte` は旧ストリームを停止し、サーバー API `GET /api/streams/recorded/:videoFileId/hls?ss=${seekSecond}` を呼び出して指定位置からエンコードを開始する新ストリームを立ち上げます。
-    - 連続シーク時の多重リクエストを防止するため、キュー方式（最新ターゲット保持＆ループ処理）を採用。
-    - 新ストリーム準備完了時、`videoSrc` にタイムスタンプクエリ（`?t=${Date.now()}`）を付与してマニフェスト URL を更新し、同一 streamId の再利用時でも Svelte 5 `$effect` が確実にリロードを検知・再生成を実行。
-    - クライアント側は `playbackOffset = seekSecond` を保持し、番組全体の実尺に対する絶対再生時刻（`playbackOffset + videoElement.currentTime`）を一貫して管理・表示します。
-  - **エンコード進行バーの視覚化 (`VideoControls.svelte`)**:
-    - シークバーの背景に、生成済みバッファ範囲（`bufferedEnd / duration`）をグレーバー（`bg-slate-500/60`）として重畳描画。
-    - ユーザーは「どこまでが即座にシーク可能か」「どこ以降がストリーム再起動になるか」を一目で直感的に把握できます。
-  - **WebM / MP4 トランスコード配信のシーク処理とポジション保護**:
-    - WebM や MP4 リアルタイムパイプ配信は Cues（シーク用インデックス情報）を持たないため、ブラウザ標準の `<video>` シークでは位置が 0 秒へリセットされます。
-    - そのため、シーク時はサーバー側 API（`-ss ${seekSecond}`）を用いたストリーム再生成（`onHlsSeekRestart`）を行い、新 URL と `playbackOffset` をシームレスに更新します。
-    - `VideoPlayer.svelte` ではアンロード前に `isLoading = true` と目標時刻を先行確定し、再生開始（`onplaying`）時に解除することで、シーク時の一瞬の巻き戻りやチラつきを完全に防止しています。
+- **エンコード済みバッファ管理 (`bufferedEnd`)**:
+  - `VideoPlayer.svelte` は `hls.on(Hls.Events.LEVEL_UPDATED)` および `FRAG_BUFFERED` を監視し、現在サーバー側で生成完了している最大セグメント時刻（`playbackOffset + level.details.totalduration`）をリアルタイムに算出します。
+- **シーク分岐判定と即時ローディング遷移 (`seekTo`)**:
+  - **生成済みバッファ内の場合**: `<video>` の通常シーク（`videoElement.currentTime = targetTime - playbackOffset`）を実行し、ロード済みセグメントから即時再生。
+  - **生成済みバッファ外の場合**:
+    - `<video>` の再生を一時停止し、旧 HLS インスタンスを破棄（`cleanupEngines()`）。
+    - 再生表示時刻をシーク先時刻へ移動（`currentTime = clampedTime`）し、`isLoading = true` に切り替えてスピナーと経過秒数を表示。
+    - `onHlsSeekRestart(targetTime)` コールバックを発火（再生成待機中は `!isLoading` ガードで旧要素のイベントによるタイムスタンプ巻き戻りを防止）。
+- **サーバー連携によるストリーム再起動 (`restartHlsAtPosition`)**:
+  - `RecordedDetail.svelte` は旧ストリームを停止し、`GET /api/streams/recorded/:videoFileId/hls?ss=${seekSecond}`（エンコード済み動画の HLS 配信時は `/encoded`）を呼び出して指定位置から新ストリームを起動します。
+  - 連続シーク時の多重リクエストを防ぐため最新ターゲット保持のループ制御を採用し、`playbackOffset = seekSecond` を加算した絶対再生時刻を一貫管理します。
+- **エンコード進行バーの視覚化 (`VideoControls.svelte`)**:
+  - シークバー背景に生成済みバッファ範囲（`bufferedEnd / duration`）をグレーバー（`bg-slate-500/60`）として重畳描画します。
+- **WebM / MP4 トランスコード配信のシーク処理**:
+  - Cues（シークインデックス）を持たない WebM / MP4 リアルタイムパイプ配信でも、シーク時はサーバー側 API（`?ss=${seekSecond}`）でストリームを再生成し、`playbackOffset` を同期します。
 
 ---
 
@@ -289,7 +268,7 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
 ### 9.1 ファイル配信パイプラインとデッドロック回避 (`responseFile`)
 - **Web Streams バックプレッシャーストールの回避**:
   - `@hono/node-server` の標準 Web Streams ループ（`Readable.toWeb(stream)`）は、巨大な動画ファイル（数十MB〜数GB）配信時にクライアントの受信速度や TCP ウィンドウの停滞によってバックプレッシャーが蓄積し、転送が途中で完全停止（デッドロック）する問題があります。
-  - そのため、Node.js 実行環境（`c.env.outgoing` が存在する場合）では、Express 時代と同様に Node.js ネイティブの `stream.pipe(outgoing)` を用いて直接ソケットへ流し込みます。
+  - そのため、Node.js 実行環境（`c.env.outgoing` が存在する場合）では、Node.js ネイティブの `stream.pipe(outgoing)` を用いて直接ソケットへ流し込みます。
 - **二重ヘッダー送信防止 (`createAlreadySentResponse` / `x-hono-already-sent`)**:
   - `stream.pipe(outgoing)` で手動送信した後、Hono のミドルウェアチェーンや `@hono/node-server` の `responseViaResponseObject()` に対してレスポンス送信済みであることを通知するため、`headers: { 'x-hono-already-sent': 'true' }` を付与したダミーレスポンスを返却します。
   - `@hono/node-server` は `x-hono-already-sent` ヘッダーを検知すると `outgoing.writeHead()` や `outgoing.end()` の重複呼出を安全にスキップします。
@@ -301,16 +280,11 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
   - **Node.js 24**: Web 標準 `Response` クラスの内部フィールドが Private Identifier（`#kHeaders` 等）に移行しており、`Object.getOwnPropertySymbols(res)` は空配列 `[]` となります。
   - **Node.js 22**: undici の `Response` 実装において `Headers` インスタンス参照等の内部スロットが `Symbol` で管理されています。
 - **実装上の教訓**:
-  - `for (const sym of Object.getOwnPropertySymbols(res)) delete res[sym]` のように無差別にすべての Symbol を削除すると、Node.js 22 環境では `res.headers` が `undefined` に破壊され、後続処理やテストコードで `TypeError: Cannot read properties of undefined (reading 'get')` クラッシュを引き起こします。
+  - `for (const sym of Object.getOwnPropertySymbols(res)) delete res[sym]` のように無差別にすべての Symbol を削除すると、Node.js 22 環境では `res.headers` が `undefined` に破壊されます。
   - キャッシュ Symbol を剥奪する場合は、必ず `if (sym.description === 'cache')` のように対象 Symbol を限定して削除する必要があります。
 
 ### 9.3 静的ファイル配信の設計保護方針（Readable.toWeb への安易なリファクタリング禁止）
-- **単体テストと実運用ストリーミングの乖離**:
-  - 数KB〜数MBの小規模ファイルを用いた単体テスト環境では `new Response(Readable.toWeb(stream))` でも正常にレスポンスが完了し、テストを通過します。
-  - しかし、実運用環境（ブラウザ動画プレーヤーから数GBの録画ファイルをプログレッシブ再生・シークする場合）では、`@hono/node-server` の Web Streams ループと Node.js TCP ソケットの drain 競合により、数十MB〜数百MB転送した時点でバックプレッシャーストール（デッドロック）が発生し、動画が完全停止します（コミット `34914f3f` にて実証・解決済み）。
-- **恒久的保護方針**:
-  - `responseFile` における `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）は、EPGDeck の安定稼働に不可欠な防御的アーキテクチャパターンです。
-  - 将来の AI エージェントや開発者が「モダン化」「Web Standard 化」を名目として安易に `Readable.toWeb` へ巻き戻すことを**厳禁**とします。
+- `responseFile` における `stream.pipe(outgoing)` と `createAlreadySentResponse()`（`cache` Symbol 安全剥奪）は、数GB規模の録画ファイルをプログレッシブ再生・シークする際のバックプレッシャーストール（デッドロック）を防止する必須のアーキテクチャパターンです。安易に `Readable.toWeb` へ変更することを禁止します（詳細は [`docs/dev/modernization-roadmap.md`](modernization-roadmap.md) 1.3 節を参照）。
 
 ---
 
@@ -320,79 +294,18 @@ MP4 ファイル内に埋め込まれた字幕（`mov_text` / `tx3g`）を、ブ
 - WebM や MP4、M2TS 等のリアルタイムトランスコード配信中（`LiveStreamBaseModel` / `RecordedStreamBaseModel`）にクライアントが再生画面から離脱した場合、HTTP レスポンスストリームが切断されます。
 - クライアント切断に伴い FFmpeg（`streamProcess`）が標準出力の切断を検知して先に終了すると、FFmpeg の `stdin` パイプが閉じられます。
 - このとき、Mirakurun やファイルストリーム（`fileStream`）から届いたデータが `stream.pipe(this.streamProcess.stdin)` 経由で書き込まれ続けると、書き込み先ソケットが既に破棄されているため `childProcess.stdin` が `Error: write EPIPE` または `ERR_STREAM_DESTROYED` イベントを発火します。
-- `stdin` に `error` リスナーが登録されていない場合、未処理エラーとして Node.js グローバルの `uncaughtException` に直行し、サービス全体で FATAL ログが出力される原因となります。
 
 ### 10.2 FFmpeg stdin での EPIPE ハンドリング
-- `LiveStreamBaseModel` および `RecordedStreamBaseModel` において、`this.streamProcess.stdin` に対する `error` イベントリスナーを登録します。
-- 子プロセスの早期終了に伴う `EPIPE` や `ERR_STREAM_DESTROYED` を検知した場合は安全に無視（無害な切断としてスキップ）し、未処理エラーによる `uncaughtException` を防止します。
+- `LiveStreamBaseModel` および `RecordedStreamBaseModel` において、`this.streamProcess.stdin` に対する `error` イベントリスナーを登録し、子プロセスの早期終了に伴う `EPIPE` や `ERR_STREAM_DESTROYED` を無害な切断として安全に無視することで、未処理エラーによる `uncaughtException` を防止します。
 
 ---
 
-## 11. オンデマンド WebVTT 字幕抽出・配信アーキテクチャ (`/api/videos/:videoFileId/vtt`)
+## 11. ドロップログの PCR タイムコード解析と動画プレイヤー連携
 
-### 11.1 背景: Chrome における MP4 内部字幕 (`tx3g` / `mov_text`) のシーク遅延バグ
-- エンコード時に MP4 内部へ埋め込まれた ARIB 字幕（`mov_text`）を含む動画を Google Chrome 等のブラウザで直接プログレッシブ再生する場合、動画のシーク操作時にブラウザ内部の字幕パーサーが動画全体のテキストトラックを走査・再デコードしようとし、**18〜27秒程度の深刻なシーク遅延（フリーズ）** が発生する既知のバグがあります。
-
-### 11.2 ファイルレス・オンデマンド抽出と LRU キャッシュ
-- **ファイルレス設計**: ディスク上に `.vtt` を常時生成・保存するとファイル管理が煩雑化しストレージ I/O を圧迫するため、字幕ファイルは永続化しません。
-- **オンデマンド抽出**: ブラウザのプレイヤーから要求された際、サーバー側（`VideoApiModel.getVtt`）で `ffmpeg -i <mp4> -f webvtt pipe:1` を高速実行し、標準出力から WebVTT テキストを動的に抽出します。
-- **インメモリ LRU キャッシュ**: 抽出された WebVTT 文字列はメモリ上に最大 100 件（`lru-cache`）保持され、同一番組の連続視聴やリロード時には FFmpeg プロセスを起動せずミリ秒単位で即時応答します。
-- **クライアント連携**: `Watch.svelte` / `VideoPlayer.svelte` は `<video>` の `<track kind="subtitles" src="/api/videos/{videoFileId}/vtt">` として読み込むことで、シーク遅延をゼロにしつつ高品質な字幕表示を実現しています。
-
----
-
-## 12. ドロップログの PCR タイムコード解析と動画プレイヤー連携
-
-### 12.1 PCR タイムコード追従 (`packages/arib-probe`)
+### 11.1 PCR タイムコード追従 (`packages/arib-probe`)
 - 録画中にパケットドロップやスクランブルが発生した際、`packages/arib-probe` の `DropChecker` は TS パケット内の PCR（Program Clock Reference）タイムスタンプをリアルタイム追従し、録画開始からの正確な経過時間（秒・ミリ秒）をドロップログに記録します。
 
-### 12.2 動画プレイヤーシークバーでの可視化
+### 11.2 動画プレイヤーシークバーでの可視化
 - 録画再生時、クライアントは `/api/dropLogs/:dropLogFileId` からドロップログを取得し、発生秒数と種別（映像・音声・字幕・制御情報）を解析します。
-- `VideoControls.svelte` のシークバー上に、ドロップ発生位置を示すピンマーカーを重畳描画します。
-- ユーザーは「映像のどこでノイズや乱れが発生したか」をシークバー上で視覚的に把握でき、該当箇所へワンクリックでジャンプして確認できます。
-
----
-
-## 13. MP4 エンコード時の ARIB 字幕多重化と 32bit duration オーバーフロー防止 (`-time_base:s 1/1000`)
-
-### 13.1 背景: 長時間番組や疎な字幕における MP4 muxer クラッシュ (`-22: Invalid argument`)
-- **症状**:
-  - 番組のエンコードが最後まで（例えば1時間分）正常に進んだ直後、多重化（muxing）の完了間際に以下のエラーを出力して `exit code 234`（または `-22: Invalid argument`）で失敗する：
-    ```log
-    [mp4 @ ...] Application provided duration: 3599996000 in stream 1 is invalid
-    [sost#0:1/mov_text @ ...] Error submitting a packet to the muxer: Invalid argument
-    [out#0/mp4 @ ...] Error muxing a packet
-    [out#0/mp4 @ ...] Task finished with error code: -22 (Invalid argument)
-    ```
-- **発生メカニズム**:
-  1. ARIB STD-B24 の字幕ストリームでは、字幕が表示された後、次の字幕が送られてくるか番組終了まで字幕状態が維持される。
-  2. FFmpeg の `-fix_sub_duration` オプションは未確定 duration を解決するため「次の字幕パケットが届くまでの間隔」をパケットの duration として算出する。
-  3. 紀行番組や音楽番組など、セリフがほとんどない番組では「字幕パケット間の間隔」が 30〜60 分以上空くケースが存在する。
-  4. MP4 コンテナの `mov_text`（字幕ストリーム）は、FFmpeg のデフォルトでタイムベースが **`1/1000000`（1マイクロ秒）** に設定される。
-  5. その結果、パケットの duration が `3,599,996,000`（約3600秒）となり、MP4 コンテナの仕様上の上限である **`INT32_MAX` (2,147,483,647 ≈ 約35分47秒)** を超過（32bit 符号付き整数オーバーフロー）し、`movenc.c` のバリデーションで弾かれてクラッシュする。
-
-### 13.2 恒久的解決策 (`-time_base:s 1/1000`)
-- `config/enc_helper.js` において、MP4 字幕ストリーム（`mov_text`）を出力する際に **`-time_base:s 1/1000`** を明示的に指定する。
-- タイムベースをマイクロ秒（1/1000000）からミリ秒（1/1000）に引き下げることで、許容される最大 duration は **約 596 時間（約24日間）** まで大幅に拡大される。
-- 字幕の表示精度（1ms 単位）を完全に保ちながら、長時間番組や字幕パケットが極端に疎な番組でも 32bit オーバーフローによるエンコード失敗を恒久的に防止する。
-
-### 13.3 エンコード字幕保持（`subtitle: true`）の三段階防衛アーキテクチャ
-これまでの継続的な改善により、EPGDeck のエンコード時における ARIB STD-B24 字幕保持は以下の三段階防衛によって**完全な堅牢性**を確立しています：
-
-1. **未確定 duration の自動補正 (`-fix_sub_duration`)**:
-   - ARIB 字幕の未確定 duration パケットに対して「次の字幕パケットまでの時間」を自動付与し、MP4 muxer の duration 不定エラーを防止。
-2. **長時間番組・疎な字幕のオーバーフロー防止 (`-time_base:s 1/1000`)**:
-   - ミリ秒タイムベースにより、セリフのない紀行・音楽番組で数十分〜1時間以上字幕が空いても 32bit 整数上限（約35分47秒）を超過させず安全に完走。
-3. **字幕ストリーム欠落・焼き込み字幕の自動保護 (`-map 0:s?` / `skipSubtitleForSuperimpose`)**:
-   - 字幕が存在しない番組は `-map 0:s?` によりエラーなく自動無視。洋画など「字幕スーパー」番組は `skipSubtitleForSuperimpose` により自動で `-sn` に倒して多重化の破損を未然に防止。
-
-### 13.4 再生互換性と既知の仕様
-- **Web UI 視聴時の完全シーク保護**:
-  - MP4 に埋め込まれた `mov_text` は直接ブラウザに読ませず、第11章に記載のオンデマンド WebVTT 変換 API（`/api/videos/:id/vtt` + LRU キャッシュ）を介して供給するため、Chrome 特有の 20秒シークフリーズバグも完全に解消済み。
-- **外部プレイヤーでの再生**:
-  - 生成された MP4 は標準的な `mov_text`（tx3g）トラックを持つため、iOS、Android、macOS（QuickTime）、VLC 等の主要な動画プレイヤーで字幕の ON/OFF がそのまま利用可能。
-- **仕様範囲**:
-  - 日本の放送波の標準仕様（単一主字幕・第1言語: 日本語）に準拠し、`language=jpn` として多重化されます。
-
-
+- `VideoControls.svelte` のシークバー上に、ドロップ発生位置を示すピンマーカーを重畳描画し、該当箇所へのワンクリックジャンプを可能にします。
 

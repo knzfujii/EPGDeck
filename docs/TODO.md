@@ -26,11 +26,6 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
   - **起動時クリーンアップ**: 再起動時に救済されたレコードを `'interrupted'`（中断終了）として記録し、実ファイルから実測 duration / endAt を補正
   - **手動3択操作連携**: 録画中モーダルの「中断して保存」は `'interrupted'`、「完了として保存」は `'completed'` を付与
   - **Web UI 可視化**: 録画一覧および詳細に「中断」「途中終了」等の明確なステータスバッジ（黄色・オレンジ系）を表示
-- [x] **エンコードプロセスの進捗ストール監視（Progress Stall Watchdog）導入と `rate` の完全廃止**
-  - **背景**: 従来の「録画実時間 × `rate`」による固定タイマーは、並列エンコード（マルチプロセス）や重いプリセットで処理速度が低下した際、正常に進行しているにもかかわらず絶対時間を超過して強制キル（誤爆）される構造的欠陥があった。
-  - **進捗ストール監視（Progress Watchdog）**: FFmpeg プロセスから出力されるエンコード済み時間（`time=`）および進捗パーセント（`percent`）の前進を監視し、一定時間（デフォルト: 10分）一切前進しなくなった場合のみハングアップ・無限ループと判定して安全に回収。10並行等の極度の高負荷でも誤爆しない堅牢性を確保。
-  - **`rate` の完全廃止**: 録画時間の長さとフリーズ有無に相関はないため、旧 EPGStation の録画時間倍率タイムアウト（`rate`）を完全撤廃。進捗が前進している限りは何十時間でも完走を保証。
-
 
 ---
 
@@ -73,9 +68,6 @@ EPGDeck の今後の機能追加、UX 改善、パフォーマンス最適化、
 - [ ] **Drizzle ORM スキーマの一元化 & 生 DDL ハードコードの撤廃 (Phase 2)**
   - `DrizzleOperator.ts` に直書きされた 500 行超の生 DDL（`CREATE TABLE IF NOT EXISTS`）を全廃し、Drizzle Kit（`drizzle-orm/migrator`）による自動マイグレーションへ統一
   - Drizzle 推論型（`$inferSelect` / `$inferInsert`）を活用し、DAO 層の `(db as any)` と手動 `toEntity`（boolean 変換）を段階的に削減
-- [x] **InversifyJS 6.x とレガシーデコレータからの脱却 (Phase 3)**
-  - `experimentalDecorators` / `emitDecoratorMetadata` 依存を解消し、TypeScript 5+ 標準仕様および高速トランスパイラ（Vite / esbuild / tsx）完全対応を達成
-  - `ModelContainerSetter.ts` を Pure DI（型安全なファクトリ関数 Composition Root）へ刷新し、`inversify` および `reflect-metadata` を完全削除
 - [ ] **フロントエンドの巨大コンポーネント（God Component）の関心事分離 (Phase 3)**
   - `RuleEdit.svelte` (2,149 行)、`RecordedDetail.svelte` (1,310 行) 等の巨大画面からモーダル・フォーム部品をサブコンポーネントへ分割し、ロジックを Svelte 5 Runes クラス（`*.svelte.ts`）に外出し
 

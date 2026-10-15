@@ -282,15 +282,15 @@ flowchart TD
   2. **サービスストリームへの自動切替**:
      - 予約枠長が閾値（`shortProgramDurationThresholdSeconds`、デフォルト: 300秒 / 5分）以下の番組は、番組指定（`getProgramStream`）ではなくサービス指定（`getServiceStream`）へ自動切替し、EIT 更新待機なしで即時録画を開始して欠落を防止。
 
-#### 3.8 オンデマンド WebVTT 字幕抽出とファイルレス・インメモリ LRU 配信
+#### 3.8 オンデマンド WebVTT 字幕抽出とファイルレス・インメモリキャッシュ配信
 > **ステータス**: 実装完了
 
-- **対象ファイル**: `src/model/service/api/video/VideoApiModel.ts`, `src/model/service/hono/routes/videos.ts`, `client/src/routes/Watch.svelte`, `client/src/lib/components/video/VideoPlayer.svelte`
+- **対象ファイル**: `src/model/api/video/VideoApiModel.ts`, `src/model/service/hono/routes/videos.ts`, `client/src/routes/Watch.svelte`, `client/src/lib/components/video/VideoPlayer.svelte`
 - **Why (意思決定理由と背景)**:
   1. **ブラウザの MP4 内部字幕 (`mov_text`) シーク遅延バグ回避**:
-     - Chrome 等でのシークフリーズを回避するため、ディスクを汚染しないオンデマンド抽出（`ffmpeg -i <mp4> -f webvtt pipe:1`）を採用。
-  2. **LRU インメモリキャッシュによる高速応答**:
-     - 抽出結果をメモリ上（最大 100 件）にキャッシュし、同一動画視聴時の FFmpeg 起動コストを排除。`<track>` 要素連携により全ブラウザでシーク遅延ゼロの字幕表示を実現。
+     - Chrome 等でのシークフリーズ（18〜27秒の遅延）を回避するため、ディスクを汚染しないオンデマンド抽出（`ffmpeg -i <mp4> -map 0:s:0 -f webvtt pipe:1`）を採用。
+  2. **インメモリキャッシュによる高速応答**:
+     - 抽出結果をメモリ上（標準 `Map` 最大 100 件、`mtimeMs` 検証付き）にキャッシュし、同一動画視聴時の FFmpeg 起動コストを排除。`<track>` 要素連携により全ブラウザでシーク遅延ゼロの字幕表示を実現。
 
 #### 3.9 ハードウェア (VAAPI HEVC) のレート制御限界と解像度正規化・チューニング (ADR)
 > **ステータス**: 実装・ナレッジ記録完了
@@ -306,7 +306,7 @@ flowchart TD
   4. **CPU 向け `tune` サポート**:
      - `libx264` / `libx265` で `options.tune`（`animation` 等）を正式サポート。
 
-#### 3.10 エンコードヘルパーのパッケージ化 (`@epgdeck/enc-helper`) と関心事の分離 (ADR)
+#### 3.10 エンコードヘルパーのパッケージ化 (`@epgdeck/enc-helper`) と字幕 32bit オーバーフロー防止 (ADR)
 > **ステータス**: 実装完了
 
 - **対象ファイル**: `packages/enc-helper/*`, `config/enc_helper.js`, `config/*.js.template`, `package.json`, `Dockerfile`
@@ -319,6 +319,8 @@ flowchart TD
      - `config/enc_helper.js` を再エクスポートプロキシとして残し、既存スクリプトを無変更で動作可能に。
   4. **HW エンコーダの両対応とエイリアス正規化**:
      - `hevc`/`h265` の表記揺れを FFmpeg 正式名へ自動正規化し、VAAPI HEVC 等の適正ビットレートを反映。
+  5. **MP4 字幕 (`mov_text`) の 32bit duration オーバーフロー恒久防止 (`-time_base:s 1/1000`)**:
+     - FFmpeg の MP4 muxer は字幕ストリームのデフォルトタイムベースを `1/1000000`（1μs）とするため、セリフの少ない番組で字幕間隔が約 35.7 分（`INT32_MAX` = 2,147秒）以上空くと `-fix_sub_duration` 算出値が 32bit 符号付き整数をオーバーフローし `-22: Invalid argument` でクラッシュしていた。`-time_base:s 1/1000`（ミリ秒単位）を明示することで最大許容間隔を約 596 時間（24日間）へ拡大し、1ms 精度を維持したままオーバーフローを恒久的に解決。
 
 #### 3.11 エンコードプロセスの進捗ストール監視（Progress Stall Watchdog）への刷新と `rate` の完全廃止 (ADR)
 > **ステータス**: 実装完了

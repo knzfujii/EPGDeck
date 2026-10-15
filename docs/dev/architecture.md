@@ -60,7 +60,7 @@ API のルーティングは、高速・軽量な Web 標準準拠フレーム�
 - **大容量アップロードのストリーム処理**: `POST /api/videos/upload` はメモリ展開せず `file.stream()` から直接ディスクへパイプ書き込みし OOM を防止。
 - **実録画時間（duration）の保存原則**: `recorded.duration` は予定枠時間ではなくチューナー受信開始〜終了の実測ミリ秒を保存。
 - **データライフサイクルとキャッシュ戦略**:
-  - **字幕 (WebVTT)**: ディスク永続化せず、FFmpeg pipe ＋ LRU インメモリキャッシュでオンデマンド配信。
+  - **字幕 (WebVTT)**: ディスク永続化せず、FFmpeg pipe ＋ インメモリキャッシュ（最大 100 件、`mtimeMs` 検証付き）でオンデマンド配信。
   - **サムネイル (シャーディング & 永続化)**: ディスク永続化し、大規模アーカイブ対応として `recordedId % 100` の 2 桁サブディレクトリ（`00/`〜`99/`）へ分散配置。
   - **ドロップログ**: 0 件時は実ファイルを自動削除（`deleteOnNoDrop: true`）し、DB 履歴のみ永続保持。
 
@@ -142,7 +142,7 @@ EPGDeck では、外部依存のないドメインロジックや共通パイプ
 - **フレームワーク**: **Svelte 5** (Runes `$state`, `$derived`, `$props`, `$effect` 準拠)
     - 仮想 DOM レスによる高速な描画と省メモリ設計、軽量なバンドル構成。
 - **スタイル / UI システム**: **Tailwind CSS v4** + `@tailwindcss/vite`
-    - デザインシステムを `space-y-5` (20px)、`p-4 sm:p-5`、`rounded-2xl` のデザイントークンで全画面統一。
+    - デザインシステムを `flex flex-col gap-4 sm:gap-5`（16px / 20px）、`p-4 sm:p-5`、`rounded-2xl` のデザイントークンで全画面統一。
     - ダークモードとライトモードの完全対応（高輝度アクセントジャンルカラー採用）。
 - **ルーター**: Svelte 5 ネイティブ Reactive Router (`client/src/lib/router.svelte.ts`)
     - HTML5 History モード完全連動、クエリパラメータ・URL 状態のリアクティブ管理。

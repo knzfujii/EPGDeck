@@ -40,7 +40,6 @@ describe('EncoderModel', () => {
                             name: 'H264 crf23',
                             cmd: 'node /path/to/enc_1080p_crf23.js',
                             suffix: '_crf23.mp4',
-                            rate: 4.0,
                         },
                     ],
                     binaries: {

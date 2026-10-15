@@ -293,6 +293,8 @@ class Configuration implements IConfiguration {
             maxProcesses: typeof encConf.maxProcesses === 'number' ? encConf.maxProcesses : raw.encodeProcessNum || 2,
             concurrency: typeof encConf.concurrency === 'number' ? encConf.concurrency : raw.concurrentEncodeNum || 1,
             presets,
+            stallTimeoutSeconds:
+                typeof encConf.stallTimeoutSeconds === 'number' ? encConf.stallTimeoutSeconds : undefined,
             skipSubtitleForSuperimpose,
         };
 

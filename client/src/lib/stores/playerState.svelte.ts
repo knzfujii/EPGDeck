@@ -7,7 +7,7 @@ class PlayerState {
     isMuted = $state(false);
     playbackRate = $state(1.0);
     isSubtitleEnabled = $state(false);
-    isStickyEnabled = $state(true);
+    isStickyEnabled = $state(false);
     defaultStreamMode = $state<number>(0);
     defaultStreamType = $state<'hls' | 'mp4' | 'webm'>('hls');
 

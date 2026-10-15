@@ -426,30 +426,30 @@ test.describe('Watch / Playback Page (/recorded/watch, /onair/watch)', () => {
         await thumbnailPlayBtn.click();
         await expect(videoRegion).toBeVisible();
 
-        // スクロール時に吸着する sticky クラスが付与されていること（デフォルト有効）
+        // スクロール時に吸着する sticky クラスが付与されていないこと（デフォルト無効）
         const playerContainer = page.getByTestId('inline-player-container');
-        await expect(playerContainer).toHaveClass(/is-sticky/);
+        await expect(playerContainer).not.toHaveClass(/is-sticky/);
 
         // コントロールを表示するためにプレーヤー上をホバー
         await videoRegion.hover();
 
-        // タイトルバー右上のピン留めボタン（上部固定トグル）をクリックして無効化できること
-        const pinToggleBtn = page.locator('button[aria-label="スクロール時の上部固定を無効にする"]');
-        await expect(pinToggleBtn).toBeVisible();
-        await pinToggleBtn.click();
-
-        // 上部固定が無効化され、コンテナから is-sticky クラスが除去され、localStorage に false が保存されること
-        await expect(playerContainer).not.toHaveClass(/is-sticky/);
-        const savedStickyDisabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
-        expect(savedStickyDisabled).toBe('false');
-
-        // 再度クリックして有効化に戻せること
+        // タイトルバー右上のピン留めボタン（上部固定トグル）をクリックして有効化できること
         const pinEnableBtn = page.locator('button[aria-label="スクロール時の上部固定を有効にする"]');
         await expect(pinEnableBtn).toBeVisible();
         await pinEnableBtn.click();
+
+        // 上部固定が有効化され、コンテナに is-sticky クラスが付与され、localStorage に true が保存されること
         await expect(playerContainer).toHaveClass(/is-sticky/);
         const savedStickyEnabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
         expect(savedStickyEnabled).toBe('true');
+
+        // 再度クリックして無効化に戻せること
+        const pinDisableBtn = page.locator('button[aria-label="スクロール時の上部固定を無効にする"]');
+        await expect(pinDisableBtn).toBeVisible();
+        await pinDisableBtn.click();
+        await expect(playerContainer).not.toHaveClass(/is-sticky/);
+        const savedStickyDisabled = await page.evaluate(() => localStorage.getItem('epgdeck_sticky_player_enabled'));
+        expect(savedStickyDisabled).toBe('false');
 
         // 3. タイトルバーに紛らわしい閉じる（サムネイルに戻る）✕ボタンが存在しないことを確認
         await videoRegion.hover();

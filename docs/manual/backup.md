@@ -11,6 +11,7 @@ EPGDeck に保存されているデータベース情報（予約、録画済み
 - **含まれるデータ**:
   - 予約情報（`reserves`）
   - 録画済み番組情報（`recorded` / `videoFiles` / `thumbnails` / `dropLogFiles` / `recordedTags` の各メタデータ）
+    - ※ `recordedTags`（録画タグ）は EPGStation データベースとのスキーマ互換性維持のために保持されていますが、現行の EPGDeck ではタグ機能の UI が未実装のため、通常運用上の実データは存在しません。
   - 録画履歴（`recordedHistory`）
   - 自動録画ルール（`rules`）
 

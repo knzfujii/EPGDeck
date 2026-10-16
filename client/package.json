@@ -16,7 +16,7 @@
         "format:check": "prettier --check 'src/**/*.{js,ts,svelte}'"
     },
     "dependencies": {
-        "@lucide/svelte": "1.55.0",
+        "@lucide/svelte": "1.56.0",
         "aribb24.js": "2.0.31",
         "hls.js": "1.7.3",
         "hono": "4.13.13",

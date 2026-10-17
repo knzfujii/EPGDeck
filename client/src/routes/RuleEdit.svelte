@@ -9,7 +9,7 @@
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
     import { getLastRulePath, saveLastRuleTargetId } from '../lib/navigationHistory';
-    import { getChannelTypeBadgeClass, getGenreBadgeClass } from '../lib/utils/format';
+    import { getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
         ArrowLeft,
         SlidersHorizontal,
@@ -17,8 +17,6 @@
         Tv,
         CheckCircle2,
         Check,
-        Save,
-        Info,
         ChevronDown,
         ChevronUp,
         Calendar,
@@ -33,7 +31,6 @@
     import Input from '@/lib/components/common/Input.svelte';
     import Select from '@/lib/components/common/Select.svelte';
     import Checkbox from '@/lib/components/common/Checkbox.svelte';
-    import Divider from '@/lib/components/common/Divider.svelte';
     import { buildEncodeOption, type EncodeRow } from '@/lib/utils/recordingOptions';
 
     // 編集対象のルールID (?ruleId=<ruleId>)。未指定なら新規作成
@@ -47,7 +44,7 @@
     let encodeModes = $state<string[]>([]);
 
     // フォーム状態
-    // 1. 検索設定 (searchOption)
+    // 検索設定 (searchOption)
     let keyword = $state('');
     let ignoreKeyword = $state('');
     let keyCS = $state(false);
@@ -167,18 +164,18 @@
             (recordedFormat.trim() ? 1 : 0),
     );
 
-    // 2. 予約設定 (reserveOption)
+    // 予約設定 (reserveOption)
     let isEnable = $state(true);
     let priority = $state<number>(5);
     let allowEndLack = $state(false);
     let avoidDuplicate = $state(true);
     let periodToAvoidDuplicate = $state<number | null>(null);
 
-    // 3. 保存先設定 (saveOption)
+    // 保存先設定 (saveOption)
     let parentDirectoryName = $state<string>('');
     let directory = $state<string>('');
 
-    // 4. エンコード設定 (encodeOption)
+    // エンコード設定 (encodeOption)
     let encRows = $state<EncodeRow[]>([{ mode: '', parentDir: '', subDir: '' }]);
     let isDeleteOriginalAfterEncode = $state(false);
 
@@ -1093,7 +1090,7 @@
                         </span>
                     </div>
 
-                    <!-- 1. 録画タイトル (番組名) -->
+                    <!-- 録画タイトル (番組名) -->
                     <div>
                         <label
                             for="rule-time-keyword"
@@ -1111,7 +1108,7 @@
                         <p class="text-xs text-slate-400 mt-1">録画ファイル名や一覧に表示されるタイトルになります。</p>
                     </div>
 
-                    <!-- 2. 対象放送局 (必須) -->
+                    <!-- 対象放送局 (必須) -->
                     <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800 space-y-3">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
@@ -1160,7 +1157,7 @@
                         </div>
                     </div>
 
-                    <!-- 3. 対象曜日 & 時間帯 (必須) -->
+                    <!-- 対象曜日 & 時間帯 (必須) -->
                     <div class="border-t border-slate-100 pt-3.5 dark:border-slate-800 space-y-4">
                         <!-- 曜日指定 -->
                         <div>
@@ -1241,7 +1238,7 @@
                     </div>
                 </section>
             {:else}
-                <!-- 1. 検索条件 -->
+                <!-- 検索条件 -->
                 <section
                     class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                 >
@@ -1483,7 +1480,7 @@
                     </div>
                 </section>
 
-                <!-- 2. 詳細条件 (ジャンル・放送波/局) -->
+                <!-- 詳細条件 (ジャンル・放送波/局) -->
                 <section
                     class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                 >
@@ -1815,7 +1812,7 @@
                     {/if}
                 </section>
 
-                <!-- 3. 番組検索 & 録画予定プレビュー (スキップ設定) -->
+                <!-- 番組検索 & 録画予定プレビュー (スキップ設定) -->
                 <section
                     class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                 >
@@ -2023,7 +2020,7 @@
                 </section>
             {/if}
 
-            <!-- 4. 予約設定 -->
+            <!-- 予約設定 -->
             <section
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
@@ -2119,7 +2116,7 @@
                 </div>
             </section>
 
-            <!-- 5. 録画オプション (TS保存先・エンコード設定) -->
+            <!-- 録画オプション (TS保存先・エンコード設定) -->
             <section
                 class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
@@ -2143,15 +2140,9 @@
                 class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
                 <Button variant="secondary" onclick={goBackToRuleList}>キャンセル</Button>
-                {#if !readOnlyStore.isReadOnly}
-                    <Button type="submit" variant="primary" disabled={isSaving}>
-                        {ruleId ? '更新' : '登録'}
-                    </Button>
-                {:else}
-                    <p class="text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400">
-                        ※閲覧専用モードのためルールの変更・作成はできません
-                    </p>
-                {/if}
+                <Button type="submit" variant="primary" disabled={isSaving}>
+                    {ruleId ? '更新' : '登録'}
+                </Button>
             </div>
         </form>
     {/if}

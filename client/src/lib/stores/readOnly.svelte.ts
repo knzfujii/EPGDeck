@@ -66,6 +66,15 @@ class ReadOnlyStore {
         return this.hasEncodedFile(videoFiles);
     }
 
+    /**
+     * 認証トークンが存在する場合、URL に token クエリパラメータを付与する
+     */
+    withAuthToken(url: string): string {
+        if (!this.token) return url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}token=${encodeURIComponent(this.token)}`;
+    }
+
     constructor() {
         this.token = getAuthToken();
     }

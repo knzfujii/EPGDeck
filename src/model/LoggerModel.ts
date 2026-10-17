@@ -1,14 +1,11 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as rfs from 'rotating-file-stream';
-import * as util from 'util';
+import * as util from 'node:util';
 import { LogConfig } from './IConfigFile.js';
 import ILogger, { ILoggerCategory, LogCategory, LogEntry, LogEntryLevel, LogProcess } from './ILogger.js';
 import ILoggerModel from './ILoggerModel.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 const LEVEL_PRIORITY: Record<LogEntryLevel, number> = {
     debug: 1,
@@ -240,7 +237,7 @@ export default class LoggerModel implements ILoggerModel {
             message: formattedMsg,
         };
 
-        // 1. コンソール出力
+        // コンソール出力
         if (this.config.console !== false) {
             const pColor = PROCESS_COLORS[this.currentProcess] || '';
             const lColor = LEVEL_COLORS[level] || '';
@@ -256,7 +253,7 @@ export default class LoggerModel implements ILoggerModel {
             }
         }
 
-        // 2. ファイル出力 (rotating-file-stream)
+        // ファイル出力 (rotating-file-stream)
         if (this.config.file?.enabled && this.config.file.path) {
             if (this.circuitBreakerOpenUntil > 0) {
                 if (Date.now() < this.circuitBreakerOpenUntil) {
@@ -285,7 +282,7 @@ export default class LoggerModel implements ILoggerModel {
             }
         }
 
-        // 3. リスナー通知
+        // リスナー通知
         for (const listener of this.listeners) {
             try {
                 listener(entry);

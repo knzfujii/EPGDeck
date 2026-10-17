@@ -1,8 +1,8 @@
-import * as events from 'events';
-import * as fs from 'fs';
-import * as http from 'http';
-import * as path from 'path';
-import * as stream from 'stream';
+import * as events from 'node:events';
+import * as fs from 'node:fs';
+import * as http from 'node:http';
+import * as path from 'node:path';
+import * as stream from 'node:stream';
 import { EitInfo, type AudioComponentInfo, type EitRelatedItem, type PmtInfo } from 'arib-probe';
 import * as mapid from 'mirakurun/api.js';
 import * as apid from '../../../../api.js';
@@ -57,7 +57,7 @@ class RecorderModel implements IRecorderModel {
     }
     private recordedId: apid.RecordedId | null = null;
     private videoFileId: apid.VideoFileId | null = null;
-    private videoFileFulPath: string | null = null;
+    private videoFileFullPath: string | null = null;
     private timerId: NodeJS.Timeout | null = null;
     private stream: http.IncomingMessage | null = null;
     private recFile: fs.WriteStream | null = null;
@@ -290,10 +290,10 @@ class RecorderModel implements IRecorderModel {
     }
 
     /**
-     * strem 破棄
-     * @param needesUnpip: boolean
+     * stream 破棄
+     * @param needsUnpipe: boolean
      */
-    private destroyStream(needesUnpip: boolean = true): void {
+    private destroyStream(needsUnpipe: boolean = true): void {
         if (this.recordingStartTimeoutId !== null) {
             clearTimeout(this.recordingStartTimeoutId);
             this.recordingStartTimeoutId = null;
@@ -307,7 +307,7 @@ class RecorderModel implements IRecorderModel {
         // stop stream
         if (this.stream !== null) {
             try {
-                if (needesUnpip === true) {
+                if (needsUnpipe === true) {
                     this.stream.unpipe();
                 }
                 if (!this.stream.destroyed) {
@@ -597,7 +597,7 @@ class RecorderModel implements IRecorderModel {
 
             this.recordingStartTimeoutId = setTimeout(checkStreamTimeout, 1000 * 5);
 
-            // stream データ受診時のコールバック関数定義
+            // stream データ受信時のコールバック関数定義
             const onData = async () => {
                 isDataReceived = true;
                 if (this.recordingStartTimeoutId !== null) {
@@ -638,7 +638,7 @@ class RecorderModel implements IRecorderModel {
                 resolve();
             };
 
-            // stream データ受診時のコールバック設定
+            // stream データ受信時のコールバック設定
             this.stream.once('data', onData);
         }).catch(err => {
             // 予想外の録画失敗エラー
@@ -669,7 +669,7 @@ class RecorderModel implements IRecorderModel {
             videoFile.recordedId = this.recordedId;
             this.log.system.info(`create video file: ${videoFile.filePath}`);
             this.videoFileId = await this.videoFileDB.insertOnce(videoFile);
-            this.videoFileFulPath = recPath.fullPath;
+            this.videoFileFullPath = recPath.fullPath;
 
             recorded.videoFiles = [videoFile];
 
@@ -706,7 +706,12 @@ class RecorderModel implements IRecorderModel {
                 this.log.system.error(
                     `stream.finished error: reserveId: ${this.reserve.id} recordedId: ${this.recordedId}`,
                 );
-                await this.recFailed(err);
+                await this.recFailed(err).catch(e => {
+                    this.log.system.fatal(
+                        `unexpected recFailed error: reserveId: ${this.reserve.id} recordedId: ${this.recordedId}`,
+                    );
+                    this.log.system.fatal(e);
+                });
             } else {
                 await this.recEnd().catch(e => {
                     this.log.system.fatal(
@@ -740,7 +745,7 @@ class RecorderModel implements IRecorderModel {
             try {
                 recorded = await this.recordedDB.findId(this.recordedId);
             } catch (e: any) {
-                this.log.system.error(`reocrded is deleted: ${this.recordedId}`);
+                this.log.system.error(`recorded is deleted: ${this.recordedId}`);
                 recorded = null;
             }
         }
@@ -777,69 +782,20 @@ class RecorderModel implements IRecorderModel {
                 this.log.system.warn(
                     `get program info warn channelId: ${this.reserve.channelId}, startAt: ${this.reserve.startAt}`,
                 );
-                recorded.name = this.reserve.name || '';
-                recorded.halfWidthName = this.reserve.halfWidthName || this.reserve.name || '';
-                recorded.description = this.reserve.description;
-                recorded.halfWidthDescription = this.reserve.halfWidthDescription;
-                recorded.extended = this.reserve.extended;
-                recorded.halfWidthExtended = this.reserve.halfWidthExtended;
-                recorded.rawExtended = this.reserve.rawExtended;
-                recorded.rawHalfWidthExtended = this.reserve.rawHalfWidthExtended;
-                recorded.genre1 = this.reserve.genre1;
-                recorded.subGenre1 = this.reserve.subGenre1;
-                recorded.genre2 = this.reserve.genre2;
-                recorded.subGenre2 = this.reserve.subGenre2;
-                recorded.genre3 = this.reserve.genre3;
-                recorded.subGenre3 = this.reserve.subGenre3;
-                recorded.videoType = this.reserve.videoType;
-                recorded.videoResolution = this.reserve.videoResolution;
-                recorded.videoStreamContent = this.reserve.videoStreamContent;
-                recorded.videoComponentType = this.reserve.videoComponentType;
-                recorded.audioSamplingRate = this.reserve.audioSamplingRate;
-                recorded.audioComponentType = this.reserve.audioComponentType;
+                this.applyMetadataToRecorded(recorded, {
+                    ...this.reserve,
+                    name: this.reserve.name || '',
+                    halfWidthName: this.reserve.halfWidthName || this.reserve.name || '',
+                });
             } else {
-                recorded.name = program.name;
-                recorded.halfWidthName = program.halfWidthName;
-                recorded.description = program.description;
-                recorded.halfWidthDescription = program.halfWidthDescription;
-                recorded.extended = program.extended;
-                recorded.halfWidthExtended = program.halfWidthExtended;
-                recorded.rawExtended = program.rawExtended;
-                recorded.rawHalfWidthExtended = program.rawHalfWidthExtended;
-                recorded.genre1 = program.genre1;
-                recorded.subGenre1 = program.subGenre1;
-                recorded.genre2 = program.genre2;
-                recorded.subGenre2 = program.subGenre2;
-                recorded.genre3 = program.genre3;
-                recorded.subGenre3 = program.subGenre3;
-                recorded.videoType = program.videoType;
-                recorded.videoResolution = program.videoResolution;
-                recorded.videoStreamContent = program.videoStreamContent;
-                recorded.videoComponentType = program.videoComponentType;
-                recorded.audioSamplingRate = program.audioSamplingRate;
-                recorded.audioComponentType = program.audioComponentType;
+                this.applyMetadataToRecorded(recorded, program);
             }
         } else if (this.reserve.name !== null && this.reserve.halfWidthName !== null) {
-            recorded.name = this.reserve.name;
-            recorded.halfWidthName = this.reserve.halfWidthName;
-            recorded.description = this.reserve.description;
-            recorded.halfWidthDescription = this.reserve.halfWidthDescription;
-            recorded.extended = this.reserve.extended;
-            recorded.halfWidthExtended = this.reserve.halfWidthExtended;
-            recorded.rawExtended = this.reserve.rawExtended;
-            recorded.rawHalfWidthExtended = this.reserve.rawHalfWidthExtended;
-            recorded.genre1 = this.reserve.genre1;
-            recorded.subGenre1 = this.reserve.subGenre1;
-            recorded.genre2 = this.reserve.genre2;
-            recorded.subGenre2 = this.reserve.subGenre2;
-            recorded.genre3 = this.reserve.genre3;
-            recorded.subGenre3 = this.reserve.subGenre3;
-            recorded.videoType = this.reserve.videoType;
-            recorded.videoResolution = this.reserve.videoResolution;
-            recorded.videoStreamContent = this.reserve.videoStreamContent;
-            recorded.videoComponentType = this.reserve.videoComponentType;
-            recorded.audioSamplingRate = this.reserve.audioSamplingRate;
-            recorded.audioComponentType = this.reserve.audioComponentType;
+            this.applyMetadataToRecorded(recorded, {
+                ...this.reserve,
+                name: this.reserve.name,
+                halfWidthName: this.reserve.halfWidthName,
+            });
         } else {
             // 時刻指定予約ではないのに、name が null
             throw new Error('CreateRecordedError');
@@ -858,6 +814,55 @@ class RecorderModel implements IRecorderModel {
         }
 
         return recorded;
+    }
+
+    /**
+     * 予約または番組メタデータを Recorded エンティティに転写する
+     */
+    private applyMetadataToRecorded(
+        recorded: Recorded,
+        source: Pick<
+            Reserve,
+            | 'description'
+            | 'halfWidthDescription'
+            | 'extended'
+            | 'halfWidthExtended'
+            | 'rawExtended'
+            | 'rawHalfWidthExtended'
+            | 'genre1'
+            | 'subGenre1'
+            | 'genre2'
+            | 'subGenre2'
+            | 'genre3'
+            | 'subGenre3'
+            | 'videoType'
+            | 'videoResolution'
+            | 'videoStreamContent'
+            | 'videoComponentType'
+            | 'audioSamplingRate'
+            | 'audioComponentType'
+        > & { name: string; halfWidthName: string },
+    ): void {
+        recorded.name = source.name;
+        recorded.halfWidthName = source.halfWidthName;
+        recorded.description = source.description;
+        recorded.halfWidthDescription = source.halfWidthDescription;
+        recorded.extended = source.extended;
+        recorded.halfWidthExtended = source.halfWidthExtended;
+        recorded.rawExtended = source.rawExtended;
+        recorded.rawHalfWidthExtended = source.rawHalfWidthExtended;
+        recorded.genre1 = source.genre1;
+        recorded.subGenre1 = source.subGenre1;
+        recorded.genre2 = source.genre2;
+        recorded.subGenre2 = source.subGenre2;
+        recorded.genre3 = source.genre3;
+        recorded.subGenre3 = source.subGenre3;
+        recorded.videoType = source.videoType;
+        recorded.videoResolution = source.videoResolution;
+        recorded.videoStreamContent = source.videoStreamContent;
+        recorded.videoComponentType = source.videoComponentType;
+        recorded.audioSamplingRate = source.audioSamplingRate;
+        recorded.audioComponentType = source.audioComponentType;
     }
 
     /**
@@ -915,11 +920,11 @@ class RecorderModel implements IRecorderModel {
                 // tmp に録画していた場合は移動する
                 if (typeof this.config.recording.tempDir !== 'undefined' && this.videoFileId !== null) {
                     try {
-                        const newVdeoFileFulPath = await this.recordingUtil.movingFromTmp(
+                        const newVideoFileFullPath = await this.recordingUtil.movingFromTmp(
                             this.reserve,
                             this.videoFileId,
                         );
-                        this.videoFileFulPath = newVdeoFileFulPath;
+                        this.videoFileFullPath = newVideoFileFullPath;
                     } catch (err: any) {
                         this.log.system.fatal(`movingFromTmp error: ${this.videoFileId}`);
                         this.log.system.fatal(err);
@@ -927,7 +932,7 @@ class RecorderModel implements IRecorderModel {
                 }
 
                 // update video file size
-                if (this.videoFileId !== null && this.videoFileFulPath !== null) {
+                if (this.videoFileId !== null && this.videoFileFullPath !== null) {
                     await this.recordingUtil.updateVideoFileSize(this.videoFileId).catch(err => {
                         this.log.system.error(`update file size error: ${this.videoFileId}`);
                         this.log.system.error(err);
@@ -937,7 +942,7 @@ class RecorderModel implements IRecorderModel {
                 // drop 情報更新
                 await this.updateDropFileLog().catch(err => {
                     this.log.system.fatal(`updateDropFileLog error: ${this.dropLogFileId}`);
-                    this.log.stream.fatal(err);
+                    this.log.system.fatal(err);
                 });
 
                 // recorded 情報取得
@@ -982,7 +987,7 @@ class RecorderModel implements IRecorderModel {
             }
 
             this.log.system.info(
-                `recording finish reserveId: ${this.reserve.id}, recordedId: ${this.recordedId}, videoFileFulPath: ${this.videoFileFulPath}`,
+                `recording finish reserveId: ${this.reserve.id}, recordedId: ${this.recordedId}, videoFileFullPath: ${this.videoFileFullPath}`,
             );
         })();
 
@@ -1105,6 +1110,23 @@ class RecorderModel implements IRecorderModel {
     }
 
     /**
+     * 録画準備中または録画中のセッションを停止する共通ヘルパー
+     */
+    private async terminateRecording(emitPrepCancel: boolean): Promise<void> {
+        if (this.isPrepRecording === true) {
+            await this._cancel();
+            if (emitPrepCancel) {
+                this.recordingEvent.emitCancelPrepRecording(this.reserve);
+            }
+        } else if (this.isRecording === true) {
+            this.isCanceledCallingFinished = true;
+            await this.recEnd();
+        } else {
+            await this._cancel();
+        }
+    }
+
+    /**
      * 予約のキャンセル
      * @param isPlanToDelete: boolean ファイルが削除される予定か
      */
@@ -1116,16 +1138,7 @@ class RecorderModel implements IRecorderModel {
         this.isPlanToDelete = isPlanToDelete;
         this.isNeedDeleteReservation = false;
 
-        if (this.isPrepRecording === true) {
-            await this._cancel();
-            // 録画準備失敗を通知
-            this.recordingEvent.emitCancelPrepRecording(this.reserve);
-        } else if (this.isRecording === true) {
-            this.isCanceledCallingFinished = true;
-            await this.recEnd();
-        } else {
-            await this._cancel();
-        }
+        await this.terminateRecording(true);
     }
 
     /**
@@ -1139,16 +1152,7 @@ class RecorderModel implements IRecorderModel {
         this.isPlanToDelete = false;
         this.isNeedDeleteReservation = true;
 
-        if (this.isPrepRecording === true) {
-            await this._cancel();
-            // 録画準備失敗を通知
-            this.recordingEvent.emitCancelPrepRecording(this.reserve);
-        } else if (this.isRecording === true) {
-            this.isCanceledCallingFinished = true;
-            await this.recEnd();
-        } else {
-            await this._cancel();
-        }
+        await this.terminateRecording(true);
     }
 
     /**
@@ -1161,14 +1165,7 @@ class RecorderModel implements IRecorderModel {
         this.isNeedDeleteReservation = false;
         this.isShutdownStop = true;
 
-        if (this.isPrepRecording === true) {
-            await this._cancel();
-        } else if (this.isRecording === true) {
-            this.isCanceledCallingFinished = true;
-            await this.recEnd();
-        } else {
-            await this._cancel();
-        }
+        await this.terminateRecording(false);
     }
 
     /**
@@ -1210,7 +1207,7 @@ class RecorderModel implements IRecorderModel {
                                     reject(new Error('ChangeEndAtTimeoutError'));
                                 }, IRecordingStreamCreator.PREP_TIME);
 
-                                // 録画開始内部イベント発行街
+                                // 録画開始内部イベント発行待ち
                                 this.eventEmitter.once(RecorderModel.START_RECORDING_EVENT, () => {
                                     clearTimeout(timeoutId);
                                     resolve();
@@ -1268,7 +1265,7 @@ class RecorderModel implements IRecorderModel {
         // update recorded DB
         if (this.isRecording === true && this.recordedId !== null) {
             const recorded = await this.createRecorded();
-            this.log.system.info(`update reocrded: ${this.recordedId}`);
+            this.log.system.info(`update recorded: ${this.recordedId}`);
             await this.recordedDB.updateOnce(recorded);
         }
     }
@@ -1300,8 +1297,11 @@ class RecorderModel implements IRecorderModel {
         if (this.eventRelayTimerId !== null) {
             clearTimeout(this.eventRelayTimerId);
         }
-        this.eventRelayTimerId = setTimeout(async () => {
-            await this.checkEventRelay();
+        this.eventRelayTimerId = setTimeout(() => {
+            this.checkEventRelay().catch(err => {
+                this.log.system.error(`checkEventRelay error: reserveId: ${this.reserve.id}`);
+                this.log.system.error(err);
+            });
         }, time);
     }
 
@@ -1401,38 +1401,40 @@ class RecorderModel implements IRecorderModel {
     }
 
     /**
+     * 検出された音声メタデータを更新し、変更があれば DB へ反映する
+     */
+    private updateDetectedAudio(audio: AudioComponentInfo, sourceTag: 'PMT' | 'EIT'): void {
+        if (!audio.main_component_flag && this.detectedAudio !== null) {
+            return;
+        }
+        const isChanged =
+            this.detectedAudio === null ||
+            this.detectedAudio.component_type !== audio.component_type ||
+            this.detectedAudio.sampling_rate_hz !== audio.sampling_rate_hz;
+        this.detectedAudio = audio;
+        if (isChanged && this.recordedId !== null) {
+            void this.recordedDB
+                .updateProgramInfo(this.recordedId, {
+                    audioComponentType: audio.component_type,
+                    ...(audio.sampling_rate_hz > 0 ? { audioSamplingRate: audio.sampling_rate_hz } : {}),
+                })
+                .catch(err => {
+                    this.log.system.error(`[${sourceTag}] failed to update audio info: ${this.recordedId}`);
+                    this.log.system.error(err);
+                });
+        }
+    }
+
+    /**
      * TS ストリーム内の PMT 受信時のハンドラ
      * 放送波からの実際の音声ストリーム情報（主/副音声、サラウンド、サンプリングレート）を取得する
      * @param pmt: PmtInfo
      */
     private onPmt = (pmt: PmtInfo): void => {
-        let isChanged = false;
         for (const s of pmt.streams) {
             if (s.audio) {
-                if (s.audio.main_component_flag || this.detectedAudio === null) {
-                    if (
-                        this.detectedAudio === null ||
-                        this.detectedAudio.component_type !== s.audio.component_type ||
-                        this.detectedAudio.sampling_rate_hz !== s.audio.sampling_rate_hz
-                    ) {
-                        isChanged = true;
-                    }
-                    this.detectedAudio = s.audio;
-                }
+                this.updateDetectedAudio(s.audio, 'PMT');
             }
-        }
-        if (isChanged && this.recordedId !== null && this.detectedAudio !== null) {
-            void this.recordedDB
-                .updateProgramInfo(this.recordedId, {
-                    audioComponentType: this.detectedAudio.component_type,
-                    ...(this.detectedAudio.sampling_rate_hz > 0
-                        ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
-                        : {}),
-                })
-                .catch(err => {
-                    this.log.system.error(`[PMT] failed to update audio info: ${this.recordedId}`);
-                    this.log.system.error(err);
-                });
         }
     };
 
@@ -1460,25 +1462,8 @@ class RecorderModel implements IRecorderModel {
         }
 
         // 音声メタデータ（2ヶ国語/ステレオ/5.1ch/サンプリング周波数）検知
-        if (event.audio && (event.audio.main_component_flag || this.detectedAudio === null)) {
-            const isChanged =
-                this.detectedAudio === null ||
-                this.detectedAudio.component_type !== event.audio.component_type ||
-                this.detectedAudio.sampling_rate_hz !== event.audio.sampling_rate_hz;
-            this.detectedAudio = event.audio;
-            if (isChanged && this.recordedId !== null) {
-                void this.recordedDB
-                    .updateProgramInfo(this.recordedId, {
-                        audioComponentType: this.detectedAudio.component_type,
-                        ...(this.detectedAudio.sampling_rate_hz > 0
-                            ? { audioSamplingRate: this.detectedAudio.sampling_rate_hz }
-                            : {}),
-                    })
-                    .catch(err => {
-                        this.log.system.error(`[EIT] failed to update audio info: ${this.recordedId}`);
-                        this.log.system.error(err);
-                    });
-            }
+        if (event.audio) {
+            this.updateDetectedAudio(event.audio, 'EIT');
         }
 
         // 番組延長（終了時刻変更）検知

@@ -1,4 +1,4 @@
-import * as events from 'events';
+import * as events from 'node:events';
 import IExecutionManagementModel, { ExecutionId } from './IExecutionManagementModel.js';
 import ILogger from './ILogger.js';
 import ILoggerModel from './ILoggerModel.js';

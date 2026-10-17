@@ -1,8 +1,8 @@
 import { DropResult, EitInfo, PmtInfo, TsProbe } from 'arib-probe';
-import * as events from 'events';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as stream from 'stream';
+import * as events from 'node:events';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as stream from 'node:stream';
 import DateUtil from '../../../util/DateUtil.js';
 import FileUtil from '../../../util/FileUtil.js';
 import ILogger from '../../ILogger.js';

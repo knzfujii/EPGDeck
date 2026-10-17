@@ -6,6 +6,14 @@ import { resolveQualityConfig, estimateOptimalBitrate } from './probe.js';
 export * from './types.js';
 export * from './probe.js';
 
+const DEFAULT_AUDIO_STREAM: AudioStreamInfo = { index: 0, channels: 2, sample_rate: 48000 };
+const DEFAULT_MEDIA_INFO: MediaInfo = {
+    duration: 0,
+    width: 1920,
+    height: 1080,
+    audioStreams: [DEFAULT_AUDIO_STREAM],
+};
+
 /**
  * ffprobe を用いてメディア情報（動画長、解像度、有効な音声ストリーム）を取得する
  */
@@ -35,12 +43,7 @@ export const getMediaInfo = (
             (err, stdout) => {
                 if (err) {
                     console.error('[enc_helper] ffprobe analysis failed, fallback to defaults:', err.message);
-                    return resolve({
-                        duration: 0,
-                        width: 1920,
-                        height: 1080,
-                        audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
-                    });
+                    return resolve({ ...DEFAULT_MEDIA_INFO, audioStreams: [{ ...DEFAULT_AUDIO_STREAM }] });
                 }
 
                 try {
@@ -67,17 +70,11 @@ export const getMediaInfo = (
                         duration,
                         width,
                         height,
-                        audioStreams:
-                            audioStreams.length > 0 ? audioStreams : [{ index: 0, channels: 2, sample_rate: 48000 }],
+                        audioStreams: audioStreams.length > 0 ? audioStreams : [{ ...DEFAULT_AUDIO_STREAM }],
                     });
                 } catch (e) {
                     console.error('[enc_helper] JSON parse error on ffprobe output:', e);
-                    resolve({
-                        duration: 0,
-                        width: 1920,
-                        height: 1080,
-                        audioStreams: [{ index: 0, channels: 2, sample_rate: 48000 }],
-                    });
+                    resolve({ ...DEFAULT_MEDIA_INFO, audioStreams: [{ ...DEFAULT_AUDIO_STREAM }] });
                 }
             },
         );
@@ -579,7 +576,7 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
     const analyzeduration = options.analyzeduration || '10M';
     const probesize = options.probesize || '32M';
 
-    // 1. メディア情報解析
+    // メディア情報解析
     const mediaInfo = await getMediaInfo(ffprobe, input, analyzeduration, probesize);
 
     let effectiveOptions = { ...options };
@@ -636,12 +633,12 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
         }
     }
 
-    // 2. 引数構築
+    // 引数構築
     const args = buildFFmpegArgs(effectiveOptions, mediaInfo);
 
     console.error('[enc_helper] FFmpeg command: ' + formatCommand(ffmpeg, args));
 
-    // 3. プロセス実行
+    // プロセス実行
     let child: ReturnType<typeof spawn> | null = null;
 
     process.on('SIGINT', () => {
@@ -689,7 +686,7 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
             return;
         }
 
-        // 4. 出力ファイルの整合性・動画長検証
+        // 出力ファイルの整合性・動画長検証
         try {
             const check = await verifyOutputFile(ffprobe, mediaInfo.duration, output, effectiveOptions);
             if (!check.valid) {

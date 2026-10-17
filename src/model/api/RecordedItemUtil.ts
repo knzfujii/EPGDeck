@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import * as apid from '../../../api.js';
 import Recorded from '../../db/entities/Recorded.js';
 import StrUtil from '../../util/StrUtil.js';

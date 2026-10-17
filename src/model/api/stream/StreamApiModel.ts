@@ -67,25 +67,7 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startLiveM2TsStream(option: apid.LiveStreamOption): Promise<StreamResponse> {
-        const conf = this.getTsLiveConfig('m2ts', option.mode);
-
-        // stream 生成
-        const stream = await this.liveStreamProvider();
-        stream.setOption(
-            {
-                channelId: option.channelId,
-                cmd: conf.cmd,
-            },
-            option.mode,
-        );
-
-        // manager に登録
-        const streamId = await this.streamManageModel.start(stream);
-
-        return {
-            streamId: streamId,
-            stream: stream.getStream(),
-        };
+        return this.startLiveDirectStream('m2ts', option);
     }
 
     /**
@@ -94,25 +76,7 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startLiveM2TsLLStream(option: apid.LiveStreamOption): Promise<StreamResponse> {
-        const conf = this.getTsLiveConfig('m2tsll', option.mode);
-
-        // stream 生成
-        const stream = await this.liveStreamProvider();
-        stream.setOption(
-            {
-                channelId: option.channelId,
-                cmd: conf.cmd,
-            },
-            option.mode,
-        );
-
-        // manager に登録
-        const streamId = await this.streamManageModel.start(stream);
-
-        return {
-            streamId: streamId,
-            stream: stream.getStream(),
-        };
+        return this.startLiveDirectStream('m2tsll', option);
     }
 
     /**
@@ -121,25 +85,7 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startLiveWebmStream(option: apid.LiveStreamOption): Promise<StreamResponse> {
-        const conf = this.getTsLiveConfig('webm', option.mode);
-
-        // stream 生成
-        const stream = await this.liveStreamProvider();
-        stream.setOption(
-            {
-                channelId: option.channelId,
-                cmd: conf.cmd,
-            },
-            option.mode,
-        );
-
-        // manager に登録
-        const streamId = await this.streamManageModel.start(stream);
-
-        return {
-            streamId: streamId,
-            stream: stream.getStream(),
-        };
+        return this.startLiveDirectStream('webm', option);
     }
 
     /**
@@ -148,7 +94,14 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startMp4Stream(option: apid.LiveStreamOption): Promise<StreamResponse> {
-        const conf = this.getTsLiveConfig('mp4', option.mode);
+        return this.startLiveDirectStream('mp4', option);
+    }
+
+    private async startLiveDirectStream(
+        type: 'm2ts' | 'm2tsll' | 'webm' | 'mp4',
+        option: apid.LiveStreamOption,
+    ): Promise<StreamResponse> {
+        const conf = this.getTsLiveConfig(type, option.mode);
 
         // stream 生成
         const stream = await this.liveStreamProvider();
@@ -221,26 +174,7 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startRecordedWebMStream(option: apid.RecordedStreanOption): Promise<StreamResponse> {
-        const conf = await this.getRecordedVideoConfig('webm', option);
-
-        // stream 生成
-        const stream = await this.recordedStreamProvider();
-        stream.setOption(
-            {
-                videoFileId: option.videoFileId,
-                playPosition: option.playPosition,
-                cmd: conf.cmd,
-            },
-            option.mode,
-        );
-
-        // manager に登録
-        const streamId = await this.streamManageModel.start(stream);
-
-        return {
-            streamId: streamId,
-            stream: stream.getStream(),
-        };
+        return this.startRecordedDirectStream('webm', option);
     }
 
     /**
@@ -249,7 +183,14 @@ export default class StreamApiModel implements IStreamApiModel {
      * @return Promise<StreamResponse>
      */
     public async startRecordedMp4Stream(option: apid.RecordedStreanOption): Promise<StreamResponse> {
-        const conf = await this.getRecordedVideoConfig('mp4', option);
+        return this.startRecordedDirectStream('mp4', option);
+    }
+
+    private async startRecordedDirectStream(
+        type: 'webm' | 'mp4',
+        option: apid.RecordedStreanOption,
+    ): Promise<StreamResponse> {
+        const conf = await this.getRecordedVideoConfig(type, option);
 
         // stream 生成
         const stream = await this.recordedStreamProvider();

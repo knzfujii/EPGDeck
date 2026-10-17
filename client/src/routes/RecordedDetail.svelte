@@ -50,12 +50,9 @@
         ExternalLink,
         Clock,
         Tv,
-        FileVideo,
         Sparkles,
         AlertTriangle,
-        CheckCircle2,
         Layers,
-        Info,
         HardDrive,
         FileText,
         ChevronLeft,
@@ -97,7 +94,7 @@
     let currentVideoFile = $state<apid.VideoFile | null>(null);
     let videoFileDuration = $state<number | null>(null);
     let isRestartingHls = false;
-    let pendingSeekTarget: number | null = null;
+    let pendingSeekTarget = $state<number | null>(null);
 
     let totalDuration = $derived.by(() => {
         if (videoFileDuration !== null && videoFileDuration > 0) {
@@ -248,11 +245,8 @@
                 .fetch()
                 .then(configData => {
                     if (!configData) return;
-                    const encList = configData?.encode || [];
-                    encodeModes = encList.map((e: string | EncodeMode) =>
-                        typeof e === 'string' ? { name: e, suffix: '' } : e,
-                    );
-                    recordedDirs = configData?.recorded || [];
+                    encodeModes = configStore.encodeModes;
+                    recordedDirs = configStore.recordedDirs;
 
                     // 各プリセットの選択状態を初期化（既存があれば保持）
                     const defaultDir = recordedDirs[0] ?? '';
@@ -277,9 +271,7 @@
     }
 
     function withAuthToken(url: string): string {
-        if (!readOnlyStore.token) return url;
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}token=${encodeURIComponent(readOnlyStore.token)}`;
+        return readOnlyStore.withAuthToken(url);
     }
 
     async function fetchVideoFileDuration(fileId: number) {
@@ -1547,7 +1539,7 @@
                                     <Button
                                         variant="secondary"
                                         size="compact"
-                                        href={`/api/videos/${file.id}?isDownload=true${readOnlyStore.token ? `&token=${readOnlyStore.token}` : ''}`}
+                                        href={withAuthToken(`/api/videos/${file.id}?isDownload=true`)}
                                         download
                                         class="whitespace-nowrap shrink-0 max-sm:px-2.5"
                                         title="ファイルをダウンロード"

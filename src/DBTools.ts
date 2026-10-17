@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import { parseArgs } from 'util';
+import * as fs from 'node:fs';
+import { parseArgs } from 'node:util';
 import DropLogFile from './db/entities/DropLogFile.js';
 import Recorded from './db/entities/Recorded.js';
 import RecordedHistory from './db/entities/RecordedHistory.js';
@@ -161,13 +161,6 @@ class DBTools {
                 isNeedTags: false,
             },
         );
-        /*
-        recordedItems = recordedItems.map(r => {
-            r.dropLogFileId = null;
-
-            return r;
-        });
-        */
 
         this.log.system.info('thumbnail file');
         const thumbnailItems = await this.thumbnailDB.findAll();

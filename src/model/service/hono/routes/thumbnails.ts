@@ -1,7 +1,6 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IThumbnailApiModel from '../../../api/thumbnail/IThumbnailApiModel.js';
 import container from '../../../ModelContainer.js';
 import * as api from '../HonoApiUtil.js';
 import { NotFoundError } from '../../../error/ApiError.js';
@@ -10,13 +9,13 @@ import { thumbnailParamSchema, videoFileParamSchema, createThumbnailQuerySchema 
 const app = new Hono()
     // POST /api/thumbnails/cleanup
     .post('/cleanup', async c => {
-        const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+        const thumbnailApiModel = container.thumbnailApiModel;
         await thumbnailApiModel.fileCleanup();
         return c.json({ code: 200 });
     })
     // POST /api/thumbnails/regenerate
     .post('/regenerate', async c => {
-        const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+        const thumbnailApiModel = container.thumbnailApiModel;
         await thumbnailApiModel.regenerate();
         return c.json({ code: 200 });
     })
@@ -26,7 +25,7 @@ const app = new Hono()
         zValidator('param', videoFileParamSchema),
         zValidator('query', createThumbnailQuerySchema),
         async c => {
-            const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+            const thumbnailApiModel = container.thumbnailApiModel;
             const { videoFileId } = c.req.valid('param');
             const query = c.req.valid('query');
             let body: { seconds?: number; replace?: boolean } | undefined;
@@ -43,7 +42,7 @@ const app = new Hono()
     )
     // GET /api/thumbnails/:thumbnailId
     .get('/:thumbnailId', zValidator('param', thumbnailParamSchema), async c => {
-        const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+        const thumbnailApiModel = container.thumbnailApiModel;
         const { thumbnailId } = c.req.valid('param');
 
         const filePath = await thumbnailApiModel.getIdFilePath(thumbnailId);
@@ -56,7 +55,7 @@ const app = new Hono()
     })
     // DELETE /api/thumbnails/:thumbnailId
     .delete('/:thumbnailId', zValidator('param', thumbnailParamSchema), async c => {
-        const thumbnailApiModel = container.get<IThumbnailApiModel>('IThumbnailApiModel');
+        const thumbnailApiModel = container.thumbnailApiModel;
         const { thumbnailId } = c.req.valid('param');
         await thumbnailApiModel.delete(thumbnailId);
         return c.json({ code: 200 });

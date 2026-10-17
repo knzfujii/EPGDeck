@@ -1,5 +1,5 @@
-import { execFile } from 'child_process';
-import * as path from 'path';
+import { execFile } from 'node:child_process';
+import * as path from 'node:path';
 import * as apid from '../../../../api.js';
 import VideoFile from '../../../db/entities/VideoFile.js';
 import IVideoFileDB from '../../db/IVideoFileDB.js';

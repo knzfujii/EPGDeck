@@ -1,5 +1,5 @@
 import { DropResult, EitInfo, PmtInfo } from 'arib-probe';
-import * as stream from 'stream';
+import * as stream from 'node:stream';
 
 export default interface IDropCheckerModel {
     start(logDirPath: string, srcFilePath: string, readableStream: stream.Readable): Promise<void>;

@@ -1,7 +1,7 @@
 import { Context } from 'hono';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Readable } from 'stream';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Readable } from 'node:stream';
 import { NotFoundError } from '../../error/ApiError.js';
 import IPlayList from '../../api/IPlayList.js';
 

@@ -1,7 +1,7 @@
-import * as events from 'events';
-import * as fs from 'fs';
-import * as path from 'path';
-import internal from 'stream';
+import * as events from 'node:events';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import internal from 'node:stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import FileUtil from '../../../../util/FileUtil.js';

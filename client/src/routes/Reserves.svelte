@@ -13,6 +13,7 @@
         executeRecordingAction,
         type RecordingActionType,
     } from '../lib/utils/recording';
+    import { getProgress } from '../lib/utils/onair';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
@@ -110,10 +111,7 @@
     let unsubscribeSocket: (() => void) | null = null;
 
     function getRecordingProgress(startAt: number, endAt: number): number {
-        const now = Date.now();
-        if (now <= startAt) return 0;
-        if (now >= endAt) return 100;
-        return Math.round(((now - startAt) / (endAt - startAt)) * 100);
+        return getProgress(startAt, endAt, Date.now());
     }
 
     async function fetchReserves(isSilent = false) {

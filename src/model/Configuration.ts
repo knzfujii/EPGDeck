@@ -1,15 +1,12 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import * as yaml from 'js-yaml';
-import * as path from 'path';
+import * as path from 'node:path';
 import StrUtil from '../util/StrUtil.js';
 import IConfigFile, { ReadOnlyOperation, StreamingConfig } from './IConfigFile.js';
 import IConfiguration from './IConfiguration.js';
 import ILogger from './ILogger.js';
 import ILoggerModel from './ILoggerModel.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 /**
  * Configuration
@@ -70,7 +67,7 @@ class Configuration implements IConfiguration {
             throw new Error('Config file is empty or not a valid YAML object');
         }
 
-        // 1. サーバー基本設定
+        // サーバー基本設定
         const server = raw.server || {};
         const port = typeof server.port === 'number' ? server.port : 8889;
         const mirakurun = server.mirakurun || server.mirakurunPath || 'http+unix://%2Fvar%2Frun%2Fmirakurun.sock/';
@@ -92,12 +89,12 @@ class Configuration implements IConfiguration {
                 ? server.apiServers
                 : [`http://localhost:${port}`];
 
-        // 2. データベース設定
+        // データベース設定
         const db = raw.database || {};
         const dbtype = db.type || raw.dbtype || 'sqlite';
         const dbPath = typeof db.path === 'string' ? Configuration.directoryFormatting(db.path) : undefined;
 
-        // 3. ログ設定
+        // ログ設定
         const logConf = raw.log || {};
         const log: IConfigFile['log'] = {
             level: logConf.level || 'info',
@@ -113,7 +110,7 @@ class Configuration implements IConfiguration {
             bufferSize: logConf.bufferSize || 1000,
         };
 
-        // 4. EPG 設定
+        // EPG 設定
         const epgConf = raw.epg || {};
         const epg = {
             intervalMinutes:
@@ -130,7 +127,7 @@ class Configuration implements IConfiguration {
             excludeSids: epgConf.excludeSids || raw.excludeSids,
         };
 
-        // 5. 録画設定
+        // 録画設定
         const recConf = raw.recording || {};
         const rawDirs = recConf.directories ||
             raw.recorded || [{ name: 'recorded', path: path.join(Configuration.ROOT_PATH, 'recorded') }];
@@ -264,7 +261,7 @@ class Configuration implements IConfiguration {
             }
         }
 
-        // 6. エンコード設定
+        // エンコード設定
         const encConf = raw.encode || {};
         const binaries = {
             ffmpeg: encConf.binaries?.ffmpeg || raw.ffmpeg || '/usr/bin/ffmpeg',
@@ -298,7 +295,7 @@ class Configuration implements IConfiguration {
             skipSubtitleForSuperimpose,
         };
 
-        // 7. 外部連携 & URL Scheme
+        // 外部連携 & URL Scheme
         const rawUrlscheme = raw.urlscheme || {};
         const urlscheme: IConfigFile['urlscheme'] = {
             m2ts: {
@@ -315,7 +312,7 @@ class Configuration implements IConfiguration {
             },
         };
 
-        // 8. ストリーミング設定 (内部デフォルトとディープマージ)
+        // ストリーミング設定 (内部デフォルトとディープマージ)
         const rawStream = raw.streaming || raw.stream || {};
         const defLive = Configuration.DEFAULT_STREAMING.live;
         const defRec = Configuration.DEFAULT_STREAMING.recorded;
@@ -385,7 +382,7 @@ class Configuration implements IConfiguration {
             kodi: raw.kodi || raw.kodiHosts,
         };
 
-        // 11. リードオンリー設定 (ReadOnly)
+        // リードオンリー設定 (ReadOnly)
         if (raw.readOnly) {
             const envPassword = process.env.EPGDECK_ADMIN_PASSWORD || process.env.EPGDECK_READONLY_PASSWORD;
             const password = typeof raw.readOnly.password === 'string' ? raw.readOnly.password : envPassword;

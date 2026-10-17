@@ -1,4 +1,4 @@
-import * as child_process from 'child_process';
+import * as child_process from 'node:child_process';
 
 export default interface IOperatorShutdownModel {
     setServiceChild(child: child_process.ChildProcess | null): void;

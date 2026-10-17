@@ -1,7 +1,7 @@
 import { getRequestListener } from '@hono/node-server';
-import * as fs from 'fs';
-import * as http from 'http';
-import * as https from 'https';
+import * as fs from 'node:fs';
+import * as http from 'node:http';
+import * as https from 'node:https';
 import IConfigFile from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';
 import ILogger from '../ILogger.js';

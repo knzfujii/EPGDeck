@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import container from '../../../ModelContainer.js';
 import { LogCategory, LogEntryLevel, LogProcess } from '../../../ILogger.js';
-import ILogManageModel from '../../log/ILogManageModel.js';
 import * as api from '../HonoApiUtil.js';
 import { NotFoundError } from '../../../error/ApiError.js';
 import { getLogsQuerySchema } from '../schemas/logs.js';
@@ -11,7 +10,7 @@ import { getLogsQuerySchema } from '../schemas/logs.js';
 const app = new Hono()
     // GET /api/logs
     .get('/', zValidator('query', getLogsQuerySchema), async c => {
-        const logManage = container.get<ILogManageModel>('ILogManageModel');
+        const logManage = container.logManageModel;
         const { limit, level, process, category, search } = c.req.valid('query');
 
         const logs = logManage.getLogs({
@@ -30,7 +29,7 @@ const app = new Hono()
     })
     // GET /api/logs/download
     .get('/download', async c => {
-        const logManage = container.get<ILogManageModel>('ILogManageModel');
+        const logManage = container.logManageModel;
         const filePath = logManage.getLogFilePath();
 
         if (!filePath || !fs.existsSync(filePath)) {
@@ -41,7 +40,7 @@ const app = new Hono()
     })
     // POST /api/logs/clear
     .post('/clear', async c => {
-        const logManage = container.get<ILogManageModel>('ILogManageModel');
+        const logManage = container.logManageModel;
         logManage.clear();
         return c.json({ message: 'ok' });
     });

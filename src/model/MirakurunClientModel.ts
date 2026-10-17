@@ -1,13 +1,10 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { Client } from 'mirakurun';
-import * as path from 'path';
+import * as path from 'node:path';
 import IConfigFile from './IConfigFile.js';
 import IConfiguration from './IConfiguration.js';
 import IMirakurunClientModel from './IMirakurunClientModel.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 /**
  * mirakurun client のインスタンスを生成する

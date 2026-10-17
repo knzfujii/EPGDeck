@@ -1,7 +1,7 @@
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 import { Context, Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IStreamApiModel, { StreamResponse } from '../../../api/stream/IStreamApiModel.js';
+import { StreamResponse } from '../../../api/stream/IStreamApiModel.js';
 import container from '../../../ModelContainer.js';
 import { ApiError } from '../../../error/ApiError.js';
 import * as api from '../HonoApiUtil.js';
@@ -23,7 +23,7 @@ const isTunerUnavailable = (err: any): boolean => {
 
 // Helper for live/recorded media stream response with Web Streams backpressure control
 const handleLiveStream = async (c: Context, startFn: () => Promise<StreamResponse>, contentType: string) => {
-    const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+    const streamApiModel = container.streamApiModel;
     let keepTimer: NodeJS.Timeout | null = null;
     let streamId: number | null = null;
     let nodeStream: Readable | null = null;
@@ -142,27 +142,27 @@ const handleLiveStream = async (c: Context, startFn: () => Promise<StreamRespons
 const app = new Hono()
     // GET /api/streams
     .get('/', zValidator('query', getStreamsQuerySchema), async c => {
-        const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+        const streamApiModel = container.streamApiModel;
         const { isHalfWidth = true } = c.req.valid('query');
         const infos = await streamApiModel.getStreamInfos(isHalfWidth);
         return c.json(infos);
     })
     // DELETE /api/streams
     .delete('/', async c => {
-        const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+        const streamApiModel = container.streamApiModel;
         await streamApiModel.stopAll();
         return c.json({ code: 200 });
     })
     // DELETE /api/streams/:streamId
     .delete('/:streamId', zValidator('param', streamIdParamSchema), async c => {
-        const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+        const streamApiModel = container.streamApiModel;
         const { streamId } = c.req.valid('param');
         await streamApiModel.stop(streamId);
         return c.json({ code: 200 });
     })
     // PUT /api/streams/:streamId/keep
     .put('/:streamId/keep', zValidator('param', streamIdParamSchema), async c => {
-        const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+        const streamApiModel = container.streamApiModel;
         const { streamId } = c.req.valid('param');
         await streamApiModel.keep(streamId);
         return c.json({ code: 200 });
@@ -173,7 +173,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
 
@@ -194,7 +194,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
             const host = c.req.header('host');
@@ -229,7 +229,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
             return handleLiveStream(c, () => streamApiModel.startLiveM2TsStream({ channelId, mode }), 'video/mp2t');
@@ -241,7 +241,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
             return handleLiveStream(c, () => streamApiModel.startLiveM2TsLLStream({ channelId, mode }), 'video/mp2t');
@@ -253,7 +253,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
             return handleLiveStream(c, () => streamApiModel.startMp4Stream({ channelId, mode }), 'video/mp4');
@@ -265,7 +265,7 @@ const app = new Hono()
         zValidator('param', liveStreamParamSchema),
         zValidator('query', streamModeQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { channelId } = c.req.valid('param');
             const { mode = 0 } = c.req.valid('query');
             return handleLiveStream(c, () => streamApiModel.startLiveWebmStream({ channelId, mode }), 'video/webm');
@@ -277,7 +277,7 @@ const app = new Hono()
         zValidator('param', videoFileIdStreamParamSchema),
         zValidator('query', recordedStreamQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { videoFileId } = c.req.valid('param');
             const { mode = 0, ss: playPosition = 0 } = c.req.valid('query');
 
@@ -291,7 +291,7 @@ const app = new Hono()
         zValidator('param', videoFileIdStreamParamSchema),
         zValidator('query', recordedStreamQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { videoFileId } = c.req.valid('param');
             const { mode = 0, ss: playPosition = 0 } = c.req.valid('query');
             return handleLiveStream(
@@ -307,7 +307,7 @@ const app = new Hono()
         zValidator('param', videoFileIdStreamParamSchema),
         zValidator('query', recordedStreamQuerySchema),
         async c => {
-            const streamApiModel = container.get<IStreamApiModel>('IStreamApiModel');
+            const streamApiModel = container.streamApiModel;
             const { videoFileId } = c.req.valid('param');
             const { mode = 0, ss: playPosition = 0 } = c.req.valid('query');
             return handleLiveStream(

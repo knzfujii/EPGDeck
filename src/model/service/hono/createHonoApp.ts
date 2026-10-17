@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import StrUtil from '../../../util/StrUtil.js';
 import { OpenAPIV3 } from 'openapi-types';

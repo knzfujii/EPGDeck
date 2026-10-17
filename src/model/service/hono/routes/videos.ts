@@ -1,13 +1,10 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Readable } from 'stream';
-import { pipeline } from 'stream/promises';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import * as apid from '../../../../../api.js';
-import IConfiguration from '../../../IConfiguration.js';
-import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel.js';
-import IVideoApiModel from '../../../api/video/IVideoApiModel.js';
 import container from '../../../ModelContainer.js';
 import { UploadedVideoFileOption } from '../../../operator/recorded/IRecordedManageModel.js';
 import * as api from '../HonoApiUtil.js';
@@ -17,8 +14,8 @@ import { kodiJsonSchema, videoGetQuerySchema, videoParamSchema } from '../schema
 const app = new Hono()
     // POST /api/videos/upload
     .post('/upload', async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
-        const configuration = container.get<IConfiguration>('IConfiguration');
+        const recordedApiModel = container.recordedApiModel;
+        const configuration = container.configuration;
         const config = configuration.getConfig();
 
         const body = await c.req.parseBody();
@@ -56,7 +53,7 @@ const app = new Hono()
     })
     // GET /api/videos/:videoFileId
     .get('/:videoFileId', zValidator('param', videoParamSchema), zValidator('query', videoGetQuerySchema), async c => {
-        const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoFileApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         const { isDownload } = c.req.valid('query');
 
@@ -68,21 +65,21 @@ const app = new Hono()
     })
     // DELETE /api/videos/:videoFileId
     .delete('/:videoFileId', zValidator('param', videoParamSchema), async c => {
-        const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoFileApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         await videoFileApiModel.deleteVideoFile(videoFileId);
         return c.json({ code: 200 });
     })
     // GET /api/videos/:videoFileId/duration
     .get('/:videoFileId/duration', zValidator('param', videoParamSchema), async c => {
-        const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoFileApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         const duration = await videoFileApiModel.getDuration(videoFileId);
         return c.json({ duration });
     })
     // GET /api/videos/:videoFileId/playlist
     .get('/:videoFileId/playlist', zValidator('param', videoParamSchema), async c => {
-        const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoFileApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         const host = c.req.header('host');
         if (typeof host === 'undefined') {
@@ -97,7 +94,7 @@ const app = new Hono()
     })
     // POST /api/videos/:videoFileId/kodi
     .post('/:videoFileId/kodi', zValidator('param', videoParamSchema), zValidator('json', kodiJsonSchema), async c => {
-        const videoApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         const host = c.req.header('host');
         if (typeof host === 'undefined') {
@@ -110,7 +107,7 @@ const app = new Hono()
     })
     // GET /api/videos/:videoFileId/vtt
     .get('/:videoFileId/vtt', zValidator('param', videoParamSchema), async c => {
-        const videoFileApiModel = container.get<IVideoApiModel>('IVideoApiModel');
+        const videoFileApiModel = container.videoApiModel;
         const { videoFileId } = c.req.valid('param');
         const vtt = await videoFileApiModel.getVtt(videoFileId);
         if (vtt === null) {

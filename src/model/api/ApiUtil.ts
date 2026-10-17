@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import StrUtil from '../../util/StrUtil.js';
 import { KodiInfo } from '../IConfigFile.js';
 import IConfiguration from '../IConfiguration.js';

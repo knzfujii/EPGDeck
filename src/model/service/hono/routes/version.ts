@@ -1,11 +1,8 @@
 import { Hono } from 'hono';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 const app = new Hono().get('/', async c => {
     const pkg = JSON.parse(

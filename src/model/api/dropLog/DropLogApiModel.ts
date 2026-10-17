@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import * as apid from '../../../../api.js';
 import FileUtil from '../../../util/FileUtil.js';
 import IDropLogFileDB from '../../db/IDropLogFileDB.js';

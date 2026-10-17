@@ -1,4 +1,4 @@
-import * as http from 'http';
+import * as http from 'node:http';
 import * as SocketIO from 'socket.io';
 import StrUtil from '../../../util/StrUtil.js';
 import IConfigFile from '../../IConfigFile.js';

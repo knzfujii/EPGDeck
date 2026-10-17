@@ -1,14 +1,13 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import * as apid from '../../../../../api.js';
-import IRecordedTagApiModel from '../../../api/recordedTag/IRecordedTagApiModel.js';
 import container from '../../../ModelContainer.js';
 import { getTagsQuerySchema, tagIdParamSchema } from '../schemas/tags.js';
 
 const app = new Hono()
     // GET /api/tags
     .get('/', zValidator('query', getTagsQuerySchema), async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const query = c.req.valid('query');
         const option: apid.GetRecordedTagOption = {
             offset: query.offset,
@@ -25,21 +24,21 @@ const app = new Hono()
     })
     // POST /api/tags
     .post('/', async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const body = await c.req.json();
         const tagId = await recordedTagApiModel.create(body.name, body.color);
         return c.json({ tagId }, 201);
     })
     // DELETE /api/tags/:tagId
     .delete('/:tagId', zValidator('param', tagIdParamSchema), async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const { tagId } = c.req.valid('param');
         await recordedTagApiModel.delete(tagId);
         return c.json({ code: 200 });
     })
     // PUT /api/tags/:tagId
     .put('/:tagId', zValidator('param', tagIdParamSchema), async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const { tagId } = c.req.valid('param');
         const body = await c.req.json();
         await recordedTagApiModel.update(tagId, body.name, body.color);
@@ -47,7 +46,7 @@ const app = new Hono()
     })
     // PUT /api/tags/:tagId/relate
     .put('/:tagId/relate', zValidator('param', tagIdParamSchema), async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const { tagId } = c.req.valid('param');
         const body = await c.req.json();
         await recordedTagApiModel.setRelation(tagId, body.recordedId);
@@ -55,7 +54,7 @@ const app = new Hono()
     })
     // DELETE /api/tags/:tagId/relate
     .delete('/:tagId/relate', zValidator('param', tagIdParamSchema), async c => {
-        const recordedTagApiModel = container.get<IRecordedTagApiModel>('IRecordedTagApiModel');
+        const recordedTagApiModel = container.recordedTagApiModel;
         const { tagId } = c.req.valid('param');
         const recordedId = parseInt(c.req.query('recordedId') || '', 10);
         await recordedTagApiModel.deleteRelation(tagId, recordedId);

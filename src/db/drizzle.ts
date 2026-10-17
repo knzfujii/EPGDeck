@@ -2,14 +2,11 @@ import { createClient, Client } from '@libsql/client';
 import { drizzle as drizzleLibSql, LibSQLDatabase } from 'drizzle-orm/libsql';
 import { drizzle as drizzleMysql2, MySql2Database } from 'drizzle-orm/mysql2';
 import * as mysql from 'mysql2/promise';
-import * as path from 'path';
+import * as path from 'node:path';
 import IConfigFile from '../model/IConfigFile.js';
 import * as mysqlSchema from './schema/mysql/index.js';
 import * as sqliteSchema from './schema/sqlite/index.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 export type DrizzleSqliteDB = LibSQLDatabase<typeof sqliteSchema>;
 export type DrizzleMysqlDB = MySql2Database<typeof mysqlSchema>;

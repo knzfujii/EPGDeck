@@ -1,4 +1,4 @@
-import * as http from 'http';
+import * as http from 'node:http';
 import { LogEntry } from '../../ILogger.js';
 
 export default interface ISocketIOManageModel {

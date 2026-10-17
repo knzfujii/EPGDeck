@@ -1,5 +1,5 @@
-import { ChildProcess, spawn } from 'child_process';
-import * as events from 'events';
+import { ChildProcess, spawn } from 'node:child_process';
+import * as events from 'node:events';
 import ProcessUtil from '../../../util/ProcessUtil.js';
 import IConfiguration from '../../IConfiguration.js';
 import ILogger from '../../ILogger.js';

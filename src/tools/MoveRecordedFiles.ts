@@ -1,8 +1,8 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as readline from 'readline/promises';
-import { pipeline } from 'stream/promises';
-import { parseArgs } from 'util';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as readline from 'node:readline/promises';
+import { pipeline } from 'node:stream/promises';
+import { parseArgs } from 'node:util';
 import VideoFile from '../db/entities/VideoFile.js';
 import IDrizzleOperator from '../model/db/IDrizzleOperator.js';
 import IVideoFileDB from '../model/db/IVideoFileDB.js';

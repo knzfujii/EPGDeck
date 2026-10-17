@@ -11,10 +11,12 @@
         executeRecordingAction,
         type RecordingActionType,
     } from '../lib/utils/recording';
+    import { getProgress } from '../lib/utils/onair';
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import Button from '../lib/components/common/Button.svelte';
+    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -157,10 +159,7 @@
     });
 
     function getRecordingProgress(startAt: number, endAt: number): number {
-        const now = Date.now();
-        if (now <= startAt) return 0;
-        if (now >= endAt) return 100;
-        return Math.round(((now - startAt) / (endAt - startAt)) * 100);
+        return getProgress(startAt, endAt, Date.now());
     }
 
     function formatGB(bytes?: number): string {
@@ -232,7 +231,6 @@
             isStreamModalOpen = true;
         }
     }
-    import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
 </script>
 
 {#if !readOnlyStore.canViewDashboard}

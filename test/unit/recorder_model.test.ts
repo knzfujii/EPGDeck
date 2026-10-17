@@ -283,7 +283,7 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
             (recorder as any).actualStartAt = Date.now() - 20000;
             (recorder as any).recordedId = 10;
             (recorder as any).videoFileId = 100;
-            (recorder as any).videoFileFulPath = '/path/test.ts';
+            (recorder as any).videoFileFullPath = '/path/test.ts';
             (recorder as any).stream = mockStream;
             (recorder as any).recFile = mockRecFile;
 
@@ -325,7 +325,7 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
             (recorder as any).actualStartAt = Date.now() - 20000;
             (recorder as any).recordedId = 20;
             (recorder as any).videoFileId = 200;
-            (recorder as any).videoFileFulPath = '/path/test2.ts';
+            (recorder as any).videoFileFullPath = '/path/test2.ts';
             (recorder as any).stream = mockStream;
             (recorder as any).recFile = mockRecFile;
 
@@ -415,7 +415,7 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
             (recorder as any).actualStartAt = Date.now() - 20000;
             (recorder as any).recordedId = 50;
             (recorder as any).videoFileId = 500;
-            (recorder as any).videoFileFulPath = '/path/test5.ts';
+            (recorder as any).videoFileFullPath = '/path/test5.ts';
             (recorder as any).stream = mockStream;
             (recorder as any).recFile = mockRecFile;
 

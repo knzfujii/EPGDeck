@@ -1,6 +1,6 @@
-import { ChildProcess } from 'child_process';
-import * as events from 'events';
-import * as path from 'path';
+import { ChildProcess } from 'node:child_process';
+import * as events from 'node:events';
+import * as path from 'node:path';
 import * as apid from '../../../../api.js';
 import FileUtil from '../../../util/FileUtil.js';
 import ProcessUtil from '../../../util/ProcessUtil.js';

@@ -1,6 +1,6 @@
-import { ChildProcess, execFile } from 'child_process';
-import * as fs from 'fs';
-import internal, { Readable } from 'stream';
+import { ChildProcess, execFile } from 'node:child_process';
+import * as fs from 'node:fs';
+import internal, { Readable } from 'node:stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import * as fst from '../../../../lib/TailStream.js';

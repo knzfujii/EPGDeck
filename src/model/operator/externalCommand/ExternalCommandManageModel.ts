@@ -1,5 +1,5 @@
-import { spawn } from 'child_process';
-import * as path from 'path';
+import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 import Recorded from '../../../db/entities/Recorded.js';
 import Reserve from '../../../db/entities/Reserve.js';
 import ProcessUtil from '../../../util/ProcessUtil.js';

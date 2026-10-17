@@ -1,6 +1,6 @@
-import * as http from 'http';
+import * as http from 'node:http';
 import type { Client } from 'mirakurun';
-import { finished } from 'stream';
+import { finished } from 'node:stream';
 import * as apid from '../../../../api.js';
 import * as mapid from 'mirakurun/api.js';
 import Reserve from '../../../db/entities/Reserve.js';

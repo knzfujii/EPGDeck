@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import * as mapid from 'mirakurun/api.js';
 
 export interface RemoveProgram {

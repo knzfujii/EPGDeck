@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import * as apid from '../../../../../api.js';
-import IRuleApiModel from '../../../api/rule/IRuleApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
 import {
@@ -15,28 +14,28 @@ import {
 const app = new Hono()
     // GET /api/rules
     .get('/', zValidator('query', getRulesQuerySchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const query = c.req.valid('query');
         const result = await ruleApiModel.gets(query as apid.GetRuleOption);
         return c.json(result);
     })
     // POST /api/rules
     .post('/', zValidator('json', createRuleJsonSchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const body = c.req.valid('json');
         const ruleId = await ruleApiModel.add(body as any);
         return c.json({ ruleId }, 201);
     })
     // GET /api/rules/keyword
     .get('/keyword', zValidator('query', getRulesQuerySchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const query = c.req.valid('query');
         const items = await ruleApiModel.searchKeyword(query as apid.GetRuleOption);
         return c.json({ items });
     })
     // GET /api/rules/:ruleId
     .get('/:ruleId', zValidator('param', ruleIdParamSchema), zValidator('query', getRuleQuerySchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const { ruleId } = c.req.valid('param');
         const rule = await ruleApiModel.get(ruleId);
         if (rule === null) {
@@ -46,7 +45,7 @@ const app = new Hono()
     })
     // PUT /api/rules/:ruleId
     .put('/:ruleId', zValidator('param', ruleIdParamSchema), zValidator('json', editRuleJsonSchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const { ruleId } = c.req.valid('param');
         const body = c.req.valid('json');
         (body as any).id = ruleId;
@@ -55,21 +54,21 @@ const app = new Hono()
     })
     // DELETE /api/rules/:ruleId
     .delete('/:ruleId', zValidator('param', ruleIdParamSchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const { ruleId } = c.req.valid('param');
         await ruleApiModel.delete(ruleId);
         return c.json({ code: 200 });
     })
     // PUT /api/rules/:ruleId/enable
     .put('/:ruleId/enable', zValidator('param', ruleIdParamSchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const { ruleId } = c.req.valid('param');
         await ruleApiModel.enable(ruleId);
         return c.json({ code: 200 });
     })
     // PUT /api/rules/:ruleId/disable
     .put('/:ruleId/disable', zValidator('param', ruleIdParamSchema), async c => {
-        const ruleApiModel = container.get<IRuleApiModel>('IRuleApiModel');
+        const ruleApiModel = container.ruleApiModel;
         const { ruleId } = c.req.valid('param');
         await ruleApiModel.disable(ruleId);
         return c.json({ code: 200 });

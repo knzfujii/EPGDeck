@@ -1,5 +1,5 @@
-import * as path from 'path';
-import { parseArgs } from 'util';
+import * as path from 'node:path';
+import { parseArgs } from 'node:util';
 import IDrizzleOperator from '../model/db/IDrizzleOperator.js';
 import IThumbnailDB from '../model/db/IThumbnailDB.js';
 import IConfigFile from '../model/IConfigFile.js';

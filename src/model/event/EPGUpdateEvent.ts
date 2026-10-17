@@ -1,4 +1,4 @@
-import * as events from 'events';
+import * as events from 'node:events';
 import ILogger from '../ILogger.js';
 import ILoggerModel from '../ILoggerModel.js';
 import IEPGUpdateEvent from './IEPGUpdateEvent.js';

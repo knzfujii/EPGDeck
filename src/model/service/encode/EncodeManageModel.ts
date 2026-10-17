@@ -1,5 +1,5 @@
-import * as path from 'path';
-import * as events from 'events';
+import * as path from 'node:path';
+import * as events from 'node:events';
 import * as apid from '../../../../api.js';
 import IEncodeEvent from '../../event/IEncodeEvent.js';
 import IConfiguration from '../../IConfiguration.js';

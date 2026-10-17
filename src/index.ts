@@ -1,11 +1,8 @@
-import * as child_process from 'child_process';
-import * as path from 'path';
+import * as child_process from 'node:child_process';
+import * as path from 'node:path';
 import container from './model/ModelContainer.js';
 import * as containerSetter from './model/ModelContainerSetter.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 containerSetter.set(container);
 

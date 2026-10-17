@@ -7,7 +7,7 @@ import * as api from './HonoApiUtil.js';
 export const readOnlyMiddleware: MiddlewareHandler = async (c, next) => {
     let configuration: IConfiguration;
     try {
-        configuration = container.get<IConfiguration>('IConfiguration');
+        configuration = container.configuration;
     } catch {
         return await next();
     }

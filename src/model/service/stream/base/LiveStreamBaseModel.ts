@@ -1,6 +1,6 @@
-import { ChildProcess } from 'child_process';
-import * as http from 'http';
-import internal from 'stream';
+import { ChildProcess } from 'node:child_process';
+import * as http from 'node:http';
+import internal from 'node:stream';
 import { TsSubtitleId3Muxer } from 'arib-probe';
 import * as apid from '../../../../../api.js';
 import ProcessUtil from '../../../../util/ProcessUtil.js';

@@ -1,4 +1,4 @@
-import internal from 'stream';
+import internal from 'node:stream';
 import * as apid from '../../../../api.js';
 import IPlayList from '../IPlayList.js';
 

@@ -1,14 +1,11 @@
-import * as child_process from 'child_process';
-import * as path from 'path';
+import * as child_process from 'node:child_process';
+import * as path from 'node:path';
 import IEPGUpdateEvent from '../event/IEPGUpdateEvent.js';
 import IIPCServer from '../ipc/IIPCServer.js';
 import ILogger from '../ILogger.js';
 import ILoggerModel from '../ILoggerModel.js';
 import IEPGUpdateExecutorManageModel from './IEPGUpdateExecutorManageModel.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = import.meta.dirname;
 
 export default class EPGUpdateExecutorManageModel implements IEPGUpdateExecutorManageModel {
     private log: ILogger;

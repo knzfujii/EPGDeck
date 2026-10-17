@@ -1,4 +1,4 @@
-import * as events from 'events';
+import * as events from 'node:events';
 import * as apid from '../../../api.js';
 import RecordedTag from '../../db/entities/RecordedTag.js';
 import ILogger from '../ILogger.js';

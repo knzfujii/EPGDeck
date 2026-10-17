@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IChannelApiModel, { IChannelApiModelError } from '../../../api/channel/IChannelApiModel.js';
+import { IChannelApiModelError } from '../../../api/channel/IChannelApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
 import { channelIdParamSchema } from '../schemas/channels.js';
@@ -8,13 +8,13 @@ import { channelIdParamSchema } from '../schemas/channels.js';
 const app = new Hono()
     // GET /api/channels
     .get('/', async c => {
-        const channelApiModel = container.get<IChannelApiModel>('IChannelApiModel');
+        const channelApiModel = container.channelApiModel;
         const result = await channelApiModel.getChannels();
         return c.json(result);
     })
     // GET /api/channels/:channelId/logo
     .get('/:channelId/logo', zValidator('param', channelIdParamSchema), async c => {
-        const channelApiModel = container.get<IChannelApiModel>('IChannelApiModel');
+        const channelApiModel = container.channelApiModel;
         const { channelId } = c.req.valid('param');
 
         try {

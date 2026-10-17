@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import FileUtil from '../../../util/FileUtil.js';
 import IEncodeFileManageModel from './IEncodeFileManageModel.js';
 

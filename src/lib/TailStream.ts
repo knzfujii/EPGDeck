@@ -9,9 +9,9 @@
  * を改変し作成しています。
  */
 
-import * as assert from 'assert';
-import * as fs from 'fs';
-import { Readable, ReadableOptions } from 'stream';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import { Readable, ReadableOptions } from 'node:stream';
 import ILogger from '../model/ILogger.js';
 import container from '../model/ModelContainer.js';
 

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
-import { IncomingMessage } from 'http';
+import { EventEmitter } from 'node:events';
+import { IncomingMessage } from 'node:http';
 import type { Client } from 'mirakurun';
 import * as mapid from 'mirakurun/api.js';
 import IChannelDB from '../db/IChannelDB.js';

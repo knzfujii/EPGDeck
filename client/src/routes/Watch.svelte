@@ -1,26 +1,19 @@
 <script lang="ts">
-    import { onMount, onDestroy, untrack } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
-    import { getTopMp4File } from '../lib/utils/video';
-    import { getChannelTypeBadgeClass, formatPlayerTime } from '../lib/utils/format';
+    import { getChannelTypeBadgeClass } from '../lib/utils/format';
     import VideoPlayer from '../lib/components/video/VideoPlayer.svelte';
     import api from '@/lib/apiClient';
-    import type * as apid from '../../../api';
-    import { ArrowLeft, Radio, Clock, FileVideo, Loader2 } from '@lucide/svelte';
-    import { parseDropLog, type DropMarker } from '../lib/utils/dropLog';
+    import { ArrowLeft, Radio, Clock, Loader2 } from '@lucide/svelte';
     import Button from '@/lib/components/common/Button.svelte';
 
     let videoSrc = $state<string>('');
-    let vttSrc = $state<string | undefined>(undefined);
     let streamType = $state<'m2tsll' | 'm2ts' | 'webm' | 'mp4' | 'hls' | 'direct'>('direct');
     let isHls = $state(false);
     let isLive = $state(false);
-    let playbackOffset = $state(0);
-    let dropMarkers = $state<DropMarker[]>([]);
-    let currentStreamMode = $state(0);
     let streamId = $state<number | null>(null);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
     let isPreparingStream = $state(false);
@@ -33,72 +26,7 @@
     let timeRange = $state('');
     let description = $state('');
     let extended = $state('');
-    let recordedData = $state<apid.RecordedItem | null>(null);
-    let currentVideoFile = $state<apid.VideoFile | null>(null);
-    let videoFileDuration = $state<number | null>(null);
     let isLoadingInfo = $state(true);
-
-    let totalDuration = $derived.by(() => {
-        if (videoFileDuration !== null && videoFileDuration > 0) {
-            return videoFileDuration;
-        }
-        if (!recordedData) return 0;
-        if (recordedData.duration && recordedData.duration > 0) {
-            return Math.max(0, Math.floor(recordedData.duration / 1000));
-        }
-        if (recordedData.startAt && recordedData.endAt) {
-            return Math.max(0, Math.floor((recordedData.endAt - recordedData.startAt) / 1000));
-        }
-        return 0;
-    });
-
-    let activeVideoFile = $derived(currentVideoFile ?? recordedData?.videoFiles?.[0] ?? null);
-
-    async function fetchVideoFileDuration(fileId: number) {
-        try {
-            const res = await api.videos[':videoFileId'].duration.$get({
-                param: { videoFileId: String(fileId) },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (typeof data?.duration === 'number' && data.duration > 0) {
-                    videoFileDuration = Math.floor(data.duration);
-                }
-            }
-        } catch {
-            // ignore error
-        }
-    }
-
-    async function fetchDropLog(dropLogFileId: number, startAtMs?: number) {
-        try {
-            const res = await api.dropLogs[':dropLogFileId'].$get({
-                param: { dropLogFileId: String(dropLogFileId) },
-                query: {},
-            });
-            if (res.ok) {
-                const text = await res.text();
-                dropMarkers = parseDropLog(text, startAtMs);
-            }
-        } catch {
-            dropMarkers = [];
-        }
-    }
-
-    $effect(() => {
-        const fileId = activeVideoFile?.id;
-        if (fileId) {
-            untrack(() => {
-                fetchVideoFileDuration(fileId);
-            });
-        }
-    });
-
-    function withAuthToken(url: string): string {
-        if (!readOnlyStore.token) return url;
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}token=${encodeURIComponent(readOnlyStore.token)}`;
-    }
 
     async function waitForStreamReady(id: number): Promise<boolean> {
         for (let i = 1; i <= 100; i++) {
@@ -108,7 +36,7 @@
                 statusMessage = statusMessage.replace(/\s*\([\d.]+秒\)$/, '') + ` (${sec}秒)`;
             }
             try {
-                // 1. API での isEnable チェック
+                // API での isEnable チェック
                 const infoRes = await api.streams.$get({ query: { isHalfWidth: true } });
                 if (infoRes.ok) {
                     const infoData = await infoRes.json();
@@ -120,7 +48,7 @@
                     }
                 }
 
-                // 2. マニフェストファイルが直接取得できるか確認
+                // マニフェストファイルが直接取得できるか確認
                 if (i >= 5) {
                     try {
                         const m3u8Res = await fetch(`/streamfiles/stream${id}.m3u8`);
@@ -157,20 +85,10 @@
         throw new Error('Stream timed out waiting for manifest');
     }
 
-    function startDirectPlay(file: apid.VideoFile) {
-        streamType = 'direct';
-        currentVideoFile = file;
-        videoSrc = withAuthToken(`/api/videos/${file.id}`);
-        vttSrc = withAuthToken(`/api/videos/${file.id}/vtt`);
-        isHls = false;
-    }
-
     async function initWatch() {
         const query = router.current.query;
         const channelId = query.channelId ? parseInt(query.channelId, 10) : null;
         const recordedId = query.recordedId ? parseInt(query.recordedId, 10) : null;
-        const videoId = query.videoId ? parseInt(query.videoId, 10) : null;
-        const videoFileId = query.videoFileId ? parseInt(query.videoFileId, 10) : null;
         const reqType = (query.type as string) || 'm2tsll';
         const mode = query.mode ? parseInt(query.mode, 10) : 0;
 
@@ -210,13 +128,13 @@
                 // 🚀 M2TS-LL (最速・超低遅延): 待ち時間 0 秒で即座に再生
                 streamType = reqType;
                 isHls = false;
-                videoSrc = withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
+                videoSrc = readOnlyStore.withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
                 isLoadingInfo = false;
             } else if (reqType === 'webm' || reqType === 'mp4') {
                 // ⚡ WebM / MP4 (高速): 待ち時間 0 秒で即座に再生
                 streamType = reqType;
                 isHls = false;
-                videoSrc = withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
+                videoSrc = readOnlyStore.withAuthToken(`/api/streams/live/${channelId}/${reqType}?mode=${mode}`);
                 isLoadingInfo = false;
             } else {
                 // 📱 HLS 配信
@@ -299,60 +217,6 @@
         }
     }
 
-    let isRestartingHls = false;
-    let pendingSeekTarget: number | null = null;
-
-    async function restartHlsAtPosition(targetTime: number) {
-        if (!currentVideoFile || isLive) return;
-        const targetFile = currentVideoFile;
-        const seekSecond = Math.max(0, Math.floor(targetTime));
-        pendingSeekTarget = seekSecond;
-
-        if (isRestartingHls) return;
-        isRestartingHls = true;
-
-        try {
-            while (pendingSeekTarget !== null) {
-                const currentTarget = pendingSeekTarget;
-                pendingSeekTarget = null;
-
-                if (isHls || streamType === 'hls') {
-                    statusMessage = `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`;
-                    await stopStream();
-                    playbackOffset = currentTarget;
-
-                    await startHlsStream(
-                        async () => {
-                            const res = await api.streams.recorded[':videoFileId'].hls.$get({
-                                param: { videoFileId: String(targetFile.id) },
-                                query: { mode: currentStreamMode, ss: currentTarget },
-                            });
-                            if (!res.ok) throw new Error(`Failed to start recorded HLS: ${res.status}`);
-                            const data = await res.json();
-                            return Number(data.streamId);
-                        },
-                        `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`,
-                    );
-                } else if (streamType === 'webm' || streamType === 'mp4') {
-                    statusMessage = `${formatPlayerTime(currentTarget)} からストリームを再開中...`;
-                    playbackOffset = currentTarget;
-                    videoSrc = withAuthToken(
-                        `/api/streams/recorded/${currentVideoFile.id}/${streamType}?mode=${currentStreamMode}&ss=${currentTarget}&t=${Date.now()}`,
-                    );
-                }
-            }
-        } catch (e) {
-            console.error('Failed to restart HLS stream at position', e);
-            snackbar.open({ text: 'シーク先でのストリーム再生成に失敗しました', color: 'error' });
-        } finally {
-            isRestartingHls = false;
-            pendingSeekTarget = null;
-            isLoadingInfo = false;
-            isPreparingStream = false;
-            statusMessage = '';
-        }
-    }
-
     function formatTime(d: Date): string {
         return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     }
@@ -374,12 +238,8 @@
             onclick={() => {
                 if (window.history.length > 1) {
                     window.history.back();
-                } else if (isLive) {
-                    router.push('/onair');
-                } else if (recordedData?.id) {
-                    router.push(`/recorded/detail?recordedId=${recordedData.id}`);
                 } else {
-                    router.push('/recorded');
+                    router.push('/onair');
                 }
             }}
             class="flex items-center gap-2"
@@ -395,11 +255,7 @@
                     ch?.channelType,
                 )}"
             >
-                {#if isLive}
-                    <Radio size={14} />
-                {:else}
-                    <FileVideo size={14} />
-                {/if}
+                <Radio size={14} />
                 {channelName}
             </span>
         {/if}
@@ -411,18 +267,11 @@
             <VideoPlayer
                 src={videoSrc}
                 {streamType}
-                videoFileType={currentVideoFile?.type}
                 {isHls}
                 {isLive}
-                {playbackOffset}
                 {statusMessage}
                 title={programTitle}
-                recordedId={recordedData?.id}
-                {totalDuration}
-                {vttSrc}
-                {dropMarkers}
                 onStreamEnded={stopStream}
-                onHlsSeekRestart={restartHlsAtPosition}
             />
         {:else}
             <div
@@ -450,16 +299,6 @@
                         <Clock size={14} />
                         {timeRange}
                     </span>
-                    {#if activeVideoFile}
-                        <span
-                            class="rounded-md px-2 py-0.5 text-xs font-bold border uppercase {activeVideoFile.type ===
-                            'encoded'
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'}"
-                        >
-                            {activeVideoFile.name}
-                        </span>
-                    {/if}
                 </div>
             {/if}
 

@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import IConfigFile from '../../IConfigFile.js';
 import IConfiguration from '../../IConfiguration.js';
 import { LogCategory, LogEntry, LogEntryLevel, LogProcess } from '../../ILogger.js';

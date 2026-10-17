@@ -120,7 +120,7 @@
     async function writeClipboardText(text: string): Promise<boolean> {
         let success = false;
 
-        // 1. Clipboard API (navigator.clipboard) を試行
+        // Clipboard API (navigator.clipboard) を試行
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
             try {
                 await navigator.clipboard.writeText(text);
@@ -130,7 +130,7 @@
             }
         }
 
-        // 2. HTTP / LAN IP アドレス環境用フォールバック (textarea + execCommand)
+        // HTTP / LAN IP アドレス環境用フォールバック (textarea + execCommand)
         if (!success) {
             try {
                 const textarea = document.createElement('textarea');

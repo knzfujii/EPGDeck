@@ -205,11 +205,6 @@ export default class RecordedDB implements IRecordedDB {
         const client = this.drizzleOp.getDB();
 
         return await this.promiseRetry.run(async () => {
-            const isNeedVideoFiles = typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true;
-            const isNeedThumbnails = typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true;
-            const isNeedsDropLog = typeof columnOption === 'undefined' || columnOption.isNeedsDropLog === true;
-            const isNeedTags = typeof columnOption !== 'undefined' && columnOption.isNeedTags === true;
-
             const { db, schema } = client;
             const records: any[] = await (db as any)
                 .select()
@@ -217,38 +212,11 @@ export default class RecordedDB implements IRecordedDB {
                 .where(inArray(schema.recorded.id, recordedIds))
                 .orderBy(isReverse ? asc(schema.recorded.startAt) : desc(schema.recorded.startAt));
 
-            if (records.length === 0) return [];
-
-            const idList = records.map(r => r.id);
-
-            let videoFileMap = new Map<number, VideoFile[]>();
-            if (isNeedVideoFiles) {
-                videoFileMap = await this.fetchVideoFiles(client, idList);
-            }
-
-            let thumbnailMap = new Map<number, Thumbnail[]>();
-            if (isNeedThumbnails) {
-                thumbnailMap = await this.fetchThumbnails(client, idList);
-            }
-
-            let dropLogMap = new Map<number, DropLogFile>();
-            if (isNeedsDropLog) {
-                dropLogMap = await this.fetchDropLogs(client, records.map(r => r.dropLogFileId).filter(Boolean));
-            }
-
-            let tagsMap = new Map<number, RecordedTag[]>();
-            if (isNeedTags) {
-                tagsMap = await this.fetchTags(client, idList);
-            }
-
-            return records.map(r => {
-                const entity = this.toEntity(r);
-                if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
-                if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
-                if (isNeedsDropLog)
-                    entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
-                if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
-                return entity;
+            return await this.attachRelations(client, records, {
+                isNeedVideoFiles: typeof columnOption === 'undefined' || columnOption.isNeedVideoFiles === true,
+                isNeedThumbnails: typeof columnOption === 'undefined' || columnOption.isNeedThumbnails === true,
+                isNeedsDropLog: typeof columnOption === 'undefined' || columnOption.isNeedsDropLog === true,
+                isNeedTags: typeof columnOption !== 'undefined' && columnOption.isNeedTags === true,
             });
         });
     }
@@ -336,41 +304,11 @@ export default class RecordedDB implements IRecordedDB {
 
             if (records.length === 0) return [[], totalCount];
 
-            const idList = records.map(r => r.id);
-
-            const isNeedVideoFiles = columnOption.isNeedVideoFiles === true;
-            const isNeedThumbnails = columnOption.isNeedThumbnails === true;
-            const isNeedsDropLog = columnOption.isNeedsDropLog === true;
-            const isNeedTags = columnOption.isNeedTags === true;
-
-            let videoFileMap = new Map<number, VideoFile[]>();
-            if (isNeedVideoFiles) {
-                videoFileMap = await this.fetchVideoFiles(client, idList);
-            }
-
-            let thumbnailMap = new Map<number, Thumbnail[]>();
-            if (isNeedThumbnails) {
-                thumbnailMap = await this.fetchThumbnails(client, idList);
-            }
-
-            let dropLogMap = new Map<number, DropLogFile>();
-            if (isNeedsDropLog) {
-                dropLogMap = await this.fetchDropLogs(client, records.map(r => r.dropLogFileId).filter(Boolean));
-            }
-
-            let tagsMap = new Map<number, RecordedTag[]>();
-            if (isNeedTags) {
-                tagsMap = await this.fetchTags(client, idList);
-            }
-
-            const results = records.map(r => {
-                const entity = this.toEntity(r);
-                if (isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
-                if (isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
-                if (isNeedsDropLog)
-                    entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
-                if (isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
-                return entity;
+            const results = await this.attachRelations(client, records, {
+                isNeedVideoFiles: columnOption.isNeedVideoFiles === true,
+                isNeedThumbnails: columnOption.isNeedThumbnails === true,
+                isNeedsDropLog: columnOption.isNeedsDropLog === true,
+                isNeedTags: columnOption.isNeedTags === true,
             });
 
             return [results, totalCount];
@@ -457,6 +395,41 @@ export default class RecordedDB implements IRecordedDB {
                 undefined,
                 false,
             );
+        });
+    }
+
+    private async attachRelations(
+        client: any,
+        records: any[],
+        flags: {
+            isNeedVideoFiles: boolean;
+            isNeedThumbnails: boolean;
+            isNeedsDropLog: boolean;
+            isNeedTags: boolean;
+        },
+    ): Promise<Recorded[]> {
+        if (records.length === 0) return [];
+
+        const idList = records.map(r => r.id);
+        const videoFileMap = flags.isNeedVideoFiles
+            ? await this.fetchVideoFiles(client, idList)
+            : new Map<number, VideoFile[]>();
+        const thumbnailMap = flags.isNeedThumbnails
+            ? await this.fetchThumbnails(client, idList)
+            : new Map<number, Thumbnail[]>();
+        const dropLogMap = flags.isNeedsDropLog
+            ? await this.fetchDropLogs(client, records.map(r => r.dropLogFileId).filter(Boolean))
+            : new Map<number, DropLogFile>();
+        const tagsMap = flags.isNeedTags ? await this.fetchTags(client, idList) : new Map<number, RecordedTag[]>();
+
+        return records.map(r => {
+            const entity = this.toEntity(r);
+            if (flags.isNeedVideoFiles) entity.videoFiles = videoFileMap.get(entity.id) || [];
+            if (flags.isNeedThumbnails) entity.thumbnails = thumbnailMap.get(entity.id) || [];
+            if (flags.isNeedsDropLog)
+                entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
+            if (flags.isNeedTags) entity.tags = tagsMap.get(entity.id) || [];
+            return entity;
         });
     }
 
@@ -566,22 +539,11 @@ export default class RecordedDB implements IRecordedDB {
 
             // 正規化タイトル（StrUtil.deleteBrackets(r.halfWidthName)）で一致するものを抽出
             const matchedRows = rows.filter(r => StrUtil.deleteBrackets(r.halfWidthName) === name);
-            if (matchedRows.length === 0) return [];
-
-            const idList = matchedRows.map(r => r.id);
-            const videoFileMap = await this.fetchVideoFiles(client, idList);
-            const thumbnailMap = await this.fetchThumbnails(client, idList);
-            const dropLogFileIds = matchedRows.map(r => r.dropLogFileId).filter(Boolean);
-            const dropLogMap = await this.fetchDropLogs(client, dropLogFileIds);
-            const tagsMap = await this.fetchTags(client, idList);
-
-            return matchedRows.map(r => {
-                const entity = this.toEntity(r);
-                entity.videoFiles = videoFileMap.get(entity.id) || [];
-                entity.thumbnails = thumbnailMap.get(entity.id) || [];
-                entity.dropLogFile = r.dropLogFileId ? dropLogMap.get(r.dropLogFileId) || null : null;
-                entity.tags = tagsMap.get(entity.id) || [];
-                return entity;
+            return await this.attachRelations(client, matchedRows, {
+                isNeedVideoFiles: true,
+                isNeedThumbnails: true,
+                isNeedsDropLog: true,
+                isNeedTags: true,
             });
         });
     }

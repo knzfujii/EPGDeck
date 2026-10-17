@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IDropLogApiModel from '../../../api/dropLog/IDropLogApiModel.js';
 import container from '../../../ModelContainer.js';
 import * as api from '../HonoApiUtil.js';
 import { NotFoundError } from '../../../error/ApiError.js';
@@ -13,7 +12,7 @@ const app = new Hono()
         zValidator('param', dropLogParamSchema),
         zValidator('query', dropLogQuerySchema),
         async c => {
-            const dropLogApiModel = container.get<IDropLogApiModel>('IDropLogApiModel');
+            const dropLogApiModel = container.dropLogApiModel;
             const { dropLogFileId } = c.req.valid('param');
             const { maxsize } = c.req.valid('query');
 

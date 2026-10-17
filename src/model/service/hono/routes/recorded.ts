@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { GetRecordedOption } from '../../../../../api.js';
-import IRecordedApiModel from '../../../api/recorded/IRecordedApiModel.js';
 import container from '../../../ModelContainer.js';
 import { NotFoundError } from '../../../error/ApiError.js';
 import {
@@ -14,7 +13,7 @@ import {
 const app = new Hono()
     // GET /api/recorded
     .get('/', zValidator('query', getRecordedQuerySchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const query = c.req.valid('query');
         const option: GetRecordedOption = {
             ...query,
@@ -25,13 +24,13 @@ const app = new Hono()
     })
     // GET /api/recorded/options
     .get('/options', async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const list = await recordedApiModel.getSearchOptionList();
         return c.json(list);
     })
     // POST /api/recorded/cleanup
     .post('/cleanup', async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         await recordedApiModel.fileCleanup();
         return c.json({ code: 200 });
     })
@@ -41,7 +40,7 @@ const app = new Hono()
         zValidator('param', recordedIdParamSchema),
         zValidator('query', getRecordedItemQuerySchema),
         async c => {
-            const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+            const recordedApiModel = container.recordedApiModel;
             const { recordedId } = c.req.valid('param');
             const { isHalfWidth = true } = c.req.valid('query');
             const recorded = await recordedApiModel.get(recordedId, isHalfWidth);
@@ -57,7 +56,7 @@ const app = new Hono()
         zValidator('param', recordedIdParamSchema),
         zValidator('query', deleteRecordedQuerySchema),
         async c => {
-            const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+            const recordedApiModel = container.recordedApiModel;
             const { recordedId } = c.req.valid('param');
             await recordedApiModel.delete(recordedId);
             return c.json({ code: 200 });
@@ -65,42 +64,42 @@ const app = new Hono()
     )
     // PUT /api/recorded/:recordedId/protect
     .put('/:recordedId/protect', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.changeProtect(recordedId, true);
         return c.json({ code: 200 });
     })
     // PUT /api/recorded/:recordedId/unprotect
     .put('/:recordedId/unprotect', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.changeProtect(recordedId, false);
         return c.json({ code: 200 });
     })
     // DELETE /api/recorded/:recordedId/encode
     .delete('/:recordedId/encode', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.stopEncode(recordedId);
         return c.json({ code: 200 });
     })
     // GET /api/recorded/:recordedId/history
     .get('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         const result = await recordedApiModel.getHistory(recordedId);
         return c.json(result);
     })
     // DELETE /api/recorded/:recordedId/history
     .delete('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.deleteHistory(recordedId);
         return c.json({ code: 200 });
     })
     // POST /api/recorded/:recordedId/history
     .post('/:recordedId/history', zValidator('param', recordedIdParamSchema), async c => {
-        const recordedApiModel = container.get<IRecordedApiModel>('IRecordedApiModel');
+        const recordedApiModel = container.recordedApiModel;
         const { recordedId } = c.req.valid('param');
         await recordedApiModel.addHistory(recordedId);
         return c.json({ code: 200 });

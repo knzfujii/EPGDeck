@@ -1,4 +1,4 @@
-import * as http from 'http';
+import * as http from 'node:http';
 import * as mapid from 'mirakurun/api.js';
 import Reserve from '../../../db/entities/Reserve.js';
 

@@ -672,7 +672,7 @@
                                         ? 'bg-rose-50/40 dark:bg-rose-950/20'
                                         : ''}"
                                 >
-                                    <!-- 1. 放送局カラム -->
+                                    <!-- 放送局カラム -->
                                     <td class="px-4 py-4 align-top whitespace-nowrap">
                                         <div class="space-y-1.5">
                                             <span
@@ -692,7 +692,7 @@
                                         </div>
                                     </td>
 
-                                    <!-- 2. 現在の番組カラム (主役: メタ情報 ➔ タイトル ＋ 視聴・録画ボタン ➔ 進捗バー ➔ 概要) -->
+                                    <!-- 現在の番組カラム (主役: メタ情報 ➔ タイトル ＋ 視聴・録画ボタン ➔ 進捗バー ➔ 概要) -->
                                     <td
                                         class="px-4 py-4 align-top min-w-0 {current
                                             ? 'cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/50 transition-colors group/current'
@@ -824,7 +824,7 @@
                                         {/if}
                                     </td>
 
-                                    <!-- 3. 次の番組カラム (開始時刻、ジャンル、タイトル、予約ボタン/予約中バッジ) -->
+                                    <!-- 次の番組カラム (開始時刻、ジャンル、タイトル、予約ボタン/予約中バッジ) -->
                                     <td
                                         class="px-4 py-4 align-top border-l border-slate-100 dark:border-slate-800 bg-slate-50/25 dark:bg-slate-900/20 {next
                                             ? 'cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/50 transition-colors group/next'

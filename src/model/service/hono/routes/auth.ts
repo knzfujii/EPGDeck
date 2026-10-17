@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import IConfiguration from '../../../IConfiguration.js';
 import container from '../../../ModelContainer.js';
 import { AuthManager } from '../AuthManager.js';
 import { ApiError, BadRequestError } from '../../../error/ApiError.js';
@@ -9,7 +8,7 @@ import { unlockJsonSchema } from '../schemas/auth.js';
 const app = new Hono()
     // POST /api/auth/unlock
     .post('/unlock', zValidator('json', unlockJsonSchema), async c => {
-        const configuration = container.get<IConfiguration>('IConfiguration');
+        const configuration = container.configuration;
         const config = configuration.getConfig();
         const readOnly = config.readOnly;
 
@@ -39,7 +38,7 @@ const app = new Hono()
     })
     // GET /api/auth/status
     .get('/status', async c => {
-        const configuration = container.get<IConfiguration>('IConfiguration');
+        const configuration = container.configuration;
         const config = configuration.getConfig();
         const readOnly = config.readOnly;
 

@@ -15,8 +15,10 @@
     import { getSmartWatchUrl } from '../lib/utils/video';
     import StreamSelectModal from '../lib/components/video/StreamSelectModal.svelte';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
+    import Badge from '../lib/components/common/Badge.svelte';
     import Button from '../lib/components/common/Button.svelte';
     import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
+    import { saveLastReserveTargetId, saveRuleEditReturnPath } from '../lib/navigationHistory';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import {
@@ -104,9 +106,8 @@
                 };
             });
             conflictReserves = mappedReserves.filter(r => r.isConflict);
-            const nonOverlapReserves = mappedReserves.filter(r => !r.isOverlap);
-            reservesTotal = nonOverlapReserves.length;
-            upcomingReserves = nonOverlapReserves.slice(0, 10);
+            reservesTotal = reservesRes.total || mappedReserves.length;
+            upcomingReserves = mappedReserves.slice(0, 10);
         } catch (e) {
             console.error('Failed to fetch dashboard data', e);
         } finally {
@@ -443,7 +444,10 @@
                                             {#if !readOnlyStore.isReadOnly && item.ruleId}
                                                 <button
                                                     type="button"
-                                                    onclick={() => router.push(`/rule/edit?ruleId=${item.ruleId}`)}
+                                                    onclick={() => {
+                                                        saveRuleEditReturnPath('/');
+                                                        router.push(`/rule/edit?ruleId=${item.ruleId}`);
+                                                    }}
                                                     class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
                                                 >
                                                     ルール編集
@@ -451,7 +455,10 @@
                                             {/if}
                                             <button
                                                 type="button"
-                                                onclick={() => router.push('/reserves')}
+                                                onclick={() => {
+                                                    saveLastReserveTargetId(item.id, item.ruleId);
+                                                    router.push('/reserves');
+                                                }}
                                                 class="flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/60 cursor-pointer"
                                             >
                                                 確認 <ArrowRight size={13} />
@@ -588,28 +595,29 @@
                             >
                                 <div class="flex items-center justify-between gap-3">
                                     <div
-                                        onclick={() => router.push('/reserves')}
+                                        onclick={() => {
+                                            saveLastReserveTargetId(item.id, item.ruleId);
+                                            router.push('/reserves');
+                                        }}
                                         class="min-w-0 flex-1 cursor-pointer group"
                                         role="button"
                                         tabindex="0"
                                         onkeydown={e => {
-                                            if (e.key === 'Enter') router.push('/reserves');
+                                            if (e.key === 'Enter') {
+                                                saveLastReserveTargetId(item.id, item.ruleId);
+                                                router.push('/reserves');
+                                            }
                                         }}
                                     >
                                         <div class="flex items-center gap-2 flex-wrap">
                                             {#if item.isRecording}
-                                                <span
-                                                    class="flex items-center gap-1 rounded bg-rose-600 px-2 py-0.5 text-xs font-black text-white uppercase tracking-wider animate-pulse"
-                                                >
-                                                    ● 録画中
-                                                </span>
-                                            {/if}
-                                            {#if item.isConflict}
-                                                <span
-                                                    class="flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                                >
-                                                    <AlertTriangle size={13} /> チューナー競合
-                                                </span>
+                                                <Badge variant="recording" />
+                                            {:else if item.isConflict}
+                                                <Badge variant="conflict" text="チューナー競合" />
+                                            {:else if item.isSkip}
+                                                <Badge variant="skip" text="スキップ中" />
+                                            {:else if item.isOverlap}
+                                                <Badge variant="overlap" text="重複スキップ" />
                                             {/if}
 
                                             <span

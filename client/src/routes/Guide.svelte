@@ -9,6 +9,11 @@
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
     import { buildRuleEditUrl, getChannelTypeBadgeClass } from '../lib/utils/format';
+    import {
+        consumeLastGuideViewState,
+        saveLastGuideViewState,
+        saveRuleEditReturnPath,
+    } from '../lib/navigationHistory';
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import RecordingOptionForm from '../lib/components/recording/RecordingOptionForm.svelte';
     import FilterTabs from '../lib/components/common/FilterTabs.svelte';
@@ -220,8 +225,15 @@
         return map;
     }
 
+    let isFetchingGuide = false;
+    let pendingReservesRefresh = false;
+    let reservesFetchSeq = 0;
+
     async function fetchGuide(autoScroll = false) {
         isLoading = true;
+        isFetchingGuide = true;
+        pendingReservesRefresh = false;
+        const seq = ++reservesFetchSeq;
         try {
             await channelStore.fetch();
 
@@ -268,17 +280,25 @@
             ]);
 
             schedules = scheduleRes || [];
-            reservesMap = createReservesMap(
-                (reservesRes.reserves as apid.ReserveItem[]) || [],
-                recordingRes.records || [],
-            );
+            if (seq === reservesFetchSeq) {
+                reservesMap = createReservesMap(
+                    (reservesRes.reserves as apid.ReserveItem[]) || [],
+                    recordingRes.records || [],
+                );
+            }
 
             updateCurrentTimeLine();
         } catch (e) {
             console.error('Failed to fetch guide schedules', e);
             snackbar.open({ text: '番組表データの取得に失敗しました', color: 'error' });
         } finally {
+            isFetchingGuide = false;
             isLoading = false;
+        }
+
+        if (pendingReservesRefresh) {
+            pendingReservesRefresh = false;
+            void refreshReservesMap();
         }
 
         // DOM が描画された後に確実に現在時刻へスクロール
@@ -292,6 +312,7 @@
 
     // 予約マップのみを更新 (番組表の再描画・スクロール位置のリセットを避ける)
     async function refreshReservesMap() {
+        const seq = ++reservesFetchSeq;
         try {
             const [reservesRes, recordingRes] = await Promise.all([
                 api.reserves
@@ -310,10 +331,12 @@
                     .catch(() => ({ records: [] })),
             ]);
 
-            reservesMap = createReservesMap(
-                (reservesRes.reserves as apid.ReserveItem[]) || [],
-                recordingRes.records || [],
-            );
+            if (seq === reservesFetchSeq) {
+                reservesMap = createReservesMap(
+                    (reservesRes.reserves as apid.ReserveItem[]) || [],
+                    recordingRes.records || [],
+                );
+            }
         } catch (e) {
             console.error('Failed to refresh reserves map', e);
         }
@@ -335,8 +358,42 @@
         }
     }
 
+    function saveGuideStateForRuleEdit() {
+        saveLastGuideViewState({
+            dateTime: selectedDate.getTime(),
+            selectedType,
+            scrollTop: scrollContainer?.scrollTop ?? 0,
+            scrollLeft: scrollContainer?.scrollLeft ?? 0,
+        });
+        saveRuleEditReturnPath(router.current.path);
+    }
+
     onMount(() => {
-        fetchGuide(true);
+        const restoredState = consumeLastGuideViewState();
+        if (restoredState) {
+            const base = getBaseDate();
+            const max = new Date(base);
+            max.setDate(max.getDate() + MAX_DAYS_AHEAD);
+            if (restoredState.dateTime >= base.getTime() && restoredState.dateTime <= max.getTime()) {
+                selectedDate = new Date(restoredState.dateTime);
+            }
+            selectedType = restoredState.selectedType;
+            void fetchGuide(false).then(async () => {
+                await tick();
+                if (scrollContainer) {
+                    scrollContainer.scrollTop = restoredState.scrollTop;
+                    scrollContainer.scrollLeft = restoredState.scrollLeft;
+                }
+                setTimeout(() => {
+                    if (scrollContainer) {
+                        scrollContainer.scrollTop = restoredState.scrollTop;
+                        scrollContainer.scrollLeft = restoredState.scrollLeft;
+                    }
+                }, 60);
+            });
+        } else {
+            fetchGuide(true);
+        }
         // エンコードプリセット名と保存先ディレクトリ名を取得
         configStore
             .fetch()
@@ -349,7 +406,11 @@
 
         // Socket.IO による予約変更通知を受信してリアルタイム更新
         unsubscribeSocket = socketStore.on('updateStatus', () => {
-            refreshReservesMap();
+            if (isFetchingGuide) {
+                pendingReservesRefresh = true;
+            } else {
+                void refreshReservesMap();
+            }
         });
 
         return () => {
@@ -1056,6 +1117,7 @@
                                     type="button"
                                     onclick={() => {
                                         isModalOpen = false;
+                                        saveGuideStateForRuleEdit();
                                         router.push(`/rule/edit?ruleId=${selectedProgram!.reserve!.ruleId}`);
                                     }}
                                     class="flex items-center gap-1 rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-purple-700 shadow-xs cursor-pointer"
@@ -1102,6 +1164,7 @@
                         size="compact"
                         onclick={() => {
                             isModalOpen = false;
+                            saveGuideStateForRuleEdit();
                             router.push(buildRuleEditUrl(selectedProgram!.name, selectedProgram!.channelId));
                         }}
                     >

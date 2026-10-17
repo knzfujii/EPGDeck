@@ -20,6 +20,7 @@
     import RecordingActionModal from '../lib/components/recording/RecordingActionModal.svelte';
     import Button from '../lib/components/common/Button.svelte';
     import Divider from '../lib/components/common/Divider.svelte';
+    import { saveRuleEditReturnPath } from '../lib/navigationHistory';
     import {
         executeRecordingAction,
         type RecordingActionType,
@@ -1051,6 +1052,7 @@
                         size="compact"
                         onclick={() => {
                             isDetailModalOpen = false;
+                            saveRuleEditReturnPath(router.current.path);
                             router.push(buildRuleEditUrl(p.name, ch?.id ?? p.channelId));
                         }}
                     >

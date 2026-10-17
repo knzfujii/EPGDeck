@@ -105,6 +105,20 @@ test.describe('Dashboard Page (/)', () => {
             allowEndLack: true,
         };
 
+        const skipReserve = {
+            id: 804,
+            programId: 9004,
+            channelId: 1,
+            name: 'ダッシュボードスキップ番組',
+            startAt: now + 240 * 60 * 1000,
+            endAt: now + 300 * 60 * 1000,
+            isHalfWidth: true,
+            isSkip: true,
+            isConflict: false,
+            isOverlap: false,
+            allowEndLack: true,
+        };
+
         const recordingRecord = {
             id: 801,
             programId: 9001,
@@ -136,8 +150,8 @@ test.describe('Dashboard Page (/)', () => {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    reserves: [recordingReserve, conflictReserve, overlapReserve],
-                    total: 3,
+                    reserves: [recordingReserve, conflictReserve, overlapReserve, skipReserve],
+                    total: 4,
                 }),
             });
         });
@@ -171,16 +185,27 @@ test.describe('Dashboard Page (/)', () => {
         await cancelBtn.click();
         await expect(actionModal).not.toBeVisible();
 
-        // 3. 予約警告アコーディオン（チューナー競合のみ表示、重複スキップは除外）の検証
+        // 3. 予約警告アコーディオン（チューナー競合のみ表示、重複スキップ・スキップは除外）の検証
         const alertAccordionBtn = page.getByRole('button', { name: /予約の注意・警告/ });
         await expect(alertAccordionBtn).toBeVisible();
-        await expect(page.getByText('競合 1件')).toBeVisible();
-        await expect(page.getByText('重複スキップ')).not.toBeVisible();
+        const alertCard = alertAccordionBtn.locator('..');
+        await expect(alertCard.getByText('競合 1件')).toBeVisible();
 
-        // アコーディオンを展開
+        // アコーディオンを展開し、警告カード内には競合番組のみが表示されること
         await alertAccordionBtn.click();
-        await expect(page.getByText('ダッシュボード競合番組').first()).toBeVisible();
-        await expect(page.getByText('ダッシュボード重複番組')).not.toBeVisible();
+        await expect(alertCard.getByText('ダッシュボード競合番組')).toBeVisible();
+        await expect(alertCard.getByText('ダッシュボード重複番組')).not.toBeVisible();
+        await expect(alertCard.getByText('ダッシュボードスキップ番組')).not.toBeVisible();
+
+        // 4. 予約一覧セクションでは正常以外の予約にステータスバッジが表示されること
+        const reservesSection = page.getByRole('heading', { name: '予約一覧', exact: true }).locator('../../..');
+        await expect(reservesSection.getByText('4 件')).toBeVisible();
+        await expect(reservesSection.getByText('ダッシュボード競合番組')).toBeVisible();
+        await expect(reservesSection.getByText('チューナー競合')).toBeVisible();
+        await expect(reservesSection.getByText('ダッシュボード重複番組')).toBeVisible();
+        await expect(reservesSection.getByText('重複スキップ')).toBeVisible();
+        await expect(reservesSection.getByText('ダッシュボードスキップ番組')).toBeVisible();
+        await expect(reservesSection.getByText('スキップ中')).toBeVisible();
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

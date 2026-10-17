@@ -10,6 +10,18 @@ import {
     getLastRulePath,
     saveLastRuleTargetId,
     consumeLastRuleTargetId,
+    LAST_RESERVES_PATH_KEY,
+    saveLastReservesPath,
+    getLastReservesPath,
+    saveLastReserveTargetId,
+    consumeLastReserveTarget,
+    RULE_EDIT_RETURN_PATH_KEY,
+    saveRuleEditReturnPath,
+    getRuleEditReturnPath,
+    consumeRuleEditReturnPath,
+    LAST_GUIDE_VIEW_STATE_KEY,
+    saveLastGuideViewState,
+    consumeLastGuideViewState,
 } from '../../client/src/lib/navigationHistory.js';
 
 describe('navigationHistory', () => {
@@ -124,5 +136,61 @@ describe('navigationHistory', () => {
         expect(sessionStorage.removeItem).toHaveBeenCalledWith('epgdeck_last_rule_target_id');
 
         expect(consumeLastRuleTargetId()).toBeNull();
+    });
+
+    it('should save and get last reserves path', () => {
+        expect(getLastReservesPath()).toBe('/reserves');
+
+        saveLastReservesPath('/reserves?tab=skips');
+        expect(sessionStorage.setItem).toHaveBeenCalledWith(LAST_RESERVES_PATH_KEY, '/reserves?tab=skips');
+        expect(getLastReservesPath()).toBe('/reserves?tab=skips');
+
+        saveLastReservesPath('/reserves/manual');
+        expect(getLastReservesPath()).toBe('/reserves?tab=skips');
+    });
+
+    it('should save and consume last reserve target ID with optional ruleId (one-time)', () => {
+        saveLastReserveTargetId(501, 12);
+        expect(sessionStorage.setItem).toHaveBeenCalledWith('epgdeck_last_reserve_target_id', '501');
+        expect(sessionStorage.setItem).toHaveBeenCalledWith('epgdeck_last_reserve_target_rule_id', '12');
+
+        const consumed = consumeLastReserveTarget();
+        expect(consumed).toEqual({ reserveId: 501, ruleId: 12 });
+        expect(consumeLastReserveTarget()).toBeNull();
+
+        saveLastReserveTargetId(502);
+        expect(consumeLastReserveTarget()).toEqual({ reserveId: 502, ruleId: null });
+    });
+
+    it('should save, get, and consume rule edit return path', () => {
+        expect(getRuleEditReturnPath()).toBeNull();
+
+        saveRuleEditReturnPath('/reserves?tab=conflicts');
+        expect(sessionStorage.setItem).toHaveBeenCalledWith(RULE_EDIT_RETURN_PATH_KEY, '/reserves?tab=conflicts');
+        expect(getRuleEditReturnPath()).toBe('/reserves?tab=conflicts');
+
+        // /rule/edit は保存しない
+        saveRuleEditReturnPath('/rule/edit?ruleId=5');
+        expect(getRuleEditReturnPath()).toBe('/reserves?tab=conflicts');
+
+        expect(consumeRuleEditReturnPath()).toBe('/reserves?tab=conflicts');
+        expect(getRuleEditReturnPath()).toBeNull();
+        expect(consumeRuleEditReturnPath()).toBeNull();
+    });
+
+    it('should save and consume last guide view state (one-time)', () => {
+        expect(consumeLastGuideViewState()).toBeNull();
+
+        const state = {
+            dateTime: 1760700000000,
+            selectedType: 'BS' as const,
+            scrollTop: 720,
+            scrollLeft: 320,
+        };
+        saveLastGuideViewState(state);
+        expect(sessionStorage.setItem).toHaveBeenCalledWith(LAST_GUIDE_VIEW_STATE_KEY, JSON.stringify(state));
+
+        expect(consumeLastGuideViewState()).toEqual(state);
+        expect(consumeLastGuideViewState()).toBeNull();
     });
 });

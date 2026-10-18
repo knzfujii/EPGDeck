@@ -128,7 +128,6 @@
                 }
             }
         }
-        target?.blur();
         onSeekEnd?.();
     }
 </script>

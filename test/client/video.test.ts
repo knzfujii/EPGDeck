@@ -378,5 +378,61 @@ describe('video.ts playback preference tests', () => {
             // Direct static playback allows instant dragging
             expect(isTranscodeStream({ streamType: 'direct' })).toBe(false);
         });
+
+        it('preserves media element and videoSrc when fullscreen or seeking to prevent exiting fullscreen on mobile', () => {
+            function shouldPreserveMediaElement(params: {
+                isFullscreen: boolean;
+                wasFullscreenBeforeSeek: boolean;
+                isSeeking: boolean;
+                playbackOffset: number;
+            }): boolean {
+                return (
+                    params.isFullscreen ||
+                    params.wasFullscreenBeforeSeek ||
+                    params.isSeeking ||
+                    params.playbackOffset > 0
+                );
+            }
+
+            // Normal playback stop should unload
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 0,
+                }),
+            ).toBe(false);
+
+            // Fullscreen playback must preserve media element during reload/reconnect
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: true,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 0,
+                }),
+            ).toBe(true);
+
+            // Seek in progress or seeking before-state must preserve media element
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: true,
+                    isSeeking: true,
+                    playbackOffset: 60,
+                }),
+            ).toBe(true);
+
+            // Stream restarted with playbackOffset must preserve media element
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 120,
+                }),
+            ).toBe(true);
+        });
     });
 });

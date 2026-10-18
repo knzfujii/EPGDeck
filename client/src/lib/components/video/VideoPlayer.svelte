@@ -246,11 +246,17 @@
         }
     }
 
+    let wasFullscreenBeforeSeek = $state(false);
+
     // シーク
     function seekTo(targetTime: number) {
         if (!videoElement || isLive) return;
         dismissResume();
         const clampedTime = Math.max(0, Math.min(displayDuration, targetTime));
+
+        if (isFullscreen) {
+            wasFullscreenBeforeSeek = true;
+        }
 
         // トランスコードストリーム (HLS, WebM, トランスコード MP4) の判定
         const isTranscodeStream =
@@ -305,6 +311,9 @@
     function seekRelative(offsetSeconds: number) {
         if (!canSeek) return;
         dismissResume();
+        if (isFullscreen) {
+            wasFullscreenBeforeSeek = true;
+        }
 
         const side: 'left' | 'right' = offsetSeconds < 0 ? 'left' : 'right';
         const absStep = Math.abs(offsetSeconds);
@@ -457,6 +466,58 @@
         }
     }
 
+    // シーク等に伴うフルスクリーンの自動復帰
+    function restoreFullscreenIfNeeded() {
+        if (!wasFullscreenBeforeSeek) return;
+        wasFullscreenBeforeSeek = false;
+
+        const anyDoc = document as any;
+        const anyElem = containerElement as any;
+        const anyVideo = videoElement as any;
+
+        const isCurrentlyFullscreen = !!(
+            document.fullscreenElement ||
+            anyDoc.webkitFullscreenElement ||
+            anyDoc.mozFullScreenElement ||
+            anyDoc.msFullscreenElement ||
+            anyVideo?.webkitDisplayingFullscreen
+        );
+
+        if (!isCurrentlyFullscreen) {
+            if (containerElement?.requestFullscreen) {
+                containerElement
+                    .requestFullscreen()
+                    .then(() => {
+                        isFullscreen = true;
+                    })
+                    .catch(() => {
+                        if (anyVideo?.webkitEnterFullscreen) {
+                            try {
+                                anyVideo.webkitEnterFullscreen();
+                                isFullscreen = true;
+                            } catch {
+                                // ignore
+                            }
+                        }
+                    });
+            } else if (anyElem?.webkitRequestFullscreen) {
+                try {
+                    anyElem.webkitRequestFullscreen();
+                    isFullscreen = true;
+                } catch {
+                    // ignore
+                }
+            } else if (anyVideo?.webkitEnterFullscreen) {
+                try {
+                    anyVideo.webkitEnterFullscreen();
+                    isFullscreen = true;
+                } catch {
+                    // ignore
+                }
+            }
+        }
+    }
+
     // Picture-in-Picture
     function togglePiP() {
         if (!videoElement) return;
@@ -605,9 +666,11 @@
         if (!videoElement || !src) return;
 
         isLoading = true;
-        // シーク中またはシーク先ストリーム（playbackOffset > 0）の場合はメディア要素を破棄しない
+        // シーク中、シーク先ストリーム（playbackOffset > 0）、あるいはフルスクリーン中の場合はメディア要素を破棄しない
         // （removeAttribute('src') によるスマホでのフルスクリーン強制解除を防止）
-        cleanupEngines({ preserveMediaElement: isSeeking || playbackOffset > 0 });
+        cleanupEngines({
+            preserveMediaElement: isFullscreen || wasFullscreenBeforeSeek || isSeeking || playbackOffset > 0,
+        });
         errorMessage = null;
         hasSubtitle = false;
         bufferedEnd = playbackOffset;
@@ -705,7 +768,16 @@
 
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     isLoading = false;
-                    videoElement?.play().catch(e => console.log('Autoplay prevented:', e));
+                    isSeeking = false;
+                    videoElement
+                        ?.play()
+                        .then(() => {
+                            restoreFullscreenIfNeeded();
+                        })
+                        .catch(e => {
+                            console.log('Autoplay prevented:', e);
+                            restoreFullscreenIfNeeded();
+                        });
                 });
 
                 hlsInstance.on(Hls.Events.LEVEL_UPDATED, (_event, data) => {
@@ -799,13 +871,18 @@
         const anyDoc = document as any;
         const handleFullscreenChange = () => {
             const anyVideo = videoElement as any;
-            isFullscreen = !!(
+            const current = !!(
                 document.fullscreenElement ||
                 anyDoc.webkitFullscreenElement ||
                 anyDoc.mozFullScreenElement ||
                 anyDoc.msFullscreenElement ||
                 anyVideo?.webkitDisplayingFullscreen
             );
+            // シーク過渡期の一時的な解除イベントで早とちりリセットしない
+            if (!current && (isSeeking || wasFullscreenBeforeSeek)) {
+                return;
+            }
+            isFullscreen = current;
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -814,7 +891,9 @@
             isFullscreen = true;
         };
         const handleWebkitEndFullscreen = () => {
-            isFullscreen = false;
+            if (!isSeeking && !wasFullscreenBeforeSeek) {
+                isFullscreen = false;
+            }
         };
         if (videoElement) {
             videoElement.addEventListener('webkitbeginfullscreen', handleWebkitBeginFullscreen);
@@ -887,6 +966,7 @@
             if (videoElement) {
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
+            restoreFullscreenIfNeeded();
         }}
         onloadedmetadata={() => {
             if (videoElement) {
@@ -897,6 +977,7 @@
                     isSeeking = false;
                 }
                 syncNativeTextTracks(isSubtitleOn);
+                restoreFullscreenIfNeeded();
             }
         }}
         ontimeupdate={() => {

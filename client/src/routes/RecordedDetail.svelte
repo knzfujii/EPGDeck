@@ -423,7 +423,7 @@
         }, 10000);
     }
 
-    async function stopStream() {
+    async function stopStream(options?: { preserveVideoSrc?: boolean }) {
         if (keepAliveInterval) {
             clearInterval(keepAliveInterval);
             keepAliveInterval = null;
@@ -439,8 +439,10 @@
                 console.error('Failed to stop stream', e);
             }
         }
-        videoSrc = '';
-        vttSrc = undefined;
+        if (!options?.preserveVideoSrc) {
+            videoSrc = '';
+            vttSrc = undefined;
+        }
     }
 
     function handleStopPlayback() {
@@ -466,7 +468,8 @@
 
                 if (isHls || streamType === 'hls') {
                     statusMessage = `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`;
-                    await stopStream();
+                    // シーク再開時は VideoPlayer をアンマウントさせずフルスクリーンと画面状態を維持するため videoSrc を保持
+                    await stopStream({ preserveVideoSrc: true });
                     playbackOffset = currentTarget;
 
                     await startHlsStream(

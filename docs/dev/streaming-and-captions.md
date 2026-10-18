@@ -313,3 +313,21 @@ MP4 内に埋め込まれた字幕（`mov_text` / `tx3g`）を、Chrome 等の�
 - 録画再生時、クライアントは `/api/dropLogs/:dropLogFileId` からドロップログを取得し、発生秒数と種別（映像・音声・字幕・制御情報）を解析します。
 - `VideoControls.svelte` のシークバー上に、ドロップ発生位置を示すピンマーカーを重畳描画し、該当箇所へのワンクリックジャンプを可能にします。
 
+---
+
+## 12. シーク時のストリーム再生成とモバイルフルスクリーン保護アーキテクチャ
+
+### 12.1 シーク再開時の VideoPlayer アンマウント防止
+- **課題**:
+  - HLS 等のトランスコード配信でシークを行う際、親コンポーネント（`RecordedDetail.svelte`）が旧ストリーム停止時に `videoSrc = ''` を設定すると、Svelte の条件付きレンダリング（`{#if videoSrc}`）により `<VideoPlayer>` が DOM からアンマウントされプレースホルダーに差し替えられていた。
+  - フルスクリーン要素が DOM ツリーから削除されるため、ブラウザ（iOS Safari / Android Chrome / PC）の Fullscreen API が全画面表示を即座に強制終了（Exit Fullscreen）していた。
+- **解決策**:
+  - `stopStream({ preserveVideoSrc: true })` により、旧ストリームの停止処理（API 呼出と Ping 解除）を行いつつ `videoSrc` を保持。
+  - `<VideoPlayer>` を DOM 上に維持したまま、プレイヤー内部のローディングスピナー（`isLoading` / `isSeeking`）と状態メッセージ（`XX:XX から HLS 配信を再生成中...`）をフルスクリーン画面中央に表示し、新ストリーム生成完了時にシームレスに再生を継続。
+
+### 12.2 モバイルネイティブ全画面の保護と自動復帰
+- **メディア要素の保護**:
+  - シーク中、またはフルスクリーン表示中（`isFullscreen || wasFullscreenBeforeSeek || isSeeking || playbackOffset > 0`）は、`<video>` の `removeAttribute('src')` や不要なアンロードを実行しない（`preserveMediaElement`）。
+- **自動復帰処理 (`restoreFullscreenIfNeeded`)**:
+  - シーク操作開始時に全画面状態であった場合（`wasFullscreenBeforeSeek`）、ストリーム切り替えに伴いブラウザ側が一時的に全画面を抜けた場合でも、新ストリームの再生再開イベント（`MANIFEST_PARSED` や `onplaying`）時に自動的にフルスクリーン要求を発行して全画面状態を復帰。
+

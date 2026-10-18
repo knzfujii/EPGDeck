@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick, untrack } from 'svelte';
     import { router } from '../lib/router.svelte';
     import { channelStore } from '../lib/stores/channels.svelte';
     import { snackbar } from '../lib/stores/snackbar.svelte';
@@ -14,6 +14,12 @@
         type RecordingActionType,
     } from '../lib/utils/recording';
     import { getProgress } from '../lib/utils/onair';
+    import {
+        saveLastReservesPath,
+        saveLastReserveTargetId,
+        consumeLastReserveTarget,
+        saveRuleEditReturnPath,
+    } from '../lib/navigationHistory';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
@@ -49,10 +55,25 @@
         isRecording?: boolean;
     }
 
+    type ReserveFilterMode = 'all' | 'conflicts' | 'skips' | 'overlaps';
+
+    function parseFilterMode(tabParam?: string): ReserveFilterMode {
+        if (tabParam === 'conflicts' || tabParam === 'skips' || tabParam === 'overlaps') {
+            return tabParam;
+        }
+        return 'all';
+    }
+
     let reserves = $state<ReserveWithRecording[]>([]);
     let total = $state(0);
     let isLoading = $state(true);
-    let filterMode = $state<'all' | 'conflicts' | 'skips' | 'overlaps'>('all');
+    let filterMode = $state<ReserveFilterMode>(parseFilterMode(router.current.query.tab));
+
+    function setFilterMode(mode: ReserveFilterMode) {
+        if (filterMode === mode) return;
+        filterMode = mode;
+        router.setQuery({ tab: mode === 'all' ? null : mode });
+    }
 
     // 予約詳細モーダル状態
     let isDetailModalOpen = $state(false);
@@ -102,9 +123,11 @@
         }
     }
 
-    // ルール予約の場合はルール編集ページへ遷移
+    // ルール予約の場合は遷移元パスと対象予約IDを保存してルール編集ページへ遷移
     function goToRuleEdit(item: apid.ReserveItem) {
         isDetailModalOpen = false;
+        saveLastReserveTargetId(item.id, item.ruleId);
+        saveRuleEditReturnPath(router.current.path);
         router.push(`/rule/edit?ruleId=${item.ruleId}`);
     }
 
@@ -145,11 +168,57 @@
         } finally {
             if (!isSilent) isLoading = false;
         }
+
+        // 直前にルール編集等へ遷移した予約IDが存在する場合はその位置へ自動スクロール
+        if (!isSilent) {
+            const target = consumeLastReserveTarget();
+            if (target !== null) {
+                const matchInFiltered = filteredReserves.some(
+                    r => r.id === target.reserveId || (target.ruleId !== null && r.ruleId === target.ruleId),
+                );
+                if (!matchInFiltered && filterMode !== 'all') {
+                    const matchInAll = reserves.some(
+                        r => r.id === target.reserveId || (target.ruleId !== null && r.ruleId === target.ruleId),
+                    );
+                    if (matchInAll) {
+                        filterMode = 'all';
+                        router.setQuery({ tab: null });
+                    }
+                }
+                await tick();
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        let elements = document.querySelectorAll<HTMLElement>(
+                            `[data-reserve-id="${target.reserveId}"]`,
+                        );
+                        if (elements.length === 0 && target.ruleId !== null) {
+                            elements = document.querySelectorAll<HTMLElement>(`[data-rule-id="${target.ruleId}"]`);
+                        }
+                        for (const el of elements) {
+                            if (el.offsetParent !== null) {
+                                el.scrollIntoView({ block: 'center', behavior: 'instant' });
+                                break;
+                            }
+                        }
+                    });
+                });
+            }
+        }
     }
 
     $effect(() => {
         if (!readOnlyStore.canViewReserves) {
             router.replace('/recorded');
+            return;
+        }
+        if (router.current.pathname === '/reserves') {
+            saveLastReservesPath(router.current.path);
+            const qTab = parseFilterMode(router.current.query.tab);
+            untrack(() => {
+                if (filterMode !== qTab) {
+                    filterMode = qTab;
+                }
+            });
         }
     });
 
@@ -382,7 +451,7 @@
                     { id: 'conflicts', label: '競合', count: conflictCount, icon: AlertTriangle },
                 ]}
                 activeTab={filterMode}
-                onselect={id => (filterMode = id)}
+                onselect={id => setFilterMode(id)}
             />
 
             <!-- 手動予約ボタン (PC用) -->
@@ -410,7 +479,9 @@
                 ? 'チューナー競合している予約はありません'
                 : filterMode === 'skips'
                   ? 'スキップ中の予約はありません'
-                  : '録画予約はありません'}
+                  : filterMode === 'overlaps'
+                    ? '重複スキップ中の予約はありません'
+                    : '録画予約はありません'}
             description={readOnlyStore.isReadOnly ? undefined : '番組表や検索画面から録画予約を追加できます'}
         />
     {:else}
@@ -421,6 +492,8 @@
                 <div
                     role="button"
                     tabindex="0"
+                    data-reserve-id={item.id}
+                    data-rule-id={item.ruleId ?? undefined}
                     onclick={() => openReserveDetail(item)}
                     onkeydown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -592,6 +665,8 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                         {#each filteredReserves as item (item.id)}
                             <tr
+                                data-reserve-id={item.id}
+                                data-rule-id={item.ruleId ?? undefined}
                                 onclick={() => openReserveDetail(item)}
                                 class="transition cursor-pointer border-l-4 {item.isRecording
                                     ? 'border-l-rose-600 bg-rose-100 hover:bg-rose-200/70 dark:border-l-rose-500 dark:bg-rose-950/60 dark:hover:bg-rose-950/80'
@@ -826,6 +901,10 @@
                         {:else if item.isSkip}
                             <span class="text-amber-600 font-bold flex items-center gap-1">
                                 <Ban size={13} /> スキップ中
+                            </span>
+                        {:else if item.isOverlap}
+                            <span class="text-slate-600 dark:text-slate-400 font-bold flex items-center gap-1">
+                                <History size={13} /> 重複スキップ
                             </span>
                         {:else}
                             <span class="text-emerald-600 font-bold flex items-center gap-1">

@@ -6,7 +6,12 @@
     import { channelStore } from '../lib/stores/channels.svelte';
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import api from '@/lib/apiClient';
-    import { saveLastRulePath, saveLastRuleTargetId, consumeLastRuleTargetId } from '../lib/navigationHistory';
+    import {
+        saveLastRulePath,
+        saveLastRuleTargetId,
+        consumeLastRuleTargetId,
+        saveRuleEditReturnPath,
+    } from '../lib/navigationHistory';
     import type * as apid from '../../../api';
     import { getGenreName, getGenreBadgeClass, getChannelTypeBadgeClass } from '../lib/utils/format';
     import LoadingState from '../lib/components/common/LoadingState.svelte';
@@ -262,6 +267,7 @@
     // 新規作成ページへ遷移
     function goCreateRule() {
         if (readOnlyStore.isReadOnly) return;
+        saveRuleEditReturnPath(router.current.path);
         router.push('/rule/edit');
     }
 
@@ -269,6 +275,7 @@
     function goEditRule(rule: apid.Rule) {
         if (readOnlyStore.isReadOnly) return;
         saveLastRuleTargetId(rule.id);
+        saveRuleEditReturnPath(router.current.path);
         router.push(`/rule/edit?ruleId=${rule.id}`);
     }
 

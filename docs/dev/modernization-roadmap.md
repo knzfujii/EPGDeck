@@ -362,3 +362,14 @@ flowchart TD
   5. **狭小ランドスケープ時のスティッキー自動解除**:
      - 横向き表示かつ画面高 500px 以下の端末ではスティッキー吸着を解除し、情報閲覧性を確保。
 
+#### 3.14 ルール編集からの遷移元・位置復帰と、パワーユーザー向けのブラウザ履歴維持 (ADR)
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `client/src/lib/navigationHistory.ts`, `client/src/routes/RuleEdit.svelte`, `client/src/routes/Reserves.svelte`, `client/src/routes/Guide.svelte`, `client/src/routes/OnAir.svelte`, `client/src/routes/Search.svelte`, `client/src/routes/Dashboard.svelte`
+- **Why (意思決定理由と背景)**:
+  1. **遷移元コンテキストとスクロール位置の完全復元**:
+     - ルール編集画面（`/rule/edit`）から元の画面へ復帰する際、`sessionStorage` に遷移元パス・フィルタ状態・スクロール位置（予約アイテム位置や番組表の日時・放送波タブ・2次元スクロール座標）を保持し、作業コンテキストを完全に復元する。
+  2. **標準ブラウザ履歴の維持と操作主権（Controllability）の優先**:
+     - パワーユーザーの「ルール変更 ➔ 一覧・番組表で確認 ➔ ブラウザの戻るで即座に再編集」という反復ワークフローを妨げないため、フォーム終了時であっても履歴の巻き戻しや自動 `replace` などの暗黙的な履歴改変は行わず、通常の `router.push` による標準的な履歴スタックを維持する。
+- **設計制約**:
+  - ルール編集や各種サブ画面の復帰処理において、ブラウザ履歴を暗黙的に消去・改変する制御を行わないこと。

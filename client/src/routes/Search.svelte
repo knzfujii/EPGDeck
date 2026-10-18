@@ -7,6 +7,7 @@
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
     import { getChannelTypeBadgeClass, extractFirstSearchWord } from '../lib/utils/format';
+    import { saveRuleEditReturnPath } from '../lib/navigationHistory';
     import { QUICK_GENRES } from '../lib/constants/genres';
     import { Search as SearchIcon, Plus, CalendarPlus, Check, Loader2, Sparkles } from '@lucide/svelte';
     import ReadOnlyGuard from '../lib/components/common/ReadOnlyGuard.svelte';
@@ -202,6 +203,7 @@
             params.set('description', isDescription ? '1' : '0');
         }
         if (selectedGenre !== null) params.set('genre', String(selectedGenre));
+        saveRuleEditReturnPath(router.current.path);
         router.push(`/rule/edit?${params.toString()}`);
     }
 
@@ -215,6 +217,7 @@
         if (program.genre1 !== null && typeof program.genre1 !== 'undefined') {
             params.set('genre', String(program.genre1));
         }
+        saveRuleEditReturnPath(router.current.path);
         router.push(`/rule/edit?${params.toString()}`);
     }
 

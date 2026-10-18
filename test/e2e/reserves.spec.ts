@@ -726,4 +726,140 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);
     });
+
+    test('should return to reserves list and restore scroll position after editing a rule from reserve modal', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const futureTime = Date.now() + 3600000;
+        const mockReserves = Array.from({ length: 30 }, (_, i) => ({
+            id: 500 + i,
+            programId: 600 + i,
+            channelId: 1,
+            name: `スクロール復帰検証予約番組 #${String(i + 1).padStart(2, '0')}`,
+            description: `テスト予約概要 ${i + 1}`,
+            startAt: futureTime + i * 1800000,
+            endAt: futureTime + (i + 1) * 1800000,
+            isHalfWidth: true,
+            isSkip: false,
+            isConflict: false,
+            isOverlap: false,
+            ruleId: 10,
+            allowEndLack: true,
+        }));
+
+        const mockRule = {
+            id: 10,
+            isTimeSpecification: false,
+            searchOption: {
+                keyword: 'スクロール復帰検証',
+                name: true,
+                description: true,
+                GR: true,
+                BS: true,
+                CS: true,
+                SKY: false,
+            },
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+                avoidDuplicate: false,
+                priority: 5,
+            },
+        };
+
+        await page.route('**/api/reserves*', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ reserves: mockReserves, total: mockReserves.length }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/recording*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ records: [] }),
+            });
+        });
+
+        await page.route('**/api/rules/10*', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockRule),
+                });
+                return;
+            }
+            if (route.request().method() === 'PUT') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ code: 200 }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/schedules/search*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([]),
+            });
+        });
+
+        await page.goto('/reserves');
+        await page.waitForLoadState('networkidle');
+
+        // 25番目の予約行（画面下部）をクリックして詳細モーダルを開く
+        const targetRow = page.locator('tr[data-reserve-id="524"]');
+        await targetRow.scrollIntoViewIfNeeded();
+        await targetRow.click();
+
+        const modal = page.getByRole('dialog');
+        await expect(modal).toBeVisible();
+        await expect(modal.getByRole('heading', { name: 'スクロール復帰検証予約番組 #25' })).toBeVisible();
+
+        // 「ルール編集」ボタンをクリックして /rule/edit?ruleId=10 へ遷移
+        const editRuleBtn = modal.getByRole('button', { name: 'ルール編集' });
+        await expect(editRuleBtn).toBeVisible();
+        await editRuleBtn.click();
+        await page.waitForURL(/\/rule\/edit\?ruleId=10/);
+
+        // 戻るボタンの aria-label が「予約一覧に戻る」になっていることを確認
+        await expect(page.getByRole('button', { name: '予約一覧に戻る' })).toBeVisible();
+
+        // 「更新」ボタンをクリックして保存すると、/rule ではなく /reserves に戻ること
+        const saveBtn = page.getByRole('button', { name: '更新', exact: true });
+        await saveBtn.click();
+        await page.waitForURL(/\/reserves$/);
+
+        // 25番目の予約行（data-reserve-id="524"）がビューポート内に自動スクロール復帰していることを確認
+        await expect(targetRow).toBeInViewport();
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
 });

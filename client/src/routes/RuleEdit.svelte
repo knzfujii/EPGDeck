@@ -8,7 +8,14 @@
     import { configStore } from '../lib/stores/config.svelte';
     import type * as apid from '../../../api';
     import api from '@/lib/apiClient';
-    import { getLastRulePath, saveLastRuleTargetId } from '../lib/navigationHistory';
+    import {
+        getLastRulePath,
+        saveLastRuleTargetId,
+        getRuleEditReturnPath,
+        consumeRuleEditReturnPath,
+        consumeLastReserveTarget,
+        consumeLastGuideViewState,
+    } from '../lib/navigationHistory';
     import { getChannelTypeBadgeClass } from '../lib/utils/format';
     import {
         ArrowLeft,
@@ -38,6 +45,7 @@
     let rule = $state<apid.Rule | null>(null);
     let isLoading = $state(true);
     let isSaving = $state(false);
+    let returnPath = $state<string | null>(getRuleEditReturnPath());
 
     // ストレージ一覧 & エンコード設定
     let storageDirs = $state<string[]>([]);
@@ -668,6 +676,13 @@
 
     onDestroy(() => {
         unsubscribeSocket?.();
+        consumeRuleEditReturnPath();
+        if (router.current.pathname !== '/reserves') {
+            consumeLastReserveTarget();
+        }
+        if (router.current.pathname !== '/guide') {
+            consumeLastGuideViewState();
+        }
     });
 
     function toggleChannel(chId: number) {
@@ -972,7 +987,8 @@
     }
 
     function goBackToRuleList() {
-        router.push(getLastRulePath());
+        const savedReturnPath = consumeRuleEditReturnPath() || returnPath;
+        router.push(savedReturnPath || getLastRulePath());
     }
 
     function handleWindowKeydown(e: KeyboardEvent) {
@@ -1013,7 +1029,17 @@
             type="button"
             onclick={goBackToRuleList}
             class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-            aria-label="ルール一覧に戻る"
+            aria-label={returnPath?.startsWith('/reserves')
+                ? '予約一覧に戻る'
+                : returnPath?.startsWith('/guide')
+                  ? '番組表に戻る'
+                  : returnPath?.startsWith('/onair')
+                    ? '放送中に戻る'
+                    : returnPath?.startsWith('/search')
+                      ? '番組検索に戻る'
+                      : returnPath === '/' || returnPath?.startsWith('/dashboard')
+                        ? 'ダッシュボードに戻る'
+                        : 'ルール一覧に戻る'}
         >
             <ArrowLeft size={18} />
         </button>

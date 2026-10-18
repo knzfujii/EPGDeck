@@ -567,4 +567,139 @@ test.describe('Guide Page (/guide)', () => {
         await expect(page.getByTitle('前日')).toBeInViewport();
         await expect(page.getByTitle('翌日')).toBeInViewport();
     });
+
+    test('should return to guide and restore date, tab, and scroll position after editing a rule', async ({ page }) => {
+        const mockChannels = [
+            {
+                id: 1,
+                serviceId: 101,
+                networkId: 32736,
+                name: 'テスト地上波',
+                halfWidthName: 'テスト地上波',
+                channelTypeId: 1,
+                channelType: 'GR',
+                channel: '27',
+                hasLogoData: false,
+            },
+        ];
+
+        await page.route('**/api/channels*', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockChannels) });
+        });
+        await page.route('**/api/schedules*', async route => {
+            const url = new URL(route.request().url());
+            const reqStartAt = Number(url.searchParams.get('startAt')) || Date.now();
+            const progStartAt = reqStartAt + 10 * 3600 * 1000;
+            const progEndAt = progStartAt + 2 * 3600 * 1000;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        channel: mockChannels[0],
+                        programs: [
+                            {
+                                id: 88001,
+                                channelId: 1,
+                                startAt: progStartAt,
+                                endAt: progEndAt,
+                                name: 'ルール予約済みテスト番組',
+                                description: '番組表からのルール編集復帰テスト',
+                                genre1: 0,
+                            },
+                        ],
+                    },
+                ]),
+            });
+        });
+        await page.route('**/api/reserves*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    reserves: [
+                        {
+                            id: 701,
+                            programId: 88001,
+                            ruleId: 55,
+                            channelId: 1,
+                            name: 'ルール予約済みテスト番組',
+                            startAt: Date.now() + 36000000,
+                            endAt: Date.now() + 43200000,
+                            isConflict: false,
+                            isSkip: false,
+                            isOverlap: false,
+                            allowEndLack: true,
+                            isTimeSpecified: false,
+                        },
+                    ],
+                    total: 1,
+                }),
+            });
+        });
+        await page.route('**/api/rules/55', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id: 55,
+                    isTimeSpecification: false,
+                    searchOption: {
+                        keyword: 'ルール予約済みテスト番組',
+                        GR: true,
+                        BS: true,
+                        CS: true,
+                        SKY: true,
+                    },
+                    reserveOption: {
+                        enable: true,
+                        allowEndLack: true,
+                        avoidDuplicate: false,
+                    },
+                }),
+            });
+        });
+
+        await page.goto('/guide');
+        await expect(page.locator('text=時刻')).toBeVisible({ timeout: 10000 });
+
+        // 翌日に切り替え
+        await page.getByTitle('翌日').click();
+        await expect(page.getByTitle('前日')).toBeEnabled();
+
+        // 対象番組の位置（10時間後 = 10 * 180px = 1800px 付近）へスクロール
+        const scrollContainer = page.locator('.overflow-auto').first();
+        await scrollContainer.evaluate(el => {
+            el.scrollTop = 1650;
+        });
+        await page.waitForTimeout(100);
+
+        // 番組セルをクリックしてモーダルを開き、「ルール編集」をクリック
+        const programCell = page.locator('button', { hasText: 'ルール予約済みテスト番組' }).first();
+        await expect(programCell).toBeVisible();
+        await programCell.click();
+
+        const scrollTopBeforeEdit = await scrollContainer.evaluate(el => el.scrollTop);
+        expect(scrollTopBeforeEdit).toBeGreaterThan(1500);
+
+        const ruleEditBtn = page.getByRole('button', { name: 'ルール編集', exact: true });
+        await expect(ruleEditBtn).toBeVisible();
+        await ruleEditBtn.click();
+
+        // ルール編集画面へ遷移し、戻るボタンが「番組表に戻る」になっていることを確認
+        await expect(page).toHaveURL(/\/rule\/edit\?ruleId=55/);
+        await expect(page.getByRole('button', { name: '番組表に戻る' })).toBeVisible();
+
+        // 「キャンセル」で番組表へ戻る
+        await page.getByRole('button', { name: 'キャンセル' }).click();
+        await expect(page).toHaveURL(/\/guide$/);
+
+        // 翌日の選択状態とスクロール位置が復元されていることを確認
+        await expect(page.getByTitle('前日')).toBeEnabled();
+        await expect
+            .poll(async () => {
+                return await scrollContainer.evaluate(el => el.scrollTop);
+            })
+            .toBeCloseTo(scrollTopBeforeEdit, 0);
+    });
 });

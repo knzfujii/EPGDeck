@@ -43,8 +43,9 @@
         recording: 'bg-rose-600 text-white font-bold animate-pulse',
         conflict:
             'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold',
-        skip: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-bold',
-        overlap: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-medium',
+        skip: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold',
+        overlap:
+            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-300/80 dark:border-slate-700 font-semibold',
     };
 
     const iconSizeMap: Record<BadgeSize, number> = {

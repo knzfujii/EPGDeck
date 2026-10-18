@@ -127,3 +127,25 @@ export function resolveSourceVideoFile<T extends { id: number; type: string }>(
     const tsFile = videoFiles.find(f => f.type === 'ts');
     return tsFile ?? videoFiles[0];
 }
+
+/**
+ * 予約のステータス（録画中・競合・スキップ・重複）に応じた共通の背景色・枠線色クラスを返す
+ * 予約一覧画面およびダッシュボード等で共通のデザインシステムとして利用
+ */
+export function getReserveStatusColorClass(reserve: {
+    isRecording?: boolean;
+    isConflict?: boolean;
+    isSkip?: boolean;
+    isOverlap?: boolean;
+}): string {
+    if (reserve.isRecording) {
+        return 'border-rose-300 bg-rose-100 hover:border-rose-400 dark:border-rose-800 dark:bg-rose-950/60';
+    }
+    if (reserve.isConflict) {
+        return 'border-red-300 bg-red-100 hover:border-red-400 dark:border-red-800 dark:bg-red-950/60';
+    }
+    if (reserve.isSkip || reserve.isOverlap) {
+        return 'border-slate-300 bg-slate-200/80 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
+    }
+    return '';
+}

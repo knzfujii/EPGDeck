@@ -1083,12 +1083,8 @@
                         class="flex aspect-video w-full flex-col items-center justify-center rounded-none bg-slate-900 text-xs text-slate-300 p-6 text-center shadow-xl relative"
                     >
                         <Loader2 size={36} class="animate-spin text-blue-500 mb-3" />
-                        <p class="font-bold">{statusText}</p>
-                        {#if statusMessage}
-                            <p class="text-xs text-slate-400 mt-1">{statusMessage}</p>
-                        {:else}
-                            <p class="text-xs text-slate-500 mt-1">数秒お待ちください...</p>
-                        {/if}
+                        <p class="font-bold">{statusText || statusMessage || '配信を準備中...'}</p>
+                        <p class="text-xs text-slate-500 mt-1">数秒お待ちください...</p>
                         <button
                             type="button"
                             onclick={handleStopPlayback}

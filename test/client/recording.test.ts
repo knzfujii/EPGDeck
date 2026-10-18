@@ -4,6 +4,7 @@ import {
     isReserveCurrentlyRecording,
     executeRecordingAction,
     resolveSourceVideoFile,
+    getReserveStatusColorClass,
     type ReserveLike,
     type RecordingLike,
 } from '../../client/src/lib/utils/recording.js';
@@ -235,6 +236,41 @@ describe('recording utility', () => {
             expect(resolveSourceVideoFile(files)).toEqual(mp4File1);
             expect(resolveSourceVideoFile(files, null)).toEqual(mp4File1);
             expect(resolveSourceVideoFile(files, 999)).toEqual(mp4File1);
+        });
+    });
+
+    describe('getReserveStatusColorClass', () => {
+        it('returns rose classes for recording items', () => {
+            expect(getReserveStatusColorClass({ isRecording: true })).toBe(
+                'border-rose-300 bg-rose-100 hover:border-rose-400 dark:border-rose-800 dark:bg-rose-950/60',
+            );
+        });
+
+        it('returns red classes for conflict items', () => {
+            expect(getReserveStatusColorClass({ isConflict: true })).toBe(
+                'border-red-300 bg-red-100 hover:border-red-400 dark:border-red-800 dark:bg-red-950/60',
+            );
+        });
+
+        it('returns slate classes for skip or overlap items', () => {
+            expect(getReserveStatusColorClass({ isSkip: true })).toBe(
+                'border-slate-300 bg-slate-200/80 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
+            );
+            expect(getReserveStatusColorClass({ isOverlap: true })).toBe(
+                'border-slate-300 bg-slate-200/80 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
+            );
+        });
+
+        it('returns empty string for normal items without flags', () => {
+            expect(getReserveStatusColorClass({})).toBe('');
+            expect(
+                getReserveStatusColorClass({
+                    isRecording: false,
+                    isConflict: false,
+                    isSkip: false,
+                    isOverlap: false,
+                }),
+            ).toBe('');
         });
     });
 });

@@ -9,6 +9,7 @@
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
+        getReserveStatusColorClass,
         type RecordingActionType,
     } from '../lib/utils/recording';
     import { getProgress } from '../lib/utils/onair';
@@ -589,9 +590,10 @@
                     <div class="flex flex-col gap-3">
                         {#each upcomingReserves as item}
                             <div
-                                class="flex flex-col gap-2 rounded-xl border p-3.5 transition {item.isRecording
-                                    ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
-                                    : 'border-slate-100 bg-slate-50/50 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40'}"
+                                class="flex flex-col gap-2 rounded-xl border p-3.5 transition {getReserveStatusColorClass(
+                                    item,
+                                ) ||
+                                    'border-slate-100 bg-slate-50/50 hover:border-blue-200 dark:border-slate-800 dark:bg-slate-800/40'}"
                             >
                                 <div class="flex items-center justify-between gap-3">
                                     <div

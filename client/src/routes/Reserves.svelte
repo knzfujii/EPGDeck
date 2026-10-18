@@ -11,6 +11,7 @@
     import {
         isReserveCurrentlyRecording,
         executeRecordingAction,
+        getReserveStatusColorClass,
         type RecordingActionType,
     } from '../lib/utils/recording';
     import { getProgress } from '../lib/utils/onair';
@@ -502,11 +503,11 @@
                         }
                     }}
                     class="rounded-2xl border p-3.5 shadow-xs transition cursor-pointer border-l-4 {item.isRecording
-                        ? 'border-l-rose-600 border-rose-300 bg-rose-100 hover:border-rose-400 dark:border-rose-800 dark:bg-rose-950/60'
+                        ? `border-l-rose-600 ${getReserveStatusColorClass(item)}`
                         : item.isConflict
-                          ? 'border-l-red-600 border-red-300 bg-red-100 hover:border-red-400 dark:border-red-800 dark:bg-red-950/60'
+                          ? `border-l-red-600 ${getReserveStatusColorClass(item)}`
                           : item.isSkip || item.isOverlap
-                            ? 'border-l-slate-400 border-slate-300 bg-slate-200/80 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                            ? `border-l-slate-400 ${getReserveStatusColorClass(item)}`
                             : 'border-l-transparent border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900'}"
                 >
                     <!-- 1行目: 日時・局・種別・状態 -->

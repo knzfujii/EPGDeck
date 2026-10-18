@@ -152,10 +152,12 @@
                 onpointermove={handleTrackPointerMove}
                 onpointerleave={handleTrackPointerLeave}
             >
-                <!-- シーク位置タイムバブル（ホバー時・ドラッグ時ともに指で隠れない高さへ統一表示） -->
+                <!-- シーク位置タイムバブル（ホバー時は半透明、シークドラッグ時は不透明で視認性向上） -->
                 {#if showBubble}
                     <div
-                        class="pointer-events-none absolute -top-15 sm:-top-13 -translate-x-1/2 rounded-md bg-slate-900/95 border border-slate-700/80 px-2.5 py-1 text-xs sm:text-sm font-bold tracking-wider tabular-nums text-white shadow-2xl backdrop-blur-xs select-none z-30 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[6px] after:border-transparent after:border-t-slate-900/95"
+                        class="pointer-events-none absolute -top-15 sm:-top-13 -translate-x-1/2 rounded-md px-2.5 py-1 text-xs sm:text-sm font-bold tracking-wider tabular-nums text-white shadow-2xl backdrop-blur-xs select-none z-30 whitespace-nowrap transition-all duration-150 {isDragging
+                            ? 'opacity-100 bg-slate-900 border border-slate-600 shadow-black/80 after:border-t-slate-900'
+                            : 'opacity-75 bg-slate-900/80 border border-slate-700/60 after:border-t-slate-900/80'} after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[6px] after:border-transparent"
                         style="left: clamp(28px, {bubblePercent}%, calc(100% - 28px));"
                     >
                         {formatPlayerTime(bubbleTime)}

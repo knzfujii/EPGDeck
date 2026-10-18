@@ -423,7 +423,7 @@
         }, 10000);
     }
 
-    async function stopStream() {
+    async function stopStream(options?: { preserveVideoSrc?: boolean }) {
         if (keepAliveInterval) {
             clearInterval(keepAliveInterval);
             keepAliveInterval = null;
@@ -439,8 +439,10 @@
                 console.error('Failed to stop stream', e);
             }
         }
-        videoSrc = '';
-        vttSrc = undefined;
+        if (!options?.preserveVideoSrc) {
+            videoSrc = '';
+            vttSrc = undefined;
+        }
     }
 
     function handleStopPlayback() {
@@ -466,7 +468,8 @@
 
                 if (isHls || streamType === 'hls') {
                     statusMessage = `${formatPlayerTime(currentTarget)} から HLS 配信を再生成中...`;
-                    await stopStream();
+                    // シーク再開時は VideoPlayer をアンマウントさせずフルスクリーンと画面状態を維持するため videoSrc を保持
+                    await stopStream({ preserveVideoSrc: true });
                     playbackOffset = currentTarget;
 
                     await startHlsStream(
@@ -1083,12 +1086,8 @@
                         class="flex aspect-video w-full flex-col items-center justify-center rounded-none bg-slate-900 text-xs text-slate-300 p-6 text-center shadow-xl relative"
                     >
                         <Loader2 size={36} class="animate-spin text-blue-500 mb-3" />
-                        <p class="font-bold">{statusText}</p>
-                        {#if statusMessage}
-                            <p class="text-xs text-slate-400 mt-1">{statusMessage}</p>
-                        {:else}
-                            <p class="text-xs text-slate-500 mt-1">数秒お待ちください...</p>
-                        {/if}
+                        <p class="font-bold">{statusText || statusMessage || '配信を準備中...'}</p>
+                        <p class="text-xs text-slate-500 mt-1">数秒お待ちください...</p>
                         <button
                             type="button"
                             onclick={handleStopPlayback}

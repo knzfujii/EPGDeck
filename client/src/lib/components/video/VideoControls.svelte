@@ -60,15 +60,74 @@
 
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
+    let isDragging = $state(false);
+    let isHovering = $state(false);
+    let dragTime = $state(0);
+    let hoverTime = $state(0);
+    let hoverPercent = $state(0);
+
+    let effectiveCurrentTime = $derived(isDragging ? dragTime : currentTime);
+
     let progressPercent = $derived(
-        displayDuration > 0 ? Math.min(100, Math.max(0, (currentTime / displayDuration) * 100)) : 0,
+        displayDuration > 0 ? Math.min(100, Math.max(0, (effectiveCurrentTime / displayDuration) * 100)) : 0,
     );
     let bufferedPercent = $derived(
         displayDuration > 0 ? Math.min(100, Math.max(0, (bufferedEnd / displayDuration) * 100)) : 0,
     );
 
+    let showBubble = $derived(isDragging || isHovering);
+    let bubbleTime = $derived(isDragging ? dragTime : hoverTime);
+    let bubblePercent = $derived(isDragging ? progressPercent : hoverPercent);
+
+    function handleTrackPointerMove(e: PointerEvent) {
+        if (e.pointerType === 'touch' || isDragging) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        if (rect.width > 0 && displayDuration > 0) {
+            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            hoverPercent = ratio * 100;
+            hoverTime = ratio * displayDuration;
+            isHovering = true;
+        }
+    }
+
+    function handleTrackPointerLeave() {
+        isHovering = false;
+    }
+
+    function handleSliderInput(e: Event) {
+        const target = e.target as HTMLInputElement;
+        const val = parseFloat(target.value);
+        dragTime = val;
+        isDragging = true;
+
+        // トランスコードストリーム (HLS, WebM, MP4) 以外 (Direct再生) の場合のみリアルタイムに onSeekChange を呼び出す
+        const isTranscodeStream = isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4';
+        if (!isTranscodeStream) {
+            onSeekChange(e);
+        }
+    }
+
+    function handleSliderStart() {
+        isDragging = true;
+        dragTime = currentTime;
+        onSeekStart?.();
+    }
+
     function handleSliderEnd(e: Event) {
-        (e.currentTarget as HTMLElement)?.blur();
+        const target = e.currentTarget as HTMLInputElement;
+        if (isDragging) {
+            const finalTime = parseFloat(target.value);
+            isDragging = false;
+            // トランスコードストリームの場合は離した時に確定コミット
+            const isTranscodeStream = isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4';
+            if (isTranscodeStream) {
+                if (onDirectSeek) {
+                    onDirectSeek(finalTime);
+                } else {
+                    onSeekChange(e);
+                }
+            }
+        }
         onSeekEnd?.();
     }
 </script>
@@ -85,9 +144,25 @@
     {#if canSeek}
         <div class="mb-2.5 flex items-center gap-2">
             <span class="text-xs font-medium text-slate-300 min-w-[36px] text-right">
-                {formatPlayerTime(currentTime)}
+                {formatPlayerTime(effectiveCurrentTime)}
             </span>
-            <div class="relative flex-1 flex items-center py-2 cursor-pointer">
+            <div
+                role="presentation"
+                class="relative flex-1 flex items-center py-2 cursor-pointer"
+                onpointermove={handleTrackPointerMove}
+                onpointerleave={handleTrackPointerLeave}
+            >
+                <!-- シーク位置タイムバブル（ホバー時は半透明、シークドラッグ時は不透明で視認性向上） -->
+                {#if showBubble}
+                    <div
+                        class="pointer-events-none absolute -top-15 sm:-top-13 -translate-x-1/2 rounded-md px-2.5 py-1 text-xs sm:text-sm font-bold tracking-wider tabular-nums text-white shadow-2xl backdrop-blur-xs select-none z-30 whitespace-nowrap transition-all duration-150 {isDragging
+                            ? 'opacity-100 bg-slate-900 border border-slate-600 shadow-black/80 after:border-t-slate-900'
+                            : 'opacity-75 bg-slate-900/80 border border-slate-700/60 after:border-t-slate-900/80'} after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[6px] after:border-transparent"
+                        style="left: clamp(28px, {bubblePercent}%, calc(100% - 28px));"
+                    >
+                        {formatPlayerTime(bubbleTime)}
+                    </div>
+                {/if}
                 <!-- トラック背景 ＆ バッファバー (エンコード生成済み範囲) -->
                 <div class="absolute inset-x-0 h-2 rounded-full bg-slate-700 overflow-hidden pointer-events-none">
                     {#if bufferedPercent > 0}
@@ -130,9 +205,9 @@
                     min="0"
                     max={displayDuration}
                     step="1"
-                    value={currentTime}
-                    oninput={onSeekChange}
-                    onpointerdown={() => onSeekStart?.()}
+                    value={effectiveCurrentTime}
+                    oninput={handleSliderInput}
+                    onpointerdown={handleSliderStart}
                     onpointerup={handleSliderEnd}
                     onchange={handleSliderEnd}
                     tabindex="-1"

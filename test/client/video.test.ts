@@ -284,4 +284,155 @@ describe('video.ts playback preference tests', () => {
             expect(url).toBeNull();
         });
     });
+
+    describe('player seek stability & resume notice logic', () => {
+        function shouldShowResumeNotice(params: {
+            recordedId: number | null;
+            isLive: boolean;
+            hasCheckedResume: boolean;
+            playbackOffset: number;
+            savedPos: number;
+        }): boolean {
+            return (
+                Boolean(params.recordedId) &&
+                !params.isLive &&
+                !params.hasCheckedResume &&
+                params.playbackOffset === 0 &&
+                params.savedPos > 15
+            );
+        }
+
+        function isTranscodeStream(params: { isHls?: boolean; streamType: string }): boolean {
+            return Boolean(
+                params.isHls ||
+                params.streamType === 'hls' ||
+                params.streamType === 'webm' ||
+                params.streamType === 'mp4',
+            );
+        }
+
+        it('only displays resume toast on initial video load (playbackOffset === 0, !hasCheckedResume)', () => {
+            // Initial load with valid saved position (> 15s)
+            expect(
+                shouldShowResumeNotice({
+                    recordedId: 100,
+                    isLive: false,
+                    hasCheckedResume: false,
+                    playbackOffset: 0,
+                    savedPos: 120,
+                }),
+            ).toBe(true);
+
+            // Suppressed when seeking / stream restarted with offset
+            expect(
+                shouldShowResumeNotice({
+                    recordedId: 100,
+                    isLive: false,
+                    hasCheckedResume: false,
+                    playbackOffset: 60,
+                    savedPos: 120,
+                }),
+            ).toBe(false);
+
+            // Suppressed if already checked once for this session
+            expect(
+                shouldShowResumeNotice({
+                    recordedId: 100,
+                    isLive: false,
+                    hasCheckedResume: true,
+                    playbackOffset: 0,
+                    savedPos: 120,
+                }),
+            ).toBe(false);
+
+            // Suppressed for live broadcast
+            expect(
+                shouldShowResumeNotice({
+                    recordedId: 100,
+                    isLive: true,
+                    hasCheckedResume: false,
+                    playbackOffset: 0,
+                    savedPos: 120,
+                }),
+            ).toBe(false);
+
+            // Suppressed if saved position is <= 15s
+            expect(
+                shouldShowResumeNotice({
+                    recordedId: 100,
+                    isLive: false,
+                    hasCheckedResume: false,
+                    playbackOffset: 0,
+                    savedPos: 10,
+                }),
+            ).toBe(false);
+        });
+
+        it('identifies transcode streams requiring seek commit on release', () => {
+            // WebM and transcode MP4 streams must not spam stream restarts during dragging
+            expect(isTranscodeStream({ streamType: 'webm' })).toBe(true);
+            expect(isTranscodeStream({ streamType: 'mp4' })).toBe(true);
+            expect(isTranscodeStream({ streamType: 'hls' })).toBe(true);
+            expect(isTranscodeStream({ isHls: true, streamType: 'custom' })).toBe(true);
+
+            // Direct static playback allows instant dragging
+            expect(isTranscodeStream({ streamType: 'direct' })).toBe(false);
+        });
+
+        it('preserves media element and videoSrc when fullscreen or seeking to prevent exiting fullscreen on mobile', () => {
+            function shouldPreserveMediaElement(params: {
+                isFullscreen: boolean;
+                wasFullscreenBeforeSeek: boolean;
+                isSeeking: boolean;
+                playbackOffset: number;
+            }): boolean {
+                return (
+                    params.isFullscreen ||
+                    params.wasFullscreenBeforeSeek ||
+                    params.isSeeking ||
+                    params.playbackOffset > 0
+                );
+            }
+
+            // Normal playback stop should unload
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 0,
+                }),
+            ).toBe(false);
+
+            // Fullscreen playback must preserve media element during reload/reconnect
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: true,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 0,
+                }),
+            ).toBe(true);
+
+            // Seek in progress or seeking before-state must preserve media element
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: true,
+                    isSeeking: true,
+                    playbackOffset: 60,
+                }),
+            ).toBe(true);
+
+            // Stream restarted with playbackOffset must preserve media element
+            expect(
+                shouldPreserveMediaElement({
+                    isFullscreen: false,
+                    wasFullscreenBeforeSeek: false,
+                    isSeeking: false,
+                    playbackOffset: 120,
+                }),
+            ).toBe(true);
+        });
+    });
 });

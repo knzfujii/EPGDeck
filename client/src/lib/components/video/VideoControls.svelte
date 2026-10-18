@@ -61,7 +61,10 @@
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
     let isDragging = $state(false);
+    let isHovering = $state(false);
     let dragTime = $state(0);
+    let hoverTime = $state(0);
+    let hoverPercent = $state(0);
 
     let effectiveCurrentTime = $derived(isDragging ? dragTime : currentTime);
 
@@ -71,6 +74,25 @@
     let bufferedPercent = $derived(
         displayDuration > 0 ? Math.min(100, Math.max(0, (bufferedEnd / displayDuration) * 100)) : 0,
     );
+
+    let showBubble = $derived(isDragging || isHovering);
+    let bubbleTime = $derived(isDragging ? dragTime : hoverTime);
+    let bubblePercent = $derived(isDragging ? progressPercent : hoverPercent);
+
+    function handleTrackPointerMove(e: PointerEvent) {
+        if (e.pointerType === 'touch' || isDragging) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        if (rect.width > 0 && displayDuration > 0) {
+            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            hoverPercent = ratio * 100;
+            hoverTime = ratio * displayDuration;
+            isHovering = true;
+        }
+    }
+
+    function handleTrackPointerLeave() {
+        isHovering = false;
+    }
 
     function handleSliderInput(e: Event) {
         const target = e.target as HTMLInputElement;
@@ -125,7 +147,21 @@
             <span class="text-xs font-medium text-slate-300 min-w-[36px] text-right">
                 {formatPlayerTime(effectiveCurrentTime)}
             </span>
-            <div class="relative flex-1 flex items-center py-2 cursor-pointer">
+            <div
+                role="presentation"
+                class="relative flex-1 flex items-center py-2 cursor-pointer"
+                onpointermove={handleTrackPointerMove}
+                onpointerleave={handleTrackPointerLeave}
+            >
+                <!-- シーク位置タイムバブル（ドラッグ中またはホバー時にツマミの上部に追従表示） -->
+                {#if showBubble}
+                    <div
+                        class="pointer-events-none absolute -top-7 sm:-top-8 -translate-x-1/2 rounded-md bg-slate-900/95 border border-slate-700/80 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-white shadow-xl backdrop-blur-xs select-none z-30 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900/95"
+                        style="left: clamp(24px, {bubblePercent}%, calc(100% - 24px));"
+                    >
+                        {formatPlayerTime(bubbleTime)}
+                    </div>
+                {/if}
                 <!-- トラック背景 ＆ バッファバー (エンコード生成済み範囲) -->
                 <div class="absolute inset-x-0 h-2 rounded-full bg-slate-700 overflow-hidden pointer-events-none">
                     {#if bufferedPercent > 0}

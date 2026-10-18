@@ -155,8 +155,8 @@
                 <!-- シーク位置タイムバブル（ドラッグ中またはホバー時にツマミの上部に追従表示） -->
                 {#if showBubble}
                     <div
-                        class="pointer-events-none absolute -top-7 sm:-top-8 -translate-x-1/2 rounded-md bg-slate-900/95 border border-slate-700/80 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-white shadow-xl backdrop-blur-xs select-none z-30 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900/95"
-                        style="left: clamp(24px, {bubblePercent}%, calc(100% - 24px));"
+                        class="pointer-events-none absolute -top-8 sm:-top-9 -translate-x-1/2 rounded-md bg-slate-900/95 border border-slate-700/80 px-2.5 py-0.5 text-xs sm:text-sm font-bold tracking-wider tabular-nums text-white shadow-xl backdrop-blur-xs select-none z-30 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-slate-900/95"
+                        style="left: clamp(28px, {bubblePercent}%, calc(100% - 28px));"
                     >
                         {formatPlayerTime(bubbleTime)}
                     </div>

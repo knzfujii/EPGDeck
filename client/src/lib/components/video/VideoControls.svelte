@@ -60,15 +60,53 @@
 
     const playbackRates = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
+    let isDragging = $state(false);
+    let dragTime = $state(0);
+
+    let effectiveCurrentTime = $derived(isDragging ? dragTime : currentTime);
+
     let progressPercent = $derived(
-        displayDuration > 0 ? Math.min(100, Math.max(0, (currentTime / displayDuration) * 100)) : 0,
+        displayDuration > 0 ? Math.min(100, Math.max(0, (effectiveCurrentTime / displayDuration) * 100)) : 0,
     );
     let bufferedPercent = $derived(
         displayDuration > 0 ? Math.min(100, Math.max(0, (bufferedEnd / displayDuration) * 100)) : 0,
     );
 
+    function handleSliderInput(e: Event) {
+        const target = e.target as HTMLInputElement;
+        const val = parseFloat(target.value);
+        dragTime = val;
+        isDragging = true;
+
+        // トランスコードストリーム (HLS, WebM, MP4) 以外 (Direct再生) の場合のみリアルタイムに onSeekChange を呼び出す
+        const isTranscodeStream = isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4';
+        if (!isTranscodeStream) {
+            onSeekChange(e);
+        }
+    }
+
+    function handleSliderStart() {
+        isDragging = true;
+        dragTime = currentTime;
+        onSeekStart?.();
+    }
+
     function handleSliderEnd(e: Event) {
-        (e.currentTarget as HTMLElement)?.blur();
+        const target = e.currentTarget as HTMLInputElement;
+        if (isDragging) {
+            const finalTime = parseFloat(target.value);
+            isDragging = false;
+            // トランスコードストリームの場合は離した時に確定コミット
+            const isTranscodeStream = isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4';
+            if (isTranscodeStream) {
+                if (onDirectSeek) {
+                    onDirectSeek(finalTime);
+                } else {
+                    onSeekChange(e);
+                }
+            }
+        }
+        target?.blur();
         onSeekEnd?.();
     }
 </script>
@@ -85,7 +123,7 @@
     {#if canSeek}
         <div class="mb-2.5 flex items-center gap-2">
             <span class="text-xs font-medium text-slate-300 min-w-[36px] text-right">
-                {formatPlayerTime(currentTime)}
+                {formatPlayerTime(effectiveCurrentTime)}
             </span>
             <div class="relative flex-1 flex items-center py-2 cursor-pointer">
                 <!-- トラック背景 ＆ バッファバー (エンコード生成済み範囲) -->
@@ -130,9 +168,9 @@
                     min="0"
                     max={displayDuration}
                     step="1"
-                    value={currentTime}
-                    oninput={onSeekChange}
-                    onpointerdown={() => onSeekStart?.()}
+                    value={effectiveCurrentTime}
+                    oninput={handleSliderInput}
+                    onpointerdown={handleSliderStart}
                     onpointerup={handleSliderEnd}
                     onchange={handleSliderEnd}
                     tabindex="-1"

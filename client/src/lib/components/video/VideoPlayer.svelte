@@ -51,6 +51,8 @@
     let showControls = $state(false);
     let errorMessage = $state<string | null>(null);
     let resumeNotice = $state<{ position: number; visible: boolean } | null>(null);
+    let hasCheckedResume = $state(false);
+    let isSeeking = $state(false);
     let hlsFinalDuration = $state<number | null>(null);
 
     // props のエイリアス
@@ -63,6 +65,13 @@
     let recordedId = $derived(props.recordedId);
     let src = $derived(props.src);
     let vttSrc = $derived(props.vttSrc);
+
+    $effect(() => {
+        const id = recordedId;
+        untrack(() => {
+            hasCheckedResume = false;
+        });
+    });
 
     // 字幕をサポートするかどうか
     let canShowSubtitle = $derived(
@@ -240,6 +249,7 @@
     // シーク
     function seekTo(targetTime: number) {
         if (!videoElement || isLive) return;
+        dismissResume();
         const clampedTime = Math.max(0, Math.min(displayDuration, targetTime));
 
         // トランスコードストリーム (HLS, WebM, トランスコード MP4) の判定
@@ -260,9 +270,10 @@
                 videoElement.currentTime = localTarget;
             } else {
                 isLoading = true;
+                isSeeking = true;
                 currentTime = clampedTime;
                 bufferedEnd = clampedTime;
-                cleanupEngines();
+                cleanupEngines({ preserveMediaElement: true });
                 resetHideControlsTimer();
 
                 try {
@@ -271,12 +282,14 @@
                         restartPromise.catch((err: unknown) => {
                             console.error('Stream seek restart failed:', err);
                             isLoading = false;
+                            isSeeking = false;
                             errorMessage = 'シーク先でのストリーム再生成に失敗しました';
                         });
                     }
                 } catch (err) {
                     console.error('Stream seek restart failed synchronously:', err);
                     isLoading = false;
+                    isSeeking = false;
                     errorMessage = 'シーク先でのストリーム再生成に失敗しました';
                 }
                 return;
@@ -291,6 +304,7 @@
 
     function seekRelative(offsetSeconds: number) {
         if (!canSeek) return;
+        dismissResume();
 
         const side: 'left' | 'right' = offsetSeconds < 0 ? 'left' : 'right';
         const absStep = Math.abs(offsetSeconds);
@@ -388,20 +402,58 @@
     // 全画面切り替え
     function toggleFullscreen() {
         if (!containerElement) return;
-        if (!document.fullscreenElement) {
-            containerElement
-                .requestFullscreen()
-                .then(() => {
-                    isFullscreen = true;
-                })
-                .catch(err => console.error('Fullscreen request failed:', err));
+        const anyDoc = document as any;
+        const anyElem = containerElement as any;
+        const anyVideo = videoElement as any;
+
+        const isCurrentlyFullscreen = !!(
+            document.fullscreenElement ||
+            anyDoc.webkitFullscreenElement ||
+            anyDoc.mozFullScreenElement ||
+            anyDoc.msFullscreenElement ||
+            anyVideo?.webkitDisplayingFullscreen
+        );
+
+        if (!isCurrentlyFullscreen) {
+            if (containerElement.requestFullscreen) {
+                containerElement
+                    .requestFullscreen()
+                    .then(() => {
+                        isFullscreen = true;
+                    })
+                    .catch(err => {
+                        console.error('Fullscreen request failed:', err);
+                        if (anyVideo?.webkitEnterFullscreen) {
+                            try {
+                                anyVideo.webkitEnterFullscreen();
+                                isFullscreen = true;
+                            } catch (e) {
+                                console.error('webkitEnterFullscreen failed:', e);
+                            }
+                        }
+                    });
+            } else if (anyElem.webkitRequestFullscreen) {
+                anyElem.webkitRequestFullscreen();
+                isFullscreen = true;
+            } else if (anyVideo?.webkitEnterFullscreen) {
+                anyVideo.webkitEnterFullscreen();
+                isFullscreen = true;
+            }
         } else {
-            document
-                .exitFullscreen()
-                .then(() => {
-                    isFullscreen = false;
-                })
-                .catch(err => console.error('Exit fullscreen failed:', err));
+            if (document.exitFullscreen) {
+                document
+                    .exitFullscreen()
+                    .then(() => {
+                        isFullscreen = false;
+                    })
+                    .catch(err => console.error('Exit fullscreen failed:', err));
+            } else if (anyDoc.webkitExitFullscreen) {
+                anyDoc.webkitExitFullscreen();
+                isFullscreen = false;
+            } else if (anyVideo?.webkitExitFullscreen) {
+                anyVideo.webkitExitFullscreen();
+                isFullscreen = false;
+            }
         }
     }
 
@@ -527,7 +579,7 @@
         }
     }
 
-    function cleanupEngines() {
+    function cleanupEngines(options?: { preserveMediaElement?: boolean }) {
         cleanupSubtitleRenderer();
         hlsFinalDuration = null;
         if (hlsInstance) {
@@ -543,7 +595,9 @@
             mpegtsInstance.destroy();
             mpegtsInstance = null;
         }
-        unloadVideo();
+        if (!options?.preserveMediaElement) {
+            unloadVideo();
+        }
     }
 
     // 動画ソースの初期化 (M2TS-LL, HLS, WebM/MP4直接ストリーム)
@@ -551,7 +605,9 @@
         if (!videoElement || !src) return;
 
         isLoading = true;
-        cleanupEngines();
+        // シーク中またはシーク先ストリーム（playbackOffset > 0）の場合はメディア要素を破棄しない
+        // （removeAttribute('src') によるスマホでのフルスクリーン強制解除を防止）
+        cleanupEngines({ preserveMediaElement: isSeeking || playbackOffset > 0 });
         errorMessage = null;
         hasSubtitle = false;
         bufferedEnd = playbackOffset;
@@ -714,8 +770,9 @@
         videoElement.load();
         videoElement.play().catch(e => console.log('Autoplay prevented:', e));
 
-        // レジューム位置の確認
-        if (recordedId && !isLive) {
+        // レジューム位置の確認（その番組の初回読み込み時のみ1回表示）
+        if (recordedId && !isLive && !hasCheckedResume && playbackOffset === 0) {
+            hasCheckedResume = true;
             const savedPos = playerState.getPosition(recordedId);
             if (savedPos > 15) {
                 resumeNotice = { position: savedPos, visible: true };
@@ -739,14 +796,40 @@
     });
 
     onMount(() => {
+        const anyDoc = document as any;
         const handleFullscreenChange = () => {
-            isFullscreen = !!document.fullscreenElement;
+            const anyVideo = videoElement as any;
+            isFullscreen = !!(
+                document.fullscreenElement ||
+                anyDoc.webkitFullscreenElement ||
+                anyDoc.mozFullScreenElement ||
+                anyDoc.msFullscreenElement ||
+                anyVideo?.webkitDisplayingFullscreen
+            );
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+        const handleWebkitBeginFullscreen = () => {
+            isFullscreen = true;
+        };
+        const handleWebkitEndFullscreen = () => {
+            isFullscreen = false;
+        };
+        if (videoElement) {
+            videoElement.addEventListener('webkitbeginfullscreen', handleWebkitBeginFullscreen);
+            videoElement.addEventListener('webkitendfullscreen', handleWebkitEndFullscreen);
+        }
+
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            if (videoElement) {
+                videoElement.removeEventListener('webkitbeginfullscreen', handleWebkitBeginFullscreen);
+                videoElement.removeEventListener('webkitendfullscreen', handleWebkitEndFullscreen);
+            }
             window.removeEventListener('keydown', handleKeyDown);
             if (hideControlsTimer) clearTimeout(hideControlsTimer);
         };
@@ -784,6 +867,7 @@
         bind:this={videoElement}
         onplay={() => {
             isPlaying = true;
+            dismissResume();
             if (videoElement) {
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
@@ -799,6 +883,7 @@
         onwaiting={() => (isLoading = true)}
         onplaying={() => {
             isLoading = false;
+            isSeeking = false;
             if (videoElement) {
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
             }
@@ -809,12 +894,13 @@
                 videoElement.playbackRate = isLive ? 1 : playerState.playbackRate;
                 if (streamType !== 'webm' && streamType !== 'mp4') {
                     isLoading = false;
+                    isSeeking = false;
                 }
                 syncNativeTextTracks(isSubtitleOn);
             }
         }}
         ontimeupdate={() => {
-            if (videoElement && !isLoading && !seekAccumulated) {
+            if (videoElement && !isLoading && !isSeeking && !seekAccumulated) {
                 const isTranscodeStream =
                     !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
                 currentTime = isTranscodeStream ? playbackOffset + videoElement.currentTime : videoElement.currentTime;
@@ -826,7 +912,7 @@
             }
         }}
         onseeked={() => {
-            if (videoElement && !isLoading) {
+            if (videoElement && !isLoading && !isSeeking) {
                 const isTranscodeStream =
                     !isLive && (isHls || streamType === 'hls' || streamType === 'webm' || streamType === 'mp4');
                 currentTime = isTranscodeStream ? playbackOffset + videoElement.currentTime : videoElement.currentTime;
@@ -842,6 +928,7 @@
         }}
         onerror={() => {
             isLoading = false;
+            isSeeking = false;
             if (!errorMessage) {
                 errorMessage = isLive
                     ? 'ライブ配信の再生に失敗しました（チューナー不足または配信停止）'

@@ -258,8 +258,12 @@ MP4 内に埋め込まれた字幕（`mov_text` / `tx3g`）を、Chrome 等の�
   - 連続シーク時の多重リクエストを防ぐため最新ターゲット保持のループ制御を採用し、`playbackOffset = seekSecond` を加算した絶対再生時刻を一貫管理します。
 - **エンコード進行バーの視覚化 (`VideoControls.svelte`)**:
   - シークバー背景に生成済みバッファ範囲（`bufferedEnd / duration`）をグレーバー（`bg-slate-500/60`）として重畳描画します。
-- **WebM / MP4 トランスコード配信のシーク処理**:
+- **WebM / MP4 トランスコード配信のシーク処理と安定化**:
   - Cues（シークインデックス）を持たない WebM / MP4 リアルタイムパイプ配信でも、シーク時はサーバー側 API（`?ss=${seekSecond}`）でストリームを再生成し、`playbackOffset` を同期します。
+  - **ドラッグ操作とコミットの分離 (`VideoControls.svelte`)**: トランスコード配信（WebM / MP4 / HLS）のシークバースライダー操作中（`oninput`）は表示時刻プレビューのみを追従させ、実際の重いストリーム再生成（FFmpeg 起動）は指・マウスを離した瞬間（`onpointerup` / `onchange`）に 1 回だけ発行し、多重トランスコード要求によるプロセスの詰まりを防止します。
+  - **メディア要素保持によるフルスクリーン維持**: シーク再生成時の `cleanupEngines({ preserveMediaElement: true })` では、`<video>` 要素の `src` を剥奪（`removeAttribute('src')`）せず維持したまま次のストリーム URL を差し替えることで、モバイルブラウザ（iOS Safari / Android Chrome）が「メディア消滅」と誤認してフルスクリーンを自動解除する現象を防止します。
+  - **レジューム通知の表示制御 (`VideoPlayer.svelte`)**: 「前回 XX:XX まで視聴しました」通知は動画の初回ロード時（`playbackOffset === 0` かつ未判定時）にのみ 1 回だけ表示し、シーク再開時や再生操作後は自動的に非表示化・抑止します。
+  - **タイムライン保護 (`isSeeking`)**: シーク開始から新ストリームの `playing` イベント受信まで `isSeeking` フラグで表示時刻を目標値に固定し、過渡期の 0 秒巻き戻りやチラつきを防止します。
 
 ---
 

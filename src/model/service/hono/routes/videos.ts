@@ -11,6 +11,18 @@ import * as api from '../HonoApiUtil.js';
 import { BadRequestError, NotFoundError } from '../../../error/ApiError.js';
 import { kodiJsonSchema, videoGetQuerySchema, videoParamSchema } from '../schemas/videos.js';
 
+// Helper to safely get system logger
+const getSystemLog = () => {
+    try {
+        if (container.isBound('ILoggerModel')) {
+            return container.loggerModel.getLogger().system;
+        }
+    } catch {
+        // ignore
+    }
+    return null;
+};
+
 const app = new Hono()
     // POST /api/videos/upload
     .post('/upload', async c => {
@@ -49,6 +61,7 @@ const app = new Hono()
         }
 
         await recordedApiModel.addUploadedVideoFile(option);
+        getSystemLog()?.info(`video uploaded: ${option.fileName} -> recordedId: ${option.recordedId}`);
         return c.json({ code: 200, result: 'ok' });
     })
     // GET /api/videos/:videoFileId
@@ -61,6 +74,13 @@ const app = new Hono()
         if (fileInfo === null) {
             throw new NotFoundError('video file is not found');
         }
+
+        const range = c.req.header('range');
+        if (!range || range.startsWith('bytes=0-') || isDownload) {
+            const action = isDownload ? 'download' : 'playback';
+            getSystemLog()?.info(`video ${action} requested: videoFileId: ${videoFileId} (${fileInfo.path})`);
+        }
+
         return await api.responseFile(c, fileInfo.path, fileInfo.mime, isDownload);
     })
     // DELETE /api/videos/:videoFileId
@@ -103,6 +123,7 @@ const app = new Hono()
 
         const { kodiName } = c.req.valid('json');
         await videoApiModel.sendToKodi(host, api.isSecureProtocol(c), kodiName, videoFileId);
+        getSystemLog()?.info(`send video to Kodi: ${kodiName} (videoFileId: ${videoFileId})`);
         return c.json({ code: 200 });
     })
     // GET /api/videos/:videoFileId/vtt

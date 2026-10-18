@@ -50,16 +50,22 @@ describe('Hono REST API Integration Tests', () => {
         },
     } as any;
 
-    const accessLogs: string[] = [];
+    const accessLogs: { level: string; msg: string }[] = [];
     const dummyLog: ILogger = {
         system: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
         access: {
             info: (msg: string) => {
-                accessLogs.push(msg);
+                accessLogs.push({ level: 'info', msg });
             },
-            error: () => {},
-            warn: () => {},
-            debug: () => {},
+            error: (msg: string) => {
+                accessLogs.push({ level: 'error', msg });
+            },
+            warn: (msg: string) => {
+                accessLogs.push({ level: 'warn', msg });
+            },
+            debug: (msg: string) => {
+                accessLogs.push({ level: 'debug', msg });
+            },
             fatal: () => {},
         },
         stream: { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, fatal: () => {} },
@@ -366,20 +372,24 @@ describe('Hono REST API Integration Tests', () => {
         accessLogs.length = 0;
         const res = await app.request('/api/version');
         expect(res.status).toBe(200);
-        expect(accessLogs.some(log => log.startsWith('GET /api/version 200'))).toBe(true);
+        expect(accessLogs.some(log => log.level === 'debug' && log.msg.startsWith('GET /api/version 200'))).toBe(true);
     });
 
     it('records accurate 404 status code in access log when resource is not found', async () => {
         accessLogs.length = 0;
         const res = await app.request('/api/videos/2/vtt');
         expect(res.status).toBe(404);
-        expect(accessLogs.some(log => log.startsWith('GET /api/videos/2/vtt 404'))).toBe(true);
+        expect(accessLogs.some(log => log.level === 'warn' && log.msg.startsWith('GET /api/videos/2/vtt 404'))).toBe(
+            true,
+        );
     });
 
     it('records accurate 500 status code in access log when unhandled error occurs', async () => {
         accessLogs.length = 0;
         const res = await app.request('/api/videos/999/vtt');
         expect(res.status).toBe(500);
-        expect(accessLogs.some(log => log.startsWith('GET /api/videos/999/vtt 500'))).toBe(true);
+        expect(accessLogs.some(log => log.level === 'error' && log.msg.startsWith('GET /api/videos/999/vtt 500'))).toBe(
+            true,
+        );
     });
 });

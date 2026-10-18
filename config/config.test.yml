@@ -11,7 +11,7 @@ database:
     type: sqlite
 
 log:
-    level: info
+    level: debug
     console: true
     file:
         enabled: true

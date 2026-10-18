@@ -28,7 +28,14 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
             const path = c.req.path;
             const outgoing = (c.env as any)?.outgoing;
             const status = outgoing?.headersSent ? outgoing.statusCode : c.res.status;
-            log.access.info(`${method} ${path} ${status} - ${duration} ms`);
+            const message = `${method} ${path} ${status} - ${duration} ms`;
+            if (status >= 500) {
+                log.access.error(message);
+            } else if (status >= 400) {
+                log.access.warn(message);
+            } else {
+                log.access.debug(message);
+            }
         }
     });
 

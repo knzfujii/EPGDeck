@@ -162,7 +162,7 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
      * 放送局情報更新
      */
     public async updateChannels(): Promise<void> {
-        this.log.system.info('get service');
+        this.log.system.debug('get service');
         let services = await this.mirakurunClient.getServices().catch(err => {
             this.log.system.error('get service error');
             this.log.system.error(err);
@@ -177,13 +177,13 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
             );
         });
 
-        this.log.system.info('start update channel');
+        this.log.system.debug('start update channel');
         await this.channelDB.insert(services).catch(err => {
             this.log.system.error('update channel error');
             this.log.system.error(err);
             throw err;
         });
-        this.log.system.info('done update channel');
+        this.log.system.info(`done update channel (count: ${services.length})`);
 
         // 放送局索引作成
         this.channelIndex = {};
@@ -496,8 +496,8 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
                 }
 
                 if (deleteValues.length > 0 || insertValues.length > 0 || updateValues.length > 0) {
-                    this.log.system.info('update program db start');
-                    this.log.system.info({
+                    this.log.system.debug('update program db start');
+                    this.log.system.debug({
                         deleteValues: deleteValues.length,
                         insertValues: insertValues.length,
                         updateValues: updateValues.length,
@@ -508,7 +508,9 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
                         update: updateValues,
                         delete: deleteValues,
                     });
-                    this.log.system.info('update program db done');
+                    this.log.system.info(
+                        `update program db done (insert: ${insertValues.length}, update: ${updateValues.length}, delete: ${deleteValues.length})`,
+                    );
 
                     this.emit(EPGUpdateEvent.PROGRAM_UPDATED);
                 }
@@ -534,10 +536,10 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
      * （録画完了時の番組情報特定や番組表の過去表示のために24時間保持する）
      */
     public async deleteOldPrograms(): Promise<void> {
-        this.log.system.info('delete old program db start');
+        this.log.system.debug('delete old program db start');
         const KEEP_PERIOD_MS = 24 * 60 * 60 * 1000;
         await this.programDB.deleteOld(new Date().getTime() - KEEP_PERIOD_MS);
-        this.log.system.info('delete old program db done');
+        this.log.system.debug('delete old program db done');
     }
 
     /**
@@ -599,8 +601,8 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
         const insertValues = Object.values(createIndex);
         const updateValues = Object.values(updateIndex);
 
-        this.log.system.info('update channel db start');
-        this.log.system.info({
+        this.log.system.debug('update channel db start');
+        this.log.system.debug({
             insertValues: insertValues.length,
             updateValues: updateValues.length,
         });
@@ -614,7 +616,7 @@ class EPGUpdateManageModel extends EventEmitter implements IEPGUpdateManageModel
         this.updateChannelIndex(insertValues);
         this.updateChannelIndex(updateValues);
 
-        this.log.system.info('update channel db done');
+        this.log.system.info(`update channel db done (insert: ${insertValues.length}, update: ${updateValues.length})`);
         this.emit(EPGUpdateEvent.SERVICE_UPDATED);
     }
 

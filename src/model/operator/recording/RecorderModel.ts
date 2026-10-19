@@ -151,7 +151,7 @@ class RecorderModel implements IRecorderModel {
         }
 
         if (isSuppressLog === false) {
-            this.log.system.info(`set timer: ${this.reserve.id}, ${time}`);
+            this.log.system.debug(`set timer: ${this.reserve.id}, ${time}`);
         }
         this.timerId = setTimeout(async () => {
             try {

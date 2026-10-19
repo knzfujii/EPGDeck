@@ -353,6 +353,10 @@ describe('EPGUpdateManageModel Tests', () => {
 
             expect(programUpdatedListener).toHaveBeenCalledTimes(1);
             expect((model as any).programQueue).toHaveLength(0);
+
+            const systemLog = (model as any).log.system;
+            expect(systemLog.info).toHaveBeenCalledWith('update program db done (insert: 0, update: 1, delete: 1)');
+            expect(systemLog.debug).toHaveBeenCalledWith('update program db start');
         });
 
         it('re-queues items when timeThreshold is specified and programs start after the threshold', async () => {
@@ -424,6 +428,10 @@ describe('EPGUpdateManageModel Tests', () => {
             expect(updateArg.insert[0].hasLogoData).toBe(true);
             expect(serviceUpdatedListener).toHaveBeenCalledTimes(1);
             expect((model as any).serviceQueue).toHaveLength(0);
+
+            const systemLog = (model as any).log.system;
+            expect(systemLog.info).toHaveBeenCalledWith('update channel db done (insert: 1, update: 0)');
+            expect(systemLog.debug).toHaveBeenCalledWith('update channel db start');
         });
     });
 

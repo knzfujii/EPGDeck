@@ -3,6 +3,7 @@
     import { router } from './lib/router.svelte';
     import { socketStore } from './lib/stores/socket.svelte';
     import { readOnlyStore } from './lib/stores/readOnly.svelte';
+    import { faviconStore } from './lib/stores/favicon.svelte';
     import Header from './lib/components/layout/Header.svelte';
     import Navigation from './lib/components/layout/Navigation.svelte';
     import Snackbar from './lib/components/common/Snackbar.svelte';
@@ -85,10 +86,12 @@
     onMount(() => {
         socketStore.init();
         readOnlyStore.init();
+        faviconStore.init();
     });
 
     onDestroy(() => {
         socketStore.destroy();
+        faviconStore.destroy();
     });
 </script>
 

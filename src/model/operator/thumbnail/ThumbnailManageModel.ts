@@ -55,7 +55,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
      */
     public add(videoFileId: apid.VideoFileId, seconds?: number, replace: boolean = false): void {
         const secondsStr = typeof seconds !== 'undefined' ? `, seconds: ${seconds}` : '';
-        this.log.system.info(`add thumbnail queue: ${videoFileId}${secondsStr}, replace: ${replace}`);
+        this.log.system.debug(`add thumbnail queue: ${videoFileId}${secondsStr}, replace: ${replace}`);
 
         void this.queue.add<void>(() => {
             return this.create(videoFileId, seconds, replace).catch(err => {
@@ -400,7 +400,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
                 continue;
             }
 
-            this.log.system.info(`delete thumbnail file: ${file}`);
+            this.log.system.debug(`delete thumbnail file: ${file}`);
             await FileUtil.unlink(file).catch(err => {
                 this.log.system.error(`failed to thumbnail file: ${file}`);
                 this.log.system.error(err);
@@ -413,7 +413,7 @@ export default class ThumbnailManageModel implements IThumbnailManageModel {
             try {
                 if (await FileUtil.isEmptyDirectory(dir)) {
                     await fs.promises.rmdir(dir);
-                    this.log.system.info(`delete empty directory: ${dir}`);
+                    this.log.system.debug(`delete empty directory: ${dir}`);
                 }
             } catch (err: any) {
                 // 無視

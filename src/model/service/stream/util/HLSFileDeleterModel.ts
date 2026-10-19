@@ -59,7 +59,7 @@ export default class HLSFileDeleterModel implements IHLSFileDeleterModel {
                 const targetPath = path.join(this.option.streamFilePath, fileName);
                 try {
                     await FileUtil.unlink(targetPath);
-                    this.log.stream.info(`deleted ${fileName}`);
+                    this.log.stream.debug(`deleted ${fileName}`);
                 } catch (err: any) {
                     // 既に ffmpeg 等により先行削除されている場合は正常としてスルー
                     if (err?.code !== 'ENOENT') {

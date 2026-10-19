@@ -145,7 +145,7 @@ abstract class StreamBaseModel<T> implements IStreamBaseModel<T> {
             return;
         }
 
-        this.log.stream.info(`start check stream file: ${streamId}`);
+        this.log.stream.debug(`start check stream file: ${streamId}`);
         const streamFilePath = this.config.streaming?.tempDir || '';
         this.streamCheckTimer = setInterval(async () => {
             let fileList: string[];

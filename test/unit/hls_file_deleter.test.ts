@@ -70,9 +70,9 @@ describe('HLSFileDeleterModel Tests', () => {
         expect(fs.existsSync(stream2Ts0)).toBe(true);
 
         expect(mockStreamLog.info).toHaveBeenCalledWith('delete all hls files: 1');
-        expect(mockStreamLog.info).toHaveBeenCalledWith('deleted stream1.m3u8');
-        expect(mockStreamLog.info).toHaveBeenCalledWith('deleted stream10.ts');
-        expect(mockStreamLog.info).toHaveBeenCalledWith('deleted stream11.ts');
+        expect(mockStreamLog.debug).toHaveBeenCalledWith('deleted stream1.m3u8');
+        expect(mockStreamLog.debug).toHaveBeenCalledWith('deleted stream10.ts');
+        expect(mockStreamLog.debug).toHaveBeenCalledWith('deleted stream11.ts');
     });
 
     it('safely completes when directory has no matching files', async () => {

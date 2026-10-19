@@ -389,7 +389,7 @@ class RecordingManageModel implements IRecordingManageModel {
             return;
         }
 
-        this.log.system.info('reset timer');
+        this.log.system.debug('reset timer');
 
         for (const key in this.recordingIndex) {
             this.recordingIndex[key].resetTimer();

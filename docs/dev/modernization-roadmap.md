@@ -394,3 +394,31 @@ flowchart TD
 - **設計制約**:
   - トランスコード配信のシーク時やストリーム切り替え時に親コンポーネントで `videoSrc = ''` にして `<VideoPlayer>` をアンマウントしないこと、および `<video>` 要素の `src` を空にしてアンロードしないこと（フルスクリーンセッション維持のため）。
 
+#### 3.16 ログレベル設計の適正化と高頻度ノイズ（アクセスログ・ストリームファイル削除等）の DEBUG 分離 (ADR)
+> **ステータス**: 実装完了
+
+- **対象ファイル**: `src/model/service/hono/createHonoApp.ts`, `src/model/service/hono/routes/streams.ts`, `src/model/service/hono/routes/videos.ts`, `src/model/service/stream/manager/StreamManageModel.ts`, `src/model/service/stream/util/HLSFileDeleterModel.ts`, `src/model/service/stream/base/StreamBaseModel.ts`, `src/model/operator/recording/RecordingManageModel.ts`, `src/model/operator/thumbnail/ThumbnailManageModel.ts`, `test/unit/hono_api.test.ts`, `test/unit/hls_file_deleter.test.ts`
+- **Why (意思決定理由と背景)**:
+  1. **通常運用ログの可読性と重要イベント保護**:
+     - 従来、全 HTTP リクエスト（ポーリングや HLS セグメント取得含む）および HLS セグメント（`.ts`）ファイル削除がすべて `INFO` で出力されていたため、デフォルト設定（`level: info`）において録画開始・終了や EPG 更新等の重要イベントが大量のノイズログで押し流される問題があった。
+  2. **ステータスコードに応じたアクセスログレベルの分離**:
+     - HTTP アクセスログをレスポンスステータスに応じて適切に分離（正常系はノイズ抑制、異常系は警告・エラー通知）。
+  3. **高頻度内部処理の `DEBUG` 化**:
+     - 高頻度に反復実行されるファイル削除や内部ポーリングを `DEBUG` に降格し、トラブルシューティング時の追跡性を維持したまま平常時のログ健全性を確保。
+  4. **ストリーム・動画再生ライフサイクルイベントの INFO 保守**:
+     - アクセスログの DEBUG 化により「動画の直接再生や直配信ストリームの切断」が無音化しないよう、ストリーム管理（`StreamManageModel`）へ詳細メタ情報（チャンネルID/動画ID/モード）を付与し、Web Streams 直配信の接続/切断時間、および動画ファイルの再生開始/ダウンロード要求を明示的な `INFO` イベントとして独立配備。
+
+| 処理・カテゴリ | 従来レベル | 改修後レベル | 理由・動作 |
+| :--- | :--- | :--- | :--- |
+| **HTTP 正常アクセス (< 400)** | `INFO` | `DEBUG` | 静的ファイル、ポーリング、HLSセグメント取得によるログ溢れ防止 |
+| **HTTP クライアントエラー (4xx)** | `INFO` | `WARN` | 存在しないエンドポイントや認証・検証失敗の警告 |
+| **HTTP サーバーエラー (>= 500)** | `INFO` | `ERROR` | 未処理例外および重大エラーの確実な検知 |
+| **ストリーム開始・停止 (`start/stop stream`)** | `INFO` (IDのみ) | `INFO` (詳細付与) | `channelId` / `videoFileId` / `mode` / `type` を明記して可観測性を向上 |
+| **直配信クライアント接続・切断** | ログなし | `INFO` | Web Streams 直配信の開始、切断時視聴時間（`duration`）を記録 |
+| **動画直接再生・ダウンロード** | アクセスログ依存 | `INFO` | Range リクエストの乱発を避けつつ初回再生開始・ダウンロード要求を記録 |
+| **HLS 個別セグメントファイル削除** | `INFO` | `DEBUG` | ストリーム全体の破棄ログ（INFO）は維持しつつ個別 `.ts` の大量出力を抑制 |
+| **ストリーム状態チェック開始** | `INFO` | `DEBUG` | 100ms ポーリングの内部状態確認ログを抑制 |
+| **録画タイマー再設定 (`reset timer`)** | `INFO` | `DEBUG` | 予約更新・録画終了時の頻出内部ログを抑制 |
+| **サムネイル個別削除・空ディレクトリ削除** | `INFO` | `DEBUG` | クリーンアップ全体の開始/完了ログ（INFO）は維持しつつ個別削除を抑制 |
+| **サムネイルキュー投入** | `INFO` | `DEBUG` | サムネイル生成実行・完了ログ（INFO）は維持しつつキュー投入のみ抑制 |
+

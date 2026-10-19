@@ -21,6 +21,18 @@ const isTunerUnavailable = (err: any): boolean => {
     return msg.includes('503') || msg.includes('Tuner Resource Unavailable');
 };
 
+// Helper to safely get stream logger
+const getStreamLog = () => {
+    try {
+        if (container.isBound('ILoggerModel')) {
+            return container.loggerModel.getLogger().stream;
+        }
+    } catch {
+        // ignore
+    }
+    return null;
+};
+
 // Helper for live/recorded media stream response with Web Streams backpressure control
 const handleLiveStream = async (c: Context, startFn: () => Promise<StreamResponse>, contentType: string) => {
     const streamApiModel = container.streamApiModel;
@@ -37,6 +49,9 @@ const handleLiveStream = async (c: Context, startFn: () => Promise<StreamRespons
     if (c.req.raw?.signal?.aborted || incoming?.destroyed || outgoing?.destroyed) {
         return api.responseError(c, { code: 400, message: 'Request Aborted' });
     }
+
+    const startTime = Date.now();
+    const streamLog = getStreamLog();
 
     const cleanup = async () => {
         if (isCleanedUp) return;
@@ -73,6 +88,10 @@ const handleLiveStream = async (c: Context, startFn: () => Promise<StreamRespons
         if (streamId !== null) {
             const sId = streamId;
             streamId = null;
+            const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
+            streamLog?.info(
+                `streaming client disconnected: streamId: ${sId}, duration: ${durationSec}s, path: ${c.req.path}`,
+            );
             await streamApiModel.stop(sId, true).catch(() => {});
         }
     };
@@ -120,6 +139,8 @@ const handleLiveStream = async (c: Context, startFn: () => Promise<StreamRespons
         nodeStream.once('end', () => void cleanup());
         nodeStream.once('close', () => void cleanup());
         nodeStream.on('error', () => void cleanup());
+
+        streamLog?.info(`streaming client connected: streamId: ${streamId}, type: ${contentType}, path: ${c.req.path}`);
 
         const webStream = Readable.toWeb(nodeStream);
 

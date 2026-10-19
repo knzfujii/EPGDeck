@@ -34,7 +34,9 @@ class StreamManageModel implements IStreamManageModel {
         // stream id 割当
         const streamId = this.getEmptyStreamId();
         this.streams[streamId] = stream;
-        this.log.stream.info(`start stream: ${streamId.toString(10)}`);
+        const streamDetail = this.getStreamDetailString(stream);
+        const detailStr = streamDetail ? ` (${streamDetail})` : '';
+        this.log.stream.info(`start stream: ${streamId.toString(10)}${detailStr}`);
 
         let isStartFailed = false;
         try {
@@ -94,10 +96,12 @@ class StreamManageModel implements IStreamManageModel {
         );
 
         let isStopped: boolean | undefined;
+        let streamDetail: string | undefined;
         try {
             if (typeof this.streams[streamId] === 'undefined') {
                 return;
             }
+            streamDetail = this.getStreamDetailString(this.streams[streamId]);
 
             try {
                 await this.streams[streamId].stop();
@@ -115,7 +119,26 @@ class StreamManageModel implements IStreamManageModel {
 
         if (isStopped === true) {
             this.socketIO.notifyClient();
-            this.log.stream.info(`stop stream ${streamId}`);
+            const detailStr = streamDetail ? ` (${streamDetail})` : '';
+            this.log.stream.info(`stop stream ${streamId}${detailStr}`);
+        }
+    }
+
+    /**
+     * ストリーム情報の文字列表現を生成する
+     */
+    private getStreamDetailString(stream: IStreamBaseModel<any>): string {
+        try {
+            const info = stream.getInfo();
+            if (info.type.startsWith('Live')) {
+                const liveInfo = info as LiveStreamInfo;
+                return `type: ${liveInfo.type}, channelId: ${liveInfo.channelId}, mode: ${liveInfo.mode}`;
+            } else {
+                const recInfo = info as RecordedStreamInfo;
+                return `type: ${recInfo.type}, videoFileId: ${recInfo.videoFileId}, mode: ${recInfo.mode}`;
+            }
+        } catch {
+            return '';
         }
     }
 

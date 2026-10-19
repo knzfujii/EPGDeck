@@ -319,7 +319,7 @@ hooks:
   recordingFinish: '%ROOT%/config/hooks/recordingFinish.sh'
   recordingFailed: '%ROOT%/config/hooks/recordingFailed.sh'
   encodingFinish: '%ROOT%/config/hooks/encodingFinish.sh'
-  isSuppressReservesUpdateAllLog: false # true で EPG 更新に伴う予約一括更新時のフック実行ログ出力を抑制
+  isSuppressReservesUpdateAllLog: true # EPG 更新に伴う予約一括更新時の個別ログ出力を抑制しサマリー集約（デフォルト: true、false で個別ログ全件出力）
 ```
 
 ---

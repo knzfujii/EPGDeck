@@ -471,5 +471,20 @@ describe('RecorderModel createRecorded & RecordingUtilModel Tests', () => {
             expect((recorder as any).prepRetryTimerId).toBeNull();
             expect((recorder as any).recordingStartTimeoutId).toBeNull();
         });
+
+        it('logs set timer as debug instead of info', () => {
+            const reserve = new Reserve();
+            reserve.id = 800;
+            reserve.startAt = Date.now() + 100000;
+            reserve.endAt = Date.now() + 200000;
+            const recorder = createFullRecorder(reserve);
+
+            recorder.setTimer(reserve, false);
+
+            expect(dummySystemLog.debug).toHaveBeenCalledWith(expect.stringContaining('set timer: 800'));
+            expect(dummySystemLog.info).not.toHaveBeenCalledWith(expect.stringContaining('set timer: 800'));
+
+            clearTimeout((recorder as any).timerId);
+        });
     });
 });

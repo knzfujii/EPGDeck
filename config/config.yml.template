@@ -163,7 +163,7 @@ encode:
 #   recordingFinish: '%ROOT%/config/hooks/recordingFinish.sh'
 #   recordingFailed: '%ROOT%/config/hooks/recordingFailed.sh'
 #   encodingFinish: '%ROOT%/config/hooks/encodingFinish.sh'
-#   isSuppressReservesUpdateAllLog: false
+#   isSuppressReservesUpdateAllLog: true
 
 # ------------------------------------------------------------------------------
 # 8. URLスキーム設定 (URL Schemes)

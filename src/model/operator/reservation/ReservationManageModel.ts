@@ -561,13 +561,16 @@ class ReservationManageModel implements IReservationManageModel {
     /**
      * 手動予約の更新
      */
-    public async update(reserveId: apid.ReserveId, isSuppressLog: boolean = false): Promise<void> {
+    public async update(
+        reserveId: apid.ReserveId,
+        isSuppressLog: boolean = false,
+    ): Promise<IReserveUpdateValues | void> {
         // 実行権取得
         const exeId = await this.executeManagementModel.getExecution(ReservationManageModel.UPDATE_RESERVE_PRIORITY);
         let diff: IReserveUpdateValues | undefined;
         try {
             if (isSuppressLog === false) {
-                this.log.system.info(`update reservation: ${reserveId}`);
+                this.log.system.debug(`update reservation: ${reserveId}`);
             }
 
             // 予約情報を取得する
@@ -607,7 +610,7 @@ class ReservationManageModel implements IReservationManageModel {
             // 番組情報に更新があったか確認する
             if (oldReserve.programUpdateTime === newProgram.updateTime) {
                 if (isSuppressLog === false) {
-                    this.log.system.info(`no update reservation: ${reserveId}`);
+                    this.log.system.debug(`no update reservation: ${reserveId}`);
                 }
                 return;
             }
@@ -643,7 +646,9 @@ class ReservationManageModel implements IReservationManageModel {
             );
 
             if (isSuppressLog === false) {
-                this.log.system.info(`successful update reservation: ${reserveId}`);
+                this.log.system.info(
+                    `successful update reservation: ${reserveId} { insert: ${diff.insert?.length || 0}, update: ${diff.update?.length || 0}, delete: ${diff.delete?.length || 0} }`,
+                );
             }
         } finally {
             this.executeManagementModel.unLockExecution(exeId);
@@ -653,6 +658,8 @@ class ReservationManageModel implements IReservationManageModel {
         if (typeof diff !== 'undefined') {
             this.reserveEvent.emitUpdated(diff);
         }
+
+        return diff;
     }
 
     /**
@@ -665,7 +672,7 @@ class ReservationManageModel implements IReservationManageModel {
         ruleId: apid.RuleId,
         isSuppressLog: boolean = false,
         isFirstUpdate: boolean = false,
-    ): Promise<void> {
+    ): Promise<IReserveUpdateValues | void> {
         // 実行権取得
         const exeId = await this.executeManagementModel.getExecution(
             ReservationManageModel.RULE_UPDATE_RESERVE_PRIORITY,
@@ -673,7 +680,7 @@ class ReservationManageModel implements IReservationManageModel {
         let diff: IReserveUpdateValues;
         try {
             if (isSuppressLog === false) {
-                this.log.system.info(`update rule reservation: ${ruleId}`);
+                this.log.system.debug(`update rule reservation: ${ruleId}`);
             }
 
             // ルールを取得
@@ -882,7 +889,9 @@ class ReservationManageModel implements IReservationManageModel {
             );
 
             if (isSuppressLog === false) {
-                this.log.system.info(`successful update rule reservation: ${ruleId}`);
+                this.log.system.info(
+                    `successful update rule reservation: ${ruleId} { insert: ${diff.insert?.length || 0}, update: ${diff.update?.length || 0}, delete: ${diff.delete?.length || 0} }`,
+                );
             }
         } finally {
             this.executeManagementModel.unLockExecution(exeId);
@@ -890,6 +899,8 @@ class ReservationManageModel implements IReservationManageModel {
 
         // イベント発行（ロック解放後）
         this.reserveEvent.emitUpdated(diff);
+
+        return diff;
     }
 
     /**
@@ -965,7 +976,7 @@ class ReservationManageModel implements IReservationManageModel {
         const diff = this.createReservesDiff(oldReserves, newReserves, isSuppressLog);
 
         if (isSuppressLog === false) {
-            this.log.system.info({
+            this.log.system.debug({
                 insert: typeof diff.insert === 'undefined' ? 0 : diff.insert.length,
                 update: typeof diff.update === 'undefined' ? 0 : diff.update.length,
                 delete: typeof diff.delete === 'undefined' ? 0 : diff.delete.length,
@@ -1148,9 +1159,16 @@ class ReservationManageModel implements IReservationManageModel {
      * @param isFirstUpdate: boolean 初回更新か
      */
     public async updateAll(isFirstUpdate: boolean = false): Promise<void> {
+        const startTime = Date.now();
         this.log.system.info('all reservation update start');
 
-        const isSuppressLog = this.config.hooks?.isSuppressReservesUpdateAllLog || false;
+        // 一括更新処理では個別の INFO ログを抑制し、末尾で集約サマリーを出力する
+        // 明示的に false が指定されていない限り、デフォルトで個別ログ出力を抑制 (サマリー集約)
+        const isSuppressLog = this.config.hooks?.isSuppressReservesUpdateAllLog ?? true;
+
+        let totalInsert = 0;
+        let totalUpdate = 0;
+        let totalDelete = 0;
 
         // 手動予約 (program id) の id を取得
         const manualIds = await this.reserveDB.getManualIds({ hasTimeReserve: false }).catch(err => {
@@ -1172,29 +1190,47 @@ class ReservationManageModel implements IReservationManageModel {
 
         // 手動予約更新
         for (const manualId of manualIds) {
-            await this.update(manualId, isSuppressLog).catch(err => {
+            const diff = await this.update(manualId, isSuppressLog).catch(err => {
                 this.log.system.error(err);
             });
+            if (diff) {
+                totalInsert += diff.insert?.length || 0;
+                totalUpdate += diff.update?.length || 0;
+                totalDelete += diff.delete?.length || 0;
+            }
             await Util.sleep(10);
         }
 
         // ルール予約によってイベントリレーで予約された予約の更新
         for (const manualId of ruleEventRelayIds) {
-            await this.update(manualId, isSuppressLog).catch(err => {
+            const diff = await this.update(manualId, isSuppressLog).catch(err => {
                 this.log.system.error(err);
             });
+            if (diff) {
+                totalInsert += diff.insert?.length || 0;
+                totalUpdate += diff.update?.length || 0;
+                totalDelete += diff.delete?.length || 0;
+            }
             await Util.sleep(10);
         }
 
         // ルール予約更新
         for (const ruleId of ruleIds) {
-            await this.updateRule(ruleId, isSuppressLog, isFirstUpdate).catch(err => {
+            const diff = await this.updateRule(ruleId, isSuppressLog, isFirstUpdate).catch(err => {
                 this.log.system.error(err);
             });
+            if (diff) {
+                totalInsert += diff.insert?.length || 0;
+                totalUpdate += diff.update?.length || 0;
+                totalDelete += diff.delete?.length || 0;
+            }
             await Util.sleep(10);
         }
 
-        this.log.system.info('all reservation update finish');
+        const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+        this.log.system.info(
+            `all reservation update finish. rules: ${ruleIds.length}, changes: { insert: ${totalInsert}, update: ${totalUpdate}, delete: ${totalDelete} } (took ${elapsedSec}s)`,
+        );
     }
 
     /**

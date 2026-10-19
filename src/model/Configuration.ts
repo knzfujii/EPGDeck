@@ -375,7 +375,7 @@ class Configuration implements IConfiguration {
                 recordingFinish: raw.recordingFinishCommand,
                 recordingFailed: raw.recordingFailedCommand,
                 encodingFinish: raw.encodingFinishCommand,
-                isSuppressReservesUpdateAllLog: raw.isSuppressReservesUpdateAllLog || false,
+                isSuppressReservesUpdateAllLog: raw.isSuppressReservesUpdateAllLog !== false,
             },
             urlscheme,
             streaming,

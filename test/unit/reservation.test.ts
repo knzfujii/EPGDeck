@@ -815,4 +815,83 @@ describe('ReservationManageModel', () => {
             } as any),
         ).rejects.toThrow('ReservationManageModelFindChannelIsNotFound');
     });
+
+    describe('updateAll summary logging', () => {
+        it('should suppress individual logs and output summary info at the end of updateAll', async () => {
+            const systemLog = {
+                info: vi.fn(),
+                error: vi.fn(),
+                warn: vi.fn(),
+                debug: vi.fn(),
+            };
+            const customLogger: any = {
+                getLogger: () => ({
+                    system: systemLog,
+                }),
+            };
+
+            const mockReserveDB = {
+                ...dummyReserveDB,
+                getManualIds: vi.fn().mockResolvedValue([1, 2]),
+                getRuleEventRelayIds: vi.fn().mockResolvedValue([3]),
+            };
+
+            const mockRuleDB = {
+                ...dummyRuleDB,
+                getIds: vi.fn().mockResolvedValue([10, 20]),
+            };
+
+            const reservationModel = new ReservationManageModel(
+                customLogger,
+                dummyConfig,
+                dummyExec,
+                dummyOptionChecker,
+                mockReserveDB as any,
+                dummyChannelDB,
+                {} as any,
+                mockRuleDB as any,
+                dummyReserveEvent,
+            );
+
+            const updateSpy = vi
+                .spyOn(reservationModel, 'update')
+                .mockImplementation(async (id: any, isSuppressLog?: boolean) => {
+                    expect(isSuppressLog).toBe(true);
+                    return {
+                        isSuppressLog: true,
+                        insert: [{ id }] as any,
+                        update: [],
+                        delete: [],
+                    };
+                });
+
+            const updateRuleSpy = vi
+                .spyOn(reservationModel, 'updateRule')
+                .mockImplementation(async (id: any, isSuppressLog?: boolean) => {
+                    expect(isSuppressLog).toBe(true);
+                    return {
+                        isSuppressLog: true,
+                        insert: [],
+                        update: [{ id }] as any,
+                        delete: [{ id: 999 }] as any,
+                    };
+                });
+
+            await reservationModel.updateAll();
+
+            expect(updateSpy).toHaveBeenCalledTimes(3);
+            expect(updateRuleSpy).toHaveBeenCalledTimes(2);
+
+            expect(systemLog.info).toHaveBeenCalledWith('all reservation update start');
+
+            const finishLogCall = systemLog.info.mock.calls.find(
+                call => typeof call[0] === 'string' && call[0].startsWith('all reservation update finish.'),
+            );
+            expect(finishLogCall).toBeDefined();
+            expect(finishLogCall![0]).toContain('rules: 2');
+            expect(finishLogCall![0]).toContain('insert: 3');
+            expect(finishLogCall![0]).toContain('update: 2');
+            expect(finishLogCall![0]).toContain('delete: 2');
+        });
+    });
 });

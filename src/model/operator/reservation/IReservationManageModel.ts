@@ -3,14 +3,19 @@ import * as mapid from 'mirakurun/api.js';
 import Reserve from '../../../db/entities/Reserve.js';
 
 import { IReserveTimeOption } from '../../db/IReserveDB.js';
+import { IReserveUpdateValues } from '../../event/IReserveEvent.js';
 
 export default interface IReservationManageModel {
     setTuners(tuners: mapid.TunerDevice[]): void;
     getBroadcastStatus(): apid.BroadcastStatus;
     add(option: apid.ManualReserveOption): Promise<apid.ReserveId>;
     addEventRelay(programId: apid.ProgramId, parentReserve: Reserve): Promise<apid.ReserveId | null>;
-    update(reserveId: apid.ReserveId, isSuppressLog?: boolean): Promise<void>;
-    updateRule(ruleId: apid.RuleId, isSuppressLog?: boolean, isFirstUpdate?: boolean): Promise<void>;
+    update(reserveId: apid.ReserveId, isSuppressLog?: boolean): Promise<IReserveUpdateValues | void>;
+    updateRule(
+        ruleId: apid.RuleId,
+        isSuppressLog?: boolean,
+        isFirstUpdate?: boolean,
+    ): Promise<IReserveUpdateValues | void>;
     updateAll(isFirstUpdate?: boolean): Promise<void>;
     recheckConflicts(timeRanges: IReserveTimeOption[], isSuppressLog?: boolean): Promise<void>;
     cancel(reserveId: apid.ReserveId): Promise<void>;

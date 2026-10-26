@@ -8,6 +8,7 @@
     import { snackbar } from '../../stores/snackbar.svelte';
     import { Moon, Sun, Monitor, Menu, Lock, Unlock } from '@lucide/svelte';
     import IconButton from '../common/IconButton.svelte';
+    import HeaderSearch from './HeaderSearch.svelte';
 
     let { title = 'EPGDeck', onToggleDrawer }: { title?: string; onToggleDrawer?: () => void } = $props();
 
@@ -64,6 +65,8 @@
             {/if}
         </button>
     </div>
+
+    <HeaderSearch />
 
     <div class="flex items-center gap-2.5">
         {#if readOnlyStore.enabled}

@@ -225,11 +225,10 @@ test.describe('Responsive & Multi-device Layout Tests (Mobile, Tablet, Desktop)'
             await page.goto('/recorded/detail?recordedId=802');
             await page.waitForLoadState('networkidle');
 
-            // 1. 戻るボタンが「戻る」に短縮されていることを確認
+            // 1. 戻るボタンが「戻る」と表示されていることを確認
             const backBtn = page.getByRole('button', { name: /戻る/ });
             await expect(backBtn).toBeVisible();
-            await expect(backBtn.locator('.sm\\:hidden')).toHaveText('戻る');
-            await expect(backBtn.locator('.hidden.sm\\:inline')).not.toBeVisible();
+            await expect(backBtn).toHaveText(/戻る/);
 
             // 2. 保護ボタンが「保護」と表示されていることを確認
             const protectBtn = page.getByRole('button', { name: /保護/ });

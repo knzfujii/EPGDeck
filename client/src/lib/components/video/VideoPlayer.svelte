@@ -934,9 +934,9 @@
     bind:this={containerElement}
     onpointermove={handlePointerMove}
     onpointerleave={handlePointerLeave}
-    class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none {!showControls &&
+    class="group relative flex aspect-video w-full max-w-full items-center justify-center overflow-hidden rounded-none bg-black shadow-2xl select-none fullscreen:w-screen fullscreen:h-screen fullscreen:max-w-none fullscreen:aspect-auto {!showControls &&
     isPlaying
-        ? 'cursor-none'
+        ? 'cursor-none [&_*]:!cursor-none'
         : ''}"
     role="region"
     aria-label="動画プレーヤー"
@@ -1035,7 +1035,10 @@
         <button
             type="button"
             onclick={e => handleSideTap(e, 'left')}
-            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
+            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden {!showControls &&
+            isPlaying
+                ? 'cursor-none'
+                : 'cursor-pointer'}"
             tabindex="-1"
             aria-hidden="true"
         >
@@ -1058,7 +1061,10 @@
         <button
             type="button"
             onclick={handleCenterTap}
-            class="h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation"
+            class="h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation {!showControls &&
+            isPlaying
+                ? 'cursor-none'
+                : 'cursor-pointer'}"
             tabindex="-1"
             aria-label={showControls ? 'コントロールを非表示' : 'コントロールを表示'}
         ></button>
@@ -1067,7 +1073,10 @@
         <button
             type="button"
             onclick={e => handleSideTap(e, 'right')}
-            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden"
+            class="relative h-full w-full border-none bg-transparent p-0 focus:outline-hidden touch-manipulation overflow-hidden {!showControls &&
+            isPlaying
+                ? 'cursor-none'
+                : 'cursor-pointer'}"
             tabindex="-1"
             aria-hidden="true"
         >

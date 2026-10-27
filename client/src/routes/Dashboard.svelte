@@ -690,7 +690,7 @@
                                         <span
                                             class="text-xs font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
                                         >
-                                            {getRecordingProgress(item.startAt, item.endAt)}%
+                                            {getRecordingProgress(item.startAt, item.endAt).toFixed(1)}%
                                         </span>
                                     </div>
                                 {/if}

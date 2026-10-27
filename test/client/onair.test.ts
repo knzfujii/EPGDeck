@@ -98,10 +98,14 @@ describe('onair utils', () => {
             expect(getProgress(startAt, endAt, 25000)).toBe(100);
         });
 
-        it('calculates accurate percentages during program', () => {
+        it('calculates accurate percentages with floor rounding during program', () => {
             expect(getProgress(startAt, endAt, 15000)).toBe(50);
             expect(getProgress(startAt, endAt, 12500)).toBe(25);
             expect(getProgress(startAt, endAt, 17500)).toBe(75);
+            // 99.99% でも 100 に繰り上がらず 99.9% で切り捨てられること
+            expect(getProgress(startAt, endAt, 19999)).toBe(99.9);
+            // 0.05% でも 0.1 に繰り上がらず 0% で切り捨てられること
+            expect(getProgress(startAt, endAt, 10005)).toBe(0);
         });
 
         it('handles invalid duration gracefully', () => {

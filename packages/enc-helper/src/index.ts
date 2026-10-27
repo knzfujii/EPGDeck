@@ -666,7 +666,7 @@ export async function runEncode(options: EncodeOptions = {}): Promise<void> {
                 const percent = Math.min(100, Math.max(0, (currentTime / mediaInfo.duration) * 100));
                 const progressJson = JSON.stringify({
                     type: 'progress',
-                    percent: parseFloat(percent.toFixed(2)),
+                    percent: Math.floor(percent * 100) / 100,
                     log: text.trim(),
                 });
                 console.log(progressJson);

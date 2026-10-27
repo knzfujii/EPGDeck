@@ -165,7 +165,7 @@
                                         class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400"
                                     >
                                         <span>進捗</span>
-                                        <span>{item.percent.toFixed(1)}%</span>
+                                        <span>{(Math.floor(item.percent * 10) / 10).toFixed(1)}%</span>
                                     </div>
                                     <div
                                         class="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"

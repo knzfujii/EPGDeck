@@ -35,12 +35,15 @@ export function findCurrentAndNextPrograms(
 }
 
 /**
- * 番組の進行度（0〜100%）を算出する。
+ * 番組の進行度（0〜100%）を小数第1位切り捨てで算出する。
  */
 export function getProgress(startAt: number, endAt: number, now: number): number {
     if (now <= startAt) return 0;
     if (now >= endAt) return 100;
     const duration = endAt - startAt;
     if (duration <= 0) return 0;
-    return Math.min(100, Math.max(0, Math.round(((now - startAt) / duration) * 100)));
+    const rawPercent = ((now - startAt) / duration) * 100;
+    // 小数第1位切り捨て（例: 99.99% -> 99.9%）
+    const floored = Math.floor(rawPercent * 10) / 10;
+    return Math.min(100, Math.max(0, floored));
 }

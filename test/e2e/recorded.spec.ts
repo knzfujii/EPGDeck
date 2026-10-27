@@ -1129,7 +1129,7 @@ test.describe('Recorded List Page (/recorded)', () => {
         expect(consoleErrors).toEqual([]);
     });
 
-    test('should preserve filtering, pagination, and keyword state when returning from detail page via "録画一覧へ戻る"', async ({
+    test('should preserve filtering, pagination, and keyword state when returning from detail page via "戻る"', async ({
         page,
     }) => {
         const consoleErrors: string[] = [];
@@ -1206,8 +1206,8 @@ test.describe('Recorded List Page (/recorded)', () => {
         // 詳細画面が表示されていること
         await expect(page.locator('h1')).toContainText('状態復元テスト録画番組');
 
-        // 4. 「録画一覧へ戻る」ボタンを押下
-        const backBtn = page.getByRole('button', { name: /録画一覧へ戻る/ }).first();
+        // 4. 「戻る」ボタンを押下
+        const backBtn = page.getByRole('button', { name: /^戻る$/ }).first();
         await expect(backBtn).toBeVisible();
         await backBtn.click();
 
@@ -1308,8 +1308,8 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.waitForURL(/\/recorded\/detail\?recordedId=8020/);
         await expect(page.locator('h1')).toContainText('年月絞り込みターゲット番組');
 
-        // 3. 「録画一覧へ戻る」ボタンを押下
-        const backBtn = page.getByRole('button', { name: /録画一覧へ戻る/ }).first();
+        // 3. 「戻る」ボタンを押下
+        const backBtn = page.getByRole('button', { name: /^戻る$/ }).first();
         await expect(backBtn).toBeVisible();
         await backBtn.click();
 
@@ -1659,6 +1659,134 @@ test.describe('Recorded List Page (/recorded)', () => {
         await page.waitForURL(url => url.pathname === '/recorded' && url.searchParams.get('keyword') === '最新アニメ');
         expect(page.url()).toContain('genre=7');
         await expect(searchInput).toHaveValue('最新アニメ');
+
+        expect(pageErrors).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+    });
+
+    test('should show rule edit buttons on recorded detail and navigate to rule edit page with return path', async ({
+        page,
+    }) => {
+        const consoleErrors: string[] = [];
+        const pageErrors: string[] = [];
+
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                const text = msg.text();
+                if (!text.includes('chrome-extension://') && !text.includes('favicon.ico')) {
+                    consoleErrors.push(text);
+                }
+            }
+        });
+        page.on('pageerror', err => {
+            pageErrors.push(err.message);
+        });
+
+        const mockRecordedItem = {
+            id: 9980,
+            channelId: 1,
+            startAt: 1774915200000,
+            endAt: 1774917000000,
+            name: 'ルール予約テスト録画番組',
+            description: 'ルール編集リンク検証用の詳細概要',
+            extended: '詳細情報テキスト',
+            genre1: 7,
+            videoFiles: [
+                {
+                    id: 101,
+                    name: 'TS',
+                    filename: 'test.m2ts',
+                    type: 'ts',
+                    size: 1024000,
+                },
+            ],
+            ruleId: 42,
+            isProtected: false,
+            hasDuplicateHistory: true,
+        };
+
+        const mockRule = {
+            id: 42,
+            isEnable: true,
+            searchOption: {
+                keyword: 'ルール予約テスト',
+            },
+            targetOption: {},
+            encodeOption: {},
+            reserveOption: {
+                enable: true,
+                allowEndLack: true,
+            },
+        };
+
+        await page.route('**/api/recorded/9980*', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockRecordedItem),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/rules/42*', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify(mockRule),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        await page.route('**/api/recorded?*ruleId=42*', async route => {
+            if (route.request().method() === 'GET') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        records: [mockRecordedItem],
+                        total: 1,
+                    }),
+                });
+                return;
+            }
+            await route.continue();
+        });
+
+        // 1. 録画詳細画面を開く
+        await page.goto('/recorded/detail?recordedId=9980');
+        await page.waitForLoadState('networkidle');
+
+        // 2. 詳細画面ヘッダーの「戻る」ボタンが表示されていることを検証（「録画一覧へ戻る」ではなく「戻る」）
+        const backBtn = page.getByRole('button', { name: /^戻る$/ }).first();
+        await expect(backBtn).toBeVisible();
+
+        // 3. 番組タイトル上のバッジ列に「ルール編集」ボタンが表示されていること
+        const ruleEditBtn = page.getByRole('button', { name: /ルール編集/ });
+        await expect(ruleEditBtn).toBeVisible();
+        await expect(ruleEditBtn).toHaveCount(1);
+
+        // 4. 「同じルールの録画」セクションが表示されていること
+        const sameRuleHeading = page.getByRole('heading', { name: /同じルールの録画/ });
+        await expect(sameRuleHeading).toBeVisible();
+
+        // 5. 「ルール編集」ボタンをクリック
+        await ruleEditBtn.click();
+
+        // 6. ルール編集画面（/rule/edit?ruleId=42）へ遷移したことを検証
+        await page.waitForURL(/\/rule\/edit\?ruleId=42/);
+        await expect(page.locator('h1')).toContainText('ルール編集');
+
+        // 7. ルール編集画面の「戻る」ボタンを押すと録画詳細画面に戻ること
+        const ruleEditBackBtn = page.getByRole('button', { name: /戻る/ }).first();
+        await ruleEditBackBtn.click();
+        await page.waitForURL(/\/recorded\/detail\?recordedId=9980/);
+        await expect(page.locator('h1')).toContainText('ルール予約テスト録画番組');
 
         expect(pageErrors).toEqual([]);
         expect(consoleErrors).toEqual([]);

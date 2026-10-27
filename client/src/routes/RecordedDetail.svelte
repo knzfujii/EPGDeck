@@ -36,7 +36,7 @@
     import { readOnlyStore } from '../lib/stores/readOnly.svelte';
     import { playerState } from '../lib/stores/playerState.svelte';
     import { configStore, type EncodeMode } from '../lib/stores/config.svelte';
-    import { getLastRecordedPath } from '../lib/navigationHistory';
+    import { getLastRecordedPath, saveRuleEditReturnPath } from '../lib/navigationHistory';
     import { resolveSourceVideoFile } from '../lib/utils/recording';
     import api from '@/lib/apiClient';
     import type * as apid from '../../../api';
@@ -53,6 +53,7 @@
         Sparkles,
         AlertTriangle,
         Layers,
+        SlidersHorizontal,
         HardDrive,
         FileText,
         ChevronLeft,
@@ -622,9 +623,25 @@
         }
     }
 
-    // 録画一覧（直前の絞り込み・ページング状態）へ戻る
+    // 前の画面へ戻る（履歴があればブラウザバック、なければ直前の録画一覧状態へ）
+    function handleGoBack() {
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+            window.history.back();
+        } else {
+            router.push(getLastRecordedPath());
+        }
+    }
+
+    // 録画一覧（直前の絞り込み・ページング状態）へ戻る（削除完了時・404時等）
     function goBackToRecordedList() {
         router.push(getLastRecordedPath());
+    }
+
+    // 自動録画ルール編集画面へ遷移
+    function goToRuleEdit() {
+        if (!recorded?.ruleId) return;
+        saveRuleEditReturnPath(router.current.path);
+        router.push(`/rule/edit?ruleId=${recorded.ruleId}`);
     }
 
     // 録画削除
@@ -869,12 +886,11 @@
         <Button
             variant="secondary"
             size="compact"
-            onclick={goBackToRecordedList}
+            onclick={handleGoBack}
             class="whitespace-nowrap shrink-0 px-3 sm:px-4"
         >
             <ArrowLeft size={16} />
-            <span class="hidden sm:inline">録画一覧へ戻る</span>
-            <span class="sm:hidden">戻る</span>
+            <span>戻る</span>
         </Button>
 
         {#if recorded}
@@ -1166,6 +1182,16 @@
                                 title="ドロップログを確認"
                             >
                                 <FileText size={12} class="text-slate-400" /> ドロップログ
+                            </button>
+                        {/if}
+                        {#if recorded.ruleId && !readOnlyStore.isReadOnly}
+                            <button
+                                type="button"
+                                onclick={goToRuleEdit}
+                                class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                                title="自動録画ルールを編集"
+                            >
+                                <SlidersHorizontal size={12} class="text-blue-500" /> ルール編集
                             </button>
                         {/if}
                     </div>

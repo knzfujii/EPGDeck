@@ -147,9 +147,9 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         await expect(table.getByText('現在録画中アニメ番組')).toBeVisible();
         await expect(table.getByText('未来の通常予約番組')).toBeVisible();
 
-        // 3. 録画中行のバッジ（● 録画中）と進行度（50%）および視聴ボタンを確認
+        // 3. 録画中行のバッジ（● 録画中）と進行度（50.0%）および視聴ボタンを確認
         await expect(table.getByText('● 録画中')).toBeVisible();
-        await expect(table.getByText(/50%/)).toBeVisible();
+        await expect(table.getByText(/50(?:\.0)?%/)).toBeVisible();
         const watchBtn = table.getByRole('button', { name: /視聴/ });
         await expect(watchBtn).toBeVisible();
 
@@ -160,7 +160,7 @@ test.describe('Reserves and Manual Reserve Pages', () => {
         // モーダル内の録画中バッジ、進行中テキスト、ライブ視聴ボタンを確認
         const modal = page.getByRole('dialog');
         await expect(modal.getByText('● 録画中')).toBeVisible();
-        await expect(modal.getByText(/50% 進行中/)).toBeVisible();
+        await expect(modal.getByText(/50(?:\.0)?% 進行中/)).toBeVisible();
         await expect(modal.getByRole('button', { name: 'ライブ視聴' })).toBeVisible();
 
         // モーダル内の「停止」ボタンをクリックすると 3択モーダルが表示されることを確認

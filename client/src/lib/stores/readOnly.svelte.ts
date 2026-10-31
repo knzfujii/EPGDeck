@@ -44,6 +44,10 @@ class ReadOnlyStore {
         return !this.isReadOnly || this.allowedOperations.includes('rules');
     }
 
+    get canEditRules(): boolean {
+        return !this.isReadOnly;
+    }
+
     get canViewEncode(): boolean {
         return !this.isReadOnly || this.allowedOperations.includes('encode');
     }

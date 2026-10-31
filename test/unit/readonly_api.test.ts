@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import createHonoApp from '../../src/model/service/hono/createHonoApp.js';
 import IConfigFile from '../../src/model/IConfigFile.js';
 import ILogger from '../../src/model/ILogger.js';
@@ -140,14 +140,26 @@ describe('Read-Only Mode & Auth Integration Tests', () => {
             expect(res.status).toBe(200);
         });
 
-        it('should block DELETE /api/recorded/1 with 403 when unauthenticated', async () => {
-            const app = createHonoApp(currentConfig, dummyLog);
+        it('should block DELETE /api/recorded/1 with 403 when unauthenticated and log as info', async () => {
+            const accessInfo = vi.fn();
+            const accessWarn = vi.fn();
+            const testLog = {
+                ...dummyLog,
+                access: {
+                    ...dummyLog.access,
+                    info: accessInfo,
+                    warn: accessWarn,
+                },
+            };
+            const app = createHonoApp(currentConfig, testLog);
             const res = await app.request('/api/recorded/1', {
                 method: 'DELETE',
             });
             expect(res.status).toBe(403);
             const data = await res.json();
             expect(data.message).toBe('readOnlyMode');
+            expect(accessInfo).toHaveBeenCalledWith(expect.stringContaining('DELETE /api/recorded/1 403'));
+            expect(accessWarn).not.toHaveBeenCalled();
         });
 
         it('should reject incorrect password on /api/auth/unlock', async () => {

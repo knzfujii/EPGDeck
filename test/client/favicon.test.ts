@@ -124,6 +124,17 @@ vi.mock('../../client/src/lib/stores/socket.svelte.js', () => ({
     },
 }));
 
+const mockReadOnlyStore = {
+    isInitialized: true,
+    canViewDashboard: true,
+    canViewEncode: true,
+    isReadOnly: false,
+};
+
+vi.mock('../../client/src/lib/stores/readOnly.svelte.js', () => ({
+    readOnlyStore: mockReadOnlyStore,
+}));
+
 describe('FaviconStore Tests', () => {
     let FaviconStoreClass: any;
     let store: any;
@@ -194,5 +205,22 @@ describe('FaviconStore Tests', () => {
         store.destroy();
         expect(store.isRecording).toBe(false);
         expect(store.isEncoding).toBe(false);
+    });
+
+    it('skips fetching when readOnlyStore restricts dashboard or encode access', async () => {
+        mockReadOnlyStore.canViewDashboard = false;
+        mockReadOnlyStore.canViewEncode = false;
+
+        store.init();
+        await store.checkAll();
+
+        expect(store.isRecording).toBe(false);
+        expect(store.isEncoding).toBe(false);
+        expect(mockRecordingGet).not.toHaveBeenCalled();
+        expect(mockEncodeGet).not.toHaveBeenCalled();
+
+        // 状態を戻す
+        mockReadOnlyStore.canViewDashboard = true;
+        mockReadOnlyStore.canViewEncode = true;
     });
 });

@@ -32,7 +32,12 @@ export const createHonoApp = (config: IConfigFile, log: ILogger): Hono => {
             if (status >= 500) {
                 log.access.error(message);
             } else if (status >= 400) {
-                log.access.warn(message);
+                // 403 (権限なし・閲覧専用モード遮断) は想定内のアクセス制御結果のため info
+                if (status === 403) {
+                    log.access.info(message);
+                } else {
+                    log.access.warn(message);
+                }
             } else {
                 log.access.debug(message);
             }

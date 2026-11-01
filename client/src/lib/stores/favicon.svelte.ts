@@ -2,6 +2,7 @@ import { api } from '../apiClient';
 import { socketStore } from './socket.svelte';
 import { generateFaviconSvg, updateFavicon } from '../utils/favicon';
 import { ForegroundRefreshManager } from '../utils/foregroundRefresh';
+import { readOnlyStore } from './readOnly.svelte';
 
 export class FaviconStore {
     public isRecording = $state(false);
@@ -70,6 +71,13 @@ export class FaviconStore {
     }
 
     public async checkRecording(): Promise<void> {
+        if (readOnlyStore.isInitialized && !readOnlyStore.canViewDashboard) {
+            if (this.isRecording) {
+                this.isRecording = false;
+                this.applyFavicon();
+            }
+            return;
+        }
         try {
             const res = await api.recording.$get({
                 query: {
@@ -88,6 +96,13 @@ export class FaviconStore {
     }
 
     public async checkEncoding(): Promise<void> {
+        if (readOnlyStore.isInitialized && !readOnlyStore.canViewEncode) {
+            if (this.isEncoding) {
+                this.isEncoding = false;
+                this.applyFavicon();
+            }
+            return;
+        }
         try {
             const res = await api.encode.$get({
                 query: {

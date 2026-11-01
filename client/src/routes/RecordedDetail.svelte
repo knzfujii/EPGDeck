@@ -173,7 +173,7 @@
     async function fetchSameRuleRecords(ruleId: number, isSilent = false) {
         if (!isSilent) isLoadingSameRule = true;
         try {
-            const [recordsRes, ruleRes] = await Promise.allSettled([
+            const fetchPromises: [Promise<any>, Promise<any>?] = [
                 api.recorded.$get({
                     query: {
                         ruleId,
@@ -181,11 +181,19 @@
                         isHalfWidth: true,
                     },
                 }),
-                api.rules[':ruleId'].$get({
-                    param: { ruleId: String(ruleId) },
-                    query: { isHalfWidth: true },
-                }),
-            ]);
+            ];
+
+            // ルール個別詳細 (GET /api/rules/:ruleId) は管理者専用のため、リードオンリー時はスキップ
+            if (readOnlyStore.canEditRules) {
+                fetchPromises.push(
+                    api.rules[':ruleId'].$get({
+                        param: { ruleId: String(ruleId) },
+                        query: { isHalfWidth: true },
+                    }),
+                );
+            }
+
+            const [recordsRes, ruleRes] = await Promise.allSettled(fetchPromises);
 
             if (recordsRes.status === 'fulfilled' && recordsRes.value.ok) {
                 const data = await recordsRes.value.json();
@@ -193,9 +201,11 @@
                 sameRuleTotal = data.total || 0;
             }
 
-            if (ruleRes.status === 'fulfilled' && ruleRes.value.ok) {
+            if (ruleRes && ruleRes.status === 'fulfilled' && ruleRes.value.ok) {
                 const ruleData = await ruleRes.value.json();
                 ruleKeyword = ruleData.searchOption?.keyword || '';
+            } else if (!readOnlyStore.canEditRules) {
+                ruleKeyword = '';
             }
             currentFetchedRuleId = ruleId;
         } catch (e) {

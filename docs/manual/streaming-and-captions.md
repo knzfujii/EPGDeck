@@ -111,8 +111,8 @@ libaribb24 を有効化した FFmpeg を使用している場合、録画 TS フ
 ```yaml
 encode:
   binaries:
-    ffmpeg: /opt/ffmpeg-custom/bin/ffmpeg
-    ffprobe: /opt/ffmpeg-custom/bin/ffprobe
+    ffmpeg: /opt/ffmpeg9-custom/bin/ffmpeg
+    ffprobe: /opt/ffmpeg9-custom/bin/ffprobe
   presets:
     - name: H.264-1080p
       script: enc_1080p.js

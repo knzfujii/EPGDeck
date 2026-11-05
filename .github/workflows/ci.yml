@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   ci:
-    name: Core Verification & E2E (Node 24)
+    name: Core Verification & E2E (Node 26)
     runs-on: ubuntu-latest
     services:
       mariadb:
@@ -55,10 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js 26
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -144,17 +144,21 @@ jobs:
             logs/test_e2e.log
           retention-days: 7
 
-  compat-node22:
-    name: Compatibility Check (Node 22)
+  compat:
+    name: Compatibility Check (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [24, 22]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: package-lock.json
 

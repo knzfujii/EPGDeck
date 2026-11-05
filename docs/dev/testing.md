@@ -191,11 +191,11 @@ Playwright は 1 つのロケータに対して複数要素がヒットすると
 ## 5. GitHub Actions CI/CD パイプライン
 
 ### 5.1 設計思想: コスト効率と Node.js バージョン互換性検証
-クラウド CI（GitHub Actions）の課金体系および仮想マシン起動時間を最小化しつつ、推奨環境（Node.js 24）での完全保証とサポート下限（Node.js 22）での互換性を両立するため、**「Node 24 フル統合ジョブ ＋ Node 22 軽量互換検証ジョブ」の並列構成**を採用しています。
+クラウド CI（GitHub Actions）の課金体系および仮想マシン起動時間を最小化しつつ、推奨環境（Node.js 26）での完全保証とサポート対象（Node.js 24 / Node.js 22）での互換性を両立するため、**「Node 26 フル統合ジョブ ＋ Node 24/22 並列互換検証ジョブ」の構成**を採用しています。
 
 ```
 GitHub Actions Parallel Jobs
-├── [Job 1: Core Verification & E2E (Node 24)] (メイン統合パイプライン)
+├── [Job 1: Core Verification & E2E (Node 26)] (メイン統合パイプライン)
 │     ├── サービスコンテナ起動 (MariaDB 10.11 :3306 & MySQL 8.0 :3307)
 │     ├── Lint & フォーマット検証 (Server & Client)
 │     ├── 型チェック & Svelte コンパイル & 本番ビルド
@@ -204,8 +204,8 @@ GitHub Actions Parallel Jobs
 │     ───────────────────────────────────────────────────
 │     ★ 所要時間: 約 1分40秒 〜 2分 でオールパス
 │
-└── [Job 2: Compatibility Check (Node 22)] (下限バージョン互換検証)
-      ├── Setup Node.js 22 (キャッシュ復元)
+└── [Job 2: Compatibility Check (Node 24 / 22 Matrix)] (後方互換検証)
+      ├── Setup Node.js (24 / 22 マトリクス並列)
       ├── TypeScript Compile (Server)
       ├── 単体テスト (SQLite)
       └── ESM Interop スモークテスト

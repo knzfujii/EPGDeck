@@ -1,47 +1,127 @@
-# FFmpeg カスタムビルドガイド (ARIB 字幕 / VAAPI / WebP / 高品質エンコード対応)
+# FFmpeg 9 カスタムビルドガイド (ARIB 字幕 / VAAPI / WebP / x264・x265 独自静的ビルド対応)
 
-本ドキュメントは、EPGDeck において **ARIB STD-B24 字幕保持（MP4 `mov_text` 化）**、**VAAPI / Intel QSV(oneVPL) ハードウェア支援**、**WebP サムネイル生成**、**libplacebo による HDR トーンマッピング**、および **高品質エンコード（AV1 / 高品質 AAC 等）** を利用するための、FFmpeg カスタムビルドおよび環境構築の参考手順です。
+本ドキュメントは、EPGDeck において **ARIB STD-B24 字幕保持（MP4 `mov_text` 化）**、**VAAPI / Intel QSV(oneVPL) ハードウェア支援**、**WebP サムネイル生成**、**`libswscale` 刷新**、**Native VVC (H.266) デコード**、**Vulkan 1.4 GPU フィルタ**、**LittleCMS 2 によるカラーマネジメント**、および **独自ビルドの最新 `x264` (`stable` 8bit/10bit) / `x265` (`4.3` 8bit/10bit/12bit Multi-bit) 完全静的リンク** を利用するための、カスタム FFmpeg 9.x のビルドおよび環境構築手順です。
 
-OS 標準の FFmpeg パッケージや既存の動画環境を汚さずに共存させるため、**`/opt/ffmpeg-custom`** 配下に完全隔離して配置・運用する構成を推奨しています。
+OS 標準の FFmpeg パッケージや既存の動画環境を汚さずに共存させるため、**`/opt/ffmpeg9-custom`** 配下に完全隔離して配置・運用する構成を採用します。
 
 ---
 
 ## 1. ホスト上でのビルド & 隔離インストール手順 (Ubuntu 24.04 / Debian)
 
+> [!IMPORTANT]
+> **なぜ `x264` / `x265` を独自静的ビルドするのか**
+>
+> Ubuntu 24.04 標準パッケージの `libx265-dev` は **`3.5`（2021年リリース）** と古く、マルチスレッド処理・レート制御時のクラッシュやメモリリークなどの不安定要素が残っています。
+> 本手順では、MulticoreWare 公式最新安定版 **`x265 4.3`**（8bit/10bit/12bit 統合 Multi-bit 構成、スレッド競合・メモリ安全性修正・AVX2 強化版）および VideoLAN 公式 **`x264 stable`**（8bit/10bit 両対応）をソースから静的ライブラリ（`.a`）としてビルドし、FFmpeg バイナリへ直接埋め込みます。これにより OS 標準ライブラリ（`.so`）への依存を排除し、安定性・圧縮効率・エンコード速度を大幅に向上させます。
+
 ### (1) ビルド用依存パッケージのインストール
 
-必要なコーデック・ライブラリの開発パッケージ（`-dev`）をインストールします。特に `libaribb24-dev`（ARIB 字幕）や `libwebp-dev`（WebP サムネイル）が重要となります。
+OS 標準の古い `libx264-dev` / `libx265-dev` が誤ってリンクされるのを防ぐため開発用ヘッダを削除し、必要なビルド依存パッケージを一括導入します：
 
 ```bash
+# 既存の古い開発用ヘッダを削除（OS のランタイムパッケージは維持）
+sudo apt remove -y libx264-dev libx265-dev 2>/dev/null || true
+
+# ビルドツールの導入
 sudo apt update && sudo apt install -y --no-install-recommends \
-  build-essential pkg-config nasm yasm curl bzip2 git libtool \
+  build-essential pkg-config cmake nasm yasm curl bzip2 git libtool \
   zlib1g-dev libnuma-dev \
   libass-dev libfreetype6-dev libfontconfig1-dev \
   libfribidi-dev libharfbuzz-dev \
   libva-dev libvdpau-dev libdrm-dev \
   libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev \
-  libx264-dev libx265-dev libvpx-dev \
+  libvpx-dev \
   libsvtav1-dev libsvtav1enc-dev libdav1d-dev libaom-dev librav1e-dev \
   libaribb24-dev libzvbi-dev \
   libmp3lame-dev libopus-dev libvorbis-dev libfdk-aac-dev libsoxr-dev libtwolame-dev \
   libwebp-dev libjxl-dev libopenjp2-7-dev librsvg2-dev \
-  libzimg-dev libplacebo-dev libvpl-dev \
+  libzimg-dev liblcms2-dev libvulkan-dev libvpl-dev \
   libgnutls28-dev libsrt-gnutls-dev librist-dev libxml2-dev libunistring-dev \
   libvidstab-dev libbluray-dev
 ```
 
-### (2) FFmpeg のソース取得とビルド
+### (2) ソース取得とビルド
 
-`/opt/ffmpeg-custom` をプレフィックスに指定して静的ライブラリ優先でビルドします。
-
+#### Step 2-1: `x264` (`stable` / 8bit+10bit) の静的ビルド
 ```bash
-cd /tmp
-# FFmpeg 8.1.2 ソースコードの取得
-curl -fsSL https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.bz2 | tar -xj
-cd ffmpeg-8.1.2
+PREFIX="/opt/ffmpeg9-custom"
+BUILD_DIR="/tmp/ffmpeg-build-9.0.2"
+rm -rf "${BUILD_DIR}" && mkdir -p "${BUILD_DIR}"
+sudo mkdir -p "${PREFIX}/lib/pkgconfig" "${PREFIX}/include" "${PREFIX}/bin"
+
+cd "${BUILD_DIR}"
+git clone --depth 1 --branch stable https://code.videolan.org/videolan/x264.git
+cd x264
+./configure \
+  --prefix="${PREFIX}" \
+  --enable-static \
+  --enable-pic \
+  --disable-cli \
+  --bit-depth=all
+make -j$(nproc)
+sudo make install
+```
+
+#### Step 2-2: `x265` (`4.3` / 8bit+10bit+12bit Multi-bit) の静的ビルド
+```bash
+cd "${BUILD_DIR}"
+git clone --depth 1 --branch 4.3 https://github.com/Multicorewareinc/x265.git x265
+cd x265/build/linux
+mkdir -p 12bit 10bit 8bit
+
+# 1. 12-bit 静的ライブラリ
+cd 12bit
+cmake -G "Unix Makefiles" ../../../source \
+  -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF -DENABLE_SHARED=OFF -DENABLE_CLI=OFF -DMAIN12=ON
+make -j$(nproc)
+
+# 2. 10-bit 静的ライブラリ
+cd ../10bit
+cmake -G "Unix Makefiles" ../../../source \
+  -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF -DENABLE_SHARED=OFF -DENABLE_CLI=OFF -DENABLE_HDR10_PLUS=ON
+make -j$(nproc)
+
+# 3. 8-bit 静的ライブラリ & 10bit/12bit の統合結合
+cd ../8bit
+ln -sf ../10bit/libx265.a libx265_main10.a
+ln -sf ../12bit/libx265.a libx265_main12.a
+
+cmake -G "Unix Makefiles" ../../../source \
+  -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+  -DENABLE_SHARED=OFF \
+  -DENABLE_CLI=OFF \
+  -DEXTRA_LIB="x265_main10.a;x265_main12.a" \
+  -DEXTRA_LINK_FLAGS="-L." \
+  -DLINKED_10BIT=ON \
+  -DLINKED_12BIT=ON
+make -j$(nproc)
+
+mv libx265.a libx265_main.a
+ar -M <<EOF
+CREATE libx265.a
+ADDLIB libx265_main.a
+ADDLIB libx265_main10.a
+ADDLIB libx265_main12.a
+SAVE
+END
+EOF
+
+sudo make install
+sudo sed -i 's/^Libs:\(.*\)/Libs:\1 -lstdc++ -lm -lgcc_s -lgcc -lrt -ldl -lnuma/' "${PREFIX}/lib/pkgconfig/x265.pc"
+```
+
+#### Step 2-3: FFmpeg 9.0.2 本体のビルド
+```bash
+mkdir -p "${BUILD_DIR}/ffmpeg" && cd "${BUILD_DIR}/ffmpeg"
+curl -fsSL https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.bz2 | tar -xj --strip-components=1
+
+export PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 ./configure \
-  --prefix=/opt/ffmpeg-custom \
+  --prefix="${PREFIX}" \
+  --extra-cflags="-I${PREFIX}/include" \
+  --extra-ldflags="-L${PREFIX}/lib" \
+  --extra-libs="-lpthread -lm -lstdc++ -ldl -lnuma" \
   --disable-shared \
   --enable-static \
   --enable-gpl \
@@ -72,7 +152,7 @@ cd ffmpeg-8.1.2
   --enable-libopenjpeg \
   --enable-librsvg \
   --enable-libzimg \
-  --enable-libplacebo \
+  --enable-lcms2 \
   --enable-vaapi \
   --enable-libdrm \
   --enable-libvpl \
@@ -86,28 +166,30 @@ cd ffmpeg-8.1.2
   --disable-doc \
   --disable-ffplay
 
-# CPU コア数に応じて並列ビルド & インストール
 make -j$(nproc)
 sudo make install
 
-# 作業用一時ディレクトリの削除
-cd /tmp && rm -rf ffmpeg-8.1.2 ffmpeg-8.1.2.tar.bz2
+# 作業ディレクトリの削除
+cd /tmp && rm -rf "${BUILD_DIR}"
 ```
 
 ### (3) インストールと機能の確認
 
-ビルドされたバイナリが正常に動作し、`arib_caption`、`libwebp`、`vaapi` 等が有効になっていることを確認します。
+ビルドされたバイナリが正常に動作し、`x264` / `x265` が静的リンクされていることを確認します：
 
 ```bash
-/opt/ffmpeg-custom/bin/ffmpeg -version
-/opt/ffmpeg-custom/bin/ffprobe -version
+/opt/ffmpeg9-custom/bin/ffmpeg -version
+/opt/ffmpeg9-custom/bin/ffprobe -version
+
+# x264/x265 が静的リンクされ、外部共有ライブラリ（.so）への依存がないことを確認（何も出力されなければ成功）
+ldd /opt/ffmpeg9-custom/bin/ffmpeg | grep -E "x264|x265"
 
 # ARIB 字幕デコーダが組み込まれているか確認
-/opt/ffmpeg-custom/bin/ffmpeg -decoders | grep arib
+/opt/ffmpeg9-custom/bin/ffmpeg -decoders | grep arib
 # 出力例: S... arib_caption         ARIB STD-B24 captions (decoder: libaribb24)
 
 # WebP エンコーダが組み込まれているか確認
-/opt/ffmpeg-custom/bin/ffmpeg -encoders | grep webp
+/opt/ffmpeg9-custom/bin/ffmpeg -encoders | grep webp
 # 出力例: V....D libwebp              libwebp WebP image (codec webp)
 ```
 
@@ -120,8 +202,8 @@ cd /tmp && rm -rf ffmpeg-8.1.2 ffmpeg-8.1.2.tar.bz2
 ```yaml
 encode:
   binaries:
-    ffmpeg: /opt/ffmpeg-custom/bin/ffmpeg
-    ffprobe: /opt/ffmpeg-custom/bin/ffprobe
+    ffmpeg: /opt/ffmpeg9-custom/bin/ffmpeg
+    ffprobe: /opt/ffmpeg9-custom/bin/ffprobe
   presets:
     - name: H.264-1080p
       script: enc_1080p.js
@@ -139,13 +221,13 @@ recording:
 
 | 機能 / 用途 | 指定ライブラリ / オプション | EPGDeck での用途・メリット |
 | :--- | :--- | :--- |
-| **WebP エンコード** | `libwebp` | **サムネイル画像の容量を JPEG 比で 30〜50% 削減** |
+| **H.264 静的エンコード** | `libx264` (stable 静的リンク) | 高互換・高品質な H.264 エンコード（8bit/10bit 両対応） |
+| **H.265 / HEVC 静的エンコード** | `libx265` (4.3 Multi-bit 静的リンク) | 最新 `x265 4.3` による高効率・高画質エンコード（8bit/10bit/12bit Multi-bit 統合構成、スレッド安全性向上） |
 | **ARIB STD-B24 字幕デコード** | `libaribb24` | 録画番組の MP4 エンコード時に字幕（`mov_text`）を欠落させず保存可能（`subtitle: true`） |
-| **VAAPI ハードウェア支援** | `--enable-vaapi` | Intel iGPU / AMD Radeon による低負荷・高速ハードウェアエンコード（`enc_vaapi.js`） |
-| **Intel QSV (oneVPL)** | `libvpl` | Intel 第11世代以降 CPU / Arc GPU 向け高速エンコード |
-| **高品質 GPU レンダリング** | `libplacebo` | **HDR (HLG/HDR10) → SDR トーンマッピング**、次世代高品質スケーリング |
-| **H.264 エンコード** | `libx264` | 標準動画エンコード（最高画質・高圧縮） |
-| **H.265 / HEVC エンコード** | `libx265` | 高効率圧縮エンコード |
+| **WebP サムネイル生成** | `libwebp` | サムネイル画像の容量を JPEG 比で 30〜50% 削減 |
+| **VAAPI ハードウェア支援** | `--enable-vaapi` | Intel iGPU / AMD Radeon による低負荷・高速ハードウェアエンコード（`enc_vaapi.js` 等） |
+| **Intel QSV (oneVPL)** | `libvpl` | Intel 第11世代以降 CPU / Arc GPU 向け高速エンコード支援 |
+| **カラーマネジメント** | `lcms2` | LittleCMS 2 による正確な ICC プロファイル色空間変換・HDR 処理支援 |
 | **AV1 エンコード / デコード** | `libsvtav1` / `libdav1d` / `libaom` / `librav1e` | 次世代高圧縮コーデック AV1 の高速エンコードおよび最速デコード |
 | **VP9 / Opus / Vorbis** | `libvpx` / `libopus` / `libvorbis` | WebM 形式でのストリーミングやエンコード |
 | **JPEG XL / JPEG 2000** | `libjxl` / `libopenjpeg` | 次世代静止画フォーマットの入出力対応 |
@@ -175,5 +257,3 @@ recording:
 
 Docker コンテナ環境等で運用する場合は、同様のビルド手順をマルチステージビルドとして `Dockerfile` に組み込むことで、隔離された軽量な実行環境を構築できます。
 詳細は [エンコードシステム仕様書 & 設定マニュアル](encoding.md) も併せて参照してください。
-
-

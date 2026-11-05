@@ -277,11 +277,11 @@ MP4 内に埋め込まれた字幕（`mov_text` / `tx3g`）を、Chrome 等の�
   - `stream.pipe(outgoing)` で手動送信した後、Hono のミドルウェアチェーンや `@hono/node-server` の `responseViaResponseObject()` に対してレスポンス送信済みであることを通知するため、`headers: { 'x-hono-already-sent': 'true' }` を付与したダミーレスポンスを返却します。
   - `@hono/node-server` は `x-hono-already-sent` ヘッダーを検知すると `outgoing.writeHead()` や `outgoing.end()` の重複呼出を安全にスキップします。
 
-### 9.2 Node.js 22 / 24 間の `Response` 内部実装差異と Symbol 削除の注意点
+### 9.2 Node.js 22 / 24 / 26 間の `Response` 内部実装差異と Symbol 削除の注意点
 - **背景**:
   - Hono では、ミドルウェア（CORS 等）が `c.res` を先行参照するとレスポンスに内部キャッシュシンボル（`cacheKey = Symbol("cache")`）が付与され、`@hono/node-server` の `responseViaCache()` が意図せず起動して `ERR_HTTP_HEADERS_SENT` を引き起こす場合があります。
-- **Node.js 22 と 24 の差異**:
-  - **Node.js 24**: Web 標準 `Response` クラスの内部フィールドが Private Identifier（`#kHeaders` 等）に移行しており、`Object.getOwnPropertySymbols(res)` は空配列 `[]` となります。
+- **Node.js 各バージョンの差異**:
+  - **Node.js 24 / 26**: Web 標準 `Response` クラスの内部フィールドが Private Identifier（`#kHeaders` 等）に移行しており、`Object.getOwnPropertySymbols(res)` は空配列 `[]` となります。
   - **Node.js 22**: undici の `Response` 実装において `Headers` インスタンス参照等の内部スロットが `Symbol` で管理されています。
 - **実装上の教訓**:
   - `for (const sym of Object.getOwnPropertySymbols(res)) delete res[sym]` のように無差別にすべての Symbol を削除すると、Node.js 22 環境では `res.headers` が `undefined` に破壊されます。

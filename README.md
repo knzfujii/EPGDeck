@@ -147,7 +147,7 @@ Node.js + Hono + Drizzle ORM のバックエンドと、Svelte 5 + Tailwind CSS 
 ## 動作環境
 
 -   Linux / macOS
--   [Node.js](http://nodejs.org/) : `^22.3.0 ~ v26.x`（本番環境は Mirakurun 互換性のため **`v24.x`** 推奨。リポジトリ内に `mise.toml` を同梱しており、[mise](https://mise.jdx.dev/) を用いた開発環境でのビルド・検証にも完全対応しています）
+-   [Node.js](http://nodejs.org/) : `^22.3.0 ~ v26.x`（推奨ランタイム: **`v26.x`**、後方互換として `v24.x` および `v22.x` も完全サポート。リポジトリ内に `mise.toml` を同梱しており、[mise](https://mise.jdx.dev/) を用いた環境構築・検証にも完全対応しています）
 -   [Mirakurun](https://github.com/Chinachu/Mirakurun) : **`v4.1.x`** 動作確認済み（推奨）。※ [mirakc](https://github.com/mirakc/mirakc) はコード互換処理を含みますが実機未検証です
 
 -   いずれかのデータベース

@@ -16,17 +16,17 @@
         "format:check": "prettier --check 'src/**/*.{js,ts,svelte}'"
     },
     "dependencies": {
-        "@lucide/svelte": "1.69.0",
+        "@lucide/svelte": "1.70.0",
         "aribb24.js": "2.0.34",
         "hls.js": "1.7.4",
-        "hono": "4.13.16",
+        "hono": "4.13.17",
         "mpegts.js": "1.8.2",
         "socket.io-client": "4.8.4",
         "svelte": "5.57.3"
     },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "7.3.1",
-        "@tailwindcss/vite": "^4.3.4",
+        "@tailwindcss/vite": "^4.3.5",
         "@types/node": "26.6.6",
         "prettier": "3.9.10",
         "prettier-plugin-svelte": "4.1.1",

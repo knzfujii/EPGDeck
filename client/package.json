@@ -16,10 +16,10 @@
         "format:check": "prettier --check 'src/**/*.{js,ts,svelte}'"
     },
     "dependencies": {
-        "@lucide/svelte": "1.72.0",
+        "@lucide/svelte": "1.74.0",
         "aribb24.js": "2.0.34",
         "hls.js": "1.7.4",
-        "hono": "4.13.18",
+        "hono": "4.13.19",
         "mpegts.js": "1.8.2",
         "socket.io-client": "4.8.4",
         "svelte": "5.57.3"

@@ -174,7 +174,7 @@ CI パイプラインの詳細については、以下の専門ドキュメン�
 👉 **[テスト & CI/CD アーキテクチャ仕様書](testing.md)**
 
 - Vitest による高速単体テスト基盤（SQLite インメモリ）
-- MariaDB 10.11 / MySQL 8.0 実機結合テスト（Docker ポート 13306）
+- MariaDB 11.8 / MySQL 8.4 実機結合テスト（Docker ポート 13306）
 - Playwright E2E テスト（スタンドアロンサーバー・先行シードパイプライン）
 - GitHub Actions 1 ジョブ統合による 2 分台オールグリーン CI 最適化
 

@@ -1,8 +1,8 @@
 services:
   mariadb:
-    image: mariadb:10.11
-    # MySQL 8.0 を使用したい場合は以下に切り替え可能:
-    # image: mysql:8.0
+    image: mariadb:11.8
+    # MySQL 8.4 を使用したい場合は以下に切り替え可能:
+    # image: mysql:8.4
     container_name: epgdeck-mariadb-test
     restart: unless-stopped
     environment:

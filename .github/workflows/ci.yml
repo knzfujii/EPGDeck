@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:11.8
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: epgdeck
@@ -42,7 +42,7 @@ jobs:
           - 3306:3306
         options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=3s --health-retries=10
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: epgdeck
@@ -96,7 +96,7 @@ jobs:
       - name: Run Unit Tests (SQLite)
         run: npm test
 
-      - name: Run Integration Tests (MariaDB 10.11)
+      - name: Run Integration Tests (MariaDB 11.8)
         env:
           TEST_MYSQL: 'true'
           MYSQL_HOST: 127.0.0.1
@@ -106,7 +106,7 @@ jobs:
           MYSQL_DATABASE: epgdeck
         run: npm run test:mysql
 
-      - name: Run Integration Tests (MySQL 8.0)
+      - name: Run Integration Tests (MySQL 8.4)
         env:
           TEST_MYSQL: 'true'
           MYSQL_HOST: 127.0.0.1
